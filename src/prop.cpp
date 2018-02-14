@@ -27,6 +27,7 @@ private:
     // the usual assortment of vecs, vectors and bitsets to avoid
     // reallocations
     vec<Lit> reason;
+    std::vector<int> culprit;
     bitset diffuv, diffvu;
 
     clique_finder cf;
@@ -208,6 +209,25 @@ public:
         return NO_REASON;
     }
 
+    Clause *explain() {
+        auto maxidx = std::distance(begin(cf.clique_sz),
+            std::max_element(
+                begin(cf.clique_sz), begin(cf.clique_sz) + cf.num_cliques));
+        culprit.clear();
+        std::copy(begin(cf.cliques[maxidx]), end(cf.cliques[maxidx]),
+            back_inserter(culprit));
+        reason.clear();
+        for(size_t i = 0; i != culprit.size()-1; ++i)
+            for(size_t j = i+1; j != culprit.size(); ++j) {
+                auto u = culprit[i], v = culprit[j];
+                assert(g.rep_of[u]==u);
+                assert(g.rep_of[v]==v);
+                if (!g.origmatrix[u].fast_contain(v))
+                    reason.push(Lit(vars[u][v]));
+            }
+        return s.addInactiveClause(reason);
+    }
+
     Clause* propagate(Solver&) final
     {
         int lb = cf.find_cliques();
@@ -222,8 +242,12 @@ public:
         //           << " dlvl = " << s.decisionLevel() << "\n";
         if (cf.num_cliques == 1)
             assert(g.nodes.size == cf.cliques[0].size());
-        if (lb >= ub)
-            return INVALID_CLAUSE;
+        if (lb >= ub) {
+            if (opt.learning > options::NO_LEARNING)
+                return explain();
+            else
+                return INVALID_CLAUSE;
+        }
         return NO_REASON;
     }
 
