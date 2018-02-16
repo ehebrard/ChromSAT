@@ -52,7 +52,7 @@ struct gc_model
 
         minicsp::lbool sat{l_True};
         while (sat != l_False) {
-            s.solveBudget();
+            sat = s.solveBudget();
             if (sat == l_True) {
                 std::cout << "c new UB " << g.nodes.size
                           << " time = " << minicsp::cpuTime()
