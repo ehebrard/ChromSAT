@@ -241,7 +241,7 @@ public:
         //           << " |V| = " << g.nodes.size
         //           << " dlvl = " << s.decisionLevel() << "\n";
         if (cf.num_cliques == 1)
-            assert(g.nodes.size == cf.cliques[0].size());
+            assert(g.nodes.size() == cf.cliques[0].size());
         if (lb >= ub) {
             if (opt.learning > options::NO_LEARNING)
                 return explain();

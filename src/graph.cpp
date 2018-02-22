@@ -194,7 +194,7 @@ void clique_finder::insert(int v, int clq)
 int clique_finder::find_cliques()
 {
     clear();
-    if (g.nodes.size == 0)
+    if (g.nodes.size() == 0)
         return 0;
     for (auto u : g.nodes) {
         bool found{false};

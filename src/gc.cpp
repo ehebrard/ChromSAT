@@ -69,11 +69,11 @@ struct gc_model
         while (sat != l_False) {
             sat = s.solveBudget();
             if (sat == l_True) {
-                std::cout << "c new UB " << g.nodes.size
+                std::cout << "c new UB " << g.nodes.size()
                           << " time = " << minicsp::cpuTime()
                           << " conflicts = " << s.conflicts << std::endl;
-                assert(g.nodes.size < static_cast<size_t>(cons->ub));
-                cons->ub = g.nodes.size;
+                assert(g.nodes.size() < static_cast<size_t>(cons->ub));
+                cons->ub = g.nodes.size();
                 if (options.xvars) {
                     for (auto v : xvars)
                         v.setmax(s, cons->ub-1, minicsp::NO_REASON);

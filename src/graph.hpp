@@ -58,7 +58,9 @@ public:
         matrix.resize(nv);
         origmatrix.resize(nv);
         nodeset.initialise(0, nv, bitset::full);
-        nodes.initialise(0, nv, nv, true);
+        // nodes.initialise(0, nv, nv, true);
+				nodes.reserve(nv);
+				nodes.fill();
         for (auto& bs : matrix) {
             bs.initialise(0, nv, bitset::empt);
         }
@@ -124,6 +126,27 @@ struct clique_finder {
     // largest
     int find_cliques();
 };
+
+
+// struct kcores_finder {
+//     const graph& g;
+//     std::vector< std::vector< int > > cliques;
+//     std::vector<int> clique_sz;
+//     std::vector<bitset> candidates;
+//     int num_cliques;
+//
+//     clique_finder(const graph& g);
+//
+//     // clear previously cached results
+//     void clear();
+//     // initialize a new clique
+//     void new_clique();
+//     // insert v into the clq^th clique. assumes it fits
+//     void insert(int v, int clq);
+//     // heuristically find a set of cliques and return the size of the
+//     // largest
+//     int find_cliques();
+// };
 
 } // namespace gc
 
