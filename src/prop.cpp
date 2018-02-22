@@ -267,7 +267,7 @@ public:
                 assert(vars[v][u] != var_Undef);
                 if (s.value(vars[v][u]) != l_False)
                     std::cout << "Partition " << v << " = "
-                              << print_container(g.partition[v])
+                              // << print_container(g.partition[v])
                               << " has extra neighbor " << u << std::endl;
             }
             for (auto u : bs)

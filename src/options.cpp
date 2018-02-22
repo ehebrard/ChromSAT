@@ -91,6 +91,8 @@ options parse(int argc, char* argv[])
         "CDCLeaning & explanation level [0-1]", false, 1, "int");
     cmd.add<SwitchArg>(
         opt.xvars, "", "xvars", "add x (color) variables to the model", false);
+    cmd.add<ValueArg<int>>(opt.polarity, "", "polarity",
+        "polarity policy", false, 0, "int");
 
     cmd.parse(argc, argv);
     return opt;

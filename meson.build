@@ -1,5 +1,5 @@
 project('gc', 'cpp',
-	default_options : ['c_std=c11', 'cpp_std=c++17'])
+	default_options : ['c_std=c11', 'cpp_std=c++1z'])
 
 minicsp_inc = include_directories('minicsp')
 minicsp_lib = library('minicsp', ['minicsp/core/solver.cpp',

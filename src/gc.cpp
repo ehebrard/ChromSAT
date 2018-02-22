@@ -112,6 +112,11 @@ int main(int argc, char *argv[])
     minicsp::Solver s;
     setup_signal_handlers(&s);
     s.trace = options.trace;
+		
+		s.polarity_mode = options.polarity;
+		
+		std::cout << s.polarity_mode << std::endl;
+		
     if (options.learning == gc::options::NO_LEARNING)
         s.learning = false;
 

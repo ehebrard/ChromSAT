@@ -21,6 +21,8 @@ struct options {
     learning_level learning{NAIVE_EXPL};
 
     bool xvars;
+		
+		int polarity;
 };
 
 options parse(int argc, char* argv[]);
