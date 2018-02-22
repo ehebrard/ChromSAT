@@ -89,6 +89,8 @@ options parse(int argc, char* argv[])
     cmd.add<SwitchArg>(opt.trace, "", "trace", "enable minicsp tracing", false);
     cmd.add<ValueArg<int>>(opt.learning, "", "learning",
         "CDCLeaning & explanation level [0-1]", false, 1, "int");
+    cmd.add<SwitchArg>(
+        opt.xvars, "", "xvars", "add x (color) variables to the model", false);
 
     cmd.parse(argc, argv);
     return opt;
@@ -100,6 +102,7 @@ void options::describe(std::ostream& os)
     os << "cmdline = " << cmdline << "\n";
     os << "Instance file = " << instance_file << "\n";
     os << "Clause learning = " << learning << "\n";
+    os << "Color variables = " << (xvars ? "present" : "absent") << "\n";
     os << std::endl;
 }
 

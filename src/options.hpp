@@ -19,6 +19,8 @@ struct options {
 
     enum learning_level { NO_LEARNING, NAIVE_EXPL };
     learning_level learning{NAIVE_EXPL};
+
+    bool xvars;
 };
 
 options parse(int argc, char* argv[]);

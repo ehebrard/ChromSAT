@@ -6,6 +6,7 @@
 #include "options.hpp"
 
 #include <minicsp/core/solver.hpp>
+#include <minicsp/core/cons.hpp>
 #include <minicsp/core/utils.hpp>
 
 struct gc_model
@@ -14,6 +15,7 @@ struct gc_model
     minicsp::Solver& s;
     const gc::options& options;
     std::vector<std::vector<minicsp::Var>> vars;
+    std::vector<minicsp::cspvar> xvars;
     gc::cons_base *cons;
 
     gc_model(gc::graph& g, minicsp::Solver& s, const gc::options& options)
@@ -42,6 +44,19 @@ struct gc_model
         }
 
         cons = gc::post_gc_constraint(s, g, vars, options);
+
+        if (options.xvars) {
+            xvars = s.newCSPVarArray(g.capacity(), 0, g.capacity()-1);
+            for (size_t i = 0; i != xvars.size(); ++i) {
+                for (size_t j = i+1; j != xvars.size(); ++j) {
+                    if (g.matrix[i].fast_contain(j))
+                        minicsp::post_neq(s, xvars[i], xvars[j], 0);
+                    else
+                        minicsp::post_eq_re(
+                            s, xvars[i], xvars[j], 0, minicsp::Lit(vars[i][j]));
+                }
+            }
+        }
     }
 
     void solve()
@@ -59,10 +74,15 @@ struct gc_model
                           << " conflicts = " << s.conflicts << std::endl;
                 assert(g.nodes.size < static_cast<size_t>(cons->ub));
                 cons->ub = g.nodes.size;
+                if (options.xvars) {
+                    for (auto v : xvars)
+                        v.setmax(s, cons->ub-1, minicsp::NO_REASON);
+                }
             } else if (sat == l_Undef) {
                 std::cout << "*** INTERRUPTED ***\n";
                 return;
-            }
+            } else
+                std::cout << "UNSAT\n";
         }
     }
 
