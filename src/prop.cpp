@@ -241,25 +241,23 @@ public:
 				// std::reverse( heuristic.begin(), heuristic.end() );
 				// int lb = cf.find_cliques( heuristic );
 				
-				// sort by partition size	
+				// sort by partition size
 				heuristic.clear();
 				for( auto v : g.nodes )
-					heuristic.push_back( v );
+						heuristic.push_back( v );
+
+				std::sort(heuristic.begin(),
+									heuristic.end(),
+									[&](const int x, const int y) {
+				                  		return (g.partition[x].size() > g.partition[y].size());
+									}
+									);
+
+				int lb = cf.find_cliques( heuristic );
 				
-					std::sort(heuristic.begin(), 
-										heuristic.end(), 
-										[&](const int x, const int y) {
-                    		return (g.partition[x].size() > g.partition[y].size());
-										}
-										);
-										
-					// for( int i=1; i<heuristic.size(); ++i ) {
-					// 	assert( g.partition[heuristic[i-1]].size() >= g.partition[heuristic[i]].size() );
-					// }			
-										
-					int lb = cf.find_cliques( heuristic );
+				// // no ordering
+				//         int lb = cf.find_cliques( g.nodes );
 				
-        // int lb = cf.find_cliques( g.nodes );
         if (s.decisionLevel() == 0 && lb > bestlb) {
             bestlb = lb;
             std::cout << "c new lower bound " << bestlb
