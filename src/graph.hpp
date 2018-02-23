@@ -128,25 +128,22 @@ struct clique_finder {
 };
 
 
-// struct kcores_finder {
-//     const graph& g;
-//     std::vector< std::vector< int > > cliques;
-//     std::vector<int> clique_sz;
-//     std::vector<bitset> candidates;
-//     int num_cliques;
-//
-//     clique_finder(const graph& g);
-//
-//     // clear previously cached results
-//     void clear();
-//     // initialize a new clique
-//     void new_clique();
-//     // insert v into the clq^th clique. assumes it fits
-//     void insert(int v, int clq);
-//     // heuristically find a set of cliques and return the size of the
-//     // largest
-//     int find_cliques();
-// };
+struct neighbors_wrapper {
+    const graph& g;
+    std::vector< IntStack > by_degree;
+		std::vector< IntStack > neighbors;
+		std::vector< int > degree;
+		
+		int size;
+		
+    neighbors_wrapper(const graph& g);
+
+    // synchronize the neighbors structure with the current graph
+    void synchronize();
+    // heuristically find a set of cliques and return the size of the
+    // largest
+    void get_degeneracy_order( std::vector< int >& order  );
+};
 
 } // namespace gc
 

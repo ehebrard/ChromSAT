@@ -2,6 +2,7 @@
 #include "utils.hpp"
 
 #include <algorithm>
+#include <iomanip>
 
 namespace gc
 {
@@ -210,5 +211,76 @@ int clique_finder::find_cliques()
     }
     return *std::max_element(begin(clique_sz), begin(clique_sz) + num_cliques);
 }
+
+
+neighbors_wrapper::neighbors_wrapper(const graph& g)
+    : g(g)
+		, size(g.nodes.size())
+{
+    by_degree.resize(g.capacity());
+		neighbors.resize(g.capacity());
+    degree.resize(g.capacity());
+		
+		for( auto v : g.nodes ) {
+				by_degree[v].reserve(g.capacity());
+				neighbors[v].reserve(g.capacity());
+				if( !g.matrix[v].empty() ) {
+						auto u{0}, unext{g.matrix[v].min()};
+						do {
+								u = unext;
+								neighbors[v].push(u);
+								unext = g.matrix[v].next(u);
+						} while( u != unext );
+				}
+		}
+}
+
+void neighbors_wrapper::synchronize() { 
+		// the nodes betweem g.nodes.size() and size have been removed
+		while( size > g.nodes.size() ) {
+				auto v = g.nodes[--size];
+				for( auto u : neighbors[v] ) {
+						neighbors[v].remove( u );
+				}
+		}	
+		// the nodes betweem size and g.nodes.size() have been added
+		while( size < g.nodes.size() ) {
+				auto v = g.nodes[size++];
+				for( auto u : neighbors[v] ) {
+						neighbors[v].push( u );
+				}
+		}
+}
+
+void neighbors_wrapper::get_degeneracy_order( std::vector< int >& order ) {
+ 	
+		synchronize();
+		for( auto v : g.nodes ) {
+				degree[v] = neighbors[v].size();
+				by_degree[degree[v]].push( v );
+		}
+		
+		for( auto i = g.nodes.size(); i --> 0; ) {
+				for( auto& vertices : by_degree ) {
+						if( !vertices.empty() ) {
+								auto v = vertices.back();
+								vertices.pop_back();	
+							
+								for( auto ni = 0; ni < degree[v]; ++ni ) {									
+										auto u = neighbors[v][ni];
+										by_degree[degree[u]].remove( u );
+										neighbors[u].move_up(v, --degree[u]);
+										by_degree[degree[u]].push( u );
+								}
+							
+								order.push_back(v);
+								break;
+						}
+				}
+		}
+}
+
+
+
 
 } // namespace gc

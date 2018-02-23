@@ -69,6 +69,8 @@ class IntStack
     void resize(const size_t n);
 
     void remove(const int elt);
+		
+		void move_up(const int elt, const int idx);
 
     void pop_back();
 

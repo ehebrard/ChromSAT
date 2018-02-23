@@ -108,6 +108,22 @@ int main(int argc, char *argv[])
         [&](int u, int v) { g.add_edge(u - 1, v - 1); },
         [&](int, gc::weight) {});
     g.describe(std::cout);
+		
+		
+		gc::neighbors_wrapper N(g);
+		
+		std::vector< int > dorder;
+		N.get_degeneracy_order( dorder );
+		
+
+		for( auto o : dorder ) {
+			std::cout << " " << o ;
+		}
+		std::cout << std::endl;
+		
+		exit(1);
+		
+		
 
     minicsp::Solver s;
     setup_signal_handlers(&s);
