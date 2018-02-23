@@ -7,27 +7,27 @@
 #define __INTSTACK_HPP
 
 /**********************************************
-* IntStack
-**********************************************/
+ * IntStack
+ **********************************************/
 /// Sparse set representation
 
 class IntStack
 {
-	private:
+private:
     /*!@name Parameters*/
     //@{
     /// list of values
-    std::vector< int > list_;
-		size_t size_;
-		
+    std::vector<int> list_;
+    size_t size_;
+
     /// values' indices
-		std::vector< size_t > index_;	
+    std::vector<size_t> index_;
     //@}
 
-	public:
+public:
     /*!@name Constructors*/
     //@{
-    IntStack(const size_t n=0);
+    IntStack(const size_t n = 0);
 
     void reserve(const size_t n);
 
@@ -36,8 +36,8 @@ class IntStack
     bool safe_contain(const int elt) const;
     bool contain(const int elt) const;
 
-		size_t size() const;
-		bool empty() const;
+    size_t size() const;
+    bool empty() const;
 
     int next(const int elt) const;
 
@@ -50,17 +50,17 @@ class IntStack
 
     /*!@name List Manipulation*/
     //@{
-    std::vector< int >::iterator begin();
-		std::vector< int >::reverse_iterator rbegin();
-		
-		std::vector< int >::iterator end();
-		std::vector< int >::reverse_iterator rend();
-		
-		std::vector< int >::const_iterator begin() const;
-		std::vector< int >::const_reverse_iterator rbegin() const;
+    std::vector<int>::iterator begin();
+    std::vector<int>::reverse_iterator rbegin();
 
-		std::vector< int >::const_iterator end() const;
-		std::vector< int >::const_reverse_iterator rend() const;
+    std::vector<int>::iterator end();
+    std::vector<int>::reverse_iterator rend();
+
+    std::vector<int>::const_iterator begin() const;
+    std::vector<int>::const_reverse_iterator rbegin() const;
+
+    std::vector<int>::const_iterator end() const;
+    std::vector<int>::const_reverse_iterator rend() const;
 
     void fill();
 
@@ -69,8 +69,8 @@ class IntStack
     void resize(const size_t n);
 
     void remove(const int elt);
-		
-		void move_up(const int elt, const int idx);
+
+    void move_up(const int elt, const int idx);
 
     void pop_back();
 
@@ -79,8 +79,8 @@ class IntStack
     int head() const;
 
     int back() const;
-		
-		void push(const int elt);
+
+    void push(const int elt);
 
     void add(const int elt);
 
@@ -90,7 +90,7 @@ class IntStack
     /*!@name Miscellaneous*/
     //@{
     std::ostream& display(std::ostream& os) const;
-	};
+};
 
 std::ostream& operator<<(std::ostream& os, const IntStack& x);
 
