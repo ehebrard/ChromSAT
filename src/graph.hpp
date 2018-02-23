@@ -4,8 +4,9 @@
 #include "bitset.hpp"
 #include "intstack.hpp"
 
-#include <vector>
+#include <algorithm>
 #include <list>
+#include <vector>
 
 namespace gc
 {
@@ -52,16 +53,16 @@ public:
 
     // add an edge that will be backtracked later
     void add_dirty_edge(int u, int v);
+
 public:
     graph() {}
     explicit graph(int nv)
     {
         matrix.resize(nv);
         origmatrix.resize(nv);
-        nodeset.initialise(0, nv, bitset::full);
-        // nodes.initialise(0, nv, nv, true);
-				nodes.reserve(nv);
-				nodes.fill();
+        nodeset.initialise(0, nv - 1, bitset::full);
+        nodes.reserve(nv);
+        nodes.fill();
         for (auto& bs : matrix) {
             bs.initialise(0, nv, bitset::empt);
         }
@@ -113,7 +114,7 @@ struct clique_finder {
     std::vector<bitset> cliques;
     std::vector<int> clique_sz;
     std::vector<bitset> candidates;
-		std::vector<int> last_clique;
+    std::vector<int> last_clique;
     int num_cliques;
 
     clique_finder(const graph& g);
@@ -122,76 +123,66 @@ struct clique_finder {
     void clear();
     // initialize a new clique
     void new_clique();
+    // initialize a new color
+    void new_color();
     // insert v into the clq^th clique. assumes it fits
     void insert(int v, int clq);
+    // insert v into the col^th color. assumes it fits. Puts vertices
+    // added from candidates[i] into diff
+    void insert_color(int v, int col, bitset& diff);
     // heuristically find a set of cliques and return the size of the
     // largest
-		
-		template< class ordering >
-    int find_cliques( ordering o ) {
-    	
-		    clear();
-		    if (o.size() == 0)
-		        return 0;
-		    for (auto u : o) {
-		        bool found{false};
-		        for (int i = 0; i != num_cliques; ++i)
-		            if (candidates[i].fast_contain(u)) {
-		                found = true;
-		                insert(u, i);
-		            }
-		        if (!found) {
-		            new_clique();
-		            insert(u, num_cliques - 1);
-		        }
-		    }
-				
-				for (auto u : o) {
-					for (int i = last_clique[u]+1; i < num_cliques; ++i)
-						if (candidates[i].fast_contain(u)) insert(u, i);
-				}
-				
-		  	// return clique_sz[best_cl]; //
-				return *std::max_element(begin(clique_sz), begin(clique_sz) + num_cliques);
-			
+
+    template <class ordering> int find_cliques(ordering o)
+    {
+        clear();
+        if (o.size() == 0)
+            return 0;
+        for (auto u : o) {
+            bool found{false};
+            for (int i = 0; i != num_cliques; ++i)
+                if (candidates[i].fast_contain(u)) {
+                    found = true;
+                    insert(u, i);
+                }
+            if (!found) {
+                new_clique();
+                insert(u, num_cliques - 1);
+            }
+        }
+
+        for (auto u : o) {
+            for (int i = last_clique[u] + 1; i < num_cliques; ++i)
+                if (candidates[i].fast_contain(u))
+                    insert(u, i);
+        }
+
+        return *std::max_element(
+            begin(clique_sz), begin(clique_sz) + num_cliques);
     }
 };
 
-// struct degeneracy_finder {
-// 	const graph& g;
-//
-//   std::vector<std::list<int>> buckets;
-//   std::vector<int> degrees;
-//   std::vector<std::list<int>::iterator> iterators;
-//   bitset ordered;
-//
-// 	degeneracy_finder(const graph& g);
-//
-// 	void get_degeneracy_order( std::vector< int >& order  );
-//
-// };
-
 struct neighbors_wrapper {
     const graph& g;
-    std::vector< IntStack > by_degree;
-		std::vector< IntStack > neighbors;
-		std::vector< int > degree;
-		
-		// int size;
-		
-		bitset buffer;
-		
+    std::vector<IntStack> by_degree;
+    std::vector<IntStack> neighbors;
+    std::vector<int> degree;
+
+    bitset buffer;
+
     neighbors_wrapper(const graph& g);
 
     // synchronize the neighbors structure with the current graph
     void synchronize();
     // heuristically find a set of cliques and return the size of the
     // largest
-    void get_degeneracy_order( std::vector< int >& order  );
-		
+    void get_degeneracy_order(std::vector<int>& order);
+
     // debugging
-    void check_consistency() const; 
+    void check_consistency() const;
 };
+
+std::vector<int> brelaz_color(const graph& g);
 
 } // namespace gc
 
