@@ -1,6 +1,8 @@
 #include "graph.hpp"
 #include "utils.hpp"
 
+#include <minicsp/mtl/Heap.h>
+
 #include <algorithm>
 
 
@@ -165,7 +167,7 @@ clique_finder::clique_finder(const graph& g)
     : g(g)
     , num_cliques(1)
 {
-		last_clique.resize(g.capacity());
+                last_clique.resize(g.capacity());
     cliques.resize(g.capacity());
     clique_sz.resize(g.capacity());
     candidates.resize(g.capacity());
@@ -186,132 +188,129 @@ void clique_finder::new_clique()
     ++num_cliques;
 }
 
+void clique_finder::new_color()
+{
+    assert(num_cliques < g.capacity());
+    cliques[num_cliques].clear();
+    clique_sz[num_cliques] = 0;
+    candidates[num_cliques].clear();
+    ++num_cliques;
+}
+
 void clique_finder::insert(int v, int clq)
 {
     cliques[clq].fast_add(v);
     ++clique_sz[clq];
     candidates[clq].intersect_with(g.matrix[v]);
-		last_clique[v] = clq;
+                last_clique[v] = clq;
 }
 
-// int clique_finder::find_cliques()
-// {
-//     clear();
-//     if (g.nodes.size() == 0)
-//         return 0;
-//     for (auto u : g.nodes) {
-//         bool found{false};
-//         for (int i = 0; i != num_cliques; ++i)
-//             if (candidates[i].fast_contain(u)) {
-//                 found = true;
-//                 insert(u, i);
-//             }
-//         if (!found) {
-//             new_clique();
-//             insert(u, num_cliques - 1);
-//         }
-//     }
-//     return *std::max_element(begin(clique_sz), begin(clique_sz) + num_cliques);
-// }
-
+void clique_finder::insert_color(int v, int clq, bitset& diff)
+{
+    cliques[clq].fast_add(v);
+    ++clique_sz[clq];
+    diff.copy(g.matrix[v]);
+    diff.setminus_with(candidates[clq]);
+    candidates[clq].union_with(g.matrix[v]);
+}
 
 neighbors_wrapper::neighbors_wrapper(const graph& g)
     : g(g)
-		// , size(g.nodes.size())
+                // , size(g.nodes.size())
 {
     by_degree.resize(g.capacity());
-		neighbors.resize(g.capacity());
+                neighbors.resize(g.capacity());
     degree.resize(g.capacity());
-		
-		for( auto v : g.nodes ) {
-				by_degree[v].reserve(g.capacity());
-				neighbors[v].reserve(g.capacity());
-				// if( !g.matrix[v].empty() ) {
-				// 		auto u{0}, unext{g.matrix[v].min()};
-				// 		do {
-				// 				u = unext;
-				// 				neighbors[v].push(u);
-				// 				unext = g.matrix[v].next(u);
-				// 		} while( u != unext );
-				// }
-		}
-		
-		buffer.initialise(0, g.capacity(), bitset::empt);
+
+                for( auto v : g.nodes ) {
+                                by_degree[v].reserve(g.capacity());
+                                neighbors[v].reserve(g.capacity());
+                                // if( !g.matrix[v].empty() ) {
+                                //              auto u{0}, unext{g.matrix[v].min()};
+                                //              do {
+                                //                              u = unext;
+                                //                              neighbors[v].push(u);
+                                //                              unext = g.matrix[v].next(u);
+                                //              } while( u != unext );
+                                // }
+                }
+
+                buffer.initialise(0, g.capacity(), bitset::empt);
 }
 
-void neighbors_wrapper::synchronize() { 
-		// // the nodes betweem g.nodes.size() and size have been removed
-		// while( size > g.nodes.size() ) {
-		// 		auto v = g.nodes[--size];
-		// 		for( auto u : neighbors[v] ) {
-		// 				neighbors[u].remove( v );
-		// 		}
-		// }
-		// // the nodes betweem size and g.nodes.size() have been added
-		// while( size < g.nodes.size() ) {
-		// 		auto v = g.nodes[size++];
-		// 		for( auto u : neighbors[v] ) {
-		// 				neighbors[u].push( v );
-		// 		}
-		// }
-	
-		
-		for( auto v : g.nodes ) {
-				neighbors[v].clear();
-				if( !g.matrix[v].empty() ) {
-						buffer.copy( g.matrix[v] );
-						buffer.intersect_with( g.nodeset );
-						for ( auto u : buffer ) neighbors[v].push(u);
-				}
-		}
-		
-		check_consistency();
+void neighbors_wrapper::synchronize() {
+                // // the nodes betweem g.nodes.size() and size have been removed
+                // while( size > g.nodes.size() ) {
+                //              auto v = g.nodes[--size];
+                //              for( auto u : neighbors[v] ) {
+                //                              neighbors[u].remove( v );
+                //              }
+                // }
+                // // the nodes betweem size and g.nodes.size() have been added
+                // while( size < g.nodes.size() ) {
+                //              auto v = g.nodes[size++];
+                //              for( auto u : neighbors[v] ) {
+                //                              neighbors[u].push( v );
+                //              }
+                // }
+
+
+                for( auto v : g.nodes ) {
+                                neighbors[v].clear();
+                                if( !g.matrix[v].empty() ) {
+                                                buffer.copy( g.matrix[v] );
+                                                buffer.intersect_with( g.nodeset );
+                                                for ( auto u : buffer ) neighbors[v].push(u);
+                                }
+                }
+
+                check_consistency();
 }
 
 void neighbors_wrapper::get_degeneracy_order( std::vector< int >& order ) {
-		synchronize();
-		for( auto v : g.nodes ) {
-				degree[v] = neighbors[v].size();
-				by_degree[degree[v]].push( v );
-		}
-		
-		for( auto i = g.nodes.size(); i --> 0; ) {
-				for( auto& vertices : by_degree ) {
-						if( !vertices.empty() ) {
-								auto v = vertices.back();
-								vertices.pop_back();	
-							
-								for( auto ni = 0; ni < degree[v]; ++ni ) {									
-										auto u = neighbors[v][ni];
-										by_degree[degree[u]].remove( u );
-										neighbors[u].move_up(v, --degree[u]);
-										by_degree[degree[u]].push( u );
-								}
-							
-								order.push_back(v);
-								break;
-						}
-				}
-		}
+                synchronize();
+                for( auto v : g.nodes ) {
+                                degree[v] = neighbors[v].size();
+                                by_degree[degree[v]].push( v );
+                }
+
+                for( auto i = g.nodes.size(); i --> 0; ) {
+                                for( auto& vertices : by_degree ) {
+                                                if( !vertices.empty() ) {
+                                                                auto v = vertices.back();
+                                                                vertices.pop_back();
+
+                                                                for( auto ni = 0; ni < degree[v]; ++ni ) {
+                                                                                auto u = neighbors[v][ni];
+                                                                                by_degree[degree[u]].remove( u );
+                                                                                neighbors[u].move_up(v, --degree[u]);
+                                                                                by_degree[degree[u]].push( u );
+                                                                }
+
+                                                                order.push_back(v);
+                                                                break;
+                                                }
+                                }
+                }
 }
 
 void neighbors_wrapper::check_consistency( ) const {
-	
-	bitset buffer(0, g.capacity(), bitset::empt);
 
-	// assert( size == g.nodes.size() );
-	
-	for( auto v : g.nodes ) {
-			buffer.copy( g.matrix[v]	);
-			buffer.intersect_with( g.nodeset );
-	
-			assert( buffer.size() == neighbors[v].size() );
-			
-			for ( auto u : neighbors[v] ) {
-					assert( buffer.contain( u ) );
-			}
-	}
-	
+        bitset buffer(0, g.capacity(), bitset::empt);
+
+        // assert( size == g.nodes.size() );
+
+        for( auto v : g.nodes ) {
+                        buffer.copy( g.matrix[v]        );
+                        buffer.intersect_with( g.nodeset );
+
+                        assert( buffer.size() == neighbors[v].size() );
+
+                        for ( auto u : neighbors[v] ) {
+                                        assert( buffer.contain( u ) );
+                        }
+        }
+
 }
 
 
@@ -319,24 +318,24 @@ void neighbors_wrapper::check_consistency( ) const {
 //     : g(g)
 // {
 //
-//   	degrees.resize(g.capacity());
-//   	iterators.resize(g.capacity());
-//   	ordered.initialise(0, g.capacity()-1, bitset::empt);
+//      degrees.resize(g.capacity());
+//      iterators.resize(g.capacity());
+//      ordered.initialise(0, g.capacity()-1, bitset::empt);
 // }
-// 
+//
 //
 //
 // void degeneracy_finder::get_degeneracy_order( std::vector< int >& order  ) {
-// 		for (auto v : g.nodes) {
-// 		    // auto vd = g.neighbor(v).size();
-// 		    if (vd >= buckets.size())
-// 		        buckets.resize(vd + 1);
-// 		    buckets[vd].push_front(v);
-// 		    degrees[v] = vd;
-// 		    iterators[v] = buckets[vd].begin();
-// 		}
+//              for (auto v : g.nodes) {
+//                  // auto vd = g.neighbor(v).size();
+//                  if (vd >= buckets.size())
+//                      buckets.resize(vd + 1);
+//                  buckets[vd].push_front(v);
+//                  degrees[v] = vd;
+//                  iterators[v] = buckets[vd].begin();
+//              }
 //
-// 		ordered.clear();
+//              ordered.clear();
 //     while (true) {
 //         size_t i{0};
 //         for (; i != buckets.size(); ++i)
@@ -359,6 +358,106 @@ void neighbors_wrapper::check_consistency( ) const {
 //         }
 //     }
 // }
+
+namespace detail
+{
+    struct brelaz_state {
+        clique_finder cf;
+
+        // degrees are valid only if the corresponding bit is not set in dirty
+        mutable std::vector<int> degrees;
+        mutable bitset dirty;
+
+        // current set of uncolored nodes
+        bitset nodes;
+
+        // saturation
+        std::vector<int> saturation;
+
+        // temp
+        mutable bitset util_set;
+
+
+        void remove(int v)
+        {
+            nodes.fast_remove(v);
+            dirty.union_with(cf.g.matrix[v]);
+        }
+        int degree(int v) const
+        {
+            if (dirty.fast_contain(v)) {
+                util_set.copy(cf.g.matrix[v]);
+                util_set.intersect_with(nodes);
+                degrees[v] = util_set.size();
+                dirty.fast_remove(v);
+            }
+            return degrees[v];
+        }
+
+        brelaz_state(const graph& g)
+            : cf(g)
+            , degrees(cf.g.capacity(), 0)
+            , dirty(0, cf.g.capacity(), bitset::full)
+            , nodes(cf.g.nodeset)
+            , saturation(cf.g.capacity(), 0)
+            , util_set(0, cf.g.capacity(), bitset::empt)
+        {
+        }
+    };
+
+    struct saturation_gt {
+        const brelaz_state& bs;
+
+        bool operator()(int u, int v) {
+            int satlt = bs.saturation[u] - bs.saturation[v];
+            if (satlt > 0)
+                return true;
+            if (satlt < 0)
+                return false;
+            return bs.degree(u) > bs.degree(v);
+        }
+    };
+}
+
+std::vector<int> brelaz_color(const graph& g)
+{
+    detail::brelaz_state state{g};
+    auto& cf = state.cf;
+    cf.clear();
+    std::vector<int> solution(cf.g.capacity());
+    auto sheap = Heap(detail::saturation_gt{state});
+
+    for (auto v : cf.g.nodeset)
+        sheap.insert(v);
+
+    while(!sheap.empty()) {
+        int v = sheap.removeMin();
+        state.remove(v);
+
+        bool found{false};
+        for (int i = 0; i != cf.num_cliques; ++i) {
+            if (!cf.candidates[i].fast_contain(v)) {
+                found = true;
+                state.util_set.clear();
+                cf.insert_color(v, i, state.util_set);
+                state.util_set.intersect_with(state.nodes);
+                for (auto u : state.util_set) {
+                    ++state.saturation[u];
+                    sheap.update(u);
+                }
+                solution[v] = i;
+                break;
+            }
+        }
+        if (!found) {
+            cf.new_color();
+            cf.insert_color(v, cf.num_cliques-1, state.util_set);
+            solution[v] = cf.num_cliques-1;
+        }
+    }
+
+    return solution;
+}
 
 } // namespace gc
 

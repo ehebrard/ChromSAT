@@ -4,6 +4,7 @@
 #include "dimacs.hpp"
 #include "prop.hpp"
 #include "options.hpp"
+#include "utils.hpp"
 
 #include <minicsp/core/solver.hpp>
 #include <minicsp/core/cons.hpp>
@@ -18,7 +19,8 @@ struct gc_model
     std::vector<minicsp::cspvar> xvars;
     gc::cons_base *cons;
 
-    gc_model(gc::graph& g, minicsp::Solver& s, const gc::options& options)
+    gc_model(gc::graph& g, minicsp::Solver& s, const gc::options& options,
+             std::pair<int,int> bounds)
         : g(g)
         , s(s)
         , options(options)
@@ -44,9 +46,12 @@ struct gc_model
         }
 
         cons = gc::post_gc_constraint(s, g, vars, options);
+        auto [lb, ub] = bounds;
+        cons->bestlb = std::max(lb, cons->bestlb);
+        cons->ub = std::min(ub, cons->ub);
 
         if (options.xvars) {
-            xvars = s.newCSPVarArray(g.capacity(), 0, g.capacity()-1);
+            xvars = s.newCSPVarArray(g.capacity(), 0, cons->ub - 1);
             for (size_t i = 0; i != xvars.size(); ++i) {
                 for (size_t j = i+1; j != xvars.size(); ++j) {
                     if (g.matrix[i].fast_contain(j))
@@ -96,6 +101,22 @@ struct gc_model
         minicsp::printStats(s);
     }
 };
+
+std::pair<int, int> preprocess(gc::graph &g)
+{
+    gc::clique_finder cf{g};
+    int lb{cf.find_cliques()};
+    auto sol{gc::brelaz_color(g)};
+    for (auto u : g.nodes)
+        for (auto v : g.matrix[u])
+            assert(sol[u] != sol[v]);
+
+    int ub{*max_element(begin(sol), end(sol))+1};
+    std::cout << "c new UB " << ub
+              << " time = " << minicsp::cpuTime()
+              << " conflicts = 0" << std::endl;
+    return std::pair{lb, ub};
+}
 
 int main(int argc, char *argv[])
 {
@@ -148,6 +169,8 @@ int main(int argc, char *argv[])
 		
 		
 
+    auto [lb, ub] = preprocess(g);
+
     minicsp::Solver s;
     setup_signal_handlers(&s);
     s.trace = options.trace;
@@ -159,7 +182,7 @@ int main(int argc, char *argv[])
     if (options.learning == gc::options::NO_LEARNING)
         s.learning = false;
 
-    gc_model model(g, s, options);
+    gc_model model(g, s, options, std::pair(lb, ub));
     model.solve();
     model.print_stats();
 }
