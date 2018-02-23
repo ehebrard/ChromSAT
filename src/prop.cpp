@@ -31,9 +31,9 @@ private:
     bitset diffuv, diffvu;
 
     clique_finder cf;
-		neighbors_wrapper adjacency_list;
-		
-		std::vector< int > heuristic;
+    neighbors_wrapper adjacency_list;
+
+    std::vector<int> heuristic;
 
 public:
     gc_constraint(Solver& solver, graph& pg,
@@ -44,7 +44,7 @@ public:
         , opt(opt)
         , lastdlvl(s)
         , cf(g)
-				, adjacency_list(g)
+        , adjacency_list(g)
     {
         ub = g.capacity();
         assert(vars.size() == static_cast<size_t>(g.capacity()));
@@ -213,7 +213,8 @@ public:
         return NO_REASON;
     }
 
-    Clause *explain() {
+    Clause* explain()
+    {
         auto maxidx = std::distance(begin(cf.clique_sz),
             std::max_element(
                 begin(cf.clique_sz), begin(cf.clique_sz) + cf.num_cliques));
@@ -221,11 +222,11 @@ public:
         std::copy(begin(cf.cliques[maxidx]), end(cf.cliques[maxidx]),
             back_inserter(culprit));
         reason.clear();
-        for(size_t i = 0; i != culprit.size()-1; ++i)
-            for(size_t j = i+1; j != culprit.size(); ++j) {
+        for (size_t i = 0; i != culprit.size() - 1; ++i)
+            for (size_t j = i + 1; j != culprit.size(); ++j) {
                 auto u = culprit[i], v = culprit[j];
-                assert(g.rep_of[u]==u);
-                assert(g.rep_of[v]==v);
+                assert(g.rep_of[u] == u);
+                assert(g.rep_of[v] == v);
                 if (!g.origmatrix[u].fast_contain(v))
                     reason.push(Lit(vars[u][v]));
             }
@@ -234,30 +235,18 @@ public:
 
     Clause* propagate(Solver&) final
     {
-			
-				// // recompute the degenracy order
-				// heuristic.clear();
-				// adjacency_list.get_degeneracy_order( heuristic );
-				// std::reverse( heuristic.begin(), heuristic.end() );
-				// int lb = cf.find_cliques( heuristic );
-				
-				// sort by partition size
-				heuristic.clear();
-				for( auto v : g.nodes )
-						heuristic.push_back( v );
+        // sort by partition size
+        heuristic.clear();
+        for (auto v : g.nodes)
+            heuristic.push_back(v);
 
-				std::sort(heuristic.begin(),
-									heuristic.end(),
-									[&](const int x, const int y) {
-				                  		return (g.partition[x].size() > g.partition[y].size());
-									}
-									);
+        std::sort(
+            heuristic.begin(), heuristic.end(), [&](const int x, const int y) {
+                return (g.partition[x].size() > g.partition[y].size());
+            });
 
-				int lb = cf.find_cliques( heuristic );
-				
-				// // no ordering
-				//         int lb = cf.find_cliques( g.nodes );
-				
+        int lb = cf.find_cliques(heuristic);
+
         if (s.decisionLevel() == 0 && lb > bestlb) {
             bestlb = lb;
             std::cout << "c new lower bound " << bestlb
@@ -293,7 +282,8 @@ public:
             for (auto u : bs) {
                 assert(vars[v][u] != var_Undef);
                 if (s.value(vars[v][u]) != l_False)
-                    std::cout << "Partition " << v << " = "
+                    std::cout << "Partition " << v
+                              << " = "
                               // << print_container(g.partition[v])
                               << " has extra neighbor " << u << std::endl;
             }
