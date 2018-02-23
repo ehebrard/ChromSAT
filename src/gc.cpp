@@ -111,17 +111,40 @@ int main(int argc, char *argv[])
 		
 		
 		gc::neighbors_wrapper N(g);
-		
+		gc::clique_finder cf(g);
+
+
 		std::vector< int > dorder;
 		N.get_degeneracy_order( dorder );
-		
-
 		for( auto o : dorder ) {
 			std::cout << " " << o ;
 		}
 		std::cout << std::endl;
 		
-		exit(1);
+		// gc::degeneracy_finder df(g);
+		// g.get_degeneracy_order( dorder );
+		// for( auto o : dorder ) {
+		// 	std::cout << " " << o ;
+		// }
+		// std::cout << std::endl;
+		
+		
+		// std::cout << cf.find_cliques( g.nodes ) <<  std::endl;
+		//
+		//
+		// std::cout << cf.find_cliques( dorder ) <<  std::endl;
+		//
+		// std::reverse(dorder.begin(), dorder.end());
+		//
+		// std::cout << cf.find_cliques( dorder ) <<  std::endl;
+		//
+		// //
+		// // for( auto o : dorder ) {
+		// // 	std::cout << " " << o ;
+		// // }
+		// // std::cout << std::endl;
+		// //
+		// exit(1);
 		
 		
 

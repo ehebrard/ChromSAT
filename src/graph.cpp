@@ -2,7 +2,7 @@
 #include "utils.hpp"
 
 #include <algorithm>
-#include <iomanip>
+
 
 namespace gc
 {
@@ -165,6 +165,7 @@ clique_finder::clique_finder(const graph& g)
     : g(g)
     , num_cliques(1)
 {
+		last_clique.resize(g.capacity());
     cliques.resize(g.capacity());
     clique_sz.resize(g.capacity());
     candidates.resize(g.capacity());
@@ -190,32 +191,33 @@ void clique_finder::insert(int v, int clq)
     cliques[clq].fast_add(v);
     ++clique_sz[clq];
     candidates[clq].intersect_with(g.matrix[v]);
+		last_clique[v] = clq;
 }
 
-int clique_finder::find_cliques()
-{
-    clear();
-    if (g.nodes.size() == 0)
-        return 0;
-    for (auto u : g.nodes) {
-        bool found{false};
-        for (int i = 0; i != num_cliques; ++i)
-            if (candidates[i].fast_contain(u)) {
-                found = true;
-                insert(u, i);
-            }
-        if (!found) {
-            new_clique();
-            insert(u, num_cliques - 1);
-        }
-    }
-    return *std::max_element(begin(clique_sz), begin(clique_sz) + num_cliques);
-}
+// int clique_finder::find_cliques()
+// {
+//     clear();
+//     if (g.nodes.size() == 0)
+//         return 0;
+//     for (auto u : g.nodes) {
+//         bool found{false};
+//         for (int i = 0; i != num_cliques; ++i)
+//             if (candidates[i].fast_contain(u)) {
+//                 found = true;
+//                 insert(u, i);
+//             }
+//         if (!found) {
+//             new_clique();
+//             insert(u, num_cliques - 1);
+//         }
+//     }
+//     return *std::max_element(begin(clique_sz), begin(clique_sz) + num_cliques);
+// }
 
 
 neighbors_wrapper::neighbors_wrapper(const graph& g)
     : g(g)
-		, size(g.nodes.size())
+		// , size(g.nodes.size())
 {
     by_degree.resize(g.capacity());
 		neighbors.resize(g.capacity());
@@ -224,36 +226,49 @@ neighbors_wrapper::neighbors_wrapper(const graph& g)
 		for( auto v : g.nodes ) {
 				by_degree[v].reserve(g.capacity());
 				neighbors[v].reserve(g.capacity());
-				if( !g.matrix[v].empty() ) {
-						auto u{0}, unext{g.matrix[v].min()};
-						do {
-								u = unext;
-								neighbors[v].push(u);
-								unext = g.matrix[v].next(u);
-						} while( u != unext );
-				}
+				// if( !g.matrix[v].empty() ) {
+				// 		auto u{0}, unext{g.matrix[v].min()};
+				// 		do {
+				// 				u = unext;
+				// 				neighbors[v].push(u);
+				// 				unext = g.matrix[v].next(u);
+				// 		} while( u != unext );
+				// }
 		}
+		
+		buffer.initialise(0, g.capacity(), bitset::empt);
 }
 
 void neighbors_wrapper::synchronize() { 
-		// the nodes betweem g.nodes.size() and size have been removed
-		while( size > g.nodes.size() ) {
-				auto v = g.nodes[--size];
-				for( auto u : neighbors[v] ) {
-						neighbors[v].remove( u );
-				}
-		}	
-		// the nodes betweem size and g.nodes.size() have been added
-		while( size < g.nodes.size() ) {
-				auto v = g.nodes[size++];
-				for( auto u : neighbors[v] ) {
-						neighbors[v].push( u );
+		// // the nodes betweem g.nodes.size() and size have been removed
+		// while( size > g.nodes.size() ) {
+		// 		auto v = g.nodes[--size];
+		// 		for( auto u : neighbors[v] ) {
+		// 				neighbors[u].remove( v );
+		// 		}
+		// }
+		// // the nodes betweem size and g.nodes.size() have been added
+		// while( size < g.nodes.size() ) {
+		// 		auto v = g.nodes[size++];
+		// 		for( auto u : neighbors[v] ) {
+		// 				neighbors[u].push( v );
+		// 		}
+		// }
+	
+		
+		for( auto v : g.nodes ) {
+				neighbors[v].clear();
+				if( !g.matrix[v].empty() ) {
+						buffer.copy( g.matrix[v] );
+						buffer.intersect_with( g.nodeset );
+						for ( auto u : buffer ) neighbors[v].push(u);
 				}
 		}
+		
+		check_consistency();
 }
 
 void neighbors_wrapper::get_degeneracy_order( std::vector< int >& order ) {
- 	
 		synchronize();
 		for( auto v : g.nodes ) {
 				degree[v] = neighbors[v].size();
@@ -280,7 +295,71 @@ void neighbors_wrapper::get_degeneracy_order( std::vector< int >& order ) {
 		}
 }
 
+void neighbors_wrapper::check_consistency( ) const {
+	
+	bitset buffer(0, g.capacity(), bitset::empt);
+
+	// assert( size == g.nodes.size() );
+	
+	for( auto v : g.nodes ) {
+			buffer.copy( g.matrix[v]	);
+			buffer.intersect_with( g.nodeset );
+	
+			assert( buffer.size() == neighbors[v].size() );
+			
+			for ( auto u : neighbors[v] ) {
+					assert( buffer.contain( u ) );
+			}
+	}
+	
+}
 
 
+// degeneracy_finder::degeneracy_finder(const graph& g)
+//     : g(g)
+// {
+//
+//   	degrees.resize(g.capacity());
+//   	iterators.resize(g.capacity());
+//   	ordered.initialise(0, g.capacity()-1, bitset::empt);
+// }
+// 
+//
+//
+// void degeneracy_finder::get_degeneracy_order( std::vector< int >& order  ) {
+// 		for (auto v : g.nodes) {
+// 		    // auto vd = g.neighbor(v).size();
+// 		    if (vd >= buckets.size())
+// 		        buckets.resize(vd + 1);
+// 		    buckets[vd].push_front(v);
+// 		    degrees[v] = vd;
+// 		    iterators[v] = buckets[vd].begin();
+// 		}
+//
+// 		ordered.clear();
+//     while (true) {
+//         size_t i{0};
+//         for (; i != buckets.size(); ++i)
+//             if (!buckets[i].empty())
+//                 break;
+//         if (i == buckets.size())
+//             break;
+//         auto v = buckets[i].back();
+//         order.push_back(v);
+//         buckets[i].pop_back();
+//         ordered.fast_add(v);
+//         for (auto u : neighbor(v)) {
+//             if (ordered.fast_contain(u))
+//                 continue;
+//             auto& ud = degrees[u];
+//             buckets[ud].erase(iterators[u]);
+//             --ud;
+//             buckets[ud].push_front(u);
+//             iterators[u] = buckets[ud].begin();
+//         }
+//     }
+// }
 
 } // namespace gc
+
+

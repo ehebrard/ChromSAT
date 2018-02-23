@@ -5,6 +5,7 @@
 #include "intstack.hpp"
 
 #include <vector>
+#include <list>
 
 namespace gc
 {
@@ -112,6 +113,7 @@ struct clique_finder {
     std::vector<bitset> cliques;
     std::vector<int> clique_sz;
     std::vector<bitset> candidates;
+		std::vector<int> last_clique;
     int num_cliques;
 
     clique_finder(const graph& g);
@@ -124,9 +126,50 @@ struct clique_finder {
     void insert(int v, int clq);
     // heuristically find a set of cliques and return the size of the
     // largest
-    int find_cliques();
+		
+		template< class ordering >
+    int find_cliques( ordering o ) {
+    	
+		    clear();
+		    if (o.size() == 0)
+		        return 0;
+		    for (auto u : o) {
+		        bool found{false};
+		        for (int i = 0; i != num_cliques; ++i)
+		            if (candidates[i].fast_contain(u)) {
+		                found = true;
+		                insert(u, i);
+		            }
+		        if (!found) {
+		            new_clique();
+		            insert(u, num_cliques - 1);
+		        }
+		    }
+				
+				for (auto u : o) {
+					for (int i = last_clique[u]+1; i < num_cliques; ++i)
+						if (candidates[i].fast_contain(u)) insert(u, i);
+				}
+				
+		  	// return clique_sz[best_cl]; //
+				return *std::max_element(begin(clique_sz), begin(clique_sz) + num_cliques);
+			
+    }
 };
 
+// struct degeneracy_finder {
+// 	const graph& g;
+//
+//   std::vector<std::list<int>> buckets;
+//   std::vector<int> degrees;
+//   std::vector<std::list<int>::iterator> iterators;
+//   bitset ordered;
+//
+// 	degeneracy_finder(const graph& g);
+//
+// 	void get_degeneracy_order( std::vector< int >& order  );
+//
+// };
 
 struct neighbors_wrapper {
     const graph& g;
@@ -134,7 +177,9 @@ struct neighbors_wrapper {
 		std::vector< IntStack > neighbors;
 		std::vector< int > degree;
 		
-		int size;
+		// int size;
+		
+		bitset buffer;
 		
     neighbors_wrapper(const graph& g);
 
@@ -143,6 +188,9 @@ struct neighbors_wrapper {
     // heuristically find a set of cliques and return the size of the
     // largest
     void get_degeneracy_order( std::vector< int >& order  );
+		
+    // debugging
+    void check_consistency() const; 
 };
 
 } // namespace gc

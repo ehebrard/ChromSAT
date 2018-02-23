@@ -31,6 +31,9 @@ private:
     bitset diffuv, diffvu;
 
     clique_finder cf;
+		neighbors_wrapper adjacency_list;
+		
+		std::vector< int > heuristic;
 
 public:
     gc_constraint(Solver& solver, graph& pg,
@@ -41,6 +44,7 @@ public:
         , opt(opt)
         , lastdlvl(s)
         , cf(g)
+				, adjacency_list(g)
     {
         ub = g.capacity();
         assert(vars.size() == static_cast<size_t>(g.capacity()));
@@ -230,7 +234,32 @@ public:
 
     Clause* propagate(Solver&) final
     {
-        int lb = cf.find_cliques();
+			
+				// // recompute the degenracy order
+				// heuristic.clear();
+				// adjacency_list.get_degeneracy_order( heuristic );
+				// std::reverse( heuristic.begin(), heuristic.end() );
+				// int lb = cf.find_cliques( heuristic );
+				
+				// sort by partition size	
+				heuristic.clear();
+				for( auto v : g.nodes )
+					heuristic.push_back( v );
+				
+					std::sort(heuristic.begin(), 
+										heuristic.end(), 
+										[&](const int x, const int y) {
+                    		return (g.partition[x].size() > g.partition[y].size());
+										}
+										);
+										
+					// for( int i=1; i<heuristic.size(); ++i ) {
+					// 	assert( g.partition[heuristic[i-1]].size() >= g.partition[heuristic[i]].size() );
+					// }			
+										
+					int lb = cf.find_cliques( heuristic );
+				
+        // int lb = cf.find_cliques( g.nodes );
         if (s.decisionLevel() == 0 && lb > bestlb) {
             bestlb = lb;
             std::cout << "c new lower bound " << bestlb
