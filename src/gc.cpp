@@ -110,52 +110,12 @@ int main(int argc, char *argv[])
     g.describe(std::cout);
 		
 		
-		gc::neighbors_wrapper N(g);
-		gc::clique_finder cf(g);
-
-
-		std::vector< int > dorder;
-		N.get_degeneracy_order( dorder );
-		for( auto o : dorder ) {
-			std::cout << " " << o ;
-		}
-		std::cout << std::endl;
-		
-		// gc::degeneracy_finder df(g);
-		// g.get_degeneracy_order( dorder );
-		// for( auto o : dorder ) {
-		// 	std::cout << " " << o ;
-		// }
-		// std::cout << std::endl;
-		
-		
-		// std::cout << cf.find_cliques( g.nodes ) <<  std::endl;
-		//
-		//
-		// std::cout << cf.find_cliques( dorder ) <<  std::endl;
-		//
-		// std::reverse(dorder.begin(), dorder.end());
-		//
-		// std::cout << cf.find_cliques( dorder ) <<  std::endl;
-		//
-		// //
-		// // for( auto o : dorder ) {
-		// // 	std::cout << " " << o ;
-		// // }
-		// // std::cout << std::endl;
-		// //
-		// exit(1);
-		
-		
-
     minicsp::Solver s;
     setup_signal_handlers(&s);
     s.trace = options.trace;
 		
 		s.polarity_mode = options.polarity;
-		
-		std::cout << s.polarity_mode << std::endl;
-		
+				
     if (options.learning == gc::options::NO_LEARNING)
         s.learning = false;
 

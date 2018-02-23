@@ -23,6 +23,9 @@ struct options {
     bool xvars;
 		
 		int polarity;
+		
+		enum ordering_heuristic { NONE, DEGENERACY, INVERSE_DEGENERACY, PARTITION, DYNAMIC_DEGENERACY };
+		ordering_heuristic ordering;
 };
 
 options parse(int argc, char* argv[]);

@@ -33,6 +33,7 @@ private:
     clique_finder cf;
 		neighbors_wrapper adjacency_list;
 		
+		std::vector< int > degeneracy_order;
 		std::vector< int > heuristic;
 
 public:
@@ -235,28 +236,43 @@ public:
     Clause* propagate(Solver&) final
     {
 			
-				// // recompute the degenracy order
-				// heuristic.clear();
-				// adjacency_list.get_degeneracy_order( heuristic );
-				// std::reverse( heuristic.begin(), heuristic.end() );
-				// int lb = cf.find_cliques( heuristic );
-				
-				// sort by partition size
-				heuristic.clear();
-				for( auto v : g.nodes )
-						heuristic.push_back( v );
+				int lb{0};
+			
+				// recompute the degenracy order
+				if ( opt.ordering == options::DYNAMIC_DEGENERACY ) {
+						heuristic.clear();
+						adjacency_list.get_degeneracy_order( heuristic );
+						std::reverse( heuristic.begin(), heuristic.end() );
+						lb = cf.find_cliques( heuristic );
+				} else if ( opt.ordering == options::DEGENERACY or opt.ordering == options::INVERSE_DEGENERACY ) {
+						if ( degeneracy_order.empty() ) {
+								adjacency_list.get_degeneracy_order( degeneracy_order );
+								if ( opt.ordering == options::INVERSE_DEGENERACY )
+										std::reverse( degeneracy_order.begin(), degeneracy_order.end() );
+						}
+						heuristic.clear();
+						for ( auto v : degeneracy_order )
+								if ( g.nodeset.fast_contain(v) )
+										heuristic.push_back( v );
+						lb = cf.find_cliques( heuristic );
+				} else if ( opt.ordering == options::PARTITION ) {
 
-				std::sort(heuristic.begin(),
-									heuristic.end(),
-									[&](const int x, const int y) {
-				                  		return (g.partition[x].size() > g.partition[y].size());
-									}
-									);
+						// sort by partition size
+						heuristic.clear();
+						for( auto v : g.nodes )
+								heuristic.push_back( v );
 
-				int lb = cf.find_cliques( heuristic );
-				
-				// // no ordering
-				//         int lb = cf.find_cliques( g.nodes );
+						std::sort(heuristic.begin(),
+											heuristic.end(),
+											[&](const int x, const int y) {
+						                  		return (g.partition[x].size() > g.partition[y].size());
+											});
+
+						lb = cf.find_cliques( heuristic );
+				} else {
+						// no ordering
+				    lb = cf.find_cliques( g.nodes );
+				}
 				
         if (s.decisionLevel() == 0 && lb > bestlb) {
             bestlb = lb;
