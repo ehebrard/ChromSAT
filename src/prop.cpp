@@ -37,6 +37,10 @@ private:
 		std::vector< int > degeneracy_order;
 		std::vector< int > heuristic;
 		
+		bitset cur_neighbors;
+		std::vector< int > maxcliques;
+		std::vector< std::vector< int > > n_included;
+		
 
 public:
     gc_constraint(Solver& solver, graph& pg,
@@ -71,6 +75,7 @@ public:
         }
         diffuv.initialise(0, g.capacity(), bitset::empt);
         diffvu.initialise(0, g.capacity(), bitset::empt);
+				cur_neighbors.initialise(0, g.capacity(), bitset::empt);
 
         DO_OR_THROW(propagate(s));
     }
@@ -292,9 +297,50 @@ public:
                 return explain();
             else
                 return INVALID_CLAUSE;
-        }
+        } 
+				// else if( lb == ub - 1 ) {
+				// 		return prune_included_neighborhood( lb );
+				// }
         return NO_REASON;
     }
+		
+		Clause* prune_included_neighborhood( const int lb ) {
+				maxcliques.clear();
+				for( auto cl = 0 ; cl < cf.num_cliques ; ++cl ) {
+						if( cf.clique_sz[cl] == lb ) {
+								maxcliques.push_back( cl );
+						}
+				}
+				n_included.resize( maxcliques.size() );
+				for( auto i = 0 ; i < maxcliques.size() ; ++i ) {
+						n_included.clear();
+				}
+				for( auto v : g.nodes ) {
+						for( auto i = 0 ; i < maxcliques.size() ; ++i ) {
+								cur_neighbors.copy( g.matrix[v] );
+								cur_neighbors.intersect_with( g.nodeset );
+								if( cf.cliques[maxcliques[i]].includes( cur_neighbors ) ) {
+										n_included[i].push_back( v );
+								}
+						}
+				}
+				for( auto i = 0 ; i < maxcliques.size() ; ++i ) {
+						for( auto a = 0 ; a < n_included[i].size() ; ++a ) {
+								for( auto b = a+1 ; b < n_included[i].size() ; ++b ) {
+										// std::cout << "pruning (" << n_included[i][a] << "," << n_included[i][b] << ")\n";
+										if ( ! g.matrix[n_included[i][a]].fast_contain( n_included[i][b] ) ) {
+												std::cout << "pruning?\n";
+												if ( s.value( vars[n_included[i][a]][n_included[i][b]]) == l_Undef ) {
+														std::cout << "pruning!\n";
+												} else {
+														assert( s.value( vars[n_included[i][a]][n_included[i][b]]) == l_False );
+												}
+										}
+								}
+						}
+				}
+				return NO_REASON;
+		}
 
     void check_consistency()
     {

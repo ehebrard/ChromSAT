@@ -23,7 +23,7 @@ void read_graph(
         int64_t w;
         int checkcount = 0;
         for (std::string line; getline(ifs, line); ++ln) {
-            if (line[0] == 'c' || line[0] == '#')
+            if (line[0] != 'p' && line[0] != 'e')
                 continue;
             std::istringstream iss(line);
             if (!gotheader) {
