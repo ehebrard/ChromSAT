@@ -40,6 +40,7 @@ private:
 		bitset cur_neighbors;
 		std::vector< int > maxcliques;
 		std::vector< std::vector< int > > n_included;
+		long int n_prunings;
 		
 
 public:
@@ -298,9 +299,9 @@ public:
             else
                 return INVALID_CLAUSE;
         } 
-				// else if( lb == ub - 1 ) {
-				// 		return prune_included_neighborhood( lb );
-				// }
+				else if( lb == ub - 1 ) {
+						return prune_included_neighborhood( lb );
+				}
         return NO_REASON;
     }
 		
@@ -319,7 +320,7 @@ public:
 						for( auto i = 0 ; i < maxcliques.size() ; ++i ) {
 								cur_neighbors.copy( g.matrix[v] );
 								cur_neighbors.intersect_with( g.nodeset );
-								if( cf.cliques[maxcliques[i]].includes( cur_neighbors ) ) {
+								if( cf.cliques[maxcliques[i]].intersect( cur_neighbors ) ) {
 										n_included[i].push_back( v );
 								}
 						}
@@ -327,13 +328,12 @@ public:
 				for( auto i = 0 ; i < maxcliques.size() ; ++i ) {
 						for( auto a = 0 ; a < n_included[i].size() ; ++a ) {
 								for( auto b = a+1 ; b < n_included[i].size() ; ++b ) {
-										// std::cout << "pruning (" << n_included[i][a] << "," << n_included[i][b] << ")\n";
-										if ( ! g.matrix[n_included[i][a]].fast_contain( n_included[i][b] ) ) {
-												std::cout << "pruning?\n";
-												if ( s.value( vars[n_included[i][a]][n_included[i][b]]) == l_Undef ) {
-														std::cout << "pruning!\n";
-												} else {
-														assert( s.value( vars[n_included[i][a]][n_included[i][b]]) == l_False );
+										if ( ! g.matrix[n_included[i][a]].fast_contain( n_included[i][b] ) && s.value( vars[n_included[i][a]][n_included[i][b]]) == l_Undef ) {
+												cur_neighbors.copy( g.matrix[n_included[i][a]] );
+												cur_neighbors.union_with( g.matrix[n_included[i][b]] );
+												cur_neighbors.intersect_with( g.nodeset );
+												if ( cur_neighbors.includes( cf.cliques[maxcliques[i]] ) ) {
+														std::cout << "pruning " << n_included[i][a] << "," << n_included[i][b] << " (" << ++n_prunings << ")\n";
 												}
 										}
 								}
