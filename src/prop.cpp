@@ -299,9 +299,9 @@ public:
             else
                 return INVALID_CLAUSE;
         } 
-				else if( lb == ub - 1 ) {
-						return prune_included_neighborhood( lb );
-				}
+				// else if( lb == ub - 1 ) {
+				// 		return prune_included_neighborhood( lb );
+				// }
         return NO_REASON;
     }
 		
