@@ -85,8 +85,12 @@ struct gc_model {
             } else if (sat == l_Undef) {
                 std::cout << "*** INTERRUPTED ***\n";
                 return;
-            } else
+            } else {
+								cons->bestlb = cons->ub;
+						    std::cout << "c new lower bound " << cons->ub << " time = " << minicsp::cpuTime()
+						              << " conflicts = " << s.conflicts << std::endl;
                 std::cout << "UNSAT\n";
+						}
         }
     }
 
