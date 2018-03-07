@@ -117,7 +117,7 @@ std::pair<int, int> preprocess(gc::graph& g)
     int ub{*max_element(begin(sol), end(sol)) + 1};
     std::cout << "c new UB " << ub << " time = " << minicsp::cpuTime()
               << " conflicts = 0" << std::endl;
-    return std::pair<int,int>{lb, ub};
+    return std::pair<int, int>{lb, ub};
 }
 
 int main(int argc, char* argv[])
@@ -128,22 +128,24 @@ int main(int argc, char* argv[])
     gc::graph g;
     dimacs::read_graph(options.instance_file.c_str(),
         [&](int nv, int) { g = gc::graph{nv}; },
-        [&](int u, int v) { g.add_edge(u - 1, v - 1); },
+        [&](int u, int v) {
+            if (u != v)
+                g.add_edge(u - 1, v - 1);
+        },
         [&](int, gc::weight) {});
     g.describe(std::cout);
-		
-		
+
     minicsp::Solver s;
     setup_signal_handlers(&s);
-    s.trace = options.trace;		
-		s.polarity_mode = options.polarity;
-				
+    s.trace = options.trace;
+    s.polarity_mode = options.polarity;
+
     auto [lb, ub] = preprocess(g);
 
     if (options.learning == gc::options::NO_LEARNING)
         s.learning = false;
 
-    gc_model model(g, s, options, std::pair<int,int>(lb, ub));
+    gc_model model(g, s, options, std::pair<int, int>(lb, ub));
     model.solve();
     model.print_stats();
 }
