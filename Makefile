@@ -10,13 +10,13 @@ SRC_PATH = .
 # Space-separated pkg-config libraries used by this project
 LIBS =
 # General compiler flags
-COMPILE_FLAGS = -std=c++17 -Wall -Wextra -g
+COMPILE_FLAGS = -std=c++1z -Wall -Wextra -g 
 # Additional release-specific flags
 RCOMPILE_FLAGS = -D NDEBUG
 # Additional debug-specific flags
 DCOMPILE_FLAGS = -D DEBUG
 # Add additional include paths
-INCLUDES = -I $(SRC_PATH)
+INCLUDES = -I $(SRC_PATH) -I /home/ehebrard/lib/boost_1_62_0
 # General linker settings
 LINK_FLAGS = minicsp/core/solver.o minicsp/core/cons.o minicsp/core/utils.o
 # Additional release-specific linker settings
@@ -60,7 +60,7 @@ ifneq ($(LIBS),)
 endif
 
 # Verbose option, to output compile and link commands
-export V := false
+export V := true
 export CMD_PREFIX := @
 ifeq ($(V),true)
 	CMD_PREFIX :=
