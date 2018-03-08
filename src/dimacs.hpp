@@ -29,7 +29,7 @@ void read_graph(
             if (!gotheader) {
                 std::string edge;
                 iss >> lt >> edge >> nv >> ne;
-                if (!iss || lt != "p" || (edge != "edge" && edge != "col")) {
+                if (!iss || lt != "p" || (edge != "edge" && edge != "edges" && edge != "col")) {
                     cerr << "ERROR: could not parse header at line " << ln
                          << "\n";
                     exit(1);
