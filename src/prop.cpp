@@ -30,28 +30,29 @@ private:
     std::vector<int> culprit;
     bitset diffuv, diffvu;
 
-    clique_finder cf;
+    bitset expl_N, expl_covered;
 
-		neighbors_wrapper adjacency_list;
-		
-		std::vector< int > degeneracy_order;
-		std::vector< int > heuristic;
-		
-		bitset cur_neighbors;
-		std::vector< int > maxcliques;
-		std::vector< std::vector< int > > n_included;
-		long int n_prunings;
-		
+    neighbors_wrapper adjacency_list;
+
+    std::vector<int> degeneracy_order;
+    std::vector<int> heuristic;
+
+    bitset cur_neighbors;
+    std::vector<int> maxcliques;
+    std::vector<std::vector<int>> n_included;
+    long int n_prunings;
 
 public:
     gc_constraint(Solver& solver, graph& pg,
         const std::vector<std::vector<Var>>& tvars, const options& opt)
-        : s(solver)
+        : cons_base(pg)
+        , s(solver)
         , g(pg)
         , vars(tvars)
         , opt(opt)
         , lastdlvl(s)
-        , cf(g)
+        , expl_N(0, g.capacity() - 1, bitset::empt)
+        , expl_covered(0, g.capacity() - 1, bitset::empt)
         , adjacency_list(g)
     {
         ub = g.capacity();
@@ -76,7 +77,7 @@ public:
         }
         diffuv.initialise(0, g.capacity(), bitset::empt);
         diffvu.initialise(0, g.capacity(), bitset::empt);
-				cur_neighbors.initialise(0, g.capacity(), bitset::empt);
+        cur_neighbors.initialise(0, g.capacity(), bitset::empt);
 
         DO_OR_THROW(propagate(s));
     }
@@ -222,7 +223,7 @@ public:
         return NO_REASON;
     }
 
-    Clause* explain()
+    Clause* explain_naive_positive()
     {
         auto maxidx = std::distance(begin(cf.clique_sz),
             std::max_element(
@@ -242,46 +243,100 @@ public:
         return s.addInactiveClause(reason);
     }
 
+    // generate an explanation for u having neighborhood N. Appends
+    // explanation to reason.
+    void explain_N_naive(int u, const bitset& N, vec<Lit>& reason)
+    {
+        g.util_set.copy(g.matrix_nosep[u]);
+        g.util_set.intersect_with(N);
+        for (auto v : g.partition[u]) {
+            g.util_set.setminus_with(g.origmatrix[v]);
+            if (v != u)
+                reason.push(~Lit(vars[u][v]));
+            if (g.util_set.empty())
+                break;
+        }
+        g.util_set.copy(g.matrix[u]);
+        g.util_set.setminus_with(g.matrix_nosep[u]);
+        g.util_set.intersect_with(N);
+        for (auto v : g.util_set) {
+            reason.push(Lit(vars[u][v]));
+        }
+    }
+
+    Clause* explain_naive()
+    {
+        auto maxidx = std::distance(begin(cf.clique_sz),
+            std::max_element(
+                begin(cf.clique_sz), begin(cf.clique_sz) + cf.num_cliques));
+        reason.clear();
+        bitset& covered = expl_covered;
+        covered.clear();
+        for (auto u : cf.cliques[maxidx]) {
+            expl_N.copy(cf.cliques[maxidx]);
+            expl_N.setminus_with(covered);
+            explain_N_naive(u, expl_N, reason);
+            covered.fast_add(u);
+        }
+        return s.addInactiveClause(reason);
+    }
+
+    Clause* explain()
+    {
+        switch (opt.learning) {
+        case options::NO_LEARNING:
+            return INVALID_CLAUSE;
+        case options::NAIVE_POSITIVE:
+            return explain_naive_positive();
+        case options::NAIVE:
+            return explain_naive();
+        default:
+            assert(0);
+            return INVALID_CLAUSE;
+        }
+    }
+
     Clause* propagate(Solver&) final
-    {			
-				int lb{0};
-			
-				// recompute the degenracy order
-				if ( opt.ordering == options::DYNAMIC_DEGENERACY ) {
-						heuristic.clear();
-						adjacency_list.get_degeneracy_order( heuristic );
-						std::reverse( heuristic.begin(), heuristic.end() );
-						lb = cf.find_cliques( heuristic );
-				} else if ( opt.ordering == options::DEGENERACY or opt.ordering == options::INVERSE_DEGENERACY ) {
-						if ( degeneracy_order.empty() ) {
-								adjacency_list.get_degeneracy_order( degeneracy_order );
-								if ( opt.ordering == options::INVERSE_DEGENERACY )
-										std::reverse( degeneracy_order.begin(), degeneracy_order.end() );
-						}
-						heuristic.clear();
-						for ( auto v : degeneracy_order )
-								if ( g.nodeset.fast_contain(v) )
-										heuristic.push_back( v );
-						lb = cf.find_cliques( heuristic );
-				} else if ( opt.ordering == options::PARTITION ) {
+    {
+        int lb{0};
 
-						// sort by partition size
-						heuristic.clear();
-						for( auto v : g.nodes )
-								heuristic.push_back( v );
+        // recompute the degenracy order
+        if (opt.ordering == options::DYNAMIC_DEGENERACY) {
+            heuristic.clear();
+            adjacency_list.get_degeneracy_order(heuristic);
+            std::reverse(heuristic.begin(), heuristic.end());
+            lb = cf.find_cliques(heuristic);
+        } else if (opt.ordering == options::DEGENERACY
+            or opt.ordering == options::INVERSE_DEGENERACY) {
+            if (degeneracy_order.empty()) {
+                adjacency_list.get_degeneracy_order(degeneracy_order);
+                if (opt.ordering == options::INVERSE_DEGENERACY)
+                    std::reverse(
+                        degeneracy_order.begin(), degeneracy_order.end());
+            }
+            heuristic.clear();
+            for (auto v : degeneracy_order)
+                if (g.nodeset.fast_contain(v))
+                    heuristic.push_back(v);
+            lb = cf.find_cliques(heuristic);
+        } else if (opt.ordering == options::PARTITION) {
 
-						std::sort(heuristic.begin(),
-											heuristic.end(),
-											[&](const int x, const int y) {
-						                  		return (g.partition[x].size() > g.partition[y].size());
-											});
+            // sort by partition size
+            heuristic.clear();
+            for (auto v : g.nodes)
+                heuristic.push_back(v);
 
-						lb = cf.find_cliques( heuristic );
-				} else {
-						// no ordering
-				    lb = cf.find_cliques( g.nodes );
-				}
-				
+            std::sort(heuristic.begin(), heuristic.end(),
+                [&](const int x, const int y) {
+                    return (g.partition[x].size() > g.partition[y].size());
+                });
+
+            lb = cf.find_cliques(heuristic);
+        } else {
+            // no ordering
+            lb = cf.find_cliques(g.nodes);
+        }
+
         if (s.decisionLevel() == 0 && lb > bestlb) {
             bestlb = lb;
             std::cout << "c new lower bound " << bestlb
@@ -293,54 +348,53 @@ public:
         //           << " dlvl = " << s.decisionLevel() << "\n";
         if (cf.num_cliques == 1)
             assert(g.nodes.size() == cf.cliques[0].size());
-        if (lb >= ub) {
-            if (opt.learning > options::NO_LEARNING)
-                return explain();
-            else
-                return INVALID_CLAUSE;
-        } 
-				// else if( lb == ub - 1 ) {
-				// 		return prune_included_neighborhood( lb );
-				// }
+        if (lb >= ub)
+            return explain();
         return NO_REASON;
     }
-		
-		Clause* prune_included_neighborhood( const int lb ) {
-				maxcliques.clear();
-				for( auto cl = 0 ; cl < cf.num_cliques ; ++cl ) {
-						if( cf.clique_sz[cl] == lb ) {
-								maxcliques.push_back( cl );
-						}
-				}
-				n_included.resize( maxcliques.size() );
-				for( auto i = 0 ; i < maxcliques.size() ; ++i ) {
-						n_included.clear();
-				}
-				for( auto v : g.nodes ) {
-						for( auto i = 0 ; i < maxcliques.size() ; ++i ) {
-								cur_neighbors.copy( g.matrix[v] );
-								cur_neighbors.intersect_with( g.nodeset );
-								if( cf.cliques[maxcliques[i]].intersect( cur_neighbors ) ) {
-										n_included[i].push_back( v );
-								}
-						}
-				}
-				for( auto i = 0 ; i < maxcliques.size() ; ++i ) {
-						for( auto a = 0 ; a < n_included[i].size() ; ++a ) {
-								for( auto b = a+1 ; b < n_included[i].size() ; ++b ) {
-										if ( ! g.matrix[n_included[i][a]].fast_contain( n_included[i][b] ) && s.value( vars[n_included[i][a]][n_included[i][b]]) == l_Undef ) {
-												cur_neighbors.copy( g.matrix[n_included[i][a]] );
-												cur_neighbors.union_with( g.matrix[n_included[i][b]] );
-												cur_neighbors.intersect_with( g.nodeset );
-												if ( cur_neighbors.includes( cf.cliques[maxcliques[i]] ) ) {
-														std::cout << "pruning " << n_included[i][a] << "," << n_included[i][b] << " (" << ++n_prunings << ")\n";
-												}
-										}
-								}
-						}
-				}
-				return NO_REASON;
-		}
+
+    Clause* prune_included_neighborhood(const int lb)
+    {
+        maxcliques.clear();
+        for (auto cl = 0; cl < cf.num_cliques; ++cl) {
+            if (cf.clique_sz[cl] == lb) {
+                maxcliques.push_back(cl);
+            }
+        }
+        n_included.resize(maxcliques.size());
+        for (unsigned i = 0; i < maxcliques.size(); ++i) {
+            n_included[i].clear();
+        }
+        for (auto v : g.nodes) {
+            for (unsigned i = 0; i < maxcliques.size(); ++i) {
+                cur_neighbors.copy(g.matrix[v]);
+                cur_neighbors.intersect_with(g.nodeset);
+                if (cf.cliques[maxcliques[i]].intersect(cur_neighbors)) {
+                    n_included[i].push_back(v);
+                }
+            }
+        }
+        for (unsigned i = 0; i < maxcliques.size(); ++i) {
+            for (unsigned a = 0; a < n_included[i].size(); ++a) {
+                for (unsigned b = a + 1; b < n_included[i].size(); ++b) {
+                    if (!g.matrix[n_included[i][a]].fast_contain(
+                            n_included[i][b])
+                        && s.value(vars[n_included[i][a]][n_included[i][b]])
+                            == l_Undef) {
+                        cur_neighbors.copy(g.matrix[n_included[i][a]]);
+                        cur_neighbors.union_with(g.matrix[n_included[i][b]]);
+                        cur_neighbors.intersect_with(g.nodeset);
+                        if (cur_neighbors.includes(cf.cliques[maxcliques[i]])) {
+                            std::cout << "pruning " << n_included[i][a] << ","
+                                      << n_included[i][b] << " ("
+                                      << ++n_prunings << ")\n";
+                        }
+                    }
+                }
+            }
+        }
+        return NO_REASON;
+    }
 
     void check_consistency()
     {

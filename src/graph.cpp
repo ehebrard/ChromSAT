@@ -25,20 +25,22 @@ void graph::add_dirty_edge(int u, int v)
 int graph::merge(int u, int v)
 {
     util_set.clear();
+    util_set.copy(matrix_nosep[v]);
+    util_set.setminus_with(matrix_nosep[u]);
+    matrix_nosep[u].union_with(matrix_nosep[v]);
+    if (cur_ckpt > 0) {
+        if (!dirty[cur_ckpt].fast_contain(u)) {
+            diffs_nosep[cur_ckpt][u].copy(util_set);
+            dirty[cur_ckpt].fast_add(u);
+        } else {
+            diffs_nosep[cur_ckpt][u].union_with(util_set);
+        }
+    }
+
+    util_set.clear();
     util_set.copy(matrix[v]);
     util_set.setminus_with(matrix[u]);
     matrix[u].union_with(matrix[v]);
-
-    // update rep_of for the partition that was absorbed
-    for (auto vp : partition[v])
-        rep_of[vp] = u;
-    std::copy(
-        begin(partition[v]), end(partition[v]), back_inserter(partition[u]));
-
-    nodes.remove(v);
-    nodeset.fast_remove(v);
-    removed.push_back(v);
-
     if (cur_ckpt > 0) {
         if (!dirty[cur_ckpt].fast_contain(u)) {
             diffs[cur_ckpt][u].copy(util_set);
@@ -51,6 +53,16 @@ int graph::merge(int u, int v)
         add_dirty_edge(w, u);
         add_dirty_edge(u, w);
     }
+
+    // update rep_of for the partition that was absorbed
+    for (auto vp : partition[v])
+        rep_of[vp] = u;
+    std::copy(
+        begin(partition[v]), end(partition[v]), back_inserter(partition[u]));
+
+    nodes.remove(v);
+    nodeset.fast_remove(v);
+    removed.push_back(v);
 
     return u;
 }
@@ -76,9 +88,13 @@ int graph::checkpoint()
     if (static_cast<size_t>(cur_ckpt) >= diffs.size()) {
         // trailing part
         diffs.resize(cur_ckpt + 1);
+        diffs_nosep.resize(cur_ckpt + 1);
         dirty.resize(cur_ckpt + 1);
         diffs[cur_ckpt].resize(capacity());
+        diffs_nosep[cur_ckpt].resize(capacity());
         for (auto& bs : diffs[cur_ckpt])
+            bs.initialise(0, capacity() + 1, bitset::empt);
+        for (auto& bs : diffs_nosep[cur_ckpt])
             bs.initialise(0, capacity() + 1, bitset::empt);
         dirty[cur_ckpt].initialise(0, capacity() + 1, bitset::empt);
 
@@ -92,6 +108,8 @@ int graph::checkpoint()
     } else {
         // trailing
         for (auto& bs : diffs[cur_ckpt])
+            bs.clear();
+        for (auto& bs : diffs_nosep[cur_ckpt])
             bs.clear();
         dirty[cur_ckpt].clear();
 
@@ -108,6 +126,7 @@ void graph::restore(int ckpt)
     for (int i = cur_ckpt; i > ckpt; --i) {
         for (auto v : dirty[i]) {
             matrix[v].setminus_with(diffs[i][v]);
+            matrix_nosep[v].setminus_with(diffs_nosep[i][v]);
         }
     }
     cur_ckpt = ckpt;
@@ -220,8 +239,8 @@ neighbors_wrapper::neighbors_wrapper(const graph& g)
     neighbors.resize(g.capacity());
     degree.resize(g.capacity());
 
-		for( auto v : g.nodes ) {
-    		by_degree[v].reserve(g.capacity());
+    for (auto v : g.nodes) {
+        by_degree[v].reserve(g.capacity());
         neighbors[v].reserve(g.capacity());
     }
 
@@ -420,7 +439,7 @@ std::vector<int> brelaz_color(const graph& g)
     detail::brelaz_state state{g};
     auto& cf = state.cf;
     cf.clear();
-    std::vector<int> solution(cf.g.capacity());
+    std::vector<int> solution(cf.g.capacity(), -1);
     auto sheap = Heap<detail::saturation_gt>(detail::saturation_gt{state});
 
     for (auto v : cf.g.nodeset)

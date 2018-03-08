@@ -11,6 +11,9 @@ namespace gc
 struct cons_base {
     int ub;
     int bestlb{0};
+    clique_finder cf;
+
+    explicit cons_base(graph& g) : cf(g) {}
 };
 
 cons_base* post_gc_constraint(minicsp::Solver& s, graph& g,

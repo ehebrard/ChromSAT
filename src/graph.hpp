@@ -23,10 +23,16 @@ public:
     // we keep a copy of the original matrix because we modify matrix
     // when we do merge/separate
     std::vector<bitset> origmatrix;
+    // what the matrix would look like if we had not called separate()
+    // at all. Helps to quickly distinguish between edges that
+    // resulted from vertex contraction and those that were added
+    // explicitly
+    std::vector<bitset> matrix_nosep;
 
     // checkpointing
     int cur_ckpt{0};
     std::vector<std::vector<bitset>> diffs;
+    std::vector<std::vector<bitset>> diffs_nosep;
     std::vector<bitset> dirty;
     std::vector<int> removed;
 
@@ -60,6 +66,7 @@ public:
     {
         matrix.resize(nv);
         origmatrix.resize(nv);
+        matrix_nosep.resize(nv);
         nodeset.initialise(0, nv - 1, bitset::full);
         nodes.reserve(nv);
         nodes.fill();
@@ -67,6 +74,9 @@ public:
             bs.initialise(0, nv, bitset::empt);
         }
         for (auto& bs : origmatrix) {
+            bs.initialise(0, nv, bitset::empt);
+        }
+        for (auto& bs : matrix_nosep) {
             bs.initialise(0, nv, bitset::empt);
         }
         rep_of.resize(capacity());
@@ -90,6 +100,8 @@ public:
         matrix[v].add(u);
         origmatrix[u].add(v);
         origmatrix[v].add(u);
+        matrix_nosep[u].add(v);
+        matrix_nosep[v].add(u);
     }
 
     // merge vertices and return the id of the new vertex (one of u,

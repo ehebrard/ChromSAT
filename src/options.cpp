@@ -91,10 +91,10 @@ options parse(int argc, char* argv[])
         "CDCLeaning & explanation level [0-1]", false, 1, "int");
     cmd.add<SwitchArg>(
         opt.xvars, "", "xvars", "add x (color) variables to the model", false);
-    cmd.add<ValueArg<int>>(opt.polarity, "", "polarity",
-        "polarity policy", false, 0, "int");
-		cmd.add<ValueArg<int>>(opt.ordering, "", "ordering",
-		    "clique finding heuristic [0-4]", false, 3, "int");
+    cmd.add<ValueArg<int>>(
+        opt.polarity, "", "polarity", "polarity policy", false, 0, "int");
+    cmd.add<ValueArg<int>>(opt.ordering, "", "ordering",
+        "clique finding heuristic [0-4]", false, 3, "int");
 
     cmd.parse(argc, argv);
     return opt;
@@ -106,8 +106,8 @@ void options::describe(std::ostream& os)
     os << "cmdline = " << cmdline << "\n";
     os << "Instance file = " << instance_file << "\n";
     os << "Clause learning = " << learning << "\n";
-		os << "Polarity policy = " << polarity << "\n";
-		os << "Clique ordering = " << ordering << "\n";
+    os << "Polarity policy = " << polarity << "\n";
+    os << "Clique ordering = " << ordering << "\n";
     os << "Color variables = " << (xvars ? "present" : "absent") << "\n";
     os << std::endl;
 }

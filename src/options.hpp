@@ -17,15 +17,25 @@ struct options {
     // minicsp options
     bool trace{false};
 
-    enum learning_level { NO_LEARNING, NAIVE_EXPL };
-    learning_level learning{NAIVE_EXPL};
+    enum learning_level {
+        NO_LEARNING,
+        NAIVE_POSITIVE,
+        NAIVE
+    };
+    learning_level learning{NAIVE_POSITIVE};
 
     bool xvars;
-		
-		int polarity;
-		
-		enum ordering_heuristic { NONE, DEGENERACY, INVERSE_DEGENERACY, PARTITION, DYNAMIC_DEGENERACY };
-		ordering_heuristic ordering;
+
+    int polarity;
+
+    enum ordering_heuristic {
+        NONE,
+        DEGENERACY,
+        INVERSE_DEGENERACY,
+        PARTITION,
+        DYNAMIC_DEGENERACY
+    };
+    ordering_heuristic ordering;
 };
 
 options parse(int argc, char* argv[]);

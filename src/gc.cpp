@@ -60,6 +60,17 @@ struct gc_model {
                             s, xvars[i], xvars[j], 0, minicsp::Lit(vars[i][j]));
                 }
             }
+
+            // fix the largest clique to colors 0...k-1
+            auto maxidx = std::distance(begin(cons->cf.clique_sz),
+                std::max_element(begin(cons->cf.clique_sz),
+                    begin(cons->cf.clique_sz) + cons->cf.num_cliques));
+            auto& maxclq = cons->cf.cliques[maxidx];
+            int clr{0};
+            for (auto v : maxclq) {
+                xvars[v].assign(s, clr, minicsp::NO_REASON);
+                ++clr;
+            }
         }
     }
 

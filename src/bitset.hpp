@@ -10,6 +10,8 @@
 
 #include "constants.hpp"
 
+namespace gc {
+
 #ifdef _BIT64
 typedef unsigned long long int __uint__;
 typedef double __ufloat__;
@@ -1815,5 +1817,7 @@ bitset_iterator<W, F> end(Bitset<W, F> const& bs)
 {
     return bitset_iterator<W, F>(bs, 1, 0);
 }
+
+} // namespace gc
 
 #endif // __BITSET_HPP
