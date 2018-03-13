@@ -37,10 +37,10 @@ private:
     std::vector<int> degeneracy_order;
     std::vector<int> heuristic;
 
-    bitset cur_neighbors;
-    std::vector<int> maxcliques;
-    std::vector<std::vector<int>> n_included;
-    long int n_prunings;
+    // bitset cur_neighbors;
+    // std::vector<int> maxcliques;
+    // std::vector<std::vector<int>> n_included;
+    // long int n_prunings;
 
 public:
     gc_constraint(Solver& solver, graph& pg,
@@ -77,7 +77,7 @@ public:
         }
         diffuv.initialise(0, g.capacity(), bitset::empt);
         diffvu.initialise(0, g.capacity(), bitset::empt);
-        cur_neighbors.initialise(0, g.capacity(), bitset::empt);
+        // cur_neighbors.initialise(0, g.capacity(), bitset::empt);
 
         DO_OR_THROW(propagate(s));
     }
@@ -353,48 +353,48 @@ public:
         return NO_REASON;
     }
 
-    Clause* prune_included_neighborhood(const int lb)
-    {
-        maxcliques.clear();
-        for (auto cl = 0; cl < cf.num_cliques; ++cl) {
-            if (cf.clique_sz[cl] == lb) {
-                maxcliques.push_back(cl);
-            }
-        }
-        n_included.resize(maxcliques.size());
-        for (unsigned i = 0; i < maxcliques.size(); ++i) {
-            n_included[i].clear();
-        }
-        for (auto v : g.nodes) {
-            for (unsigned i = 0; i < maxcliques.size(); ++i) {
-                cur_neighbors.copy(g.matrix[v]);
-                cur_neighbors.intersect_with(g.nodeset);
-                if (cf.cliques[maxcliques[i]].intersect(cur_neighbors)) {
-                    n_included[i].push_back(v);
-                }
-            }
-        }
-        for (unsigned i = 0; i < maxcliques.size(); ++i) {
-            for (unsigned a = 0; a < n_included[i].size(); ++a) {
-                for (unsigned b = a + 1; b < n_included[i].size(); ++b) {
-                    if (!g.matrix[n_included[i][a]].fast_contain(
-                            n_included[i][b])
-                        && s.value(vars[n_included[i][a]][n_included[i][b]])
-                            == l_Undef) {
-                        cur_neighbors.copy(g.matrix[n_included[i][a]]);
-                        cur_neighbors.union_with(g.matrix[n_included[i][b]]);
-                        cur_neighbors.intersect_with(g.nodeset);
-                        if (cur_neighbors.includes(cf.cliques[maxcliques[i]])) {
-                            std::cout << "pruning " << n_included[i][a] << ","
-                                      << n_included[i][b] << " ("
-                                      << ++n_prunings << ")\n";
-                        }
-                    }
-                }
-            }
-        }
-        return NO_REASON;
-    }
+    // Clause* prune_included_neighborhood(const int lb)
+    // {
+    //     maxcliques.clear();
+    //     for (auto cl = 0; cl < cf.num_cliques; ++cl) {
+    //         if (cf.clique_sz[cl] == lb) {
+    //             maxcliques.push_back(cl);
+    //         }
+    //     }
+    //     n_included.resize(maxcliques.size());
+    //     for (unsigned i = 0; i < maxcliques.size(); ++i) {
+    //         n_included[i].clear();
+    //     }
+    //     for (auto v : g.nodes) {
+    //         for (unsigned i = 0; i < maxcliques.size(); ++i) {
+    //             cur_neighbors.copy(g.matrix[v]);
+    //             cur_neighbors.intersect_with(g.nodeset);
+    //             if (cf.cliques[maxcliques[i]].intersect(cur_neighbors)) {
+    //                 n_included[i].push_back(v);
+    //             }
+    //         }
+    //     }
+    //     for (unsigned i = 0; i < maxcliques.size(); ++i) {
+    //         for (unsigned a = 0; a < n_included[i].size(); ++a) {
+    //             for (unsigned b = a + 1; b < n_included[i].size(); ++b) {
+    //                 if (!g.matrix[n_included[i][a]].fast_contain(
+    //                         n_included[i][b])
+    //                     && s.value(vars[n_included[i][a]][n_included[i][b]])
+    //                         == l_Undef) {
+    //                     cur_neighbors.copy(g.matrix[n_included[i][a]]);
+    //                     cur_neighbors.union_with(g.matrix[n_included[i][b]]);
+    //                     cur_neighbors.intersect_with(g.nodeset);
+    //                     if (cur_neighbors.includes(cf.cliques[maxcliques[i]])) {
+    //                         std::cout << "pruning " << n_included[i][a] << ","
+    //                                   << n_included[i][b] << " ("
+    //                                   << ++n_prunings << ")\n";
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     return NO_REASON;
+    // }
 
     void check_consistency()
     {
