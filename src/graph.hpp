@@ -52,7 +52,8 @@ public:
     std::vector<std::vector<int>> rep_of_trail;
 
     // buffers
-    bitset util_set;
+    bitset util_set, diff2;
+    bitset partu, partv;
 
     //--------------------------------------------------
     // private, but out in the open
@@ -63,11 +64,17 @@ public:
 public:
     graph() {}
     explicit graph(int nv)
+        : nodeset(0, nv - 1, bitset::full)
+        , matrix(nv)
+        , origmatrix(nv)
+        , matrix_nosep(nv)
+        , rep_of(nv)
+        , partition(nv)
+        , util_set(0, nv - 1, bitset::empt)
+        , diff2(0, nv - 1, bitset::empt)
+        , partu(0, nv - 1, bitset::empt)
+        , partv(0, nv - 1, bitset::empt)
     {
-        matrix.resize(nv);
-        origmatrix.resize(nv);
-        matrix_nosep.resize(nv);
-        nodeset.initialise(0, nv - 1, bitset::full);
         nodes.reserve(nv);
         nodes.fill();
         for (auto& bs : matrix) {
@@ -79,13 +86,10 @@ public:
         for (auto& bs : matrix_nosep) {
             bs.initialise(0, nv, bitset::empt);
         }
-        rep_of.resize(capacity());
-        partition.resize(capacity());
         for (auto v : nodes) {
             rep_of[v] = v;
             partition[v].push_back(v);
         }
-        util_set.initialise(0, nv, bitset::empt);
     }
     graph(graph&) = default;
     graph(graph&&) = default;

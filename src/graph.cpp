@@ -19,7 +19,11 @@ void graph::add_dirty_edge(int u, int v)
         }
         diffs[cur_ckpt][u].fast_add(v);
     }
-    matrix[u].fast_add(v);
+    for (auto vp : partition[v]) {
+        matrix[u].fast_add(vp);
+        if (cur_ckpt > 0)
+            diffs[cur_ckpt][u].fast_add(vp);
+    }
 }
 
 int graph::merge(int u, int v)
@@ -40,6 +44,11 @@ int graph::merge(int u, int v)
     util_set.clear();
     util_set.copy(matrix[v]);
     util_set.setminus_with(matrix[u]);
+
+    diff2.clear();
+    diff2.copy(matrix[u]);
+    diff2.setminus_with(matrix[v]);
+
     matrix[u].union_with(matrix[v]);
     if (cur_ckpt > 0) {
         if (!dirty[cur_ckpt].fast_contain(u)) {
@@ -52,6 +61,10 @@ int graph::merge(int u, int v)
     for (auto w : util_set) {
         add_dirty_edge(w, u);
         add_dirty_edge(u, w);
+    }
+    for (auto w : diff2) {
+        for (auto vp : partition[v])
+            add_dirty_edge(w, vp);
     }
 
     // update rep_of for the partition that was absorbed
@@ -158,7 +171,7 @@ void graph::check_consistency() const
         assert((!nodes.contain(i) || rep_of[i] == i)
             && (rep_of[i] != i || nodes.contain(i)));
 
-    bitset bs(0, capacity(), bitset::full);
+    bitset bs(0, capacity() - 1, bitset::full);
     for (auto v : removed) {
         assert(!nodes.contain(v));
         bs.fast_remove(v);
@@ -168,6 +181,7 @@ void graph::check_consistency() const
     for (auto v : nodes) {
         assert(!partition[v].empty());
         assert(partition[v][0] == v);
+        assert(rep_of[v] == v);
         bs.clear();
         for (auto u : partition[v]) {
             assert(rep_of[u] == v);
@@ -178,6 +192,28 @@ void graph::check_consistency() const
             std::cout << "matrix[" << v << "] = " << matrix[v] << "\n";
         }
         assert(bs.included(matrix[v]));
+    }
+
+    for (auto v : nodes) {
+        for (auto u : nodes) {
+            if (u < v)
+                continue;
+            if (matrix[v].fast_contain(u)) {
+                for (auto vp : partition[v])
+                    if (!matrix[u].fast_contain(vp)) {
+                        std::cout << "matrix[v] = " << matrix[v] << std::endl;
+                        std::cout << "matrix[u] = " << matrix[u] << std::endl;
+                        assert(matrix[u].fast_contain(vp));
+                    }
+                for (auto up : partition[u]) {
+                    if (!matrix[v].fast_contain(up)) {
+                        std::cout << "matrix[v] = " << matrix[v] << std::endl;
+                        std::cout << "matrix[u] = " << matrix[u] << std::endl;
+                        assert(matrix[v].fast_contain(up));
+                    }
+                }
+            }
+        }
     }
 }
 

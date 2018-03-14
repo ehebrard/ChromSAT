@@ -97,11 +97,12 @@ struct gc_model {
                 std::cout << "*** INTERRUPTED ***\n";
                 return;
             } else {
-								cons->bestlb = cons->ub;
-						    std::cout << "c new lower bound " << cons->ub << " time = " << minicsp::cpuTime()
-						              << " conflicts = " << s.conflicts << std::endl;
+                cons->bestlb = cons->ub;
+                std::cout << "c new lower bound " << cons->ub
+                          << " time = " << minicsp::cpuTime()
+                          << " conflicts = " << s.conflicts << std::endl;
                 std::cout << "UNSAT\n";
-						}
+            }
         }
     }
 

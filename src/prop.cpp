@@ -82,6 +82,18 @@ public:
         DO_OR_THROW(propagate(s));
     }
 
+    std::ostream& print(Solver&, std::ostream& os) const
+    {
+        os << "coloring constraint";
+        return os;
+    }
+
+    std::ostream& printstate(Solver&, std::ostream& os) const
+    {
+        os << "coloring constraint";
+        return os;
+    }
+
     void sync_graph()
     {
         if (*lastdlvl < g.current_checkpoint()) {
@@ -137,8 +149,7 @@ public:
         };
 
         if (!sign(l)) {
-            // merging u and v. Note that (u,v) may be (info.u,
-            // info.v) or (info.v, info.u). u is the representative
+            // merging u and v
 
             if (u == v) {
                 // already merged
@@ -201,6 +212,9 @@ public:
 
             g.merge(u, v);
         } else {
+            if (g.matrix[u].fast_contain(v))
+                return NO_REASON;
+
             // separate u and v first
             DO_OR_RETURN(separate(u, info.u, info.v));
             DO_OR_RETURN(separate(v, info.v, u));
