@@ -12,35 +12,14 @@ void graph::add_dirty_edge(int u, int v)
 {
     if (matrix[u].fast_contain(v))
         return;
-    if (cur_ckpt > 0) {
-        if (!dirty[cur_ckpt].fast_contain(u)) {
-            dirty[cur_ckpt].fast_add(u);
-            diffs[cur_ckpt][u].clear();
-        }
-        diffs[cur_ckpt][u].fast_add(v);
-    }
     for (auto vp : partition[v]) {
         matrix[u].fast_add(vp);
-        if (cur_ckpt > 0)
-            diffs[cur_ckpt][u].fast_add(vp);
+        edge_trail.push_back({u, vp});
     }
 }
 
 int graph::merge(int u, int v)
 {
-    util_set.clear();
-    util_set.copy(matrix_nosep[v]);
-    util_set.setminus_with(matrix_nosep[u]);
-    matrix_nosep[u].union_with(matrix_nosep[v]);
-    if (cur_ckpt > 0) {
-        if (!dirty[cur_ckpt].fast_contain(u)) {
-            diffs_nosep[cur_ckpt][u].copy(util_set);
-            dirty[cur_ckpt].fast_add(u);
-        } else {
-            diffs_nosep[cur_ckpt][u].union_with(util_set);
-        }
-    }
-
     util_set.clear();
     util_set.copy(matrix[v]);
     util_set.setminus_with(matrix[u]);
@@ -50,14 +29,6 @@ int graph::merge(int u, int v)
     diff2.setminus_with(matrix[v]);
 
     matrix[u].union_with(matrix[v]);
-    if (cur_ckpt > 0) {
-        if (!dirty[cur_ckpt].fast_contain(u)) {
-            diffs[cur_ckpt][u].copy(util_set);
-            dirty[cur_ckpt].fast_add(u);
-        } else {
-            diffs[cur_ckpt][u].union_with(util_set);
-        }
-    }
     for (auto w : util_set) {
         add_dirty_edge(w, u);
         add_dirty_edge(u, w);
@@ -98,51 +69,37 @@ void graph::separate(int u, int v)
 int graph::checkpoint()
 {
     ++cur_ckpt;
-    if (static_cast<size_t>(cur_ckpt) >= diffs.size()) {
-        // trailing part
-        diffs.resize(cur_ckpt + 1);
-        diffs_nosep.resize(cur_ckpt + 1);
-        dirty.resize(cur_ckpt + 1);
-        diffs[cur_ckpt].resize(capacity());
-        diffs_nosep[cur_ckpt].resize(capacity());
-        for (auto& bs : diffs[cur_ckpt])
-            bs.initialise(0, capacity() + 1, bitset::empt);
-        for (auto& bs : diffs_nosep[cur_ckpt])
-            bs.initialise(0, capacity() + 1, bitset::empt);
-        dirty[cur_ckpt].initialise(0, capacity() + 1, bitset::empt);
-
-        // copying part
+    if (static_cast<size_t>(cur_ckpt) >= rep_of_trail.size()) {
+        // make space for the copying part
         rep_of_trail.resize(cur_ckpt);
-        rep_of_trail[cur_ckpt - 1] = rep_of;
         partition_size_trail.resize(cur_ckpt);
         partition_size_trail[cur_ckpt - 1].resize(capacity());
-        for (auto v : nodes)
-            partition_size_trail[cur_ckpt - 1][v] = partition[v].size();
-    } else {
-        // trailing
-        for (auto& bs : diffs[cur_ckpt])
-            bs.clear();
-        for (auto& bs : diffs_nosep[cur_ckpt])
-            bs.clear();
-        dirty[cur_ckpt].clear();
-
-        // copying
-        rep_of_trail[cur_ckpt - 1] = rep_of;
-        for (auto v : nodes)
-            partition_size_trail[cur_ckpt - 1][v] = partition[v].size();
     }
+    // trailing
+    edge_lim.push_back(edge_trail.size());
+
+    // copying
+    rep_of_trail[cur_ckpt - 1] = rep_of;
+    for (auto v : nodes)
+        partition_size_trail[cur_ckpt - 1][v] = partition[v].size();
+
     return cur_ckpt;
 }
 
 void graph::restore(int ckpt)
 {
-    for (int i = cur_ckpt; i > ckpt; --i) {
-        for (auto v : dirty[i]) {
-            matrix[v].setminus_with(diffs[i][v]);
-            matrix_nosep[v].setminus_with(diffs_nosep[i][v]);
-        }
-    }
     cur_ckpt = ckpt;
+
+    int trailnewsize = edge_lim[ckpt];
+    for (int i = trailnewsize; static_cast<unsigned>(i) != edge_trail.size();
+         ++i) {
+        auto e = edge_trail[i];
+        matrix[e.first].fast_remove(e.second);
+        matrix[e.second].fast_remove(e.first);
+    }
+    edge_trail.resize(trailnewsize);
+    edge_lim.resize(ckpt);
+
     rep_of = rep_of_trail[cur_ckpt];
 
     while (!removed.empty()) {

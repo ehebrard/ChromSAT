@@ -84,13 +84,13 @@ public:
 
     std::ostream& print(Solver&, std::ostream& os) const
     {
-        os << "coloring constraint";
+        os << "coloring";
         return os;
     }
 
     std::ostream& printstate(Solver&, std::ostream& os) const
     {
-        os << "coloring constraint";
+        os << "coloring";
         return os;
     }
 
@@ -261,8 +261,11 @@ public:
     // explanation to reason.
     void explain_N_naive(int u, const bitset& N, vec<Lit>& reason)
     {
-        g.util_set.copy(g.matrix_nosep[u]);
+        g.util_set.clear();
+        for (auto v : g.partition[u])
+            g.util_set.union_with(g.origmatrix[v]);
         g.util_set.intersect_with(N);
+        expl_covered.copy(g.util_set);
         for (auto v : g.partition[u]) {
             g.util_set.setminus_with(g.origmatrix[v]);
             if (v != u)
@@ -271,7 +274,7 @@ public:
                 break;
         }
         g.util_set.copy(g.matrix[u]);
-        g.util_set.setminus_with(g.matrix_nosep[u]);
+        g.util_set.setminus_with(expl_covered);
         g.util_set.intersect_with(N);
         for (auto v : g.util_set) {
             reason.push(Lit(vars[u][v]));
