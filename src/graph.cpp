@@ -67,7 +67,7 @@ void graph::separate(int u, int v)
 }
 
 int graph::checkpoint()
-{		
+{
     ++cur_ckpt;
 
     if (static_cast<size_t>(cur_ckpt) >= rep_of_trail.size()) {

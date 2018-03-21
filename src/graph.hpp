@@ -28,8 +28,8 @@ public:
     // checkpointing
     int cur_ckpt{0};
     std::vector<int> removed;
-		
-		
+
+
 
     // trail of removed edges, including a lim which delimits
     // checkpoints

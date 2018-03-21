@@ -30,7 +30,7 @@ private:
     std::vector<int> culprit;
     bitset diffuv, diffvu;
 
-    bitset expl_N, expl_covered;
+    bitset expl_N, expl_covered, expl_residue;
 
     neighbors_wrapper adjacency_list;
 
@@ -53,6 +53,7 @@ public:
         , lastdlvl(s)
         , expl_N(0, g.capacity() - 1, bitset::empt)
         , expl_covered(0, g.capacity() - 1, bitset::empt)
+        , expl_residue(0, g.capacity() - 1, bitset::empt)
         , adjacency_list(g)
     {
         ub = g.capacity();
@@ -265,7 +266,7 @@ public:
         for (auto v : g.partition[u])
             g.util_set.union_with(g.origmatrix[v]);
         g.util_set.intersect_with(N);
-        expl_covered.copy(g.util_set);
+        expl_residue.copy(g.util_set);
         for (auto v : g.partition[u]) {
             g.util_set.setminus_with(g.origmatrix[v]);
             if (v != u)
@@ -274,7 +275,7 @@ public:
                 break;
         }
         g.util_set.copy(g.matrix[u]);
-        g.util_set.setminus_with(expl_covered);
+        g.util_set.setminus_with(expl_residue);
         g.util_set.intersect_with(N);
         for (auto v : g.util_set) {
             reason.push(Lit(vars[u][v]));
