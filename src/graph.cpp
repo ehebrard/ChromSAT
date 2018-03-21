@@ -19,6 +19,8 @@ void graph::add_dirty_edge(int u, int v)
         }
         diffs[cur_ckpt][u].fast_add(v);
     }
+		
+		extra_edges.push_back( edge{u,v} );
     matrix[u].fast_add(v);
 }
 
@@ -83,8 +85,9 @@ void graph::separate(int u, int v)
 }
 
 int graph::checkpoint()
-{
+{		
     ++cur_ckpt;
+
     if (static_cast<size_t>(cur_ckpt) >= diffs.size()) {
         // trailing part
         diffs.resize(cur_ckpt + 1);
