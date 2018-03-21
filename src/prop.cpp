@@ -82,6 +82,18 @@ public:
         DO_OR_THROW(propagate(s));
     }
 
+    std::ostream& print(Solver&, std::ostream& os) const
+    {
+        os << "coloring";
+        return os;
+    }
+
+    std::ostream& printstate(Solver&, std::ostream& os) const
+    {
+        os << "coloring";
+        return os;
+    }
+
     void sync_graph()
     {
         if (*lastdlvl < g.current_checkpoint()) {
@@ -137,8 +149,7 @@ public:
         };
 
         if (!sign(l)) {
-            // merging u and v. Note that (u,v) may be (info.u,
-            // info.v) or (info.v, info.u). u is the representative
+            // merging u and v
 
             if (u == v) {
                 // already merged
@@ -201,6 +212,9 @@ public:
 
             g.merge(u, v);
         } else {
+            if (g.matrix[u].fast_contain(v))
+                return NO_REASON;
+
             // separate u and v first
             DO_OR_RETURN(separate(u, info.u, info.v));
             DO_OR_RETURN(separate(v, info.v, u));
@@ -247,8 +261,11 @@ public:
     // explanation to reason.
     void explain_N_naive(int u, const bitset& N, vec<Lit>& reason)
     {
-        g.util_set.copy(g.matrix_nosep[u]);
+        g.util_set.clear();
+        for (auto v : g.partition[u])
+            g.util_set.union_with(g.origmatrix[v]);
         g.util_set.intersect_with(N);
+        expl_covered.copy(g.util_set);
         for (auto v : g.partition[u]) {
             g.util_set.setminus_with(g.origmatrix[v]);
             if (v != u)
@@ -257,7 +274,7 @@ public:
                 break;
         }
         g.util_set.copy(g.matrix[u]);
-        g.util_set.setminus_with(g.matrix_nosep[u]);
+        g.util_set.setminus_with(expl_covered);
         g.util_set.intersect_with(N);
         for (auto v : g.util_set) {
             reason.push(Lit(vars[u][v]));
