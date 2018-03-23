@@ -357,16 +357,15 @@ public:
             lb = cf.find_cliques(g.nodes);
         }
 
+				auto mlb{lb};
 				if(opt.boundalg == options::FULLMYCIELSKI) {
-						auto mlb{mf.full_myciel()};
-						std::cout << mlb-lb << std::endl;
+						mlb = mf.full_myciel();
 				} else if(opt.boundalg == options::MAXMYCIELSKI) {
-						auto mlb{mf.improve_cliques_larger_than(lb)};
-						std::cout << mlb-lb << std::endl;
+						mlb = mf.improve_cliques_larger_than(lb);
 				} else if(opt.boundalg == options::GREEDYMYCIELSKI) {
-						auto mlb{mf.improve_greedy(lb-1)};
-						std::cout << mlb-lb << std::endl;
+						mlb = mf.improve_greedy(lb-1);
 				}
+				stat.notify_bound_delta(mlb-lb);
 
 
         if (s.decisionLevel() == 0 && lb > bestlb) {
