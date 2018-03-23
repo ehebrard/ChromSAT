@@ -355,6 +355,12 @@ public:
             lb = cf.find_cliques(g.nodes);
         }
 
+				if(opt.boundalg == options::FULLMYCIELSKI) {
+						auto mlb{mf.get_bound()};
+						std::cout << mlb-lb << std::endl;
+				}
+
+
         if (s.decisionLevel() == 0 && lb > bestlb) {
             bestlb = lb;
             std::cout << "c new lower bound " << bestlb

@@ -36,6 +36,12 @@ struct options {
         DYNAMIC_DEGENERACY
     };
     ordering_heuristic ordering;
+		
+    enum dual_policy {
+        CLIQUES,
+        FULLMYCIELSKI
+    };
+    dual_policy boundalg;
 };
 
 options parse(int argc, char* argv[]);

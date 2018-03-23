@@ -5,6 +5,11 @@
 
 #include <algorithm>
 
+#include <iomanip>
+
+// #define _DEBUG_MYCIEL
+
+
 namespace gc
 {
 
@@ -224,6 +229,198 @@ void clique_finder::insert_color(int v, int clq, bitset& diff)
     diff.copy(g.matrix[v]);
     diff.setminus_with(candidates[clq]);
     candidates[clq].union_with(g.matrix[v]);
+}
+
+mycielskan_finder::mycielskan_finder(const graph& g, const clique_finder& cf) 
+	    : g(g)
+			, cf(cf)
+{
+		non_neighbors.initialise(0, g.capacity() + 1, bitset::empt);
+		neighbors_Sv.initialise(0, g.capacity() + 1, bitset::empt);
+		neighbors_u.initialise(0, g.capacity() + 1, bitset::empt);
+		candidates.initialise(0, g.capacity() + 1, bitset::empt);
+		subgraph_set.initialise(0, g.capacity() + 1, bitset::empt);
+}
+
+
+
+// extend the subgraph into a mycielski of higher order until reaching a fix point, and return the number of iterations
+int mycielskan_finder::extends( const bitset& G ) 
+{	
+	
+#ifdef _DEBUG_MYCIEL
+		std::cout << "TRY TO EXTEND " << G << std::endl;
+#endif
+			
+		int iter = 0;
+		
+		// endS.clear();
+		// extra.clear();
+		subgraph.clear();
+		subgraph_set.copy(G);
+		for(auto v : G) {
+				subgraph.push_back(v);
+		}
+		
+		// auto vptr =
+		while(subgraph.size() < g.nodes.size()) {
+			endS.clear();
+			extra.clear();
+			candidates.fill();
+					
+			for(auto v : subgraph) {
+					non_neighbors.copy(g.nodeset);
+					non_neighbors.setminus_with(g.matrix[v]);
+					non_neighbors.fast_remove(v);
+				
+					extra.push_back( v );
+					neighbors_Sv.copy(g.matrix[v]);
+
+#ifdef _DEBUG_MYCIEL
+					std::cout << std::setw(2) << v << " N(S" << v << ")=\n + N(" << v << ")=" << neighbors_Sv << std::endl;
+#endif
+					
+					for(auto u : non_neighbors) {
+							neighbors_u.copy( G );
+							neighbors_u.setminus_with(g.matrix[u]);
+							if(neighbors_u.fast_contain( v )) {
+									neighbors_u.fast_remove( v );
+									if(neighbors_u.empty()) {
+											extra.push_back( u );
+											neighbors_Sv.union_with(g.matrix[u]);
+											
+#ifdef _DEBUG_MYCIEL
+											std::cout << " + N(" << u << ")=" << g.matrix[u] << " -> " << neighbors_Sv << std::endl;
+#endif
+											
+									}
+							}
+					}
+					
+				
+					candidates.intersect_with(neighbors_Sv);
+					
+#ifdef _DEBUG_MYCIEL
+					std::cout << " ==> " << candidates << std::endl;
+#endif
+					
+					if(candidates.empty()) {
+						
+#ifdef _DEBUG_MYCIEL
+							std::cout << "STOP!\n";
+#endif
+							
+							return iter;
+					}
+					
+					endS.push_back(extra.size());
+			}
+			
+			// assert(endS.back() == extra.size());
+			
+
+			// select any (?) v
+			auto u = g.rep_of[candidates.min()];
+			
+#ifdef _DEBUG_MYCIEL
+			std::cout << " choose " << u << " N(" << u << ")=" << g.matrix[u] << " => ";
+#endif
+			
+			// put all potential extra nodes into a bitset so that we can intersect with N(u)
+			neighbors_u.clear();
+			for(auto v : extra) {
+					neighbors_u.fast_add( v );
+			}
+			
+#ifdef _DEBUG_MYCIEL
+			std::cout << " inter " << neighbors_u << " = " ;
+#endif
+			
+			neighbors_u.intersect_with(g.matrix[u]);
+			
+#ifdef _DEBUG_MYCIEL
+			std::cout << neighbors_u << std::endl;
+
+			auto k{0};
+			for(auto i = 0 ; i < subgraph.size() ;) {
+				while(k < endS[i]) {
+					std::cout << " " << extra[k++];
+				}
+				while(k>=endS[i] && i < subgraph.size()) {
+					std::cout << "|";
+					++i;
+				}
+			}
+			
+			std::cout << "\n ==>";
+#endif
+			
+			// now for every v, select any element of Sv that is also a neighbor of u
+			auto j{0}; // index in extra
+			auto n{subgraph.size()};
+			for(auto i = 0 ; i < n ; ++i) {
+				
+#ifdef _DEBUG_MYCIEL
+					std::cout << " " << i << "." << j << "." << endS[i];
+					std::cout.flush();
+#endif
+				
+							do {
+									
+									assert( j < endS[i] );
+									auto v{extra[j]}; 
+									if( neighbors_u.fast_contain(v) ) {
+											
+									
+											if(!subgraph_set.fast_contain(v)) {
+												subgraph.push_back(v);
+												subgraph_set.fast_add(v);
+												
+#ifdef _DEBUG_MYCIEL
+												std::cout << " " << v;
+												std::cout.flush();
+#endif
+											}
+											
+#ifdef _DEBUG_MYCIEL
+											else {
+												std::cout << " (" << v << ")" ;
+												std::cout.flush();
+											}
+#endif
+									
+											break;
+									} 
+									++j;
+							} while(true);
+				
+							j = endS[i];
+
+					
+			}
+		
+			subgraph.push_back(u);
+			
+#ifdef _DEBUG_MYCIEL
+			std::cout << " + " << u << std::endl;
+#endif
+			
+			++iter;
+		}
+		
+		return iter;
+}
+
+int mycielskan_finder::get_bound() 
+{
+	auto lb{0};
+	for(auto cl = 0 ; cl < cf.num_cliques ; ++cl ) {
+			auto mycielski_lb = cf.clique_sz[cl] + extends( cf.cliques[cl] );
+			if(mycielski_lb > lb) {
+					lb = mycielski_lb;
+			}
+	}
+	return lb;
 }
 
 neighbors_wrapper::neighbors_wrapper(const graph& g)

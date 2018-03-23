@@ -172,6 +172,43 @@ struct clique_finder {
     }
 };
 
+struct mycielskan_finder {
+    const graph& g;
+		const clique_finder& cf;
+
+    mycielskan_finder(const graph& g, const clique_finder& cf);
+		
+		// the considered subgraph
+		std::vector<int> subgraph;
+		bitset subgraph_set;
+		
+		// [tmp in "extends] neighborhood of u
+		bitset neighbors_u;
+		
+		// [tmp in "extends] neighborhood of S_v
+		bitset neighbors_Sv;
+		
+		// [tmp in "extends] non neighborhood of v
+		bitset non_neighbors;
+		
+		// [tmp in "extends] store the potential extra nodes of the mycielski
+		std::vector<int> extra;
+		
+		// [tmp in extends] store the index of extra where S_extra[i] ends
+		std::vector<int> endS;
+		
+		
+		// [tmp in "extends] the set of "candidates" (intersection of the neighbors of neighbors_Sv)
+		bitset candidates;
+				
+
+		// extend the subgraph G into a mycielski of subsequent order if possible, the additional vertices go into "subgraph"
+		int extends( const bitset& G );		
+
+		int get_bound();
+
+};
+
 struct neighbors_wrapper {
     const graph& g;
     std::vector<IntStack> by_degree;
