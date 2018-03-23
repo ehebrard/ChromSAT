@@ -411,7 +411,7 @@ int mycielskan_finder::extends( const bitset& G )
 		return iter;
 }
 
-int mycielskan_finder::get_bound() 
+int mycielskan_finder::full_myciel() 
 {
 	auto lb{0};
 	for(auto cl = 0 ; cl < cf.num_cliques ; ++cl ) {
@@ -419,6 +419,34 @@ int mycielskan_finder::get_bound()
 			if(mycielski_lb > lb) {
 					lb = mycielski_lb;
 			}
+	}
+	return lb;
+}
+
+int mycielskan_finder::improve_cliques_larger_than(const int size) 
+{	
+	auto lb{size};
+	for(auto cl = 0 ; cl < cf.num_cliques ; ++cl ) {
+			if(cf.clique_sz[cl] >= size) {
+					auto mycielski_lb = cf.clique_sz[cl] + extends( cf.cliques[cl] );
+					if(mycielski_lb > lb) {
+							lb = mycielski_lb;
+					}
+		 	}
+	}
+	return lb;
+}
+
+int mycielskan_finder::improve_greedy(const int size) 
+{
+	auto lb{size};
+	for(auto cl = 0 ; cl < cf.num_cliques ; ++cl ) {
+			if(cf.clique_sz[cl] >= lb) {
+					auto mycielski_lb = cf.clique_sz[cl] + extends( cf.cliques[cl] );
+					if(mycielski_lb > lb) {
+							lb = mycielski_lb;
+					}
+		 	}
 	}
 	return lb;
 }

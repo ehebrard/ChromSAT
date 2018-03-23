@@ -3,6 +3,7 @@
 #include "dimacs.hpp"
 #include "graph.hpp"
 #include "options.hpp"
+#include "statistics.hpp"
 #include "prop.hpp"
 #include "utils.hpp"
 
@@ -14,15 +15,17 @@ struct gc_model {
     gc::graph& g;
     minicsp::Solver& s;
     const gc::options& options;
+		gc::statistics& statistics;
     std::vector<std::vector<minicsp::Var>> vars;
     std::vector<minicsp::cspvar> xvars;
     gc::cons_base* cons;
 
-    gc_model(gc::graph& g, minicsp::Solver& s, const gc::options& options,
+    gc_model(gc::graph& g, minicsp::Solver& s, const gc::options& options, gc::statistics& statistics,
         std::pair<int, int> bounds)
         : g(g)
         , s(s)
         , options(options)
+				, statistics(statistics)
     {
         vars.resize(g.capacity());
         for (size_t i = 0; i != vars.size(); ++i) {
@@ -44,7 +47,7 @@ struct gc_model {
                 }
         }
 
-        cons = gc::post_gc_constraint(s, g, vars, options);
+        cons = gc::post_gc_constraint(s, g, vars, options, statistics);
         auto [lb, ub] = bounds;
         cons->bestlb = std::max(lb, cons->bestlb);
         cons->ub = std::min(ub, cons->ub);
@@ -114,6 +117,7 @@ struct gc_model {
             std::cout << "Best bounds [" << cons->bestlb << ", " << cons->ub
                       << "]\n";
         minicsp::printStats(s);
+				statistics.describe(std::cout);
     }
 };
 
@@ -136,6 +140,8 @@ int main(int argc, char* argv[])
 {
     auto options = gc::parse(argc, argv);
     options.describe(std::cout);
+		
+		gc::statistics statitics;
 
     gc::graph g;
     dimacs::read_graph(options.instance_file.c_str(),
@@ -157,7 +163,7 @@ int main(int argc, char* argv[])
     if (options.learning == gc::options::NO_LEARNING)
         s.learning = false;
 
-    gc_model model(g, s, options, std::pair<int, int>(lb, ub));
+    gc_model model(g, s, options, statitics, std::pair<int, int>(lb, ub));
     model.solve();
     model.print_stats();
 }

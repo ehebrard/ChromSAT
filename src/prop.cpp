@@ -14,6 +14,7 @@ private:
     graph& g;
     const std::vector<std::vector<Var>>& vars;
     const options& opt;
+	 	statistics& stat;
 
     struct varinfo_t {
         int u{-1}, v{-1};
@@ -44,12 +45,13 @@ private:
 
 public:
     gc_constraint(Solver& solver, graph& pg,
-        const std::vector<std::vector<Var>>& tvars, const options& opt)
+        const std::vector<std::vector<Var>>& tvars, const options& opt, statistics& stat)
         : cons_base(pg)
         , s(solver)
         , g(pg)
         , vars(tvars)
         , opt(opt)
+				, stat(stat)
         , lastdlvl(s)
         , expl_N(0, g.capacity() - 1, bitset::empt)
         , expl_covered(0, g.capacity() - 1, bitset::empt)
@@ -356,7 +358,13 @@ public:
         }
 
 				if(opt.boundalg == options::FULLMYCIELSKI) {
-						auto mlb{mf.get_bound()};
+						auto mlb{mf.full_myciel()};
+						std::cout << mlb-lb << std::endl;
+				} else if(opt.boundalg == options::MAXMYCIELSKI) {
+						auto mlb{mf.improve_cliques_larger_than(lb)};
+						std::cout << mlb-lb << std::endl;
+				} else if(opt.boundalg == options::GREEDYMYCIELSKI) {
+						auto mlb{mf.improve_greedy(lb-1)};
 						std::cout << mlb-lb << std::endl;
 				}
 
@@ -477,9 +485,9 @@ public:
 };
 
 cons_base* post_gc_constraint(Solver& s, graph& g,
-    const std::vector<std::vector<Var>>& vars, const options& opt)
+    const std::vector<std::vector<Var>>& vars, const options& opt, statistics& stat)
 {
-    auto cons = new gc_constraint(s, g, vars, opt);
+    auto cons = new gc_constraint(s, g, vars, opt, stat);
     s.addConstraint(cons);
     return cons;
 }

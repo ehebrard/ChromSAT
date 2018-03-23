@@ -205,7 +205,12 @@ struct mycielskan_finder {
 		// extend the subgraph G into a mycielski of subsequent order if possible, the additional vertices go into "subgraph"
 		int extends( const bitset& G );		
 
-		int get_bound();
+		int full_myciel();
+		
+		int improve_cliques_larger_than(const int size);
+		
+		int improve_greedy(const int size);
+
 
 };
 

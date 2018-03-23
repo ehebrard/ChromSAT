@@ -4,6 +4,7 @@
 #include "graph.hpp"
 #include "minicsp/core/solver.hpp"
 #include "options.hpp"
+#include "statistics.hpp"
 
 namespace gc
 {
@@ -21,7 +22,7 @@ struct cons_base {
 };
 
 cons_base* post_gc_constraint(minicsp::Solver& s, graph& g,
-    const std::vector<std::vector<minicsp::Var>>& vars, const options& opt);
+    const std::vector<std::vector<minicsp::Var>>& vars, const options& opt, statistics& stat);
 
 } // namespace gc
 

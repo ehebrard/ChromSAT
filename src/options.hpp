@@ -39,6 +39,8 @@ struct options {
 		
     enum dual_policy {
         CLIQUES,
+				GREEDYMYCIELSKI,
+				MAXMYCIELSKI,
         FULLMYCIELSKI
     };
     dual_policy boundalg;
