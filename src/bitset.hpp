@@ -1764,20 +1764,20 @@ template <class WORD_TYPE, class FLOAT_TYPE> struct bitset_iterator {
     using reference = const int&;
     using iterator_category = std::input_iterator_tag;
 
-    Bitset<WORD_TYPE, FLOAT_TYPE> const& bs;
+    Bitset<WORD_TYPE, FLOAT_TYPE> const* bs;
     int cur, next;
     bool atend{false};
 
     bitset_iterator(Bitset<WORD_TYPE, FLOAT_TYPE> const& b)
-        : bs(b)
-        , cur(bs.min())
-        , next(bs.empty() ? 0 : bs.next(cur))
+        : bs(&b)
+        , cur(bs->min())
+        , next(bs->empty() ? 0 : bs->next(cur))
         , atend(cur > next)
     {
     }
     bitset_iterator(
         Bitset<WORD_TYPE, FLOAT_TYPE> const& b, int start, int nextel)
-        : bs(b)
+        : bs(&b)
         , cur(start)
         , next(nextel)
         , atend(cur > next)
@@ -1789,7 +1789,7 @@ template <class WORD_TYPE, class FLOAT_TYPE> struct bitset_iterator {
     {
         cur = std::max(cur + 1, next);
         if (cur <= next)
-            next = bs.next(cur);
+            next = bs->next(cur);
         else
             atend = true;
         return *this;
@@ -1797,7 +1797,7 @@ template <class WORD_TYPE, class FLOAT_TYPE> struct bitset_iterator {
 
     bool operator==(bitset_iterator const& other)
     {
-        assert(std::addressof(bs) == std::addressof(other.bs));
+        assert(bs == other.bs);
         if (atend)
             return other.atend;
         return !other.atend && cur == other.cur;

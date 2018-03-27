@@ -17,11 +17,7 @@ struct options {
     // minicsp options
     bool trace{false};
 
-    enum learning_level {
-        NO_LEARNING,
-        NAIVE_POSITIVE,
-        NAIVE
-    };
+    enum learning_level { NO_LEARNING, NAIVE_POSITIVE, NAIVE, MYC_POSITIVE };
     learning_level learning{NAIVE_POSITIVE};
 
     bool xvars;
