@@ -513,8 +513,8 @@ int pick_partition(const graph& g, const bitset& clq, bitset& util_set,
         // std::cout << "nc[" << v << "] = " << nc[v] << "\n";
     }
     return *std::min_element(begin(clq), end(clq), [&](int u, int v) {
-        return std::pair{-nc[u], partitions[revmap[u]].size()}
-        < std::pair{-nc[v], partitions[revmap[v]].size()};
+        return std::pair<int, size_t>{-nc[u], partitions[revmap[u]].size()}
+        < std::pair<int, size_t>{-nc[v], partitions[revmap[v]].size()};
     });
 }
 
@@ -556,7 +556,7 @@ void gc_constraint::explain_myc_w_edges(int w, const bitset& clq,
     auto wp = pick_vertex(g, clq, w, partitions, expl_revmap, util_set);
     expl_part_rep[expl_revmap[w]] = wp;
     std::cout << "Picked " << wp << " as rep of partition " << w << "("
-              << print_container(partitions[expl_revmap[w]]) << ")\n";
+              << print_container<std::vector<int>>(partitions[expl_revmap[w]]) << ")\n";
     util_set.clear();
     // w (as a partition) is adjacent to all vertices in
     // covered_neighbors. wp, which we have chosen as the vertex from
@@ -620,7 +620,7 @@ void gc_constraint::explain_myc_rec(bitset& clq,
 
     for (auto u : clq)
         std::cout << "  partition[" << u
-                  << "] = " << print_container(partitions[revmap[u]]) << "\n";
+                  << "] = " << print_container<std::vector<int>>(partitions[revmap[u]]) << "\n";
 
     auto w = pick_partition(g, clq, util_set, partitions, revmap);
     clq.fast_remove(w);
@@ -629,7 +629,7 @@ void gc_constraint::explain_myc_rec(bitset& clq,
     update_partitions(g, partitions, expl_covered_neighbors[revmap[w]], clq, w,
         revmap, util_set);
     std::cout << "kept neighbors "
-              << print_container(expl_covered_neighbors[revmap[w]]) << "\n";
+              << print_container<std::vector<int>>(expl_covered_neighbors[revmap[w]]) << "\n";
     explain_myc_rec(clq, partitions, revmap);
 
     explain_myc_w_edges(w, clq, partitions, expl_covered_neighbors[revmap[w]]);
@@ -660,7 +660,7 @@ Clause* gc_constraint::explain_myc()
     expl_myc_w.clear();
 
     std::cout << "\nconflict " << s.conflicts + 1 << " clique "
-              << print_container(clq) << "\n";
+              << print_container<std::vector<int>>(clq) << "\n";
 
     bitset& clqcopy = expl_clqcopy;
     clqcopy.copy(cf.cliques[maxidx]);
