@@ -433,10 +433,10 @@ int mycielskan_finder::extends( const bitset& G )
 }
 
 
-int mycielskan_finder::full_myciel() 
+int mycielskan_finder::full_myciel(const int curlb) 
 {
 	explanation_clique = -1;
-	auto lb{0};
+	auto lb{curlb};
 	for(auto cl = 0 ; cl < cf.num_cliques ; ++cl ) {
 			auto mycielski_lb = cf.clique_sz[cl] + extends( cf.cliques[cl] );
 			if(mycielski_lb > lb) {
@@ -453,10 +453,10 @@ int mycielskan_finder::full_myciel()
 	return lb;
 }
 
-int mycielskan_finder::improve_cliques_larger_than(const int size) 
+int mycielskan_finder::improve_cliques_larger_than(const int size, const int curlb) 
 {
 	explanation_clique = -1;
-	auto lb{size};
+	auto lb{curlb};
 	for(auto cl = 0 ; cl < cf.num_cliques ; ++cl ) {
 			if(cf.clique_sz[cl] >= size) {
 					auto niters{extends( cf.cliques[cl] )};
@@ -467,7 +467,6 @@ int mycielskan_finder::improve_cliques_larger_than(const int size)
 							for(auto v : _subgraph) explanation_subgraph.push_back(v);
 							explanation_layer.clear();
 							for(auto l : _layer) explanation_layer.push_back(l);
-							
 							explanation_clique = cl;
 							
 							// std::cout << " --> " << lb << " (niters = " << niters << ") save" ;
@@ -482,10 +481,10 @@ int mycielskan_finder::improve_cliques_larger_than(const int size)
 	return lb;
 }
 
-int mycielskan_finder::improve_greedy(const int size) 
+int mycielskan_finder::improve_greedy(const int size, const int curlb) 
 {
 	explanation_clique = -1;
-	auto lb{size};
+	auto lb{curlb};
 	for(auto cl = 0 ; cl < cf.num_cliques ; ++cl ) {
 			if(cf.clique_sz[cl] >= lb) {
 					auto mycielski_lb = cf.clique_sz[cl] + extends( cf.cliques[cl] );

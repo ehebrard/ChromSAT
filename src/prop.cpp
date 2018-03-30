@@ -35,9 +35,9 @@ private:
     bitset expl_N, expl_covered, expl_residue;
     bitset expl_clqcopy;
 		bitset neighborhood;
-		std::vector<int> global_myciel_layer;
-		std::vector<int> global_myciel_subgraph;
-		int global_myciel_clique;
+		// std::vector<int> global_myciel_layer;
+		// std::vector<int> global_myciel_subgraph;
+		// int global_myciel_clique;
 		
 		std::vector<int> myc_reason;
 		// bitset count;
@@ -81,7 +81,7 @@ public:
         , expl_residue(0, g.capacity() - 1, bitset::empt)
         , expl_clqcopy(0, g.capacity() - 1, bitset::empt)
 				,	neighborhood(0, g.capacity() - 1, bitset::empt)
-				, global_myciel_clique(-1)
+				// , global_myciel_clique(-1)
 				// , count(0, g.capacity()*g.capacity(), bitset::empt)
         , expl_partitions(g.capacity())
         , expl_revmap(g.capacity())
@@ -318,10 +318,7 @@ public:
 						// if(use_global_bound) {
 						// 		layer =
 						// }
-						
-						assert(layer.back() == subgraph.size()-1);
-						
-						myc_reason.clear();
+					
 						
 #ifdef _DEBUG_MYCIEL	
 						int k = layer[0];
@@ -345,6 +342,10 @@ public:
 						
 						std::cout << std::endl;
 #endif					
+						
+						assert(layer.back() == subgraph.size()-1);
+						
+						myc_reason.clear();
 					
 						
 						auto end_subgraph{layer[0]};
@@ -410,14 +411,28 @@ public:
 								for(auto uptr = begin_u; uptr != end_u; ++uptr) {
 										visited.fast_add(*uptr);
 								}
+								visited.fast_add(w);
 								
 								end_subgraph = l+1;
 						}
 						
 						std::sort(begin(myc_reason), end(myc_reason));
 				    auto last = std::unique(myc_reason.begin(), myc_reason.end());
+						
+						if(last != end(myc_reason)) {
+							std::cout << (int)(end(myc_reason) - last) << " duplicates removed\n";
+						}
+						
 						for( auto vptr=begin(myc_reason); vptr!=last; ++vptr)
 								reason.push(Lit(*vptr));
+						
+						
+						// bitset count(0, 2*g.capacity()*g.capacity(), bitset::empt);
+						// for( auto l : reason ) {
+						// 	count.fast_add(var(l));
+						// }
+						// std::cout << count.size() << "/" << reason.size() << std::endl;
+						// assert( count.size() == reason.size() );
 						
 				}
 						
@@ -546,11 +561,11 @@ public:
 
 				auto mlb{lb};
 				if(opt.boundalg == options::FULLMYCIELSKI) {
-						mlb = mf.full_myciel();
+						mlb = mf.full_myciel(lb);
 				} else if(opt.boundalg == options::MAXMYCIELSKI) {
-						mlb = mf.improve_cliques_larger_than(lb);
+						mlb = mf.improve_cliques_larger_than(lb, lb);
 				} else if(opt.boundalg == options::GREEDYMYCIELSKI) {
-						mlb = mf.improve_greedy(lb-1);
+						mlb = mf.improve_greedy(lb-1, lb);
 				}
 				stat.notify_bound_delta(mlb-lb);
 				lb = mlb;
@@ -564,23 +579,31 @@ public:
         if (s.decisionLevel() == 0 && lb > bestlb) {
             bestlb = lb;
 						
-						if(opt.boundalg != options::CLIQUES) {
-								global_myciel_clique = mf.explanation_clique;
-								global_myciel_layer = mf.explanation_layer;
-								global_myciel_subgraph = mf.explanation_subgraph;
-						}
+						// if(opt.boundalg != options::CLIQUES) {
+						// 		global_myciel_clique = mf.explanation_clique;
+						// 		global_myciel_layer = mf.explanation_layer;
+						// 		global_myciel_subgraph = mf.explanation_subgraph;
+						// }
 						
             std::cout << "c new lower bound " << bestlb
                       << " time = " << minicsp::cpuTime()
                       << " conflicts = " << s.conflicts << std::endl;
+						
         }
         if (cf.num_cliques == 1)
             assert(g.nodes.size() == cf.cliques[0].size());
         if (lb >= ub) {
 						if(use_global_bound) {
-								mf.explanation_clique = global_myciel_clique;
-								mf.explanation_layer = global_myciel_layer;
-								mf.explanation_subgraph = global_myciel_subgraph;
+							
+								// assert(false);
+							
+								// mf.explanation_clique = global_myciel_clique;
+								// mf.explanation_layer = global_myciel_layer;
+								// mf.explanation_subgraph = global_myciel_subgraph;
+							
+								std::cout << "HERE WE SHOULD RETURN AN EMPTY REASON => UNSAT\n";
+								assert(false);
+							
 						}
 					
 						// std::cout << "fail because " << lb << " >= " << ub << std::endl;
