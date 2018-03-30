@@ -557,9 +557,9 @@ public:
 				stat.notify_bound_delta(mlb-lb);
 				lb = mlb;
 				
-				// if(lb < bestlb) {
-				// 		lb = bestlb;
-				// }
+				if(lb < bestlb) {
+						lb = bestlb;
+				}
 
         if (s.decisionLevel() == 0 && lb > bestlb) {
             bestlb = lb;
