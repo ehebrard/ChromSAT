@@ -197,11 +197,18 @@ struct mycielskan_finder {
 		// [tmp in extends] store the index of extra where S_extra[i] ends
 		std::vector<int> endS;
 		
-		
 		// [tmp in "extends] the set of "candidates" (intersection of the neighbors of neighbors_Sv)
 		bitset candidates;
-				
-
+		
+		// store the subgraph that gave the best bound in order to explain it later
+		std::vector<int> explanation_subgraph;
+		std::vector<int> explanation_layer;
+		
+		std::vector<int> _subgraph;
+		std::vector<int> _layer; // layer infor on the constructed mycielskan, used when explaining 
+		
+		int explanation_clique;
+		
 		// extend the subgraph G into a mycielski of subsequent order if possible, the additional vertices go into "subgraph"
 		int extends( const bitset& G );		
 

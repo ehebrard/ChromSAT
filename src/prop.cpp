@@ -34,6 +34,7 @@ private:
     bitset util_set;
     bitset expl_N, expl_covered, expl_residue;
     bitset expl_clqcopy;
+		bitset neighborhood;
     std::vector<int> expl_clq;
 
     // the partitions involved in a clique
@@ -73,6 +74,7 @@ public:
         , expl_covered(0, g.capacity() - 1, bitset::empt)
         , expl_residue(0, g.capacity() - 1, bitset::empt)
         , expl_clqcopy(0, g.capacity() - 1, bitset::empt)
+				,	neighborhood(0, g.capacity() - 1, bitset::empt)
         , expl_partitions(g.capacity())
         , expl_revmap(g.capacity())
         , expl_part_rep(g.capacity())
@@ -262,10 +264,22 @@ public:
     }
 
     Clause* explain_naive_positive()
-    {
-        auto maxidx = std::distance(begin(cf.clique_sz),
-            std::max_element(
-                begin(cf.clique_sz), begin(cf.clique_sz) + cf.num_cliques));
+    {	
+			
+#ifdef _DEBUG_MYCIEL
+				std::cout << "beg   explain\n" ;
+#endif
+			
+				auto maxidx{std::distance(begin(cf.clique_sz),
+	          						std::max_element(
+	                					begin(cf.clique_sz), begin(cf.clique_sz) + cf.num_cliques))};
+								
+				if(opt.boundalg != options::CLIQUES && mf.explanation_clique != -1) {
+						// assert( cf.clique_sz[maxidx] == cf.clique_sz[mf.explanation_clique] ); // tmp assert
+						maxidx = mf.explanation_clique;
+				}
+
+				// explain the base clique
         culprit.clear();
         std::copy(begin(cf.cliques[maxidx]), end(cf.cliques[maxidx]),
             back_inserter(culprit));
@@ -278,6 +292,89 @@ public:
                 if (!g.origmatrix[u].fast_contain(v))
                     reason.push(Lit(vars[u][v]));
             }
+						
+						
+					
+				// explain the mycielskan layers
+				if(opt.boundalg != options::CLIQUES && mf.explanation_clique != -1) {
+					
+						assert(mf.explanation_layer.back() == mf.explanation_subgraph.size()-1);
+						
+#ifdef _DEBUG_MYCIEL	
+						int k = mf.explanation_layer[0];
+						for(auto j=0; j<k; ++j) {
+								std::cout << " " << mf.explanation_subgraph[j];
+						}
+						
+						
+						for(auto i=1; i<mf.explanation_layer.size(); ++i) {
+								std::cout << " |"; 
+							
+								auto l{mf.explanation_layer[i]};
+								
+								for(auto j=k; j<l; ++j) {
+										std::cout << " " << mf.explanation_subgraph[j];
+								}
+								
+								std::cout << " | " << mf.explanation_subgraph[l];
+								
+						}
+						
+						std::cout << std::endl;
+#endif					
+					
+					
+						auto end_subgraph{mf.explanation_layer[0]};
+						
+						bitset& visited(util_set);
+						visited.clear();
+						for(auto i=0; i<end_subgraph; ++i) {
+								visited.fast_add(mf.explanation_subgraph[i]);
+						}
+						
+						for(auto i=1; i<mf.explanation_layer.size(); ++i) {
+								auto l{mf.explanation_layer[i]};
+								// nodes in mf.explanation_subgraph[0:end_subgraph] are those of the subgraph
+								// nodes in  mf.explanation_subgraph[end_subgraph:l] are the u's of this layer
+								// node mf.explanation_subgraph[l] is w for this layer
+								
+								assert(2*end_subgraph == l);
+								
+								auto w{mf.explanation_subgraph[l]};
+								
+								// for every u we must explain the 
+								auto begin_u{begin(mf.explanation_subgraph) + end_subgraph};
+								auto end_u{begin(mf.explanation_subgraph) + l};
+								for(auto uptr = begin_u; uptr != end_u; ++uptr) {
+										auto u{*uptr};
+										// explain the edge with w
+										if(!g.origmatrix[w].fast_contain(u))
+												reason.push(Lit(vars[u][w]));
+										
+										if(visited.fast_contain(u)) continue; // this u comes from a previous layer
+										
+										auto v{*(uptr-end_subgraph)}; // N(u) should include subgraph \inter N(v)
+										neighborhood.copy(g.matrix[v]);										
+										neighborhood.intersect_with(visited);
+										neighborhood.setminus_with(g.origmatrix[u]); // no need to explain the original edges
+										
+										for(auto n : neighborhood) {
+												reason.push(Lit(vars[u][n]));
+										}									
+								}
+								
+								for(auto uptr = begin_u; uptr != end_u; ++uptr) {
+										visited.fast_add(*uptr);
+								}
+								
+								end_subgraph = l+1;
+						}
+				}
+						
+#ifdef _DEBUG_MYCIEL
+				std::cout << "end explain\n" ;
+#endif
+						
         return s.addInactiveClause(reason);
     }
 
@@ -405,7 +502,11 @@ public:
 						mlb = mf.improve_greedy(lb-1);
 				}
 				stat.notify_bound_delta(mlb-lb);
-
+				lb = mlb;
+				
+				if(lb < bestlb) {
+						lb = bestlb;
+				}
 
         if (s.decisionLevel() == 0 && lb > bestlb) {
             bestlb = lb;
@@ -413,13 +514,12 @@ public:
                       << " time = " << minicsp::cpuTime()
                       << " conflicts = " << s.conflicts << std::endl;
         }
-        // std::cout << "lb = " << lb << " num_cliques = " << cf.num_cliques
-        //           << " |V| = " << g.nodes.size
-        //           << " dlvl = " << s.decisionLevel() << "\n";
         if (cf.num_cliques == 1)
             assert(g.nodes.size() == cf.cliques[0].size());
-        if (lb >= ub)
+        if (lb >= ub) {
+						// std::cout << "fail because " << lb << " >= " << ub << std::endl;
             return explain();
+				}
         return NO_REASON;
     }
 
