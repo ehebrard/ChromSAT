@@ -7,7 +7,7 @@
 
 #include <iomanip>
 
-// #define _DEBUG_MYCIEL
+
 
 
 namespace gc
@@ -275,7 +275,6 @@ int mycielskan_finder::extends( const bitset& G )
 						std::cout << " " << v << ":";
 #endif
 						// "compute Sv" (it is not stored, we directly store N(Sv))
-
 						// elements of Sv must be non-neighbors because the clique we start from is maximal
 						non_neighbors.copy(g.nodeset);
 						non_neighbors.setminus_with(g.matrix[v]);
@@ -291,13 +290,8 @@ int mycielskan_finder::extends( const bitset& G )
 						for(auto u : non_neighbors) {
 								if(g.rep_of[u] != u) continue; // use only representatives ?				
 								neighbors_u.copy( subgraph_set );
-								
-								// std::cout << "\n" << u << " " << neighbors_u << " & " << g.matrix[v] << " \\ " << g.matrix[u] << " = ";
-								
 								neighbors_u.intersect_with(g.matrix[v]);
 								neighbors_u.setminus_with(g.matrix[u]);
-								
-								// std::cout << neighbors_u << std::endl;
 
 								if(neighbors_u.empty()) {
 										// here we now that u is neighbor with every neighbor of v in S (subgraph_set)
@@ -320,13 +314,10 @@ int mycielskan_finder::extends( const bitset& G )
 								neighbors_u.intersect_with(subgraph_set);
 								std::cout << "\nN(" << u << ") " << neighbors_u ;
 							}
-		
 							std::cout << std::endl << "E subgraph =";
-		
 							for(auto i = 0 ; i < _subgraph.size() ; ++i) {
 									std::cout << " " << _subgraph[i];
-							}
-		
+							}		
 							std::cout << std::endl << std::endl;
 #endif
 															
@@ -360,22 +351,13 @@ int mycielskan_finder::extends( const bitset& G )
 				auto j{0}; // index in extra
 				auto k{0}; // index in _subgraph
 				auto n{subgraph.size()};
-				
-				
-				
-				
-				
-				
+						
 				for(auto i = 0 ; i < n ; ++i) {
 											
 						// add the duplicates
 						while( _subgraph[k] != subgraph[i] ) {
-							
-							// std::cout << " add subgraph[" << k << "]=" << _subgraph[k] << std::endl;
-								assert(k < _subgraph.size());
-							
-								_subgraph.push_back(_subgraph[k++]);
-								
+								assert(k < _subgraph.size());				
+								_subgraph.push_back(_subgraph[k++]);								
 						}
 			
 #ifdef _DEBUG_MYCIEL
@@ -415,12 +397,6 @@ int mycielskan_finder::extends( const bitset& G )
 #endif
 				}
 
-				// int beg_layer = (_layer.size()>1 ? _layer[_layer.size()-2] : 0);
-				// int end_layer = _layer.back();
-				// j = 0;
-				// for( int i=beg_layer; i<end_layer; ++i ) {
-				// 	if( )
-				// }
 
 #ifdef _DEBUG_MYCIEL
 				for(auto i = 0 ; i < _subgraph.size() ; ++i) {
@@ -446,13 +422,10 @@ int mycielskan_finder::extends( const bitset& G )
 			neighbors_u.intersect_with(subgraph_set);
 			std::cout << "\nN(" << u << ") " << neighbors_u ;
 		}
-		
 		std::cout << std::endl << "E subgraph =";
-		
 		for(auto i = 0 ; i < _subgraph.size() ; ++i) {
 				std::cout << " " << _subgraph[i];
 		}
-		
 		std::cout << std::endl << std::endl;
 #endif
 

@@ -8,6 +8,9 @@
 #include <list>
 #include <vector>
 
+
+// #define _DEBUG_MYCIEL
+
 namespace gc
 {
 

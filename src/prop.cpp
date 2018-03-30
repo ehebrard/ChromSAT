@@ -35,6 +35,7 @@ private:
     bitset expl_N, expl_covered, expl_residue;
     bitset expl_clqcopy;
 		bitset neighborhood;
+		// bitset count;
     std::vector<int> expl_clq;
 
     // the partitions involved in a clique
@@ -75,6 +76,7 @@ public:
         , expl_residue(0, g.capacity() - 1, bitset::empt)
         , expl_clqcopy(0, g.capacity() - 1, bitset::empt)
 				,	neighborhood(0, g.capacity() - 1, bitset::empt)
+				// , count(0, g.capacity()*g.capacity(), bitset::empt)
         , expl_partitions(g.capacity())
         , expl_revmap(g.capacity())
         , expl_part_rep(g.capacity())
@@ -274,6 +276,8 @@ public:
 	          						std::max_element(
 	                					begin(cf.clique_sz), begin(cf.clique_sz) + cf.num_cliques))};
 								
+				// std::cout << mf.explanation_clique << std::endl;
+								
 				if(opt.boundalg != options::CLIQUES && mf.explanation_clique != -1) {
 						// assert( cf.clique_sz[maxidx] == cf.clique_sz[mf.explanation_clique] ); // tmp assert
 						maxidx = mf.explanation_clique;
@@ -289,8 +293,12 @@ public:
                 auto u = culprit[i], v = culprit[j];
                 assert(g.rep_of[u] == u);
                 assert(g.rep_of[v] == v);
-                if (!g.origmatrix[u].fast_contain(v))
+                if (!g.origmatrix[u].fast_contain(v)) {
                     reason.push(Lit(vars[u][v]));
+#ifdef _DEBUG_MYCIEL
+										std::cout << "add (" << u << "," << v << ") to reason\n" ;
+#endif
+								}
             }
 						
 						
@@ -333,6 +341,9 @@ public:
 						}
 						
 						for(auto i=1; i<mf.explanation_layer.size(); ++i) {
+#ifdef _DEBUG_MYCIEL							
+								std::cout << "explain layer " << i << std::endl;
+#endif							
 								auto l{mf.explanation_layer[i]};
 								// nodes in mf.explanation_subgraph[0:end_subgraph] are those of the subgraph
 								// nodes in  mf.explanation_subgraph[end_subgraph:l] are the u's of this layer
@@ -346,20 +357,36 @@ public:
 								auto begin_u{begin(mf.explanation_subgraph) + end_subgraph};
 								auto end_u{begin(mf.explanation_subgraph) + l};
 								for(auto uptr = begin_u; uptr != end_u; ++uptr) {
+									
 										auto u{*uptr};
-										// explain the edge with w
-										if(!g.origmatrix[w].fast_contain(u))
-												reason.push(Lit(vars[u][w]));
-										
-										if(visited.fast_contain(u)) continue; // this u comes from a previous layer
-										
 										auto v{*(uptr-end_subgraph)}; // N(u) should include subgraph \inter N(v)
+#ifdef _DEBUG_MYCIEL										
+										std::cout << " - " << u << " (from " << v << ")" << std::endl;
+#endif										
+										// explain the edge with w
+										if(!g.origmatrix[w].fast_contain(u)) {
+												reason.push(Lit(vars[u][w]));									
+#ifdef _DEBUG_MYCIEL
+												std::cout << "add (" << u << "," << w << ") to reason (w)\n" ;	
+#endif
+										}
+										
+										// if( v == u ) continue;
+										if(visited.fast_contain(u)) {
+											// assert( v == u );
+											continue; // this u comes from a previous layer
+										}
+										
 										neighborhood.copy(g.matrix[v]);										
 										neighborhood.intersect_with(visited);
 										neighborhood.setminus_with(g.origmatrix[u]); // no need to explain the original edges
 										
 										for(auto n : neighborhood) {
 												reason.push(Lit(vars[u][n]));
+												
+#ifdef _DEBUG_MYCIEL
+												std::cout << "add (" << u << "," << n << ") to reason (neighbor)\n" ;
+#endif
 										}									
 								}
 								
@@ -369,12 +396,38 @@ public:
 								
 								end_subgraph = l+1;
 						}
+						
+						// count.clear();
+						// auto j{0};
+						// for(auto i=0; i<reason.size(); ++i) {
+						// 	int l = toInt(reason[i]);
+						// 	if(!count.fast_contain(l)) {
+						// 		count.fast_add(l);
+						// 		reason[j++] = reason[i];
+						// 	}
+						// }
+						//
+						// std::cout << "shrink reason from " << reason.size() << " to " << j << std::endl;
+						//
+						// reason.shrink(j);
 				}
 						
+						
 #ifdef _DEBUG_MYCIEL
+				
+						// count.clear();
+						// for(auto i=0; i<reason.size(); ++i) {
+						// 	std::cout << count << std::endl;
+						// 	int u = var(reason[i]);
+						// 	assert(!count.fast_contain(u));
+						// 	count.fast_add(u);
+						// }
+						
+						
+				
 				std::cout << "end explain\n" ;
 #endif
-						
+
         return s.addInactiveClause(reason);
     }
 
@@ -504,9 +557,9 @@ public:
 				stat.notify_bound_delta(mlb-lb);
 				lb = mlb;
 				
-				if(lb < bestlb) {
-						lb = bestlb;
-				}
+				// if(lb < bestlb) {
+				// 		lb = bestlb;
+				// }
 
         if (s.decisionLevel() == 0 && lb > bestlb) {
             bestlb = lb;
