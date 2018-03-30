@@ -35,6 +35,10 @@ private:
     bitset expl_N, expl_covered, expl_residue;
     bitset expl_clqcopy;
 		bitset neighborhood;
+		std::vector<int> global_myciel_layer;
+		std::vector<int> global_myciel_subgraph;
+		int global_myciel_clique;
+		
 		std::vector<int> myc_reason;
 		// bitset count;
     std::vector<int> expl_clq;
@@ -77,6 +81,7 @@ public:
         , expl_residue(0, g.capacity() - 1, bitset::empt)
         , expl_clqcopy(0, g.capacity() - 1, bitset::empt)
 				,	neighborhood(0, g.capacity() - 1, bitset::empt)
+				, global_myciel_clique(-1)
 				// , count(0, g.capacity()*g.capacity(), bitset::empt)
         , expl_partitions(g.capacity())
         , expl_revmap(g.capacity())
@@ -306,28 +311,35 @@ public:
 					
 				// explain the mycielskan layers
 				if(opt.boundalg != options::CLIQUES && mf.explanation_clique != -1) {
+					
+						std::vector<int>& layer(mf.explanation_layer);
+						std::vector<int>& subgraph(mf.explanation_subgraph);
+						// int base_clique = mf.explanation_clique;
+						// if(use_global_bound) {
+						// 		layer =
+						// }
 						
-						assert(mf.explanation_layer.back() == mf.explanation_subgraph.size()-1);
+						assert(layer.back() == subgraph.size()-1);
 						
 						myc_reason.clear();
 						
 #ifdef _DEBUG_MYCIEL	
-						int k = mf.explanation_layer[0];
+						int k = layer[0];
 						for(auto j=0; j<k; ++j) {
-								std::cout << " " << mf.explanation_subgraph[j];
+								std::cout << " " << subgraph[j];
 						}
 						
 						
-						for(auto i=1; i<mf.explanation_layer.size(); ++i) {
+						for(auto i=1; i<layer.size(); ++i) {
 								std::cout << " |"; 
 							
-								auto l{mf.explanation_layer[i]};
+								auto l{layer[i]};
 								
 								for(auto j=k; j<l; ++j) {
-										std::cout << " " << mf.explanation_subgraph[j];
+										std::cout << " " << subgraph[j];
 								}
 								
-								std::cout << " | " << mf.explanation_subgraph[l];
+								std::cout << " | " << subgraph[l];
 								
 						}
 						
@@ -335,30 +347,30 @@ public:
 #endif					
 					
 						
-						auto end_subgraph{mf.explanation_layer[0]};
+						auto end_subgraph{layer[0]};
 						
 						bitset& visited(util_set);
 						visited.clear();
 						for(auto i=0; i<end_subgraph; ++i) {
-								visited.fast_add(mf.explanation_subgraph[i]);
+								visited.fast_add(subgraph[i]);
 						}
 						
-						for(auto i=1; i<mf.explanation_layer.size(); ++i) {
+						for(auto i=1; i<layer.size(); ++i) {
 #ifdef _DEBUG_MYCIEL							
 								std::cout << "explain layer " << i << std::endl;
 #endif							
-								auto l{mf.explanation_layer[i]};
-								// nodes in mf.explanation_subgraph[0:end_subgraph] are those of the subgraph
-								// nodes in  mf.explanation_subgraph[end_subgraph:l] are the u's of this layer
-								// node mf.explanation_subgraph[l] is w for this layer
+								auto l{layer[i]};
+								// nodes in subgraph[0:end_subgraph] are those of the subgraph
+								// nodes in  subgraph[end_subgraph:l] are the u's of this layer
+								// node subgraph[l] is w for this layer
 								
 								assert(2*end_subgraph == l);
 								
-								auto w{mf.explanation_subgraph[l]};
+								auto w{subgraph[l]};
 								
 								// for every u we must explain the 
-								auto begin_u{begin(mf.explanation_subgraph) + end_subgraph};
-								auto end_u{begin(mf.explanation_subgraph) + l};
+								auto begin_u{begin(subgraph) + end_subgraph};
+								auto end_u{begin(subgraph) + l};
 								for(auto uptr = begin_u; uptr != end_u; ++uptr) {
 									
 										auto u{*uptr};
@@ -543,12 +555,21 @@ public:
 				stat.notify_bound_delta(mlb-lb);
 				lb = mlb;
 				
-				if(lb < bestlb) {
+				bool use_global_bound = false;
+				if(lb <= bestlb) {
 						lb = bestlb;
+						use_global_bound = true; 
 				}
 
         if (s.decisionLevel() == 0 && lb > bestlb) {
             bestlb = lb;
+						
+						if(opt.boundalg != options::CLIQUES) {
+								global_myciel_clique = mf.explanation_clique;
+								global_myciel_layer = mf.explanation_layer;
+								global_myciel_subgraph = mf.explanation_subgraph;
+						}
+						
             std::cout << "c new lower bound " << bestlb
                       << " time = " << minicsp::cpuTime()
                       << " conflicts = " << s.conflicts << std::endl;
@@ -556,6 +577,12 @@ public:
         if (cf.num_cliques == 1)
             assert(g.nodes.size() == cf.cliques[0].size());
         if (lb >= ub) {
+						if(use_global_bound) {
+								mf.explanation_clique = global_myciel_clique;
+								mf.explanation_layer = global_myciel_layer;
+								mf.explanation_subgraph = global_myciel_subgraph;
+						}
+					
 						// std::cout << "fail because " << lb << " >= " << ub << std::endl;
             return explain();
 				}
