@@ -35,6 +35,7 @@ private:
     bitset expl_N, expl_covered, expl_residue;
     bitset expl_clqcopy;
 		bitset neighborhood;
+		std::vector<int> myc_reason;
 		// bitset count;
     std::vector<int> expl_clq;
 
@@ -305,8 +306,10 @@ public:
 					
 				// explain the mycielskan layers
 				if(opt.boundalg != options::CLIQUES && mf.explanation_clique != -1) {
-					
+						
 						assert(mf.explanation_layer.back() == mf.explanation_subgraph.size()-1);
+						
+						myc_reason.clear();
 						
 #ifdef _DEBUG_MYCIEL	
 						int k = mf.explanation_layer[0];
@@ -331,7 +334,7 @@ public:
 						std::cout << std::endl;
 #endif					
 					
-					
+						
 						auto end_subgraph{mf.explanation_layer[0]};
 						
 						bitset& visited(util_set);
@@ -365,7 +368,8 @@ public:
 #endif										
 										// explain the edge with w
 										if(!g.origmatrix[w].fast_contain(u)) {
-												reason.push(Lit(vars[u][w]));									
+												// reason.push(Lit(vars[u][w]));
+												myc_reason.push_back(vars[u][w]);
 #ifdef _DEBUG_MYCIEL
 												std::cout << "add (" << u << "," << w << ") to reason (w)\n" ;	
 #endif
@@ -382,7 +386,8 @@ public:
 										neighborhood.setminus_with(g.origmatrix[u]); // no need to explain the original edges
 										
 										for(auto n : neighborhood) {
-												reason.push(Lit(vars[u][n]));
+												// reason.push(Lit(vars[u][n]));
+												myc_reason.push_back(vars[u][n]);
 												
 #ifdef _DEBUG_MYCIEL
 												std::cout << "add (" << u << "," << n << ") to reason (neighbor)\n" ;
@@ -397,34 +402,15 @@ public:
 								end_subgraph = l+1;
 						}
 						
-						// count.clear();
-						// auto j{0};
-						// for(auto i=0; i<reason.size(); ++i) {
-						// 	int l = toInt(reason[i]);
-						// 	if(!count.fast_contain(l)) {
-						// 		count.fast_add(l);
-						// 		reason[j++] = reason[i];
-						// 	}
-						// }
-						//
-						// std::cout << "shrink reason from " << reason.size() << " to " << j << std::endl;
-						//
-						// reason.shrink(j);
+						std::sort(begin(myc_reason), end(myc_reason));
+				    auto last = std::unique(myc_reason.begin(), myc_reason.end());
+						for( auto vptr=begin(myc_reason); vptr!=last; ++vptr)
+								reason.push(Lit(*vptr));
+						
 				}
 						
 						
 #ifdef _DEBUG_MYCIEL
-				
-						// count.clear();
-						// for(auto i=0; i<reason.size(); ++i) {
-						// 	std::cout << count << std::endl;
-						// 	int u = var(reason[i]);
-						// 	assert(!count.fast_contain(u));
-						// 	count.fast_add(u);
-						// }
-						
-						
-				
 				std::cout << "end explain\n" ;
 #endif
 
