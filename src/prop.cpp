@@ -14,7 +14,7 @@ private:
     graph& g;
     const std::vector<std::vector<Var>>& vars;
     const options& opt;
-	 	statistics& stat;
+    statistics& stat;
 
     struct varinfo_t {
         int u{-1}, v{-1};
@@ -34,13 +34,13 @@ private:
     bitset util_set;
     bitset expl_N, expl_covered, expl_residue;
     bitset expl_clqcopy;
-		bitset neighborhood;
-		// std::vector<int> global_myciel_layer;
-		// std::vector<int> global_myciel_subgraph;
-		// int global_myciel_clique;
-		
-		std::vector<int> myc_reason;
-		// bitset count;
+    bitset neighborhood;
+    // std::vector<int> global_myciel_layer;
+    // std::vector<int> global_myciel_subgraph;
+    // int global_myciel_clique;
+
+    std::vector<int> myc_reason;
+    // bitset count;
     std::vector<int> expl_clq;
 
     // the partitions involved in a clique
@@ -67,22 +67,23 @@ private:
 
 public:
     gc_constraint(Solver& solver, graph& pg,
-        const std::vector<std::vector<Var>>& tvars, const options& opt, statistics& stat)
+        const std::vector<std::vector<Var>>& tvars, const options& opt,
+        statistics& stat)
         : cons_base(pg)
         , s(solver)
         , g(pg)
         , vars(tvars)
         , opt(opt)
-				, stat(stat)
+        , stat(stat)
         , lastdlvl(s)
         , util_set(0, g.capacity() - 1, bitset::empt)
         , expl_N(0, g.capacity() - 1, bitset::empt)
         , expl_covered(0, g.capacity() - 1, bitset::empt)
         , expl_residue(0, g.capacity() - 1, bitset::empt)
         , expl_clqcopy(0, g.capacity() - 1, bitset::empt)
-				,	neighborhood(0, g.capacity() - 1, bitset::empt)
-				// , global_myciel_clique(-1)
-				// , count(0, g.capacity()*g.capacity(), bitset::empt)
+        , neighborhood(0, g.capacity() - 1, bitset::empt)
+        // , global_myciel_clique(-1)
+        // , count(0, g.capacity()*g.capacity(), bitset::empt)
         , expl_partitions(g.capacity())
         , expl_revmap(g.capacity())
         , expl_part_rep(g.capacity())
@@ -272,42 +273,42 @@ public:
     }
 
     Clause* explain_naive_positive()
-    {	
-				auto maxidx{std::distance(begin(cf.clique_sz),
-	          						std::max_element(
-	                					begin(cf.clique_sz), begin(cf.clique_sz) + cf.num_cliques))};
-								
-				// if(opt.boundalg != options::CLIQUES && mf.explanation_clique != -1) {
-				// 		maxidx = mf.explanation_clique;
-				// }
+    {
+        auto maxidx{std::distance(begin(cf.clique_sz),
+            std::max_element(
+                begin(cf.clique_sz), begin(cf.clique_sz) + cf.num_cliques))};
 
-				// explain the base clique
+        // if(opt.boundalg != options::CLIQUES && mf.explanation_clique != -1) {
+        //              maxidx = mf.explanation_clique;
+        // }
+
+        // explain the base clique
         reason.clear();
-						
-				if(opt.boundalg != options::CLIQUES && mf.explanation_clique != -1) {
-						for( auto v : mf.explanation_subgraph.nodes ) {
-								neighborhood.copy(mf.explanation_subgraph.matrix[v]);
-								neighborhood.setminus_with(g.origmatrix[v]);
-								neighborhood.set_min(v);
-								for( auto u : neighborhood ) {
-										reason.push(Lit(vars[u][v]));
-								}
-						}
-				} else {
-	        culprit.clear();
-	        std::copy(begin(cf.cliques[maxidx]), end(cf.cliques[maxidx]),
-	            back_inserter(culprit));
-	        for (size_t i = 0; i != culprit.size() - 1; ++i)
-	            for (size_t j = i + 1; j != culprit.size(); ++j) {
-	                auto u = culprit[i], v = culprit[j];
-	                assert(g.rep_of[u] == u);
-	                assert(g.rep_of[v] == v);
-	                if (!g.origmatrix[u].fast_contain(v)) {
-	                    reason.push(Lit(vars[u][v]));
-									}
-	            }
-				}
-	
+
+        if (opt.boundalg != options::CLIQUES && mf.explanation_clique != -1) {
+            for (auto v : mf.explanation_subgraph.nodes) {
+                neighborhood.copy(mf.explanation_subgraph.matrix[v]);
+                neighborhood.setminus_with(g.origmatrix[v]);
+                neighborhood.set_min(v);
+                for (auto u : neighborhood) {
+                    reason.push(Lit(vars[u][v]));
+                }
+            }
+        } else {
+            culprit.clear();
+            std::copy(begin(cf.cliques[maxidx]), end(cf.cliques[maxidx]),
+                back_inserter(culprit));
+            for (size_t i = 0; i != culprit.size() - 1; ++i)
+                for (size_t j = i + 1; j != culprit.size(); ++j) {
+                    auto u = culprit[i], v = culprit[j];
+                    assert(g.rep_of[u] == u);
+                    assert(g.rep_of[v] == v);
+                    if (!g.origmatrix[u].fast_contain(v)) {
+                        reason.push(Lit(vars[u][v]));
+                    }
+                }
+        }
+
         return s.addInactiveClause(reason);
     }
 
@@ -426,39 +427,39 @@ public:
             lb = cf.find_cliques(g.nodes);
         }
 
-				auto mlb{lb};
-				if(opt.boundalg == options::FULLMYCIELSKI) {
-						mlb = mf.full_myciel(lb);
-				} else if(opt.boundalg == options::MAXMYCIELSKI) {
-						mlb = mf.improve_cliques_larger_than(lb, lb);
-				} else if(opt.boundalg == options::GREEDYMYCIELSKI) {
-						mlb = mf.improve_greedy(lb-1, lb);
-				}
-				stat.notify_bound_delta(mlb-lb);
-				lb = mlb;
-				
-				bool use_global_bound = false;
-				if(lb <= bestlb) {
-						lb = bestlb;
-						use_global_bound = true; 
-				}
+        auto mlb{lb};
+        if (opt.boundalg == options::FULLMYCIELSKI) {
+            mlb = mf.full_myciel(lb);
+        } else if (opt.boundalg == options::MAXMYCIELSKI) {
+            mlb = mf.improve_cliques_larger_than(lb, lb);
+        } else if (opt.boundalg == options::GREEDYMYCIELSKI) {
+            mlb = mf.improve_greedy(lb - 1, lb);
+        }
+        stat.notify_bound_delta(mlb - lb);
+        lb = mlb;
+
+        bool use_global_bound = false;
+        if (lb <= bestlb) {
+            lb = bestlb;
+            use_global_bound = true;
+        }
 
         if (s.decisionLevel() == 0 && lb > bestlb) {
             bestlb = lb;
             std::cout << "c new lower bound " << bestlb
                       << " time = " << minicsp::cpuTime()
-                      << " conflicts = " << s.conflicts << std::endl;		
+                      << " conflicts = " << s.conflicts << std::endl;
         }
         if (cf.num_cliques == 1)
             assert(g.nodes.size() == cf.cliques[0].size());
         if (lb >= ub) {
-						if(use_global_bound) {
-								std::cout << "HERE WE SHOULD RETURN AN EMPTY REASON => UNSAT\n";
-								assert(false);	
-						}
+            if (use_global_bound) {
+                reason.clear();
+                return s.addInactiveClause(reason);
+            }
 
             return explain();
-				}
+        }
         return NO_REASON;
     }
 
@@ -595,7 +596,8 @@ void gc_constraint::explain_myc_w_edges(int w, const bitset& clq,
     auto wp = pick_vertex(g, clq, w, partitions, expl_revmap, util_set);
     expl_part_rep[expl_revmap[w]] = wp;
     std::cout << "Picked " << wp << " as rep of partition " << w << "("
-              << print_container<std::vector<int>>(partitions[expl_revmap[w]]) << ")\n";
+              << print_container<std::vector<int>>(partitions[expl_revmap[w]])
+              << ")\n";
     util_set.clear();
     // w (as a partition) is adjacent to all vertices in
     // covered_neighbors. wp, which we have chosen as the vertex from
@@ -658,8 +660,9 @@ void gc_constraint::explain_myc_rec(bitset& clq,
         return;
 
     for (auto u : clq)
-        std::cout << "  partition[" << u
-                  << "] = " << print_container<std::vector<int>>(partitions[revmap[u]]) << "\n";
+        std::cout << "  partition[" << u << "] = "
+                  << print_container<std::vector<int>>(partitions[revmap[u]])
+                  << "\n";
 
     auto w = pick_partition(g, clq, util_set, partitions, revmap);
     clq.fast_remove(w);
@@ -668,7 +671,9 @@ void gc_constraint::explain_myc_rec(bitset& clq,
     update_partitions(g, partitions, expl_covered_neighbors[revmap[w]], clq, w,
         revmap, util_set);
     std::cout << "kept neighbors "
-              << print_container<std::vector<int>>(expl_covered_neighbors[revmap[w]]) << "\n";
+              << print_container<std::vector<int>>(
+                     expl_covered_neighbors[revmap[w]])
+              << "\n";
     explain_myc_rec(clq, partitions, revmap);
 
     explain_myc_w_edges(w, clq, partitions, expl_covered_neighbors[revmap[w]]);
@@ -723,7 +728,8 @@ void gc_constraint::verify_myc_reason()
 }
 
 cons_base* post_gc_constraint(Solver& s, graph& g,
-    const std::vector<std::vector<Var>>& vars, const options& opt, statistics& stat)
+    const std::vector<std::vector<Var>>& vars, const options& opt,
+    statistics& stat)
 {
     auto cons = new gc_constraint(s, g, vars, opt, stat);
     s.addConstraint(cons);
