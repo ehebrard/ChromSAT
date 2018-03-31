@@ -277,24 +277,12 @@ public:
 	          						std::max_element(
 	                					begin(cf.clique_sz), begin(cf.clique_sz) + cf.num_cliques))};
 								
-				if(opt.boundalg != options::CLIQUES && mf.explanation_clique != -1) {
-						maxidx = mf.explanation_clique;
-				}
+				// if(opt.boundalg != options::CLIQUES && mf.explanation_clique != -1) {
+				// 		maxidx = mf.explanation_clique;
+				// }
 
 				// explain the base clique
-        culprit.clear();
-        std::copy(begin(cf.cliques[maxidx]), end(cf.cliques[maxidx]),
-            back_inserter(culprit));
         reason.clear();
-        for (size_t i = 0; i != culprit.size() - 1; ++i)
-            for (size_t j = i + 1; j != culprit.size(); ++j) {
-                auto u = culprit[i], v = culprit[j];
-                assert(g.rep_of[u] == u);
-                assert(g.rep_of[v] == v);
-                if (!g.origmatrix[u].fast_contain(v)) {
-                    reason.push(Lit(vars[u][v]));
-								}
-            }
 						
 				if(opt.boundalg != options::CLIQUES && mf.explanation_clique != -1) {
 						for( auto v : mf.explanation_subgraph.nodes ) {
@@ -305,6 +293,19 @@ public:
 										reason.push(Lit(vars[u][v]));
 								}
 						}
+				} else {
+	        culprit.clear();
+	        std::copy(begin(cf.cliques[maxidx]), end(cf.cliques[maxidx]),
+	            back_inserter(culprit));
+	        for (size_t i = 0; i != culprit.size() - 1; ++i)
+	            for (size_t j = i + 1; j != culprit.size(); ++j) {
+	                auto u = culprit[i], v = culprit[j];
+	                assert(g.rep_of[u] == u);
+	                assert(g.rep_of[v] == v);
+	                if (!g.origmatrix[u].fast_contain(v)) {
+	                    reason.push(Lit(vars[u][v]));
+									}
+	            }
 				}
 	
         return s.addInactiveClause(reason);
