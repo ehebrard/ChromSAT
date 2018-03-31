@@ -444,35 +444,18 @@ public:
 
         if (s.decisionLevel() == 0 && lb > bestlb) {
             bestlb = lb;
-						
-						// if(opt.boundalg != options::CLIQUES) {
-						// 		global_myciel_clique = mf.explanation_clique;
-						// 		global_myciel_layer = mf.explanation_layer;
-						// 		global_myciel_subgraph = mf.explanation_subgraph;
-						// }
-						
             std::cout << "c new lower bound " << bestlb
                       << " time = " << minicsp::cpuTime()
-                      << " conflicts = " << s.conflicts << std::endl;
-						
+                      << " conflicts = " << s.conflicts << std::endl;		
         }
         if (cf.num_cliques == 1)
             assert(g.nodes.size() == cf.cliques[0].size());
         if (lb >= ub) {
 						if(use_global_bound) {
-							
-								// assert(false);
-							
-								// mf.explanation_clique = global_myciel_clique;
-								// mf.explanation_layer = global_myciel_layer;
-								// mf.explanation_subgraph = global_myciel_subgraph;
-							
 								std::cout << "HERE WE SHOULD RETURN AN EMPTY REASON => UNSAT\n";
-								assert(false);
-							
+								assert(false);	
 						}
-					
-						// std::cout << "fail because " << lb << " >= " << ub << std::endl;
+
             return explain();
 				}
         return NO_REASON;
