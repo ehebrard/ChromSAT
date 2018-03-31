@@ -537,19 +537,22 @@ int pick_partition(const graph& g, const bitset& clq, bitset& util_set,
     const std::vector<std::vector<int>>& partitions,
     const std::vector<int>& revmap)
 {
-    auto numcovered = [&](int v) {
-        util_set.clear();
-        union_with_sets(partitions[revmap[v]], g.origmatrix, util_set);
-        // std::cout << "N(" << v << ") =" << util_set << "\n";
-        return std::count_if(begin(clq), end(clq), [&](int u) {
-            return u != v
-                && intersect_vec_bs_p(partitions[revmap[u]], util_set);
-        });
+    // max # partitions covered by the initial neighborhood of a
+    // vertex in the partition
+    auto maxcovered = [&](int v) -> int {
+        int m{0};
+        for (auto u : partitions[revmap[v]])
+            m = std::max(m, std::count_if(begin(clq), end(clq), [&](int w) {
+                return w != revmap[v]
+                    && intersect_vec_bs_p(
+                           partitions[revmap[w]], g.origmatrix[u]);
+            }));
+        return m;
     };
 
     std::vector<int> nc(g.capacity());
     for (auto v : clq) {
-        nc[v] = numcovered(v);
+        nc[v] = maxcovered(v);
         // std::cout << "nc[" << v << "] = " << nc[v] << "\n";
     }
     return *std::min_element(begin(clq), end(clq), [&](int u, int v) {
