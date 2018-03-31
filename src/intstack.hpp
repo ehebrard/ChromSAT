@@ -85,6 +85,8 @@ public:
     void add(const int elt);
 
     void safe_add(const int elt);
+		
+		int index(const int elt) const;
     //@}
 
     /*!@name Miscellaneous*/

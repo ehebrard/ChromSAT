@@ -16,6 +16,96 @@ namespace gc
 
 using weight = int64_t;
 using bitset = BitSet;
+using edge = std::pair<int,int>;
+
+
+
+class basic_graph
+{
+public:
+    bitset nodeset;
+    IntStack nodes;
+    std::vector<bitset> matrix;
+	
+    basic_graph() {}
+    explicit basic_graph(int nv)
+        : nodeset(0, nv - 1, bitset::empt)
+        , matrix(nv)
+    {
+        nodes.reserve(nv);
+        nodes.fill();
+        for (auto& bs : matrix) {
+            bs.initialise(0, nv, bitset::empt);
+        }
+    }
+    basic_graph(basic_graph&) = default;
+    basic_graph(basic_graph&&) = default;
+    basic_graph& operator=(const basic_graph& g)
+		{
+			nodes.clear();
+			nodeset.clear();
+			for( auto v : g.nodes ) {
+					add_node(v);
+					matrix[v].copy(g.matrix[v]);
+			}
+			return *this;
+		} 
+    basic_graph& operator=(basic_graph&&) = default;
+
+    int capacity() const { return matrix.size(); }
+
+    void add_edge(const int u, const int v)
+    {
+        matrix[u].add(v);
+        matrix[v].add(u);
+    }
+		
+    void add_edges(const int u, const bitset& N)
+    {
+        matrix[u].union_with(N);
+				for( auto v : N ) {
+						matrix[v].add(u);
+				}
+    }
+		
+    void add_node(const int v)
+    {
+				nodes.add(v);
+				nodeset.add(v);
+    }
+		
+		void add_clique( const bitset& C )
+		{
+				for( auto v : C ) {
+						add_node(v);
+						matrix[v].union_with(C);
+						matrix[v].remove(v);
+				}
+		}
+		
+    void remove_edge(int u, int v)
+    {
+        matrix[u].remove(v);
+        matrix[v].remove(u);
+    }
+		
+    void remove_node(int v)
+    {
+				nodes.remove(v);
+				nodeset.fast_remove(v);
+    }
+		
+		void clear()
+		{
+				for( auto v : nodes ) {
+						matrix[v].clear();
+				}
+				nodeset.clear();
+				nodes.clear();
+		}
+
+
+};
 
 
 class graph
@@ -175,18 +265,36 @@ struct clique_finder {
     }
 };
 
-struct mycielskan_finder {
+
+
+struct mycielskan_subgraph_finder {
+		
+	public:
     const graph& g;
 		const clique_finder& cf;
 
-    mycielskan_finder(const graph& g, const clique_finder& cf);
+		basic_graph explanation_subgraph;
+		int explanation_clique;
+
+    mycielskan_subgraph_finder(const graph& g, const clique_finder& cf);
+			
+		// extend the subgraph G into a mycielski of subsequent order if possible, the additional vertices go into "subgraph"
+		int extends( const bitset& G );
+
+		int full_myciel( const int lb );
+
+		int improve_cliques_larger_than(const int size, const int lb);
+
+		int improve_greedy(const int size, const int lb);
+
+
+	private:
 		
-		// the considered subgraph
-		std::vector<int> subgraph;
-		bitset subgraph_set;
-		
+		// [tmp in "extends] subgraph that we try to build
+		basic_graph subgraph;
+	
 		// [tmp in "extends] neighborhood of u
-		bitset neighbors_u;
+		bitset neighbors_w;
 		
 		// [tmp in "extends] neighborhood of S_v
 		bitset neighbors_Sv;
@@ -203,26 +311,11 @@ struct mycielskan_finder {
 		// [tmp in "extends] the set of "candidates" (intersection of the neighbors of neighbors_Sv)
 		bitset candidates;
 		
-		// store the subgraph that gave the best bound in order to explain it later
-		std::vector<int> explanation_subgraph;
-		std::vector<int> explanation_layer;
-		
-		std::vector<int> _subgraph;
-		std::vector<int> _layer; // layer infor on the constructed mycielskan, used when explaining 
-		
-		int explanation_clique;
-		
-		// extend the subgraph G into a mycielski of subsequent order if possible, the additional vertices go into "subgraph"
-		int extends( const bitset& G );		
-
-		int full_myciel( const int lb );
-		
-		int improve_cliques_larger_than(const int size, const int lb);
-		
-		int improve_greedy(const int size, const int lb);
-
+		// [tmp in extends] edges to add 
+		std::vector<edge> new_edges;
 
 };
+
 
 struct neighbors_wrapper {
     const graph& g;

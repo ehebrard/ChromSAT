@@ -892,7 +892,7 @@ public:
         }
         return inc;
     }
-
+		
     inline bool included(const Bitset<WORD_TYPE, FLOAT_TYPE>& s) const
     {
         int i = (pos_words > s.pos_words ? s.pos_words : pos_words);
@@ -915,7 +915,7 @@ public:
     }
 
     inline bool includes(const Bitset<WORD_TYPE, FLOAT_TYPE>& s) const
-    {
+    {			
         int i = (pos_words > s.pos_words ? s.pos_words : pos_words);
         int j = (neg_words < s.neg_words ? s.neg_words : neg_words);
         int k = s.pos_words;

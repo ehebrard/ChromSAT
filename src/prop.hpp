@@ -13,7 +13,7 @@ struct cons_base {
     int ub;
     int bestlb{0};
     clique_finder cf;
-		mycielskan_finder mf;
+		mycielskan_subgraph_finder mf;
 
     explicit cons_base(graph& g)
         : cf(g), mf(g, cf)

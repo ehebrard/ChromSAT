@@ -136,6 +136,11 @@ void IntStack::push(const int elt)
     index_[elt] = size_;
     list_[size_++] = elt;
 }
+
+int IntStack::index(const int elt) const
+{
+		return index_[elt];
+}
 //@}
 
 std::ostream& IntStack::display(std::ostream& os) const

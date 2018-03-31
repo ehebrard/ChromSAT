@@ -231,51 +231,35 @@ void clique_finder::insert_color(int v, int clq, bitset& diff)
     candidates[clq].union_with(g.matrix[v]);
 }
 
-mycielskan_finder::mycielskan_finder(const graph& g, const clique_finder& cf) 
+mycielskan_subgraph_finder::mycielskan_subgraph_finder(const graph& g, const clique_finder& cf) 
 	    : g(g)
 			, cf(cf)
+			, explanation_subgraph(g.capacity())
+			, subgraph(g.capacity())
 {
-		non_neighbors.initialise(0, g.capacity() + 1, bitset::empt);
-		neighbors_Sv.initialise(0, g.capacity() + 1, bitset::empt);
-		neighbors_u.initialise(0, g.capacity() + 1, bitset::empt);
-		candidates.initialise(0, g.capacity() + 1, bitset::empt);
-		subgraph_set.initialise(0, g.capacity() + 1, bitset::empt);
-		
-		explanation_clique = -1;
-}
+	non_neighbors.initialise(0, g.capacity() + 1, bitset::empt);
+	neighbors_Sv.initialise(0, g.capacity() + 1, bitset::empt);
+	neighbors_w.initialise(0, g.capacity() + 1, bitset::empt);
+	candidates.initialise(0, g.capacity() + 1, bitset::empt);
 
+	explanation_clique = -1;
+}	
 
-
-
-
-// extend the subgraph into a mycielski of higher order until reaching a fix point, and return the number of iterations
-int mycielskan_finder::extends( const bitset& G )
+int mycielskan_subgraph_finder::extends( const bitset& G )
 {
+		int iter = 0;
+	
 		subgraph.clear();
-		_subgraph.clear();
-		subgraph_set.copy(G);
-		for(auto v : G) {
-				subgraph.push_back(v);
-				_subgraph.push_back(v);
-		}
+		subgraph.add_clique(G);	
 		
-		_layer.clear();
-		_layer.push_back(_subgraph.size());
-
-
-		while(subgraph.size() < g.nodes.size()) {
+		while(subgraph.nodes.size() < g.nodes.size()) {
 				// new ietration, clear the struct for the extra nodes and the potential w's
 				extra.clear(); // extra contains the union of the Sv's
 				endS.clear(); // where do the Sv's en in the vector extra
 				candidates.fill(); // potential candidates for w
-
-				for(auto v : subgraph) {
+	
+				for( auto v : subgraph.nodes ) {
 					
-#ifdef _DEBUG_MYCIEL
-						std::cout << " " << v << ":";
-#endif
-						// "compute Sv" (it is not stored, we directly store N(Sv))
-						// elements of Sv must be non-neighbors because the clique we start from is maximal
 						non_neighbors.copy(g.nodeset);
 						non_neighbors.setminus_with(g.matrix[v]);
 						non_neighbors.fast_remove(v);
@@ -283,157 +267,76 @@ int mycielskan_finder::extends( const bitset& G )
 						// Sv contains v
 						extra.push_back( v );
 						neighbors_Sv.copy(g.matrix[v]);
-						
-#ifdef _DEBUG_MYCIEL
-						std::cout << " " << v ;
-#endif
-						for(auto u : non_neighbors) {
-								if(g.rep_of[u] != u) continue; // use only representatives ?				
-								neighbors_u.copy( subgraph_set );
-								neighbors_u.intersect_with(g.matrix[v]);
-								neighbors_u.setminus_with(g.matrix[u]);
 
-								if(neighbors_u.empty()) {
-										// here we now that u is neighbor with every neighbor of v in S (subgraph_set)
+						for(auto u : non_neighbors) {
+							
+								if(g.rep_of[u] != u) continue; // use only representatives ?	
+			
+								if(g.matrix[u].includes(subgraph.matrix[v])) {
 										extra.push_back( u );
 										neighbors_Sv.union_with(g.matrix[u]);
-										
-#ifdef _DEBUG_MYCIEL
-										std::cout << " " << u ;
-#endif
 								}
 						}
-
+											
 						// stop early when there is no candidate for w
 						candidates.intersect_with(neighbors_Sv);
-						if(candidates.empty()) {
-								
-#ifdef _DEBUG_MYCIEL
-							for(auto u : subgraph) {
-								neighbors_u.copy(g.matrix[u]);
-								neighbors_u.intersect_with(subgraph_set);
-								std::cout << "\nN(" << u << ") " << neighbors_u ;
-							}
-							std::cout << std::endl << "E subgraph =";
-							for(auto i = 0 ; i < _subgraph.size() ; ++i) {
-									std::cout << " " << _subgraph[i];
-							}		
-							std::cout << std::endl << std::endl;
-#endif
-															
-								return _layer.size()-1;
-						}
+		
+						if(candidates.empty()) return iter;
 
 						endS.push_back(extra.size());
-
-#ifdef _DEBUG_MYCIEL
-						std::cout << std::endl;
-#endif
 				}
-
-#ifdef _DEBUG_MYCIEL
-				std::cout << std::endl;
-#endif
-				// select any (?) v
-				auto u = g.rep_of[candidates.min()];
+				
+				// select any (?) w
+				auto w = g.rep_of[candidates.min()];
 
 				// put all potential extra nodes into a bitset so that we can intersect with N(u)
-				neighbors_u.clear();
+				neighbors_w.clear();
 				for(auto v : extra) {
-						neighbors_u.fast_add( v );
+						neighbors_w.fast_add( v );
 				}
-				neighbors_u.intersect_with(g.matrix[u]);
-				
-#ifdef _DEBUG_MYCIEL
-				auto m{_subgraph.size()};
-#endif
+				neighbors_w.intersect_with(g.matrix[w]);
+
 				// now for every v, select any element of Sv that is also a neighbor of u
 				auto j{0}; // index in extra
-				auto k{0}; // index in _subgraph
-				auto n{subgraph.size()};
-						
-				for(auto i = 0 ; i < n ; ++i) {
-											
-						// add the duplicates
-						while( _subgraph[k] != subgraph[i] ) {
-								assert(k < _subgraph.size());				
-								_subgraph.push_back(_subgraph[k++]);								
-						}
-			
-#ifdef _DEBUG_MYCIEL
-						std::cout << " " << subgraph[i] << "=";
-#endif						
-					
+				auto n{subgraph.nodes.size()};
+				
+				subgraph.add_node(w);
+				
+				new_edges.clear();
+				
+				for(auto i = 0 ; i < n ; ++i) {					
 						do {
 								assert( j < endS[i] );
 								auto v{extra[j]};
-								if( neighbors_u.fast_contain(v) ) {
-#ifdef _DEBUG_MYCIEL
-										std::cout << " " << v;
-#endif										
-										_subgraph.push_back(v); // _subgraph contains all the layers, with duplicates
-										++k;
-										if(!subgraph_set.fast_contain(v)) {
-												subgraph.push_back(v);
-												subgraph_set.fast_add(v);
-												
-#ifdef _DEBUG_MYCIEL
-												std::cout << " ok!";
-#endif												
-										} 
-										
-#ifdef _DEBUG_MYCIEL
-										else std::cout << " ok"; 
-#endif										
+			
+								if( neighbors_w.fast_contain(v) ) {
+										new_edges.push_back(edge{v,w});
+										if(!subgraph.nodeset.fast_contain(v)) {
+												subgraph.add_node(v);
+												for( auto u : subgraph.matrix[subgraph.nodes[i]] ) {
+														new_edges.push_back(edge{u,v});
+												}
+										} 	
 										break;
 								}
 								++j;
 						} while(true);
 
 						j = endS[i];
-						
-#ifdef _DEBUG_MYCIEL
-						std::cout << std::endl;
-#endif
+				}
+				
+				for( auto e : new_edges ) {
+						subgraph.add_edge(e.first, e.second);
 				}
 
-
-#ifdef _DEBUG_MYCIEL
-				for(auto i = 0 ; i < _subgraph.size() ; ++i) {
-					if(i == m) std::cout << " |";
-					std::cout << " " << _subgraph[i];
-				}
-#endif
-				
-				subgraph.push_back(u);
-				subgraph_set.fast_add(u);
-				
-#ifdef _DEBUG_MYCIEL
-				std::cout << " + " << u << std::endl;
-#endif
-				
-				_layer.push_back(_subgraph.size());
-				_subgraph.push_back(u);
+				++iter;
 		}
 		
-#ifdef _DEBUG_MYCIEL
-		for(auto u : subgraph) {
-			neighbors_u.copy(g.matrix[u]);
-			neighbors_u.intersect_with(subgraph_set);
-			std::cout << "\nN(" << u << ") " << neighbors_u ;
-		}
-		std::cout << std::endl << "E subgraph =";
-		for(auto i = 0 ; i < _subgraph.size() ; ++i) {
-				std::cout << " " << _subgraph[i];
-		}
-		std::cout << std::endl << std::endl;
-#endif
-
-		return _layer.size()-1;
+		return iter;
 }
 
 
-int mycielskan_finder::full_myciel(const int curlb) 
+int mycielskan_subgraph_finder::full_myciel(const int curlb) 
 {
 	explanation_clique = -1;
 	auto lb{curlb};
@@ -441,20 +344,15 @@ int mycielskan_finder::full_myciel(const int curlb)
 			auto mycielski_lb = cf.clique_sz[cl] + extends( cf.cliques[cl] );
 			if(mycielski_lb > lb) {
 					lb = mycielski_lb;
-					// explanation_subgraph = _subgraph;
-					// explanation_layer = _layer;
-					explanation_subgraph.clear();
-					for(auto v : _subgraph) explanation_subgraph.push_back(v);
-					explanation_layer.clear();
-					for(auto l : _layer) explanation_layer.push_back(l);
+					explanation_subgraph = subgraph;
 					explanation_clique = cl;
 			}
 	}
 	return lb;
 }
 
-int mycielskan_finder::improve_cliques_larger_than(const int size, const int curlb) 
-{
+int mycielskan_subgraph_finder::improve_cliques_larger_than(const int size, const int curlb) 
+{	
 	explanation_clique = -1;
 	auto lb{curlb};
 	for(auto cl = 0 ; cl < cf.num_cliques ; ++cl ) {
@@ -463,17 +361,8 @@ int mycielskan_finder::improve_cliques_larger_than(const int size, const int cur
 					auto mycielski_lb = cf.clique_sz[cl] + niters;
 					if(mycielski_lb > lb) {
 							lb = mycielski_lb;
-							explanation_subgraph.clear();
-							for(auto v : _subgraph) explanation_subgraph.push_back(v);
-							explanation_layer.clear();
-							for(auto l : _layer) explanation_layer.push_back(l);
+							explanation_subgraph = subgraph;
 							explanation_clique = cl;
-							
-							// std::cout << " --> " << lb << " (niters = " << niters << ") save" ;
-							// for( auto v : explanation_subgraph )
-							// 		std::cout << " " << v ;
-							//
-							// std::cout << std::endl;
 					}
 		 	}
 	}
@@ -481,7 +370,7 @@ int mycielskan_finder::improve_cliques_larger_than(const int size, const int cur
 	return lb;
 }
 
-int mycielskan_finder::improve_greedy(const int size, const int curlb) 
+int mycielskan_subgraph_finder::improve_greedy(const int size, const int curlb) 
 {
 	explanation_clique = -1;
 	auto lb{curlb};
@@ -490,18 +379,14 @@ int mycielskan_finder::improve_greedy(const int size, const int curlb)
 					auto mycielski_lb = cf.clique_sz[cl] + extends( cf.cliques[cl] );
 					if(mycielski_lb > lb) {
 							lb = mycielski_lb;
-							// explanation_subgraph = _subgraph;
-							// explanation_layer = _layer;
-							explanation_subgraph.clear();
-							for(auto v : _subgraph) explanation_subgraph.push_back(v);
-							explanation_layer.clear();
-							for(auto l : _layer) explanation_layer.push_back(l);
+							explanation_subgraph = subgraph;
 							explanation_clique = cl;
 					}
 		 	}
 	}
 	return lb;
 }
+
 
 neighbors_wrapper::neighbors_wrapper(const graph& g)
     : g(g)

@@ -273,19 +273,11 @@ public:
 
     Clause* explain_naive_positive()
     {	
-			
-#ifdef _DEBUG_MYCIEL
-				std::cout << "beg   explain\n" ;
-#endif
-			
 				auto maxidx{std::distance(begin(cf.clique_sz),
 	          						std::max_element(
 	                					begin(cf.clique_sz), begin(cf.clique_sz) + cf.num_cliques))};
 								
-				// std::cout << mf.explanation_clique << std::endl;
-								
 				if(opt.boundalg != options::CLIQUES && mf.explanation_clique != -1) {
-						// assert( cf.clique_sz[maxidx] == cf.clique_sz[mf.explanation_clique] ); // tmp assert
 						maxidx = mf.explanation_clique;
 				}
 
@@ -301,146 +293,20 @@ public:
                 assert(g.rep_of[v] == v);
                 if (!g.origmatrix[u].fast_contain(v)) {
                     reason.push(Lit(vars[u][v]));
-#ifdef _DEBUG_MYCIEL
-										std::cout << "add (" << u << "," << v << ") to reason\n" ;
-#endif
 								}
             }
 						
-						
-					
-				// explain the mycielskan layers
 				if(opt.boundalg != options::CLIQUES && mf.explanation_clique != -1) {
-					
-						std::vector<int>& layer(mf.explanation_layer);
-						std::vector<int>& subgraph(mf.explanation_subgraph);
-						// int base_clique = mf.explanation_clique;
-						// if(use_global_bound) {
-						// 		layer =
-						// }
-					
-						
-#ifdef _DEBUG_MYCIEL	
-						int k = layer[0];
-						for(auto j=0; j<k; ++j) {
-								std::cout << " " << subgraph[j];
-						}
-						
-						
-						for(auto i=1; i<layer.size(); ++i) {
-								std::cout << " |"; 
-							
-								auto l{layer[i]};
-								
-								for(auto j=k; j<l; ++j) {
-										std::cout << " " << subgraph[j];
+						for( auto v : mf.explanation_subgraph.nodes ) {
+								neighborhood.copy(mf.explanation_subgraph.matrix[v]);
+								neighborhood.setminus_with(g.origmatrix[v]);
+								neighborhood.set_min(v);
+								for( auto u : neighborhood ) {
+										reason.push(Lit(vars[u][v]));
 								}
-								
-								std::cout << " | " << subgraph[l];
-								
 						}
-						
-						std::cout << std::endl;
-#endif					
-						
-						assert(layer.back() == subgraph.size()-1);
-						
-						myc_reason.clear();
-					
-						
-						auto end_subgraph{layer[0]};
-						
-						bitset& visited(util_set);
-						visited.clear();
-						for(auto i=0; i<end_subgraph; ++i) {
-								visited.fast_add(subgraph[i]);
-						}
-						
-						for(auto i=1; i<layer.size(); ++i) {
-#ifdef _DEBUG_MYCIEL							
-								std::cout << "explain layer " << i << std::endl;
-#endif							
-								auto l{layer[i]};
-								// nodes in subgraph[0:end_subgraph] are those of the subgraph
-								// nodes in  subgraph[end_subgraph:l] are the u's of this layer
-								// node subgraph[l] is w for this layer
-								
-								assert(2*end_subgraph == l);
-								
-								auto w{subgraph[l]};
-								
-								// for every u we must explain the 
-								auto begin_u{begin(subgraph) + end_subgraph};
-								auto end_u{begin(subgraph) + l};
-								for(auto uptr = begin_u; uptr != end_u; ++uptr) {
-									
-										auto u{*uptr};
-										auto v{*(uptr-end_subgraph)}; // N(u) should include subgraph \inter N(v)
-#ifdef _DEBUG_MYCIEL										
-										std::cout << " - " << u << " (from " << v << ")" << std::endl;
-#endif										
-										// explain the edge with w
-										if(!g.origmatrix[w].fast_contain(u)) {
-												// reason.push(Lit(vars[u][w]));
-												myc_reason.push_back(vars[u][w]);
-#ifdef _DEBUG_MYCIEL
-												std::cout << "add (" << u << "," << w << ") to reason (w)\n" ;	
-#endif
-										}
-										
-										// if( v == u ) continue;
-										if(visited.fast_contain(u)) {
-											// assert( v == u );
-											continue; // this u comes from a previous layer
-										}
-										
-										neighborhood.copy(g.matrix[v]);										
-										neighborhood.intersect_with(visited);
-										neighborhood.setminus_with(g.origmatrix[u]); // no need to explain the original edges
-										
-										for(auto n : neighborhood) {
-												// reason.push(Lit(vars[u][n]));
-												myc_reason.push_back(vars[u][n]);
-												
-#ifdef _DEBUG_MYCIEL
-												std::cout << "add (" << u << "," << n << ") to reason (neighbor)\n" ;
-#endif
-										}									
-								}
-								
-								for(auto uptr = begin_u; uptr != end_u; ++uptr) {
-										visited.fast_add(*uptr);
-								}
-								visited.fast_add(w);
-								
-								end_subgraph = l+1;
-						}
-						
-						std::sort(begin(myc_reason), end(myc_reason));
-				    auto last = std::unique(myc_reason.begin(), myc_reason.end());
-						
-						if(last != end(myc_reason)) {
-							std::cout << (int)(end(myc_reason) - last) << " duplicates removed\n";
-						}
-						
-						for( auto vptr=begin(myc_reason); vptr!=last; ++vptr)
-								reason.push(Lit(*vptr));
-						
-						
-						// bitset count(0, 2*g.capacity()*g.capacity(), bitset::empt);
-						// for( auto l : reason ) {
-						// 	count.fast_add(var(l));
-						// }
-						// std::cout << count.size() << "/" << reason.size() << std::endl;
-						// assert( count.size() == reason.size() );
-						
 				}
-						
-						
-#ifdef _DEBUG_MYCIEL
-				std::cout << "end explain\n" ;
-#endif
-
+	
         return s.addInactiveClause(reason);
     }
 
