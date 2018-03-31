@@ -257,6 +257,11 @@ int mycielskan_subgraph_finder::extends( const bitset& G )
 				extra.clear(); // extra contains the union of the Sv's
 				endS.clear(); // where do the Sv's en in the vector extra
 				candidates.fill(); // potential candidates for w
+				
+#ifdef _DEBUG_MYCIEL
+				std::cout << "\nextends " << subgraph.nodeset << std::endl;
+#endif				
+				
 	
 				for( auto v : subgraph.nodes ) {
 					
@@ -267,6 +272,10 @@ int mycielskan_subgraph_finder::extends( const bitset& G )
 						// Sv contains v
 						extra.push_back( v );
 						neighbors_Sv.copy(g.matrix[v]);
+						
+#ifdef _DEBUG_MYCIEL
+						std::cout << " - " << v << ":" ;
+#endif	
 
 						for(auto u : non_neighbors) {
 							
@@ -275,15 +284,24 @@ int mycielskan_subgraph_finder::extends( const bitset& G )
 								if(g.matrix[u].includes(subgraph.matrix[v])) {
 										extra.push_back( u );
 										neighbors_Sv.union_with(g.matrix[u]);
+										
+#ifdef _DEBUG_MYCIEL
+										std::cout << " " << u ;
+#endif
 								}
 						}
 											
 						// stop early when there is no candidate for w
 						candidates.intersect_with(neighbors_Sv);
+						
+#ifdef _DEBUG_MYCIEL
+						std::cout << " -> " << candidates << std::endl ;
+#endif
 		
 						if(candidates.empty()) return iter;
 
 						endS.push_back(extra.size());
+						
 				}
 				
 				// select any (?) w
@@ -304,7 +322,12 @@ int mycielskan_subgraph_finder::extends( const bitset& G )
 				
 				new_edges.clear();
 				
-				for(auto i = 0 ; i < n ; ++i) {					
+				for(auto i = 0 ; i < n ; ++i) {	
+					
+#ifdef _DEBUG_MYCIEL
+						std::cout << " " << subgraph.nodes[i] ;
+#endif
+										
 						do {
 								assert( j < endS[i] );
 								auto v{extra[j]};
@@ -316,7 +339,14 @@ int mycielskan_subgraph_finder::extends( const bitset& G )
 												for( auto u : subgraph.matrix[subgraph.nodes[i]] ) {
 														new_edges.push_back(edge{u,v});
 												}
+												
+#ifdef _DEBUG_MYCIEL
+												std::cout << "--" << v << "--" << w << std::endl;
+#endif
 										} 	
+#ifdef _DEBUG_MYCIEL
+												else std::cout << "--" << w << std::endl;
+#endif
 										break;
 								}
 								++j;
