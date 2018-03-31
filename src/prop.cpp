@@ -35,9 +35,6 @@ private:
     bitset expl_N, expl_covered, expl_residue;
     bitset expl_clqcopy;
     bitset neighborhood;
-    // std::vector<int> global_myciel_layer;
-    // std::vector<int> global_myciel_subgraph;
-    // int global_myciel_clique;
 
     std::vector<int> myc_reason;
     // bitset count;
@@ -278,36 +275,56 @@ public:
             std::max_element(
                 begin(cf.clique_sz), begin(cf.clique_sz) + cf.num_cliques))};
 
-        // if(opt.boundalg != options::CLIQUES && mf.explanation_clique != -1) {
-        //              maxidx = mf.explanation_clique;
-        // }
+        if(opt.boundalg != options::CLIQUES && mf.explanation_clique != -1) {
+            maxidx = mf.explanation_clique;
+        }
 
         // explain the base clique
         reason.clear();
 
-        if (opt.boundalg != options::CLIQUES && mf.explanation_clique != -1) {
-            for (auto v : mf.explanation_subgraph.nodes) {
-                neighborhood.copy(mf.explanation_subgraph.matrix[v]);
-                neighborhood.setminus_with(g.origmatrix[v]);
-                neighborhood.set_min(v);
-                for (auto u : neighborhood) {
+        // if (opt.boundalg != options::CLIQUES && mf.explanation_clique != -1) {
+        //     for (auto v : mf.explanation_subgraph.nodes) {
+        //         neighborhood.copy(mf.explanation_subgraph.matrix[v]);
+        //         neighborhood.setminus_with(g.origmatrix[v]);
+        //         neighborhood.set_min(v);
+        //         for (auto u : neighborhood) {
+        //           	assert(g.rep_of[u] == u);
+        //           	assert(g.rep_of[v] == v);
+        //             reason.push(Lit(vars[u][v]));
+        //         }
+        //     }
+        // } else {
+        culprit.clear();
+        std::copy(begin(cf.cliques[maxidx]), end(cf.cliques[maxidx]),
+            back_inserter(culprit));
+        for (size_t i = 0; i != culprit.size() - 1; ++i)
+            for (size_t j = i + 1; j != culprit.size(); ++j) {
+                auto u = culprit[i], v = culprit[j];
+                assert(g.rep_of[u] == u);
+                assert(g.rep_of[v] == v);
+                if (!g.origmatrix[u].fast_contain(v)) {
                     reason.push(Lit(vars[u][v]));
                 }
             }
-        } else {
-            culprit.clear();
-            std::copy(begin(cf.cliques[maxidx]), end(cf.cliques[maxidx]),
-                back_inserter(culprit));
-            for (size_t i = 0; i != culprit.size() - 1; ++i)
-                for (size_t j = i + 1; j != culprit.size(); ++j) {
-                    auto u = culprit[i], v = culprit[j];
-                    assert(g.rep_of[u] == u);
-                    assert(g.rep_of[v] == v);
-                    if (!g.origmatrix[u].fast_contain(v)) {
-                        reason.push(Lit(vars[u][v]));
-                    }
+        // }
+								
+        if (opt.boundalg != options::CLIQUES && mf.explanation_clique != -1) {
+            // for (auto v : mf.explanation_subgraph.nodes) {
+						for( auto i{culprit.size()}; i<mf.explanation_subgraph.nodes.size(); ++i) {
+								auto v{mf.explanation_subgraph.nodes[i]};
+                neighborhood.copy(mf.explanation_subgraph.matrix[v]);
+                neighborhood.setminus_with(g.origmatrix[v]);
+                // neighborhood.set_min(v);
+                for (auto u : neighborhood) {
+										if(mf.explanation_subgraph.nodes.index(v) > mf.explanation_subgraph.nodes.index(u)) {
+		                  	assert(g.rep_of[u] == u);
+		                  	assert(g.rep_of[v] == v);
+		                    reason.push(Lit(vars[u][v]));
+										}
                 }
-        }
+	      		}
+        } 
+								
 
         return s.addInactiveClause(reason);
     }
