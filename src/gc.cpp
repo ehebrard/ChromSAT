@@ -75,6 +75,20 @@ struct gc_model {
                 ++clr;
             }
         }
+
+        switch (options.branching) {
+        case gc::options::VSIDS:
+            s.varbranch = minicsp::VAR_VSIDS;
+            break;
+        case gc::options::BRELAZ:
+            if (!options.xvars) {
+                std::cout << "Cannot use Brelaz ordering without xvars\n";
+                exit(1);
+            }
+            s.varbranch = minicsp::VAR_DOM;
+            s.valbranch = minicsp::VAL_LEX;
+            break;
+        }
     }
 
     void solve()
@@ -117,7 +131,7 @@ struct gc_model {
             std::cout << "Best bounds [" << cons->bestlb << ", " << cons->ub
                       << "]\n";
         minicsp::printStats(s);
-				statistics.describe(std::cout);
+        statistics.describe(std::cout);
     }
 };
 
@@ -140,8 +154,8 @@ int main(int argc, char* argv[])
 {
     auto options = gc::parse(argc, argv);
     options.describe(std::cout);
-		
-		gc::statistics statitics;
+
+    gc::statistics statistics;
 
     gc::graph g;
     dimacs::read_graph(options.instance_file.c_str(),
@@ -163,7 +177,7 @@ int main(int argc, char* argv[])
     if (options.learning == gc::options::NO_LEARNING)
         s.learning = false;
 
-    gc_model model(g, s, options, statitics, std::pair<int, int>(lb, ub));
+    gc_model model(g, s, options, statistics, std::pair<int, int>(lb, ub));
     model.solve();
     model.print_stats();
 }

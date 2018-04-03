@@ -95,12 +95,14 @@ options parse(int argc, char* argv[])
         opt.polarity, "", "polarity", "polarity policy", false, 0, "int");
     cmd.add<ValueArg<int>>(opt.ordering, "", "ordering",
         "clique finding heuristic [0-4]", false, 3, "int");
-		cmd.add<ValueArg<int>>(opt.boundalg, "", "bound",
-				"lower bound algorithm [0-3]", false, 0, "int");
-		cmd.add<SwitchArg>(opt.prune, "", "prune", "enable pruning", false);
+    cmd.add<ValueArg<int>>(opt.boundalg, "", "bound",
+        "lower bound algorithm [0-3]", false, 0, "int");
+    cmd.add<SwitchArg>(opt.prune, "", "prune", "enable pruning", false);
     cmd.add<SwitchArg>(opt.adaptive, "", "adaptive",
         "Switch between CLIQUES and declared bound policy dynamically", false);
-				
+    cmd.add<ValueArg<int>>(opt.branching, "", "branching",
+        "Variable branching heuristic [0-1]", false, 0, "int");
+
     cmd.parse(argc, argv);
     return opt;
 }
