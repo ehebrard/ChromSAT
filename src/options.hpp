@@ -41,10 +41,12 @@ struct options {
     };
     dual_policy boundalg;
 
-		bool prune;
+    bool prune;
 
     bool adaptive;
 
+    enum branching_heuristic { VSIDS, BRELAZ };
+    branching_heuristic branching;
 };
 
 options parse(int argc, char* argv[]);
