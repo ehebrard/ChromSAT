@@ -12,6 +12,9 @@ class gc_constraint : public minicsp::cons, public cons_base
 private:
     Solver& s;
     graph& g;
+		
+		mycielskan_subgraph_finder mf;
+		
     const std::vector<std::vector<Var>>& vars;
     const options& opt;
     statistics& stat;
@@ -69,6 +72,7 @@ public:
         : cons_base(pg)
         , s(solver)
         , g(pg)
+				, mf(g, cf, opt.prune)
         , vars(tvars)
         , opt(opt)
         , stat(stat)
@@ -446,14 +450,19 @@ public:
 
         auto mlb{lb};
         if (opt.boundalg == options::FULLMYCIELSKI) {
-            mlb = mf.full_myciel(lb);
+            mlb = mf.full_myciel(lb, ub);
         } else if (opt.boundalg == options::MAXMYCIELSKI) {
-            mlb = mf.improve_cliques_larger_than(lb, lb);
+            mlb = mf.improve_cliques_larger_than(lb, lb, ub);
         } else if (opt.boundalg == options::GREEDYMYCIELSKI) {
-            mlb = mf.improve_greedy(lb - 1, lb);
+            mlb = mf.improve_greedy(lb - 1, lb, ub);
         }
-        stat.notify_bound_delta(mlb - lb);
+        stat.notify_bound_delta(mlb - lb);				
         lb = mlb;
+				
+				// if(ub - lb <= 1) {
+				// 		std::cout << (s.nVars() - s.nAssigns()) << std::endl;
+				// }
+				
 
         bool use_global_bound = false;
         if (lb <= bestlb) {

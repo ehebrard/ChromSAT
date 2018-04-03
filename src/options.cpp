@@ -97,6 +97,7 @@ options parse(int argc, char* argv[])
         "clique finding heuristic [0-4]", false, 3, "int");
 		cmd.add<ValueArg<int>>(opt.boundalg, "", "bound",
 				"lower bound algorithm [0-3]", false, 0, "int");
+		cmd.add<SwitchArg>(opt.prune, "", "prune", "enable pruning", false);
 						
     cmd.parse(argc, argv);
     return opt;
