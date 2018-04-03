@@ -22,8 +22,16 @@ private:
     // indexed by varid
     std::vector<varinfo_t> varinfo;
 
-    //
+    // something which is kept in sync by the solver. if it diverges
+    // from what the graph thinks, it means we have
+    // backtracked/restarted, so we should resync to that point
     backtrackable<int> lastdlvl;
+
+    // for the adaptive bound policy: this is set to true on conflicts
+    // and reset to false after the stronger policy runs
+    bool run_expensive_bound{false};
+    minicsp::Solver::clause_callback_t adaptive_callback;
+    options::dual_policy bound_source;
 
     // the usual assortment of vecs, vectors and bitsets to avoid
     // reallocations
@@ -110,6 +118,14 @@ public:
         diffuv.initialise(0, g.capacity(), bitset::empt);
         diffvu.initialise(0, g.capacity(), bitset::empt);
         // cur_neighbors.initialise(0, g.capacity(), bitset::empt);
+
+        if (opt.adaptive) {
+            adaptive_callback = [this](const vec<Lit>&, int) -> bool {
+                this->run_expensive_bound = true;
+                return false;
+            };
+            s.use_clause_callback(adaptive_callback);
+        }
 
         DO_OR_THROW(propagate(s));
     }
@@ -275,25 +291,13 @@ public:
             std::max_element(
                 begin(cf.clique_sz), begin(cf.clique_sz) + cf.num_cliques))};
 
-        if(opt.boundalg != options::CLIQUES && mf.explanation_clique != -1) {
+        if (opt.boundalg != options::CLIQUES && mf.explanation_clique != -1) {
             maxidx = mf.explanation_clique;
         }
 
         // explain the base clique
         reason.clear();
 
-        // if (opt.boundalg != options::CLIQUES && mf.explanation_clique != -1) {
-        //     for (auto v : mf.explanation_subgraph.nodes) {
-        //         neighborhood.copy(mf.explanation_subgraph.matrix[v]);
-        //         neighborhood.setminus_with(g.origmatrix[v]);
-        //         neighborhood.set_min(v);
-        //         for (auto u : neighborhood) {
-        //           	assert(g.rep_of[u] == u);
-        //           	assert(g.rep_of[v] == v);
-        //             reason.push(Lit(vars[u][v]));
-        //         }
-        //     }
-        // } else {
         culprit.clear();
         std::copy(begin(cf.cliques[maxidx]), end(cf.cliques[maxidx]),
             back_inserter(culprit));
@@ -306,25 +310,25 @@ public:
                     reason.push(Lit(vars[u][v]));
                 }
             }
-        // }
-								
-        if (opt.boundalg != options::CLIQUES && mf.explanation_clique != -1) {
+
+        if (bound_source != options::CLIQUES && mf.explanation_clique != -1) {
             // for (auto v : mf.explanation_subgraph.nodes) {
-						for( auto i{culprit.size()}; i<mf.explanation_subgraph.nodes.size(); ++i) {
-								auto v{mf.explanation_subgraph.nodes[i]};
+            for (auto i{culprit.size()};
+                 i < mf.explanation_subgraph.nodes.size(); ++i) {
+                auto v{mf.explanation_subgraph.nodes[i]};
                 neighborhood.copy(mf.explanation_subgraph.matrix[v]);
                 neighborhood.setminus_with(g.origmatrix[v]);
                 // neighborhood.set_min(v);
                 for (auto u : neighborhood) {
-										if(mf.explanation_subgraph.nodes.index(v) > mf.explanation_subgraph.nodes.index(u)) {
-		                  	assert(g.rep_of[u] == u);
-		                  	assert(g.rep_of[v] == v);
-		                    reason.push(Lit(vars[u][v]));
-										}
+                    if (mf.explanation_subgraph.nodes.index(v)
+                        > mf.explanation_subgraph.nodes.index(u)) {
+                        assert(g.rep_of[u] == u);
+                        assert(g.rep_of[v] == v);
+                        reason.push(Lit(vars[u][v]));
+                    }
                 }
-	      		}
-        } 
-								
+            }
+        }
 
         return s.addInactiveClause(reason);
     }
@@ -407,6 +411,8 @@ public:
     {
         int lb{0};
 
+        bound_source = options::CLIQUES;
+
         // recompute the degenracy order
         if (opt.ordering == options::DYNAMIC_DEGENERACY) {
             heuristic.clear();
@@ -432,10 +438,12 @@ public:
             heuristic.clear();
             for (auto v : g.nodes)
                 heuristic.push_back(v);
-						
+
             std::sort(heuristic.begin(), heuristic.end(),
                 [&](const int x, const int y) {
-                    return (g.partition[x].size() > g.partition[y].size() || (g.partition[x].size() == g.partition[y].size() && x < y));
+                    return (g.partition[x].size() > g.partition[y].size()
+                        || (g.partition[x].size() == g.partition[y].size()
+                               && x < y));
                 });
 
             lb = cf.find_cliques(heuristic);
@@ -444,16 +452,20 @@ public:
             lb = cf.find_cliques(g.nodes);
         }
 
-        auto mlb{lb};
-        if (opt.boundalg == options::FULLMYCIELSKI) {
-            mlb = mf.full_myciel(lb);
-        } else if (opt.boundalg == options::MAXMYCIELSKI) {
-            mlb = mf.improve_cliques_larger_than(lb, lb);
-        } else if (opt.boundalg == options::GREEDYMYCIELSKI) {
-            mlb = mf.improve_greedy(lb - 1, lb);
+        if (s.decisionLevel() == 0 || !opt.adaptive || run_expensive_bound) {
+            run_expensive_bound = false;
+            bound_source = opt.boundalg;
+            auto mlb{lb};
+            if (opt.boundalg == options::FULLMYCIELSKI) {
+                mlb = mf.full_myciel(lb);
+            } else if (opt.boundalg == options::MAXMYCIELSKI) {
+                mlb = mf.improve_cliques_larger_than(lb, lb);
+            } else if (opt.boundalg == options::GREEDYMYCIELSKI) {
+                mlb = mf.improve_greedy(lb - 1, lb);
+            }
+            stat.notify_bound_delta(mlb - lb);
+            lb = mlb;
         }
-        stat.notify_bound_delta(mlb - lb);
-        lb = mlb;
 
         bool use_global_bound = false;
         if (lb <= bestlb) {

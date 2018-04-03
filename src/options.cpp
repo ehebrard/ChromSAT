@@ -95,9 +95,11 @@ options parse(int argc, char* argv[])
         opt.polarity, "", "polarity", "polarity policy", false, 0, "int");
     cmd.add<ValueArg<int>>(opt.ordering, "", "ordering",
         "clique finding heuristic [0-4]", false, 3, "int");
-		cmd.add<ValueArg<int>>(opt.boundalg, "", "bound",
-				"lower bound algorithm [0-3]", false, 0, "int");
-						
+    cmd.add<ValueArg<int>>(opt.boundalg, "", "bound",
+        "lower bound algorithm [0-3]", false, 0, "int");
+    cmd.add<SwitchArg>(opt.adaptive, "", "adaptive",
+        "Switch between CLIQUES and declared bound policy dynamically", false);
+
     cmd.parse(argc, argv);
     return opt;
 }
@@ -111,6 +113,8 @@ void options::describe(std::ostream& os)
     os << "Polarity policy = " << polarity << "\n";
     os << "Clique ordering = " << ordering << "\n";
     os << "Color variables = " << (xvars ? "present" : "absent") << "\n";
+    os << "Bound policy    = " << boundalg << "\n";
+    os << "Adaptive bounds = " << adaptive << "\n";
     os << std::endl;
 }
 
