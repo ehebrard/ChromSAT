@@ -456,38 +456,21 @@ public:
             lb = cf.find_cliques(g.nodes);
         }
 
-<<<<<<< HEAD
-        auto mlb{lb};
-        if (opt.boundalg == options::FULLMYCIELSKI) {
-            mlb = mf.full_myciel(lb, ub);
-        } else if (opt.boundalg == options::MAXMYCIELSKI) {
-            mlb = mf.improve_cliques_larger_than(lb, lb, ub);
-        } else if (opt.boundalg == options::GREEDYMYCIELSKI) {
-            mlb = mf.improve_greedy(lb - 1, lb, ub);
-        }
-        stat.notify_bound_delta(mlb - lb);				
-        lb = mlb;
-				
-				// if(ub - lb <= 1) {
-				// 		std::cout << (s.nVars() - s.nAssigns()) << std::endl;
-				// }
-				
-=======
+
         if (s.decisionLevel() == 0 || !opt.adaptive || run_expensive_bound) {
             run_expensive_bound = false;
             bound_source = opt.boundalg;
             auto mlb{lb};
             if (opt.boundalg == options::FULLMYCIELSKI) {
-                mlb = mf.full_myciel(lb);
+                mlb = mf.full_myciel(lb, ub);
             } else if (opt.boundalg == options::MAXMYCIELSKI) {
-                mlb = mf.improve_cliques_larger_than(lb, lb);
+                mlb = mf.improve_cliques_larger_than(lb, lb, ub);
             } else if (opt.boundalg == options::GREEDYMYCIELSKI) {
-                mlb = mf.improve_greedy(lb - 1, lb);
+                mlb = mf.improve_greedy(lb - 1, lb, ub);
             }
             stat.notify_bound_delta(mlb - lb);
             lb = mlb;
         }
->>>>>>> 7194c62ebe65dee86688cbebe9c68e66d598d0a2
 
         bool use_global_bound = false;
         if (lb <= bestlb) {

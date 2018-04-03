@@ -40,13 +40,11 @@ struct options {
         FULLMYCIELSKI,
     };
     dual_policy boundalg;
-<<<<<<< HEAD
-		
+
 		bool prune;
-=======
 
     bool adaptive;
->>>>>>> 7194c62ebe65dee86688cbebe9c68e66d598d0a2
+
 };
 
 options parse(int argc, char* argv[]);
