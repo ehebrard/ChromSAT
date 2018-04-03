@@ -3,6 +3,7 @@
 
 #include "bitset.hpp"
 #include "intstack.hpp"
+#include "minicsp/core/solver.hpp"
 
 #include <algorithm>
 #include <list>
@@ -272,22 +273,25 @@ struct clique_finder {
 struct mycielskan_subgraph_finder {
 		
 	public:
+		
+		bool prune;
+		
     const graph& g;
 		const clique_finder& cf;
 
 		basic_graph explanation_subgraph;
 		int explanation_clique;
 
-    mycielskan_subgraph_finder(const graph& g, const clique_finder& cf);
+    mycielskan_subgraph_finder(const graph& g, const clique_finder& cf, const bool prune);
 			
 		// extend the subgraph G into a mycielski of subsequent order if possible, the additional vertices go into "subgraph"
-		int extends( const bitset& G );
+		int extends(const bitset& G);
 
-		int full_myciel( const int lb );
+		int full_myciel(const int lb, const int ub, minicsp::Solver& s, const std::vector<std::vector<minicsp::Var>>& vars);
 
-		int improve_cliques_larger_than(const int size, const int lb);
+		int improve_cliques_larger_than(const int size, const int lb, const int ub, minicsp::Solver& s, const std::vector<std::vector<minicsp::Var>>& vars);
 
-		int improve_greedy(const int size, const int lb);
+		int improve_greedy(const int size, const int lb, const int ub, minicsp::Solver& s, const std::vector<std::vector<minicsp::Var>>& vars);
 
 
 	private:
@@ -315,6 +319,16 @@ struct mycielskan_subgraph_finder {
 		
 		// [tmp in extends] edges to add 
 		std::vector<edge> new_edges;
+		
+		int ith_node;
+		
+		bitset pruning;
+		
+		vec<minicsp::Lit> empty;
+		
+		bool another_myciel_layer();
+		
+		minicsp::Clause* do_prune(minicsp::Solver& s, const std::vector<std::vector<minicsp::Var>>& vars);
 
 };
 

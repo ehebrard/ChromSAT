@@ -7,7 +7,7 @@
 
 #include <iomanip>
 
-
+using namespace minicsp;
 
 
 namespace gc
@@ -25,11 +25,32 @@ void graph::add_dirty_edge(int u, int v)
 
 int graph::merge(int u, int v)
 {
-    util_set.clear();
+		// if( v < u ) {
+		// 	auto w = u;
+		// 	u = v;
+		// 	v = w;
+		// }
+	
+		
+		//   util_set.copy(matrix[v]);
+		// util_set.intersect_with(nodeset);
+		//
+		//   diff2.copy(matrix[u]);
+		// diff2.intersect_with(nodeset);
+		//
+		// 	if( diff2.size() > util_set.size() ) {
+		// 		auto w = u;
+		// 		u = v;
+		// 		v = w;
+		// 	}
+		
+		
+    // util_set.clear();
     util_set.copy(matrix[v]);
     util_set.setminus_with(matrix[u]);
+		
 
-    diff2.clear();
+    // diff2.clear();
     diff2.copy(matrix[u]);
     diff2.setminus_with(matrix[v]);
 
@@ -231,19 +252,116 @@ void clique_finder::insert_color(int v, int clq, bitset& diff)
     candidates[clq].union_with(g.matrix[v]);
 }
 
-mycielskan_subgraph_finder::mycielskan_subgraph_finder(const graph& g, const clique_finder& cf) 
-	    : g(g)
+mycielskan_subgraph_finder::mycielskan_subgraph_finder(const graph& g, const clique_finder& cf, const bool prune) 
+	    : prune(prune)
+			, g(g)
 			, cf(cf)
 			, explanation_subgraph(g.capacity())
 			, subgraph(g.capacity())
+			, ith_node(0)
 {
 	non_neighbors.initialise(0, g.capacity() + 1, bitset::empt);
 	neighbors_Sv.initialise(0, g.capacity() + 1, bitset::empt);
 	neighbors_w.initialise(0, g.capacity() + 1, bitset::empt);
 	candidates.initialise(0, g.capacity() + 1, bitset::empt);
+	pruning.initialise(0, g.capacity() + 1, bitset::empt);
 
 	explanation_clique = -1;
 }	
+
+
+// here we assume that the current upper bound is k+1 and we just failed extending the current subgraph to order k+1
+// ith_node is the node after which the subgraph at which candidates would become empty, we then go through the nodes from ith_node to the last
+Clause* mycielskan_subgraph_finder::do_prune(Solver& s, const std::vector<std::vector<Var>>& vars)
+{
+	
+#ifdef _DEBUG_MYCIEL
+	std::cout << " prune\n" ;
+#endif	
+	
+	pruning.copy(candidates);
+	candidates.fill();
+	--ith_node;
+	
+	if(another_myciel_layer()) {
+		// std::cout << candidates << " x " << pruning << std::endl;
+		
+		for( auto u : candidates ) {
+			for( auto v : pruning ) {
+				if(!g.origmatrix[u].fast_contain(v)) {
+					// std::cout << " -- prune (" << u << "=" << v << ") = " << ( s.value(Lit(vars[u][v])) == l_True ? "=" : (s.value(Lit(vars[u][v])) == l_False ? "0" : "?" )) << std::endl;
+					if(s.value(Lit(vars[u][v])) == l_Undef) {
+				
+						// std::cout << " -- prune (" << u << "=" << v << ") = " << ( s.value(Lit(vars[u][v])) == l_True ? "=" : (s.value(Lit(vars[u][v])) == l_False ? "0" : "?" )) << std::endl;
+						DO_OR_RETURN(s.enqueueFill(~Lit(vars[u][v]),empty));
+					} 
+				} 
+				// else {
+				// 	std::cout << " -- (" << u << "=" << v << ") was in the initial graph\n";
+				// }
+			}
+		}
+		
+		
+	}
+	
+	return minicsp::NO_REASON;
+}
+
+
+bool mycielskan_subgraph_finder::another_myciel_layer() 
+{
+		while( ith_node < subgraph.nodes.size() ) {
+				auto v{subgraph.nodes[ith_node++]};
+
+				non_neighbors.copy(g.nodeset);
+				non_neighbors.setminus_with(g.matrix[v]);
+				non_neighbors.fast_remove(v);
+
+				// Sv contains v
+				extra.push_back( v );
+				neighbors_Sv.copy(g.matrix[v]);
+
+	#ifdef _DEBUG_MYCIEL
+				std::cout << " - " << v << ":" ;
+	#endif	
+
+				for(auto u : non_neighbors) {
+
+						if(g.rep_of[u] != u) continue; // use only representatives ?	
+
+						if(g.matrix[u].includes(subgraph.matrix[v])) {
+								extra.push_back( u );
+								neighbors_Sv.union_with(g.matrix[u]);
+			
+	#ifdef _DEBUG_MYCIEL
+								std::cout << " " << u ;
+	#endif
+						}
+				}
+
+				if(!candidates.intersect(neighbors_Sv)) {
+	#ifdef _DEBUG_MYCIEL
+						std::cout << " -> {} at node " << (ith_node) << "/" << subgraph.nodes.size() << "\n";
+	#endif
+						return false;
+				}
+
+				
+				// stop early when there is no candidate for w
+				candidates.intersect_with(neighbors_Sv);
+
+	#ifdef _DEBUG_MYCIEL
+				std::cout << " -> " << candidates << std::endl ;
+	#endif
+
+				endS.push_back(extra.size());
+
+		}
+	
+		return true;
+}
+
 
 int mycielskan_subgraph_finder::extends( const bitset& G )
 {
@@ -262,47 +380,9 @@ int mycielskan_subgraph_finder::extends( const bitset& G )
 				std::cout << "\nextends " << subgraph.nodeset << std::endl;
 #endif				
 				
-	
-				for( auto v : subgraph.nodes ) {
-					
-						non_neighbors.copy(g.nodeset);
-						non_neighbors.setminus_with(g.matrix[v]);
-						non_neighbors.fast_remove(v);
-
-						// Sv contains v
-						extra.push_back( v );
-						neighbors_Sv.copy(g.matrix[v]);
-						
-#ifdef _DEBUG_MYCIEL
-						std::cout << " - " << v << ":" ;
-#endif	
-
-						for(auto u : non_neighbors) {
-							
-								if(g.rep_of[u] != u) continue; // use only representatives ?	
-			
-								if(g.matrix[u].includes(subgraph.matrix[v])) {
-										extra.push_back( u );
-										neighbors_Sv.union_with(g.matrix[u]);
-										
-#ifdef _DEBUG_MYCIEL
-										std::cout << " " << u ;
-#endif
-								}
-						}
-											
-						// stop early when there is no candidate for w
-						candidates.intersect_with(neighbors_Sv);
-						
-#ifdef _DEBUG_MYCIEL
-						std::cout << " -> " << candidates << std::endl ;
-#endif
-		
-						if(candidates.empty()) return iter;
-
-						endS.push_back(extra.size());
-						
-				}
+				ith_node = 0;
+				if(!another_myciel_layer())
+					return iter;
 				
 				// select any (?) w
 				auto w = g.rep_of[candidates.min()];
@@ -366,7 +446,7 @@ int mycielskan_subgraph_finder::extends( const bitset& G )
 }
 
 
-int mycielskan_subgraph_finder::full_myciel(const int curlb) 
+int mycielskan_subgraph_finder::full_myciel(const int curlb, const int ub, minicsp::Solver& s, const std::vector<std::vector<minicsp::Var>>& vars) 
 {
 	explanation_clique = -1;
 	auto lb{curlb};
@@ -376,12 +456,16 @@ int mycielskan_subgraph_finder::full_myciel(const int curlb)
 					lb = mycielski_lb;
 					explanation_subgraph = subgraph;
 					explanation_clique = cl;
+					
+					if(prune && ub - lb == 1) {
+							do_prune(s, vars);
+					}
 			}
 	}
 	return lb;
 }
 
-int mycielskan_subgraph_finder::improve_cliques_larger_than(const int size, const int curlb) 
+int mycielskan_subgraph_finder::improve_cliques_larger_than(const int size, const int curlb, const int ub, minicsp::Solver& s, const std::vector<std::vector<minicsp::Var>>& vars) 
 {	
 	explanation_clique = -1;
 	auto lb{curlb};
@@ -393,6 +477,10 @@ int mycielskan_subgraph_finder::improve_cliques_larger_than(const int size, cons
 							lb = mycielski_lb;
 							explanation_subgraph = subgraph;
 							explanation_clique = cl;
+							
+							if(prune && ub - lb == 1) {
+									do_prune(s, vars);
+							}
 					}
 		 	}
 	}
@@ -400,7 +488,7 @@ int mycielskan_subgraph_finder::improve_cliques_larger_than(const int size, cons
 	return lb;
 }
 
-int mycielskan_subgraph_finder::improve_greedy(const int size, const int curlb) 
+int mycielskan_subgraph_finder::improve_greedy(const int size, const int curlb, const int ub, minicsp::Solver& s, const std::vector<std::vector<minicsp::Var>>& vars) 
 {
 	explanation_clique = -1;
 	auto lb{curlb};
@@ -411,6 +499,10 @@ int mycielskan_subgraph_finder::improve_greedy(const int size, const int curlb)
 							lb = mycielski_lb;
 							explanation_subgraph = subgraph;
 							explanation_clique = cl;
+							
+							if(prune && ub - lb == 1) {
+									do_prune(s, vars);
+							}
 					}
 		 	}
 	}
