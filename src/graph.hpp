@@ -10,6 +10,7 @@
 
 
 // #define _DEBUG_MYCIEL
+// #define _DEBUG_CLIQUE
 
 namespace gc
 {
@@ -237,7 +238,7 @@ struct clique_finder {
     // largest
 
     template <class ordering> int find_cliques(ordering o)
-    {
+    {		
         clear();
         if (o.size() == 0)
             return 0;
@@ -256,8 +257,9 @@ struct clique_finder {
 
         for (auto u : o) {
             for (int i = last_clique[u] + 1; i < num_cliques; ++i)
-                if (candidates[i].fast_contain(u))
+                if (candidates[i].fast_contain(u)) {
                     insert(u, i);
+								}
         }
 
         return *std::max_element(
