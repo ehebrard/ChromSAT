@@ -291,7 +291,7 @@ public:
             std::max_element(
                 begin(cf.clique_sz), begin(cf.clique_sz) + cf.num_cliques))};
 
-        if (opt.boundalg != options::CLIQUES && mf.explanation_clique != -1) {
+        if (bound_source != options::CLIQUES && mf.explanation_clique != -1) {
             maxidx = mf.explanation_clique;
         }
 
