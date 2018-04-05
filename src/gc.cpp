@@ -108,7 +108,7 @@ struct gc_model {
                 cons->ub = g.nodes.size();
                 if (options.xvars) {
                     for (auto v : xvars)
-                        v.setmax(s, cons->ub - 1, minicsp::NO_REASON);
+                        v.setmax(s, cons->ub - 2, minicsp::NO_REASON);
                 }
             } else if (sat == l_Undef) {
                 std::cout << "*** INTERRUPTED ***\n";
