@@ -455,6 +455,8 @@ public:
             // no ordering
             lb = cf.find_cliques(g.nodes);
         }
+				
+				// std::cout << cf.num_cliques << std::endl;
 
 
         if (s.decisionLevel() == 0 || !opt.adaptive || run_expensive_bound) {
@@ -462,11 +464,11 @@ public:
             bound_source = opt.boundalg;
             auto mlb{lb};
             if (opt.boundalg == options::FULLMYCIELSKI) {
-                mlb = mf.full_myciel(lb, ub);
+                mlb = mf.full_myciel(lb, ub, s, vars);
             } else if (opt.boundalg == options::MAXMYCIELSKI) {
-                mlb = mf.improve_cliques_larger_than(lb, lb, ub);
+                mlb = mf.improve_cliques_larger_than(lb, lb, ub, s, vars);
             } else if (opt.boundalg == options::GREEDYMYCIELSKI) {
-                mlb = mf.improve_greedy(lb - 1, lb, ub);
+                mlb = mf.improve_greedy(lb - 1, lb, ub, s, vars);
             }
             stat.notify_bound_delta(mlb - lb);
             lb = mlb;
@@ -491,7 +493,6 @@ public:
                 reason.clear();
                 return s.addInactiveClause(reason);
             }
-
             return explain();
         }
         return NO_REASON;

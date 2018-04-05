@@ -3,6 +3,7 @@
 
 #include "bitset.hpp"
 #include "intstack.hpp"
+#include "minicsp/core/solver.hpp"
 
 #include <algorithm>
 #include <list>
@@ -286,11 +287,11 @@ struct mycielskan_subgraph_finder {
 		// extend the subgraph G into a mycielski of subsequent order if possible, the additional vertices go into "subgraph"
 		int extends(const bitset& G);
 
-		int full_myciel(const int lb, const int ub);
+		int full_myciel(const int lb, const int ub, minicsp::Solver& s, const std::vector<std::vector<minicsp::Var>>& vars);
 
-		int improve_cliques_larger_than(const int size, const int lb, const int ub);
+		int improve_cliques_larger_than(const int size, const int lb, const int ub, minicsp::Solver& s, const std::vector<std::vector<minicsp::Var>>& vars);
 
-		int improve_greedy(const int size, const int lb, const int ub);
+		int improve_greedy(const int size, const int lb, const int ub, minicsp::Solver& s, const std::vector<std::vector<minicsp::Var>>& vars);
 
 
 	private:
@@ -318,14 +319,22 @@ struct mycielskan_subgraph_finder {
 		
 		// [tmp in extends] edges to add 
 		std::vector<edge> new_edges;
+		std::vector<int> u_layer;
 		
 		int ith_node;
 		
 		bitset pruning;
+		bitset real_pruning;
 		
-		bool another_myciel_layer();
+		vec<minicsp::Lit> reason;
+
+		// tries to find the possible u's starting from the ith v and returns the rank for which it fails (or subgraph.size() if it succeeds)
+		int another_myciel_layer(const int ith);
 		
-		void do_prune();
+		// select the u's given a w and 
+		void select_middle_layer(const int w, std::vector<int>& U, std::vector<edge>& edges);
+		
+		minicsp::Clause* do_prune(minicsp::Solver& s, const std::vector<std::vector<minicsp::Var>>& vars);
 
 };
 
