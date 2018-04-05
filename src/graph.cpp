@@ -275,36 +275,26 @@ mycielskan_subgraph_finder::mycielskan_subgraph_finder(const graph& g, const cli
 // ith_node is the node after which the subgraph at which candidates would become empty, we then go through the nodes from ith_node to the last
 Clause* mycielskan_subgraph_finder::do_prune(Solver& s, const std::vector<std::vector<Var>>& vars)
 {
-	
-#ifdef _DEBUG_MYCIEL
-	std::cout << " prune\n" ;
-#endif	
-	
 	pruning.copy(candidates);
 	candidates.fill();
-	--ith_node;
-	
-	
-	
 	
 	if(another_myciel_layer(ith_node) == subgraph.nodes.size()) {
-		// std::cout << candidates << " x " << pruning << std::endl;
-	
-	
 		// first compute the potential pruning
-		new_edges.clear();
-		for( auto u : candidates ) {
-				real_pruning.copy(pruning);
+		new_pruning.clear();
+		for( auto u : pruning ) {
+				real_pruning.copy(candidates);
 				real_pruning.setminus_with(g.origmatrix[u]);
 				for( auto v : real_pruning ) {
 						if(s.value(Lit(vars[u][v])) == l_Undef)
-								new_edges.push_back(edge{u,v});
+								new_pruning.push_back(edge{u,v});
 				}
 		}
 		
+#ifdef _DEBUG_MYCIEL
+	std::cout << " prune " << pruning << " x " << candidates << " (" << new_pruning.size() << ")\n" ;
+#endif	
 		
-		
-		if( new_edges.size() > 0 ) {
+		if( new_pruning.size() > 0 ) {
 			// base graph same for every pruning
 			reason.clear();
 			for(auto u : subgraph.nodes) {
@@ -314,51 +304,64 @@ Clause* mycielskan_subgraph_finder::do_prune(Solver& s, const std::vector<std::v
 							}
 					}
 			}
-			auto size_reason = reason.size();
+			auto size_reason = reason.size();	
 	
-	
-			for( auto e : new_edges ) {
-				
+			for( auto e : new_pruning ) {				
 					// the edge gives us w1 and w2
 					auto w1{e.first};
 					auto w2{e.second};
 					
+					new_edges.clear();
+					u_layer.clear();
 					
-				
+#ifdef _DEBUG_MYCIEL
+					std::cout << " select U layer for " << w1  << " in [" << 0 << ".." << ith_node << "]\n" ;
+					int j=0;
+					for(int i=0; i<ith_node; ++i) {
+						std::cout << " | " << subgraph.nodes[i] << ":";
+						while(j<endS[i]) {
+							std::cout << " " << extra[j++];
+						}
+					}
+					std::cout << std::endl;
+#endif	
+									
+					
+					select_middle_layer(w1, 0, ith_node, u_layer, new_edges);
+					
+					for(auto ee : new_edges) {
+						reason.push(Lit(vars[ee.first][ee.second]));
+					}
+					
+#ifdef _DEBUG_MYCIEL
+					std::cout << " select U layer for " << w2  << " in [" << ith_node << ".." << subgraph.nodes.size() << "]\n" ;
+					// int j=0;
+					for(int i=ith_node; i<subgraph.nodes.size(); ++i) {
+						std::cout << "| " << subgraph.nodes[i] << ":";
+						while(j<endS[i]) {
+							std::cout << " " << extra[j++];
+						}
+					}
+					std::cout << std::endl;
+#endif			
+					
+					new_edges.clear();
+					select_middle_layer(w2, ith_node, subgraph.nodes.size(), u_layer, new_edges);
+					
+					
+					for(auto ee : new_edges) {
+						reason.push(Lit(vars[ee.first][ee.second]));
+					}
+								
 					DO_OR_RETURN(s.enqueueFill(~Lit(vars[w1][w2]),reason));
+
+					reason.shrink_(reason.size() - size_reason);
 			}
 		}
-	
-		// int countp = 0;
-		// for( auto u : candidates ) {
-		//
-		// 	real_pruning.copy(pruning);
-		// 	real_pruning.setminus_with(g.origmatrix[u]);
-		//
-		// 	for( auto v : real_pruning ) {
-		// 		// if(!g.origmatrix[u].fast_contain(v)) {
-		// 			// std::cout << " -- prune (" << u << "=" << v << ") = " << ( s.value(Lit(vars[u][v])) == l_True ? "=" : (s.value(Lit(vars[u][v])) == l_False ? "0" : "?" )) << std::endl;
-		// 			if(s.value(Lit(vars[u][v])) == l_Undef) {
-		//
-		// 				// std::cout << " -- prune (" << u << "=" << v << ") = " << ( s.value(Lit(vars[u][v])) == l_True ? "=" : (s.value(Lit(vars[u][v])) == l_False ? "0" : "?" )) << std::endl;
-		// 				DO_OR_RETURN(s.enqueueFill(~Lit(vars[u][v]),reason));
-		//
-		// 				++countp;
-		// 			}
-		// 		// }
-		// 		// else {
-		// 		// 	std::cout << " -- (" << u << "=" << v << ") was in the initial graph\n";
-		// 		// }
-		// 	}
-		// }
-		// if(countp != new_edges.size()) {
-		// 	std::cout << "BUG\n";
-		// 	exit(1);
-		// }
-		// else if(countp > 0) {
-		// 	std::cout << countp << " prunings!\n";
-		// }
 	}
+#ifdef _DEBUG_MYCIEL
+	else std::cout << "\n" ;
+#endif	
 	
 	return minicsp::NO_REASON;
 }
@@ -400,6 +403,7 @@ int mycielskan_subgraph_finder::another_myciel_layer(const int start)
 	#ifdef _DEBUG_MYCIEL
 						std::cout << " -> {} at node " << (ith) << "/" << subgraph.nodes.size() << "\n";
 	#endif
+						extra.resize(endS.back());
 						return ith-1;
 				}
 
@@ -416,6 +420,53 @@ int mycielskan_subgraph_finder::another_myciel_layer(const int start)
 		}
 	
 		return ith;
+}
+
+
+void mycielskan_subgraph_finder::select_middle_layer(const int w, const int beg_node, const int end_node, std::vector<int>& nodes, std::vector<edge>& edges) {
+	
+		// put all potential extra nodes into a bitset so that we can intersect with N(u)
+		neighbors_w.clear();
+		for(auto v : extra) {
+				neighbors_w.fast_add( v );
+		}
+		neighbors_w.intersect_with(g.matrix[w]);
+
+		// now for every v, select any element of Sv that is also a neighbor of u
+		auto j{(beg_node ? endS[beg_node-1] : 0)}; // index in extra
+
+		for(auto i = beg_node ; i < end_node ; ++i) {	
+			
+#ifdef _DEBUG_MYCIEL
+				std::cout << " " << subgraph.nodes[i] ;
+#endif
+								
+				do {
+						assert( j < endS[i] );
+						auto u{extra[j]};
+	
+						if( neighbors_w.fast_contain(u) ) {
+								edges.push_back(edge{u,w});
+								if(!subgraph.nodeset.fast_contain(u)) {
+										nodes.push_back(u);
+										for( auto v : subgraph.matrix[subgraph.nodes[i]] ) {
+												edges.push_back(edge{u,v});
+										}
+										
+#ifdef _DEBUG_MYCIEL
+										std::cout << "--" << u << "--" << w << std::endl;
+#endif
+								} 	
+#ifdef _DEBUG_MYCIEL
+										else std::cout << "--" << w << std::endl;
+#endif
+								break;
+						}
+						++j;
+				} while(true);
+
+				j = endS[i];
+		}
 }
 
 
@@ -450,7 +501,7 @@ int mycielskan_subgraph_finder::extends( const bitset& G )
 				new_edges.clear();
 				u_layer.clear();
 				
-				select_middle_layer(w, u_layer, new_edges);
+				select_middle_layer(w, 0, subgraph.nodes.size(), u_layer, new_edges);
 				
 				for( auto u : u_layer ) {
 						subgraph.add_node(u);
@@ -466,54 +517,7 @@ int mycielskan_subgraph_finder::extends( const bitset& G )
 		return iter;
 }
 
-void mycielskan_subgraph_finder::select_middle_layer(const int w, std::vector<int>& nodes, std::vector<edge>& edges) {
-	
-		// put all potential extra nodes into a bitset so that we can intersect with N(u)
-		neighbors_w.clear();
-		for(auto v : extra) {
-				neighbors_w.fast_add( v );
-		}
-		neighbors_w.intersect_with(g.matrix[w]);
 
-		// now for every v, select any element of Sv that is also a neighbor of u
-		auto j{0}; // index in extra
-		auto n{subgraph.nodes.size()};
-	
-		// subgraph.add_node(w);
-	
-		for(auto i = 0 ; i < n ; ++i) {	
-			
-#ifdef _DEBUG_MYCIEL
-				std::cout << " " << subgraph.nodes[i] ;
-#endif
-								
-				do {
-						assert( j < endS[i] );
-						auto u{extra[j]};
-	
-						if( neighbors_w.fast_contain(u) ) {
-								edges.push_back(edge{u,w});
-								if(!subgraph.nodeset.fast_contain(u)) {
-										nodes.push_back(u);
-										for( auto v : subgraph.matrix[subgraph.nodes[i]] ) {
-												edges.push_back(edge{u,v});
-										}
-										
-#ifdef _DEBUG_MYCIEL
-										std::cout << "--" << u << "--" << w << std::endl;
-#endif
-								} 	
-#ifdef _DEBUG_MYCIEL
-										else std::cout << "--" << w << std::endl;
-#endif
-								break;
-						}
-						++j;
-				} while(true);
-
-				j = endS[i];
-		}
-}
 
 
 int mycielskan_subgraph_finder::full_myciel(const int curlb, const int ub, minicsp::Solver& s, const std::vector<std::vector<minicsp::Var>>& vars) 

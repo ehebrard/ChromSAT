@@ -325,6 +325,7 @@ struct mycielskan_subgraph_finder {
 		
 		bitset pruning;
 		bitset real_pruning;
+		std::vector<edge> new_pruning;
 		
 		vec<minicsp::Lit> reason;
 
@@ -332,7 +333,7 @@ struct mycielskan_subgraph_finder {
 		int another_myciel_layer(const int ith);
 		
 		// select the u's given a w and 
-		void select_middle_layer(const int w, std::vector<int>& U, std::vector<edge>& edges);
+		void select_middle_layer(const int w, const int beg_node, const int end_node, std::vector<int>& U, std::vector<edge>& edges);
 		
 		minicsp::Clause* do_prune(minicsp::Solver& s, const std::vector<std::vector<minicsp::Var>>& vars);
 
