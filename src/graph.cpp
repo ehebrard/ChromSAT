@@ -330,12 +330,13 @@ Clause* mycielskan_subgraph_finder::do_prune(Solver& s, const std::vector<std::v
 					select_middle_layer(w1, 0, ith_node, u_layer, new_edges);
 					
 					for(auto ee : new_edges) {
-						reason.push(Lit(vars[ee.first][ee.second]));
+						if(!g.origmatrix[ee.first].fast_contain(ee.second)) {
+							reason.push(Lit(vars[ee.first][ee.second]));
+						}
 					}
 					
 #ifdef _DEBUG_MYCIEL
 					std::cout << " select U layer for " << w2  << " in [" << ith_node << ".." << subgraph.nodes.size() << "]\n" ;
-					// int j=0;
 					for(int i=ith_node; i<subgraph.nodes.size(); ++i) {
 						std::cout << "| " << subgraph.nodes[i] << ":";
 						while(j<endS[i]) {
@@ -350,11 +351,14 @@ Clause* mycielskan_subgraph_finder::do_prune(Solver& s, const std::vector<std::v
 					
 					
 					for(auto ee : new_edges) {
-						reason.push(Lit(vars[ee.first][ee.second]));
+						if(!g.origmatrix[ee.first].fast_contain(ee.second)) {
+							reason.push(Lit(vars[ee.first][ee.second]));
+						}
 					}
 								
 					DO_OR_RETURN(s.enqueueFill(~Lit(vars[w1][w2]),reason));
 
+					// std::cout << "shrink from " << reason.size() << " to " << size_reason << std::endl;
 					reason.shrink_(reason.size() - size_reason);
 			}
 		}
