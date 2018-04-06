@@ -10,9 +10,6 @@ using namespace minicsp;
 class gc_constraint : public minicsp::cons, public cons_base
 {
 private:
-    Solver& s;
-    graph& g;
-
     mycielskan_subgraph_finder mf;
 
     const std::vector<std::vector<Var>>& vars;
@@ -24,11 +21,6 @@ private:
     };
     // indexed by varid
     std::vector<varinfo_t> varinfo;
-
-    // something which is kept in sync by the solver. if it diverges
-    // from what the graph thinks, it means we have
-    // backtracked/restarted, so we should resync to that point
-    backtrackable<int> lastdlvl;
 
     // for the adaptive bound policy: this is set to true on conflicts
     // and reset to false after the stronger policy runs
@@ -77,14 +69,11 @@ public:
     gc_constraint(Solver& solver, graph& pg,
         const std::vector<std::vector<Var>>& tvars, const options& opt,
         statistics& stat)
-        : cons_base(pg)
-        , s(solver)
-        , g(pg)
+        : cons_base(solver, pg)
         , mf(g, cf, opt.prune)
         , vars(tvars)
         , opt(opt)
         , stat(stat)
-        , lastdlvl(s)
         , util_set(0, g.capacity() - 1, bitset::empt)
         , expl_N(0, g.capacity() - 1, bitset::empt)
         , expl_covered(0, g.capacity() - 1, bitset::empt)
@@ -146,18 +135,6 @@ public:
     {
         os << "coloring";
         return os;
-    }
-
-    void sync_graph()
-    {
-        if (*lastdlvl < g.current_checkpoint()) {
-            g.restore(*lastdlvl);
-            *lastdlvl = g.current_checkpoint();
-        }
-        while (s.decisionLevel() > g.current_checkpoint()) {
-            g.checkpoint();
-            *lastdlvl = g.current_checkpoint();
-        }
     }
 
     Clause* wake(Solver& s, Lit l)
