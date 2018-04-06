@@ -319,14 +319,22 @@ struct mycielskan_subgraph_finder {
 		
 		// [tmp in extends] edges to add 
 		std::vector<edge> new_edges;
+		std::vector<int> u_layer;
 		
 		int ith_node;
 		
 		bitset pruning;
+		bitset real_pruning;
+		std::vector<edge> new_pruning;
 		
-		vec<minicsp::Lit> empty;
+
+		vec<minicsp::Lit> reason;
+
+		// tries to find the possible u's starting from the ith v and returns the rank for which it fails (or subgraph.size() if it succeeds)
+		int another_myciel_layer(const int ith);
 		
-		bool another_myciel_layer();
+		// select the u's given a w and 
+		void select_middle_layer(const int w, const int beg_node, const int end_node, std::vector<int>& U, std::vector<edge>& edges);
 		
 		minicsp::Clause* do_prune(minicsp::Solver& s, const std::vector<std::vector<minicsp::Var>>& vars);
 

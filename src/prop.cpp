@@ -455,8 +455,6 @@ public:
             // no ordering
             lb = cf.find_cliques(g.nodes);
         }
-				
-
 
         if (s.decisionLevel() == 0 || !opt.adaptive || run_expensive_bound) {
             run_expensive_bound = false;
