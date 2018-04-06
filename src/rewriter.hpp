@@ -46,7 +46,7 @@ struct rewriter {
     {
     }
 
-    minicsp::Solver::callback_result_t rewrite(
+    minicsp::Solver::clause_callback_result_t rewrite(
         vec<minicsp::Lit>& clause, int btlvl);
 };
 } // namespace gc

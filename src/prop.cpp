@@ -124,8 +124,9 @@ public:
         // cur_neighbors.initialise(0, g.capacity(), bitset::empt);
 
         if (opt.adaptive) {
-            adaptive_callback = [this](const vec<Lit>&,
-                                    int) -> minicsp::Solver::callback_result_t {
+            adaptive_callback
+                = [this](const vec<Lit>&,
+                      int) -> minicsp::Solver::clause_callback_result_t {
                 this->run_expensive_bound = true;
                 return minicsp::Solver::CCB_OK;
             };

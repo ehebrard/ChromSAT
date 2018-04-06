@@ -14,7 +14,7 @@
 namespace gc
 {
 
-minicsp::Solver::callback_result_t rewriter::rewrite(
+minicsp::Solver::clause_callback_result_t rewriter::rewrite(
     vec<minicsp::Lit>& clause, int btlvl)
 {
     using minicsp::domevent;
