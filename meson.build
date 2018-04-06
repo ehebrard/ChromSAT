@@ -12,6 +12,7 @@ executable('gc', ['src/gc.cpp',
 		  'src/intstack.cpp',
 		  'src/graph.cpp',
 		  'src/prop.cpp',
+		  'src/rewriter.cpp',
 		  'src/options.cpp',
-			'src/statistics.cpp'],
+		  'src/statistics.cpp'],
 	   dependencies: minicsp_dep)
