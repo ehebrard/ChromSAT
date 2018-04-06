@@ -1,5 +1,6 @@
 #include <iostream>
 
+#include "brancher.hpp"
 #include "dimacs.hpp"
 #include "graph.hpp"
 #include "options.hpp"
@@ -21,6 +22,8 @@ struct gc_model {
     gc::cons_base* cons;
     std::vector<minicsp::cspvar> xvars;
     gc::rewriter rewriter;
+
+    std::unique_ptr<gc::Brancher> brancher;
 
     std::vector<std::vector<minicsp::Var>> create_vars()
     {
@@ -88,8 +91,9 @@ struct gc_model {
                 std::cout << "Cannot use Brelaz ordering without xvars\n";
                 exit(1);
             }
-            s.varbranch = minicsp::VAR_DOM;
-            s.valbranch = minicsp::VAL_LEX;
+            brancher = std::make_unique<gc::BrelazBrancher>(
+                s, g, vars, xvars, *cons);
+            brancher->use();
             break;
         }
     }
