@@ -3,8 +3,9 @@
 #include "dimacs.hpp"
 #include "graph.hpp"
 #include "options.hpp"
-#include "statistics.hpp"
 #include "prop.hpp"
+#include "rewriter.hpp"
+#include "statistics.hpp"
 #include "utils.hpp"
 
 #include <minicsp/core/cons.hpp>
@@ -15,18 +16,15 @@ struct gc_model {
     gc::graph& g;
     minicsp::Solver& s;
     const gc::options& options;
-		gc::statistics& statistics;
+    gc::statistics& statistics;
     std::vector<std::vector<minicsp::Var>> vars;
-    std::vector<minicsp::cspvar> xvars;
     gc::cons_base* cons;
+    std::vector<minicsp::cspvar> xvars;
+    gc::rewriter rewriter;
 
-    gc_model(gc::graph& g, minicsp::Solver& s, const gc::options& options, gc::statistics& statistics,
-        std::pair<int, int> bounds)
-        : g(g)
-        , s(s)
-        , options(options)
-				, statistics(statistics)
+    std::vector<std::vector<minicsp::Var>> create_vars()
     {
+        std::vector<std::vector<minicsp::Var>> vars;
         vars.resize(g.capacity());
         for (size_t i = 0; i != vars.size(); ++i) {
             vars[i].resize(g.capacity());
@@ -46,14 +44,25 @@ struct gc_model {
                     }
                 }
         }
+        return vars;
+    }
 
-        cons = gc::post_gc_constraint(s, g, vars, options, statistics);
+    gc_model(gc::graph& g, minicsp::Solver& s, const gc::options& options,
+        gc::statistics& statistics, std::pair<int, int> bounds)
+        : g(g)
+        , s(s)
+        , options(options)
+        , statistics(statistics)
+        , vars(create_vars())
+        , cons(gc::post_gc_constraint(s, g, vars, options, statistics))
+        , rewriter(s, g, *cons, vars, xvars)
+    {
         auto [lb, ub] = bounds;
         cons->bestlb = std::max(lb, cons->bestlb);
         cons->ub = std::min(ub, cons->ub);
 
         if (options.xvars) {
-            xvars = s.newCSPVarArray(g.capacity(), 0, cons->ub - 1);
+            xvars = s.newCSPVarArray(g.capacity(), 0, cons->ub - 2);
             for (size_t i = 0; i != xvars.size(); ++i) {
                 for (size_t j = i + 1; j != xvars.size(); ++j) {
                     if (g.matrix[i].fast_contain(j))
@@ -64,16 +73,10 @@ struct gc_model {
                 }
             }
 
-            // fix the largest clique to colors 0...k-1
-            auto maxidx = std::distance(begin(cons->cf.clique_sz),
-                std::max_element(begin(cons->cf.clique_sz),
-                    begin(cons->cf.clique_sz) + cons->cf.num_cliques));
-            auto& maxclq = cons->cf.cliques[maxidx];
-            int clr{0};
-            for (auto v : maxclq) {
-                xvars[v].assign(s, clr, minicsp::NO_REASON);
-                ++clr;
-            }
+            // rewrite clauses to not use x literals
+            s.use_clause_callback([this](vec<minicsp::Lit>& clause, int btlvl) {
+                return rewriter.rewrite(clause, btlvl);
+            });
         }
 
         switch (options.branching) {

@@ -12,9 +12,9 @@ class gc_constraint : public minicsp::cons, public cons_base
 private:
     Solver& s;
     graph& g;
-		
-		mycielskan_subgraph_finder mf;
-		
+
+    mycielskan_subgraph_finder mf;
+
     const std::vector<std::vector<Var>>& vars;
     const options& opt;
     statistics& stat;
@@ -80,7 +80,7 @@ public:
         : cons_base(pg)
         , s(solver)
         , g(pg)
-				, mf(g, cf, opt.prune)
+        , mf(g, cf, opt.prune)
         , vars(tvars)
         , opt(opt)
         , stat(stat)
@@ -124,9 +124,10 @@ public:
         // cur_neighbors.initialise(0, g.capacity(), bitset::empt);
 
         if (opt.adaptive) {
-            adaptive_callback = [this](const vec<Lit>&, int) -> bool {
+            adaptive_callback = [this](const vec<Lit>&,
+                                    int) -> minicsp::Solver::callback_result_t {
                 this->run_expensive_bound = true;
-                return false;
+                return minicsp::Solver::CCB_OK;
             };
             s.use_clause_callback(adaptive_callback);
         }
@@ -455,9 +456,8 @@ public:
             // no ordering
             lb = cf.find_cliques(g.nodes);
         }
-				
-				// std::cout << cf.num_cliques << std::endl;
 
+        // std::cout << cf.num_cliques << std::endl;
 
         if (s.decisionLevel() == 0 || !opt.adaptive || run_expensive_bound) {
             run_expensive_bound = false;
@@ -756,9 +756,6 @@ void gc_constraint::verify_myc_reason()
     for (Lit l : reason)
         assert(s.value(l) == l_False);
 
-    std::reverse(begin(expl_myc_w), end(expl_myc_w));
-    for (int w : expl_myc_w) {
-    }
     assert(0);
 }
 
