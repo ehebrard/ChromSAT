@@ -484,6 +484,16 @@ public:
             std::cout << "c new lower bound " << bestlb
                       << " time = " << minicsp::cpuTime()
                       << " conflicts = " << s.conflicts << std::endl;
+						
+						
+						for( auto v : g.nodes ) {
+								if( g.matrix[v].size() < bestlb ) {
+										std::cout << " " << v ;
+								}
+								std::cout << std::endl;
+						}
+						
+						
         }
         if (cf.num_cliques == 1)
             assert(g.nodes.size() == cf.cliques[0].size());
