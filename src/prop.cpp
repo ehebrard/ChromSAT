@@ -10,9 +10,6 @@ using namespace minicsp;
 class gc_constraint : public minicsp::cons, public cons_base
 {
 private:
-    Solver& s;
-    graph& g;
-
     mycielskan_subgraph_finder mf;
 
     const std::vector<std::vector<Var>>& vars;
@@ -24,11 +21,6 @@ private:
     };
     // indexed by varid
     std::vector<varinfo_t> varinfo;
-
-    // something which is kept in sync by the solver. if it diverges
-    // from what the graph thinks, it means we have
-    // backtracked/restarted, so we should resync to that point
-    backtrackable<int> lastdlvl;
 
     // for the adaptive bound policy: this is set to true on conflicts
     // and reset to false after the stronger policy runs
@@ -77,14 +69,11 @@ public:
     gc_constraint(Solver& solver, graph& pg,
         const std::vector<std::vector<Var>>& tvars, const options& opt,
         statistics& stat)
-        : cons_base(pg)
-        , s(solver)
-        , g(pg)
+        : cons_base(solver, pg)
         , mf(g, cf, opt.prune)
         , vars(tvars)
         , opt(opt)
         , stat(stat)
-        , lastdlvl(s)
         , util_set(0, g.capacity() - 1, bitset::empt)
         , expl_N(0, g.capacity() - 1, bitset::empt)
         , expl_covered(0, g.capacity() - 1, bitset::empt)
@@ -146,18 +135,6 @@ public:
     {
         os << "coloring";
         return os;
-    }
-
-    void sync_graph()
-    {
-        if (*lastdlvl < g.current_checkpoint()) {
-            g.restore(*lastdlvl);
-            *lastdlvl = g.current_checkpoint();
-        }
-        while (s.decisionLevel() > g.current_checkpoint()) {
-            g.checkpoint();
-            *lastdlvl = g.current_checkpoint();
-        }
     }
 
     Clause* wake(Solver& s, Lit l)
@@ -458,6 +435,8 @@ public:
             lb = cf.find_cliques(g.nodes);
         }
 
+        // std::cout << cf.num_cliques << std::endl;
+
         if (s.decisionLevel() == 0 || !opt.adaptive || run_expensive_bound) {
             run_expensive_bound = false;
             bound_source = opt.boundalg;
@@ -485,15 +464,15 @@ public:
                       << " time = " << minicsp::cpuTime()
                       << " conflicts = " << s.conflicts << std::endl;
 						
-						
+						bool simplification = false;
 						for( auto v : g.nodes ) {
 								if( g.matrix[v].size() < bestlb ) {
 										std::cout << " " << v ;
-								}
-								std::cout << std::endl;
+										simplification = true;
+									}
 						}
-						
-						
+						if(simplification)
+								std::cout << std::endl;
         }
         if (cf.num_cliques == 1)
             assert(g.nodes.size() == cf.cliques[0].size());

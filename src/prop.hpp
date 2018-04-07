@@ -10,19 +10,42 @@ namespace gc
 {
 
 struct cons_base {
+    minicsp::Solver& s;
+    graph& g;
     int ub;
     int bestlb{0};
     clique_finder cf;
-		// mycielskan_subgraph_finder mf;
 
-    explicit cons_base(graph& g)
-        : cf(g)// , mf(g, cf)
+    explicit cons_base(minicsp::Solver& s, graph& g)
+        : s(s)
+        , g(g)
+        , cf(g)
+        , lastdlvl(s)
     {
     }
+
+    void sync_graph()
+    {
+        if (*lastdlvl < g.current_checkpoint()) {
+            g.restore(*lastdlvl);
+            *lastdlvl = g.current_checkpoint();
+        }
+        while (s.decisionLevel() > g.current_checkpoint()) {
+            g.checkpoint();
+            *lastdlvl = g.current_checkpoint();
+        }
+    }
+
+protected:
+    // something which is kept in sync by the solver. if it diverges
+    // from what the graph thinks, it means we have
+    // backtracked/restarted, so we should resync to that point
+    minicsp::backtrackable<int> lastdlvl;
 };
 
 cons_base* post_gc_constraint(minicsp::Solver& s, graph& g,
-    const std::vector<std::vector<minicsp::Var>>& vars, const options& opt, statistics& stat);
+    const std::vector<std::vector<minicsp::Var>>& vars, const options& opt,
+    statistics& stat);
 
 } // namespace gc
 

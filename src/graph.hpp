@@ -28,7 +28,7 @@ public:
     bitset nodeset;
     IntStack nodes;
     std::vector<bitset> matrix;
-	
+
     basic_graph() {}
     explicit basic_graph(int nv)
         : nodeset(0, nv - 1, bitset::empt)
@@ -43,15 +43,15 @@ public:
     basic_graph(basic_graph&) = default;
     basic_graph(basic_graph&&) = default;
     basic_graph& operator=(const basic_graph& g)
-		{
-			nodes.clear();
-			nodeset.clear();
-			for( auto v : g.nodes ) {
-					add_node(v);
-					matrix[v].copy(g.matrix[v]);
-			}
-			return *this;
-		} 
+    {
+        nodes.clear();
+        nodeset.clear();
+        for (auto v : g.nodes) {
+            add_node(v);
+            matrix[v].copy(g.matrix[v]);
+        }
+        return *this;
+    }
     basic_graph& operator=(basic_graph&&) = default;
 
     int capacity() const { return matrix.size(); }
@@ -61,52 +61,50 @@ public:
         matrix[u].add(v);
         matrix[v].add(u);
     }
-		
+
     void add_edges(const int u, const bitset& N)
     {
         matrix[u].union_with(N);
-				for( auto v : N ) {
-						matrix[v].add(u);
-				}
+        for (auto v : N) {
+            matrix[v].add(u);
+        }
     }
-		
+
     void add_node(const int v)
     {
-				nodes.add(v);
-				nodeset.add(v);
+        nodes.add(v);
+        nodeset.add(v);
     }
-		
-		void add_clique( const bitset& C )
-		{
-				for( auto v : C ) {
-						add_node(v);
-						matrix[v].union_with(C);
-						matrix[v].remove(v);
-				}
-		}
-		
+
+    void add_clique(const bitset& C)
+    {
+        for (auto v : C) {
+            add_node(v);
+            matrix[v].union_with(C);
+            matrix[v].remove(v);
+        }
+    }
+
     void remove_edge(int u, int v)
     {
         matrix[u].remove(v);
         matrix[v].remove(u);
     }
-		
+
     void remove_node(int v)
     {
-				nodes.remove(v);
-				nodeset.fast_remove(v);
+        nodes.remove(v);
+        nodeset.fast_remove(v);
     }
-		
-		void clear()
-		{
-				for( auto v : nodes ) {
-						matrix[v].clear();
-				}
-				nodeset.clear();
-				nodes.clear();
-		}
 
-
+    void clear()
+    {
+        for (auto v : nodes) {
+            matrix[v].clear();
+        }
+        nodeset.clear();
+        nodes.clear();
+    }
 };
 
 
@@ -239,7 +237,7 @@ struct clique_finder {
     // largest
 
     template <class ordering> int find_cliques(ordering o)
-    {		
+    {
         clear();
         if (o.size() == 0)
             return 0;
@@ -260,7 +258,7 @@ struct clique_finder {
             for (int i = last_clique[u] + 1; i < num_cliques; ++i)
                 if (candidates[i].fast_contain(u)) {
                     insert(u, i);
-								}
+                }
         }
 
         return *std::max_element(
@@ -271,73 +269,76 @@ struct clique_finder {
 
 
 struct mycielskan_subgraph_finder {
-		
-	public:
-		
-		bool prune;
-		
-    const graph& g;
-		const clique_finder& cf;
 
-		basic_graph explanation_subgraph;
-		int explanation_clique;
+public:
+    bool prune;
+
+    const graph& g;
+    const clique_finder& cf;
+
+    basic_graph explanation_subgraph;
+    int explanation_clique;
 
     mycielskan_subgraph_finder(const graph& g, const clique_finder& cf, const bool prune);
-			
-		// extend the subgraph G into a mycielski of subsequent order if possible, the additional vertices go into "subgraph"
-		int extends(const bitset& G);
 
-		int full_myciel(const int lb, const int ub, minicsp::Solver& s, const std::vector<std::vector<minicsp::Var>>& vars);
+    // extend the subgraph G into a mycielski of subsequent order if possible,
+    // the additional vertices go into "subgraph"
+    int extends(const bitset& G);
 
-		int improve_cliques_larger_than(const int size, const int lb, const int ub, minicsp::Solver& s, const std::vector<std::vector<minicsp::Var>>& vars);
+    int full_myciel(const int lb, const int ub, minicsp::Solver& s,
+        const std::vector<std::vector<minicsp::Var>>& vars);
 
-		int improve_greedy(const int size, const int lb, const int ub, minicsp::Solver& s, const std::vector<std::vector<minicsp::Var>>& vars);
+    int improve_cliques_larger_than(const int size, const int lb, const int ub,
+        minicsp::Solver& s, const std::vector<std::vector<minicsp::Var>>& vars);
 
+    int improve_greedy(const int size, const int lb, const int ub,
+        minicsp::Solver& s, const std::vector<std::vector<minicsp::Var>>& vars);
 
-	private:
-		
-		// [tmp in "extends] subgraph that we try to build
-		basic_graph subgraph;
-	
-		// [tmp in "extends] neighborhood of u
-		bitset neighbors_w;
-		
-		// [tmp in "extends] neighborhood of S_v
-		bitset neighbors_Sv;
-		
-		// [tmp in "extends] non neighborhood of v
-		bitset non_neighbors;
-		
-		// [tmp in "extends] store the potential extra nodes of the mycielski
-		std::vector<int> extra;
-		
-		// [tmp in extends] store the index of extra where S_extra[i] ends
-		std::vector<int> endS;
-		
-		// [tmp in "extends] the set of "candidates" (intersection of the neighbors of neighbors_Sv)
-		bitset candidates;
-		
-		// [tmp in extends] edges to add 
-		std::vector<edge> new_edges;
-		std::vector<int> u_layer;
-		
-		int ith_node;
-		
-		bitset pruning;
-		bitset real_pruning;
-		std::vector<edge> new_pruning;
-		
+private:
+    // [tmp in "extends] subgraph that we try to build
+    basic_graph subgraph;
 
-		vec<minicsp::Lit> reason;
+    // [tmp in "extends] neighborhood of u
+    bitset neighbors_w;
 
-		// tries to find the possible u's starting from the ith v and returns the rank for which it fails (or subgraph.size() if it succeeds)
-		int another_myciel_layer(const int ith);
-		
-		// select the u's given a w and 
-		void select_middle_layer(const int w, const int beg_node, const int end_node, std::vector<int>& U, std::vector<edge>& edges);
-		
-		minicsp::Clause* do_prune(minicsp::Solver& s, const std::vector<std::vector<minicsp::Var>>& vars);
+    // [tmp in "extends] neighborhood of S_v
+    bitset neighbors_Sv;
 
+    // [tmp in "extends] non neighborhood of v
+    bitset non_neighbors;
+
+    // [tmp in "extends] store the potential extra nodes of the mycielski
+    std::vector<int> extra;
+
+    // [tmp in extends] store the index of extra where S_extra[i] ends
+    std::vector<int> endS;
+
+    // [tmp in "extends] the set of "candidates" (intersection of the neighbors
+    // of neighbors_Sv)
+    bitset candidates;
+
+    // [tmp in extends] edges to add
+    std::vector<edge> new_edges;
+    std::vector<int> u_layer;
+
+    int ith_node;
+
+    bitset pruning;
+    bitset real_pruning;
+    std::vector<edge> new_pruning;
+
+    vec<minicsp::Lit> reason;
+
+    // tries to find the possible u's starting from the ith v and returns the
+    // rank for which it fails (or subgraph.size() if it succeeds)
+    int another_myciel_layer(const int ith);
+
+    // select the u's given a w and
+    void select_middle_layer(const int w, const int beg_node,
+        const int end_node, std::vector<int>& U, std::vector<edge>& edges);
+
+    minicsp::Clause* do_prune(
+        minicsp::Solver& s, const std::vector<std::vector<minicsp::Var>>& vars);
 };
 
 
