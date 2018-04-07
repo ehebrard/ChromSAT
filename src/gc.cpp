@@ -161,6 +161,8 @@ std::pair<int, int> preprocess(gc::graph& g)
     int ub{*max_element(begin(sol), end(sol)) + 1};
     std::cout << "c new UB " << ub << " time = " << minicsp::cpuTime()
               << " conflicts = 0" << std::endl;
+    std::cout << "c new lower bound " << lb << " time = " << minicsp::cpuTime()
+              << " conflicts = 0" << std::endl;
     return std::pair<int, int>{lb, ub};
 }
 
@@ -188,13 +190,14 @@ int main(int argc, char* argv[])
         gc_model model(g, options, statistics, std::make_pair(lb, ub));
         model.solve();
         model.print_stats();
+        break;
     }
     case gc::options::BOTTOMUP: {
-        for (int i = lb+1; i != ub; ++i) {
+        for (int i = lb; i < ub; ++i) {
             gc::graph gcopy{g};
-            gc_model model(gcopy, options, statistics, std::make_pair(i, i+1));
+            gc_model model(
+                gcopy, options, statistics, std::make_pair(i, i + 1));
             auto [ilb, iub] = model.solve();
-            //model.print_stats();
             if (iub == i) {
                 std::cout << "OPTIMUM " << ub << "\n";
                 break;
@@ -202,9 +205,9 @@ int main(int argc, char* argv[])
                 std::cout << "best bounds [" << i << "," << ub << "\n";
                 std::cout << "INTERRUPTED\n";
             } else {
-                std::cout << "lb >= " << ilb << "\n";
+                std::cout << "c new lower bound " << ilb
+                          << " time = " << minicsp::cpuTime() << "\n";
             }
         }
-    }
     }
 }
