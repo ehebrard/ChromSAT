@@ -236,7 +236,7 @@ struct clique_finder {
     // heuristically find a set of cliques and return the size of the
     // largest
 
-    template <class ordering> int find_cliques(ordering o)
+    template <class ordering> int find_cliques(ordering o, const int limit=0xfffffff)
     {
         clear();
         if (o.size() == 0)
@@ -248,7 +248,7 @@ struct clique_finder {
                     found = true;
                     insert(u, i);
                 }
-            if (!found) {
+            if (!found && num_cliques < limit) {
                 new_clique();
                 insert(u, num_cliques - 1);
             }
@@ -285,6 +285,7 @@ public:
     // the additional vertices go into "subgraph"
     int extends(const bitset& G);
 
+		int improve_cliques_larger_than(const int size);
     int full_myciel(const int lb, const int ub, minicsp::Solver& s,
         const std::vector<std::vector<minicsp::Var>>& vars);
 

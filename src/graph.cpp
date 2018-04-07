@@ -525,6 +525,21 @@ int mycielskan_subgraph_finder::extends( const bitset& G )
     return iter;
 }
 
+int mycielskan_subgraph_finder::improve_cliques_larger_than(const int size)
+{
+    explanation_clique = -1;
+    auto lb{0};
+    for (auto cl = 0; cl < cf.num_cliques; ++cl) {
+				if (cf.clique_sz[cl] >= size) {
+		        auto mycielski_lb = cf.clique_sz[cl] + extends(cf.cliques[cl]);
+		        if (mycielski_lb > lb) {
+		            lb = mycielski_lb;
+		        }
+				}
+    }
+    return lb;
+}
+
 int mycielskan_subgraph_finder::full_myciel(const int curlb, const int ub,
     minicsp::Solver& s, const std::vector<std::vector<minicsp::Var>>& vars)
 {
