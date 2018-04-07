@@ -15,7 +15,7 @@
 
 struct gc_model {
     gc::graph& g;
-    minicsp::Solver& s;
+    minicsp::Solver s;
     const gc::options& options;
     gc::statistics& statistics;
     std::vector<std::vector<minicsp::Var>> vars;
@@ -50,16 +50,22 @@ struct gc_model {
         return vars;
     }
 
-    gc_model(gc::graph& g, minicsp::Solver& s, const gc::options& options,
+    gc_model(gc::graph& g, const gc::options& options,
         gc::statistics& statistics, std::pair<int, int> bounds)
         : g(g)
-        , s(s)
         , options(options)
         , statistics(statistics)
         , vars(create_vars())
         , cons(gc::post_gc_constraint(s, g, vars, options, statistics))
         , rewriter(s, g, *cons, vars, xvars)
     {
+        setup_signal_handlers(&s);
+        s.trace = options.trace;
+        s.polarity_mode = options.polarity;
+
+        if (options.learning == gc::options::NO_LEARNING)
+            s.learning = false;
+
         auto [lb, ub] = bounds;
         cons->bestlb = std::max(lb, cons->bestlb);
         cons->ub = std::min(ub, cons->ub);
@@ -98,7 +104,7 @@ struct gc_model {
         }
     }
 
-    void solve()
+    std::pair<int, int> solve()
     {
         using minicsp::l_False;
         using minicsp::l_True;
@@ -119,7 +125,7 @@ struct gc_model {
                 }
             } else if (sat == l_Undef) {
                 std::cout << "*** INTERRUPTED ***\n";
-                return;
+                break;
             } else {
                 cons->bestlb = cons->ub;
                 std::cout << "c new lower bound " << cons->ub
@@ -128,6 +134,7 @@ struct gc_model {
                 std::cout << "UNSAT\n";
             }
         }
+        return std::make_pair(cons->bestlb, cons->ub);
     }
 
     void print_stats()
@@ -174,17 +181,30 @@ int main(int argc, char* argv[])
         [&](int, gc::weight) {});
     g.describe(std::cout);
 
-    minicsp::Solver s;
-    setup_signal_handlers(&s);
-    s.trace = options.trace;
-    s.polarity_mode = options.polarity;
-
     auto [lb, ub] = preprocess(g);
 
-    if (options.learning == gc::options::NO_LEARNING)
-        s.learning = false;
-
-    gc_model model(g, s, options, statistics, std::pair<int, int>(lb, ub));
-    model.solve();
-    model.print_stats();
+    switch(options.strategy) {
+    case gc::options::BNB: {
+        gc_model model(g, options, statistics, std::make_pair(lb, ub));
+        model.solve();
+        model.print_stats();
+    }
+    case gc::options::BOTTOMUP: {
+        for (int i = lb+1; i != ub; ++i) {
+            gc::graph gcopy{g};
+            gc_model model(gcopy, options, statistics, std::make_pair(i, i+1));
+            auto [ilb, iub] = model.solve();
+            //model.print_stats();
+            if (iub == i) {
+                std::cout << "OPTIMUM " << ub << "\n";
+                break;
+            } else if (ilb != iub) {
+                std::cout << "best bounds [" << i << "," << ub << "\n";
+                std::cout << "INTERRUPTED\n";
+            } else {
+                std::cout << "lb >= " << ilb << "\n";
+            }
+        }
+    }
+    }
 }

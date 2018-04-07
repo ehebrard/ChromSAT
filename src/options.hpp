@@ -47,6 +47,9 @@ struct options {
 
     enum branching_heuristic { VSIDS, BRELAZ };
     branching_heuristic branching;
+
+    enum solution_strategy { BNB, BOTTOMUP };
+    solution_strategy strategy;
 };
 
 options parse(int argc, char* argv[]);

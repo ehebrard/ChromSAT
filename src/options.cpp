@@ -102,6 +102,8 @@ options parse(int argc, char* argv[])
         "Switch between CLIQUES and declared bound policy dynamically", false);
     cmd.add<ValueArg<int>>(opt.branching, "", "branching",
         "Variable branching heuristic [0-1]", false, 0, "int");
+    cmd.add<ValueArg<int>>(opt.strategy, "", "strategy",
+        "Solution strategy [0=BNB-1=bottom-up]", false, 0, "int");
 
     cmd.parse(argc, argv);
     return opt;
@@ -118,6 +120,8 @@ void options::describe(std::ostream& os)
     os << "Color variables = " << (xvars ? "present" : "absent") << "\n";
     os << "Bound policy    = " << boundalg << "\n";
     os << "Adaptive bounds = " << adaptive << "\n";
+    os << "Strategy        = "
+       << (strategy == BNB ? "branch and bound" : "bottom-up") << "\n";
     os << std::endl;
 }
 
