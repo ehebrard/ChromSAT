@@ -104,6 +104,8 @@ options parse(int argc, char* argv[])
         "Variable branching heuristic [0-6]", false, 0, "int");
     cmd.add<ValueArg<int>>(opt.cliquelimit, "", "cliquelimit",
         "Maximum number of cliques in the lower bound algorithm", false, 0xfffffff, "int");
+    cmd.add<ValueArg<int>>(opt.strategy, "", "strategy",
+        "Solution strategy [0=BNB-1=bottom-up]", false, 0, "int");
 
     cmd.parse(argc, argv);
     return opt;
@@ -159,7 +161,8 @@ void options::describe(std::ostream& os)
 				os << "Largest edge neighborhood (select)\n";
         break;	
 		}			
-		
+		os << "Strategy        = "
+       << (strategy == BNB ? "branch and bound" : "bottom-up") << "\n";
     os << std::endl;
 }
 
