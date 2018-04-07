@@ -8,17 +8,18 @@ namespace gc
 struct statistics {
 	
 		statistics() {
-				total_bound_delta = 0;
-				num_bound_delta = 0;
+				total_bound_1 = 0;
+				total_bound_2 = 0;
 		}
 	
     // outputs a nice description of all statistics
     void describe(std::ostream&) const;
 
     // the actual statistics
-    long long int total_bound_delta; 
-		long long int num_bound_delta;		
-		void notify_bound_delta(const int d);
+    long long int total_bound_1;
+		long long int total_bound_2; 
+		void notify_bound_delta(const int b1, const int b2);
+		double get_bound_increase() const;
 		
 };
 

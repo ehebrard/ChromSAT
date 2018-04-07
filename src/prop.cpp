@@ -401,7 +401,7 @@ public:
             heuristic.clear();
             adjacency_list.get_degeneracy_order(heuristic);
             std::reverse(heuristic.begin(), heuristic.end());
-            lb = cf.find_cliques(heuristic);
+            lb = cf.find_cliques(heuristic, opt.cliquelimit);
         } else if (opt.ordering == options::DEGENERACY
             or opt.ordering == options::INVERSE_DEGENERACY) {
             if (degeneracy_order.empty()) {
@@ -414,7 +414,7 @@ public:
             for (auto v : degeneracy_order)
                 if (g.nodeset.fast_contain(v))
                     heuristic.push_back(v);
-            lb = cf.find_cliques(heuristic);
+            lb = cf.find_cliques(heuristic, opt.cliquelimit);
         } else if (opt.ordering == options::PARTITION) {
 
             // sort by partition size
@@ -429,10 +429,10 @@ public:
                                && x < y));
                 });
 
-            lb = cf.find_cliques(heuristic);
+            lb = cf.find_cliques(heuristic, opt.cliquelimit);
         } else {
             // no ordering
-            lb = cf.find_cliques(g.nodes);
+            lb = cf.find_cliques(g.nodes, opt.cliquelimit);
         }
 
         // std::cout << cf.num_cliques << std::endl;
@@ -448,7 +448,13 @@ public:
             } else if (opt.boundalg == options::GREEDYMYCIELSKI) {
                 mlb = mf.improve_greedy(lb - 1, lb, ub, s, vars);
             }
-            stat.notify_bound_delta(mlb - lb);
+						
+						// std::cout << lb << " --> " << mlb << std::endl;
+            stat.notify_bound_delta(lb, mlb);	
+						
+						// if(stat.num_bound_delta%100 == 0)
+						// 		stat.describe(std::cout);
+						
             lb = mlb;
         }
 
@@ -462,7 +468,8 @@ public:
             bestlb = lb;
             std::cout << "c new lower bound " << bestlb
                       << " time = " << minicsp::cpuTime()
-                      << " conflicts = " << s.conflicts << std::endl;
+                      << " conflicts = " << s.conflicts 
+											<< " delta = " << stat.get_bound_increase() << std::endl;
 						
 						bool simplification = false;
 						for( auto v : g.nodes ) {

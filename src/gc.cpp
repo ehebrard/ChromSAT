@@ -24,6 +24,8 @@ struct gc_model {
     gc::rewriter rewriter;
 
     std::unique_ptr<gc::Brancher> brancher;
+		
+		// std::vector<edge> var_map;
 
     std::vector<std::vector<minicsp::Var>> create_vars()
     {
@@ -95,6 +97,56 @@ struct gc_model {
                 s, g, vars, xvars, *cons);
             brancher->use();
             break;
+        case gc::options::PARTITION_SUM:
+            brancher = std::make_unique<gc::PartitionBrancher<-1,-1,[](int x, int y) { return x+y; }>>(
+                s, g, vars, xvars, *cons);
+            brancher->use();
+            break;
+        case gc::options::PARTITION_PRODUCT:
+            brancher = std::make_unique<gc::PartitionBrancher<-1,-1,[](int x, int y) { return x*y; }>>(
+                s, g, vars, xvars, *cons);
+            brancher->use();
+            break;
+        case gc::options::DEGREE_SUM:
+            brancher = std::make_unique<gc::DegreeBrancher<-1,-1,[](int x, int y) { return x+y; }>>(
+                s, g, vars, xvars, *cons);
+            brancher->use();
+            break;
+        case gc::options::DEGREE_PRODUCT:
+            brancher = std::make_unique<gc::DegreeBrancher<-1,-1,[](int x, int y) { return x*y; }>>(
+                s, g, vars, xvars, *cons);
+            brancher->use();
+            break;
+        case gc::options::DEGREE_UNION:
+            brancher = std::make_unique<gc::DegreeUnionBrancher<-1,-1>>(
+                s, g, vars, xvars, *cons);
+            brancher->use();
+            break;
+        case gc::options::PARTITION_SUM_DYN:
+            brancher = std::make_unique<gc::PartitionBrancher<2,3,[](int x, int y) { return x+y; }>>(
+                s, g, vars, xvars, *cons);
+            brancher->use();
+            break;
+        case gc::options::PARTITION_PRODUCT_DYN:
+            brancher = std::make_unique<gc::PartitionBrancher<2,3,[](int x, int y) { return x*y; }>>(
+                s, g, vars, xvars, *cons);
+            brancher->use();
+            break;
+        case gc::options::DEGREE_SUM_DYN:
+            brancher = std::make_unique<gc::DegreeBrancher<2,3,[](int x, int y) { return x+y; }>>(
+                s, g, vars, xvars, *cons);
+            brancher->use();
+            break;
+        case gc::options::DEGREE_PRODUCT_DYN:
+            brancher = std::make_unique<gc::DegreeBrancher<2,3,[](int x, int y) { return x*y; }>>(
+                s, g, vars, xvars, *cons);
+            brancher->use();
+            break;
+        case gc::options::DEGREE_UNION_DYN:
+            brancher = std::make_unique<gc::DegreeUnionBrancher<2,3>>(
+                s, g, vars, xvars, *cons);
+            brancher->use();
+            break;
         }
     }
 
@@ -110,7 +162,8 @@ struct gc_model {
             if (sat == l_True) {
                 std::cout << "c new UB " << g.nodes.size()
                           << " time = " << minicsp::cpuTime()
-                          << " conflicts = " << s.conflicts << std::endl;
+                          << " conflicts = " << s.conflicts 
+													<< " delta = " << statistics.get_bound_increase() << std::endl;
                 assert(g.nodes.size() < static_cast<size_t>(cons->ub));
                 cons->ub = g.nodes.size();
                 if (options.xvars) {
@@ -124,7 +177,8 @@ struct gc_model {
                 cons->bestlb = cons->ub;
                 std::cout << "c new lower bound " << cons->ub
                           << " time = " << minicsp::cpuTime()
-                          << " conflicts = " << s.conflicts << std::endl;
+                          << " conflicts = " << s.conflicts 
+													<< " delta = " << statistics.get_bound_increase() << std::endl;
                 std::cout << "UNSAT\n";
             }
         }
@@ -153,7 +207,8 @@ std::pair<int, int> preprocess(gc::graph& g)
 
     int ub{*max_element(begin(sol), end(sol)) + 1};
     std::cout << "c new UB " << ub << " time = " << minicsp::cpuTime()
-              << " conflicts = 0" << std::endl;
+              << " conflicts = 0" 
+							<< " delta = 0" << std::endl;
     return std::pair<int, int>{lb, ub};
 }
 
