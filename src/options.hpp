@@ -45,14 +45,29 @@ struct options {
 
     bool adaptive;
 
-    enum branching_heuristic { VSIDS, BRELAZ, PARTITION_PRODUCT, PARTITION_SUM, DEGREE_PRODUCT, DEGREE_SUM, DEGREE_UNION, PARTITION_PRODUCT_DYN, PARTITION_SUM_DYN, DEGREE_PRODUCT_DYN, DEGREE_SUM_DYN, DEGREE_UNION_DYN };
+    enum branching_heuristic {
+        VSIDS,
+        BRELAZ,
+        PARTITION_PRODUCT,
+        PARTITION_SUM,
+        DEGREE_PRODUCT,
+        DEGREE_SUM,
+        DEGREE_UNION,
+        PARTITION_PRODUCT_DYN,
+        PARTITION_SUM_DYN,
+        DEGREE_PRODUCT_DYN,
+        DEGREE_SUM_DYN,
+        DEGREE_UNION_DYN
+    };
     branching_heuristic branching;
-		
-		int cliquelimit;
+
+    int cliquelimit;
 
     enum solution_strategy { BNB, BOTTOMUP };
     solution_strategy strategy;
 
+    enum preprocessing_types { NO_PREPROCESSING, LOW_DEGREE };
+    preprocessing_types preprocessing;
 };
 
 options parse(int argc, char* argv[]);

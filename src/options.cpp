@@ -106,6 +106,8 @@ options parse(int argc, char* argv[])
         "Maximum number of cliques in the lower bound algorithm", false, 0xfffffff, "int");
     cmd.add<ValueArg<int>>(opt.strategy, "", "strategy",
         "Solution strategy [0=BNB-1=bottom-up]", false, 0, "int");
+    cmd.add<ValueArg<int>>(opt.preprocessing, "", "preprocessing",
+        "Level of preprocessing [0=none-1=low-degree]", false, 0, "int");
 
     cmd.parse(argc, argv);
     return opt;
@@ -122,46 +124,47 @@ void options::describe(std::ostream& os)
     os << "Color variables = " << (xvars ? "present" : "absent") << "\n";
     os << "Bound policy    = " << boundalg << "\n";
     os << "Adaptive bounds = " << adaptive << "\n";
-		os << "Branching strat = ";
+    os << "Preprocessing   = " << preprocessing << "\n";
+    os << "Branching strat = ";
     switch (branching) {
     case gc::options::VSIDS:
-				os << "VSIDS\n";
+        os << "VSIDS\n";
         break;
     case gc::options::BRELAZ:
-				os << "Brelaz\n";
+        os << "Brelaz\n";
         break;
     case gc::options::PARTITION_PRODUCT:
-				os << "Largest edge partition size (x)\n";
+        os << "Largest edge partition size (x)\n";
         break;
     case gc::options::PARTITION_SUM:
-				os << "Largest edge partition size (+)\n";
+        os << "Largest edge partition size (+)\n";
         break;
     case gc::options::DEGREE_PRODUCT:
-				os << "Largest edge degree (x)\n";
+        os << "Largest edge degree (x)\n";
         break;
     case gc::options::DEGREE_SUM:
-				os << "Largest edge degree (+)\n";
+        os << "Largest edge degree (+)\n";
         break;
     case gc::options::DEGREE_UNION:
-				os << "Largest edge neighborhood\n";
+        os << "Largest edge neighborhood\n";
         break;
     case gc::options::PARTITION_PRODUCT_DYN:
-				os << "Largest edge partition size (x) (select)\n";
+        os << "Largest edge partition size (x) (select)\n";
         break;
     case gc::options::PARTITION_SUM_DYN:
-				os << "Largest edge partition size (+) (select)\n";
+        os << "Largest edge partition size (+) (select)\n";
         break;
     case gc::options::DEGREE_PRODUCT_DYN:
-				os << "Largest edge degree (x) (select)\n";
+        os << "Largest edge degree (x) (select)\n";
         break;
     case gc::options::DEGREE_SUM_DYN:
-				os << "Largest edge degree (+) (select)\n";
+        os << "Largest edge degree (+) (select)\n";
         break;
     case gc::options::DEGREE_UNION_DYN:
-				os << "Largest edge neighborhood (select)\n";
-        break;	
-		}			
-		os << "Strategy        = "
+        os << "Largest edge neighborhood (select)\n";
+        break;
+    }
+    os << "Strategy        = "
        << (strategy == BNB ? "branch and bound" : "bottom-up") << "\n";
     os << std::endl;
 }

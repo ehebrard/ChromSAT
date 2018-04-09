@@ -91,8 +91,11 @@ public:
         ub = g.capacity();
         assert(vars.size() == static_cast<size_t>(g.capacity()));
         for (int i = 0; i != g.capacity(); ++i) {
-            assert(vars[i].size() == static_cast<size_t>(g.capacity()));
+            if (!g.nodes.contain(i))
+                continue;
             for (int j = 0; j != g.capacity(); ++j) {
+                if (!g.nodes.contain(j))
+                    continue;
                 if (j < i) {
                     assert(vars[i][j] == vars[j][i]);
                     continue;
@@ -448,13 +451,13 @@ public:
             } else if (opt.boundalg == options::GREEDYMYCIELSKI) {
                 mlb = mf.improve_greedy(lb - 1, lb, ub, s, vars);
             }
-						
-						// std::cout << lb << " --> " << mlb << std::endl;
-            stat.notify_bound_delta(lb, mlb);	
-						
-						// if(stat.num_bound_delta%100 == 0)
-						// 		stat.describe(std::cout);
-						
+
+            // std::cout << lb << " --> " << mlb << std::endl;
+            stat.notify_bound_delta(lb, mlb);
+
+            // if(stat.num_bound_delta%100 == 0)
+            //              stat.describe(std::cout);
+
             lb = mlb;
         }
 
@@ -468,18 +471,18 @@ public:
             bestlb = lb;
             std::cout << "c new lower bound " << bestlb
                       << " time = " << minicsp::cpuTime()
-                      << " conflicts = " << s.conflicts 
-											<< " delta = " << stat.get_bound_increase() << std::endl;
-						
-						bool simplification = false;
-						for( auto v : g.nodes ) {
-								if( g.matrix[v].size() < bestlb ) {
-										std::cout << " " << v ;
-										simplification = true;
-									}
-						}
-						if(simplification)
-								std::cout << std::endl;
+                      << " conflicts = " << s.conflicts
+                      << " delta = " << stat.get_bound_increase() << std::endl;
+
+            bool simplification = false;
+            for (auto v : g.nodes) {
+                if (g.matrix[v].size() < bestlb) {
+                    std::cout << " " << v;
+                    simplification = true;
+                }
+            }
+            if (simplification)
+                std::cout << std::endl;
         }
         if (cf.num_cliques == 1)
             assert(g.nodes.size() == cf.cliques[0].size());
