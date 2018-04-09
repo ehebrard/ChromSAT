@@ -110,6 +110,8 @@ struct gc_model {
         if (options.preprocessing == gc::options::NO_PREPROCESSING)
             return gr;
 
+        lb = bounds.first;
+        ub = bounds.second;
         int hlb{0};
         gc::clique_finder cf{g};
         gc::bitset forbidden(0, g.capacity(), gc::bitset::empt);
@@ -163,7 +165,8 @@ struct gc_model {
                 g.nodeset.remove(u);
             }
             std::cout << "c " << toremove.size()
-                      << " vertices removed in iteration" << niteration << "\n";
+                      << " vertices removed in iteration " << niteration
+                      << "\n";
         } while (removed);
         if (removedv.size() > 0) {
             for (auto v : g.nodes) {
@@ -223,6 +226,9 @@ struct gc_model {
             });
         }
 
+        auto sum = [](int x, int y) { return x + y; };
+        auto prod = [](int x, int y) { return x * y; };
+
         switch (options.branching) {
         case gc::options::VSIDS:
             s.varbranch = minicsp::VAR_VSIDS;
@@ -237,52 +243,52 @@ struct gc_model {
             brancher->use();
             break;
         case gc::options::PARTITION_SUM:
-            brancher = std::make_unique<gc::PartitionBrancher<-1,-1,[](int x, int y) { return x+y; }>>(
-                s, g, vars, xvars, *cons);
+            brancher = gc::make_partition_brancher<-1, -1>(
+                s, g, vars, xvars, *cons, sum);
             brancher->use();
             break;
         case gc::options::PARTITION_PRODUCT:
-            brancher = std::make_unique<gc::PartitionBrancher<-1,-1,[](int x, int y) { return x*y; }>>(
-                s, g, vars, xvars, *cons);
+            brancher = gc::make_partition_brancher<-1, -1>(
+                s, g, vars, xvars, *cons, prod);
             brancher->use();
             break;
         case gc::options::DEGREE_SUM:
-            brancher = std::make_unique<gc::DegreeBrancher<-1,-1,[](int x, int y) { return x+y; }>>(
-                s, g, vars, xvars, *cons);
+            brancher = gc::make_degree_brancher<-1, -1>(
+                s, g, vars, xvars, *cons, sum);
             brancher->use();
             break;
         case gc::options::DEGREE_PRODUCT:
-            brancher = std::make_unique<gc::DegreeBrancher<-1,-1,[](int x, int y) { return x*y; }>>(
-                s, g, vars, xvars, *cons);
+            brancher = gc::make_degree_brancher<-1, -1>(
+                s, g, vars, xvars, *cons, prod);
             brancher->use();
             break;
         case gc::options::DEGREE_UNION:
-            brancher = std::make_unique<gc::DegreeUnionBrancher<-1,-1>>(
+            brancher = std::make_unique<gc::DegreeUnionBrancher<-1, -1>>(
                 s, g, vars, xvars, *cons);
             brancher->use();
             break;
         case gc::options::PARTITION_SUM_DYN:
-            brancher = std::make_unique<gc::PartitionBrancher<2,3,[](int x, int y) { return x+y; }>>(
-                s, g, vars, xvars, *cons);
+            brancher = gc::make_partition_brancher<2, 3>(
+                s, g, vars, xvars, *cons, sum);
             brancher->use();
             break;
         case gc::options::PARTITION_PRODUCT_DYN:
-            brancher = std::make_unique<gc::PartitionBrancher<2,3,[](int x, int y) { return x*y; }>>(
-                s, g, vars, xvars, *cons);
+            brancher = gc::make_partition_brancher<2, 3>(
+                s, g, vars, xvars, *cons, prod);
             brancher->use();
             break;
         case gc::options::DEGREE_SUM_DYN:
-            brancher = std::make_unique<gc::DegreeBrancher<2,3,[](int x, int y) { return x+y; }>>(
-                s, g, vars, xvars, *cons);
+            brancher
+                = gc::make_degree_brancher<2, 3>(s, g, vars, xvars, *cons, sum);
             brancher->use();
             break;
         case gc::options::DEGREE_PRODUCT_DYN:
-            brancher = std::make_unique<gc::DegreeBrancher<2,3,[](int x, int y) { return x*y; }>>(
-                s, g, vars, xvars, *cons);
+            brancher = gc::make_degree_brancher<2, 3>(
+                s, g, vars, xvars, *cons, prod);
             brancher->use();
             break;
         case gc::options::DEGREE_UNION_DYN:
-            brancher = std::make_unique<gc::DegreeUnionBrancher<2,3>>(
+            brancher = std::make_unique<gc::DegreeUnionBrancher<2, 3>>(
                 s, g, vars, xvars, *cons);
             brancher->use();
             break;
@@ -375,7 +381,6 @@ std::pair<int, int> initial_bounds(const gc::graph& g)
     std::cout << "c new lower bound " << lb << " time = " << minicsp::cpuTime()
               << " conflicts = 0"
               << " delta = 0" << std::endl;
-    << " conflicts = 0" << std::endl;
     return std::make_pair(lb, ub);
 }
 
@@ -423,7 +428,28 @@ int main(int argc, char* argv[])
                           << "\n";
             }
         }
-    }
+    } break;
+    case gc::options::TOPDOWN: {
+        auto [lb, ub] = initial_bounds(g);
+        for (int i = ub - 1; i >= lb; --i) {
+            std::cout << "solving with nbcolors = " << i << "\n";
+            gc::graph gcopy{g};
+            gc_model model(
+                gcopy, options, statistics, std::make_pair(i, i + 1));
+            auto [ilb, iub] = model.solve();
+            if (ilb == i + 1) {
+                std::cout << "OPTIMUM " << ub << "\n";
+                break;
+            } else if (ilb != iub) {
+                std::cout << "best bounds [" << i << "," << ub << "\n";
+                std::cout << "INTERRUPTED\n";
+            } else {
+                std::cout << "c new lower bound " << ilb
+                          << " time = " << minicsp::cpuTime()
+                          << " conflicts = 0 delta = 0"
+                          << "\n";
+            }
+        }
+    } break;
     }
 }
-
