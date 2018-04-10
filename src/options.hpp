@@ -62,6 +62,8 @@ struct options {
     };
     branching_heuristic branching;
 
+    bool branching_low_degree;
+
     int cliquelimit;
 
     enum solution_strategy { BNB, BOTTOMUP, TOPDOWN };

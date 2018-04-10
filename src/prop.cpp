@@ -23,8 +23,6 @@ private:
     // indexed by varid
     std::vector<varinfo_t> varinfo;
 
-    minicsp::backtrackable<int> lastlb;
-
     // for the adaptive bound policy: this is set to true on conflicts
     // and reset to false after the stronger policy runs
     bool run_expensive_bound{false};
@@ -80,7 +78,6 @@ public:
         , vars(tvars)
         , opt(opt)
         , stat(stat)
-        , lastlb(s)
         , util_set(0, g.capacity() - 1, bitset::empt)
         , expl_N(0, g.capacity() - 1, bitset::empt)
         , expl_covered(0, g.capacity() - 1, bitset::empt)

@@ -16,11 +16,13 @@ struct cons_base {
     int ub;
     int bestlb{0};
     clique_finder cf;
+    minicsp::backtrackable<int> lastlb;
 
     explicit cons_base(minicsp::Solver& s, graph& g)
         : s(s)
         , g(g)
         , cf(g)
+        , lastlb(s)
         , lastdlvl(s)
     {
     }

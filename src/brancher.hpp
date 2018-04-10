@@ -3,6 +3,7 @@
 
 #include "graph.hpp"
 #include "prop.hpp"
+#include "options.hpp"
 
 namespace gc
 {
@@ -13,17 +14,20 @@ struct Brancher {
     const std::vector<std::vector<minicsp::Var>>& evars;
     const std::vector<minicsp::cspvar>& xvars;
     cons_base& constraint;
+    const options& opt;
 
     int64_t numdecisions{0}, numchoices{0};
 
     Brancher(minicsp::Solver& s, graph& g,
         const std::vector<std::vector<minicsp::Var>>& evars,
-        const std::vector<minicsp::cspvar>& xvars, cons_base& constraint)
+        const std::vector<minicsp::cspvar>& xvars, cons_base& constraint,
+        const options& opt)
         : s(s)
         , g(g)
         , evars(evars)
         , xvars(xvars)
         , constraint(constraint)
+        , opt(opt)
     {
     }
     virtual ~Brancher() {}
@@ -50,10 +54,14 @@ struct BrelazBrancher : public Brancher {
     std::vector<int> clique;
     bitset util_set;
 
+    // vertices that are ignored because they have low degree
+    std::vector<int> low_degree;
+
     BrelazBrancher(minicsp::Solver& s, graph& g,
         const std::vector<std::vector<minicsp::Var>>& evars,
-        const std::vector<minicsp::cspvar>& xvars, cons_base& constraint)
-        : Brancher(s, g, evars, xvars, constraint)
+        const std::vector<minicsp::cspvar>& xvars, cons_base& constraint,
+        const options& opt)
+        : Brancher(s, g, evars, xvars, constraint, opt)
         , util_set(0, g.capacity() - 1, bitset::empt)
     {
         auto& cf = constraint.cf;
@@ -78,11 +86,20 @@ struct BrelazBrancher : public Brancher {
 
         int mind{-1};
         mindom.clear();
+        low_degree.clear();
         for (auto v : g.nodes) {
             auto x = xvars[v];
             auto xd = x.domsize(s);
             if (xd == 1)
                 continue;
+            if (opt.branching_low_degree) {
+                util_set.copy(g.matrix[v]);
+                util_set.intersect_with(g.nodeset);
+                if (util_set.size() < static_cast<size_t>(*constraint.lastlb)) {
+                    low_degree.push_back(v);
+                    continue;
+                }
+            }
             if (mindom.empty() || xd < mind) {
                 mindom.clear();
                 mind = x.domsize(s);
@@ -91,8 +108,15 @@ struct BrelazBrancher : public Brancher {
                 mindom.push_back(v);
         }
 
-        if (mindom.empty())
-            return;
+        if (mindom.empty()) {
+            if (!low_degree.empty()) {
+                auto x = xvars[low_degree.back()];
+                cand.clear();
+                cand.push_back(x.e_eq(s, x.min(s)));
+                return;
+            } else
+                return;
+        }
 
         // int tiedv = mindom.size();
         int maxdv{-1};
@@ -130,8 +154,9 @@ struct EdgeBrancher : public Brancher {
 
     EdgeBrancher(minicsp::Solver& s, graph& g,
         const std::vector<std::vector<minicsp::Var>>& evars,
-        const std::vector<minicsp::cspvar>& xvars, cons_base& constraint)
-        : Brancher(s, g, evars, xvars, constraint)
+        const std::vector<minicsp::cspvar>& xvars, cons_base& constraint,
+        const options& opt)
+        : Brancher(s, g, evars, xvars, constraint, opt)
         , neighbors_u(0, g.capacity() - 1, bitset::empt)
         , neighbors_v(0, g.capacity() - 1, bitset::empt)
         , counter(0, g.capacity() - 1, bitset::empt)
@@ -178,8 +203,9 @@ struct PartitionBrancher : public EdgeBrancher<N, D> {
 
     PartitionBrancher(minicsp::Solver& s, graph& g,
         const std::vector<std::vector<minicsp::Var>>& evars,
-        const std::vector<minicsp::cspvar>& xvars, cons_base& constraint, Op op)
-        : EdgeBrancher<N, D>(s, g, evars, xvars, constraint)
+        const std::vector<minicsp::cspvar>& xvars, cons_base& constraint,
+        const options& opt, Op op)
+        : EdgeBrancher<N, D>(s, g, evars, xvars, constraint, opt)
         , op(op)
     {
     }
@@ -220,10 +246,11 @@ template <int N, int D, typename Op>
 std::unique_ptr<PartitionBrancher<N, D, Op>> make_partition_brancher(
     minicsp::Solver& s, graph& g,
     const std::vector<std::vector<minicsp::Var>>& evars,
-    const std::vector<minicsp::cspvar>& xvars, cons_base& constraint, Op op)
+    const std::vector<minicsp::cspvar>& xvars, cons_base& constraint,
+    const options& opt, Op op)
 {
     return std::make_unique<PartitionBrancher<N, D, Op>>(
-        s, g, evars, xvars, constraint, op);
+        s, g, evars, xvars, constraint, opt, op);
 }
 
 template <int N, int D, typename Op>
@@ -232,8 +259,9 @@ struct DegreeBrancher : public EdgeBrancher<N, D> {
 
     DegreeBrancher(minicsp::Solver& s, graph& g,
         const std::vector<std::vector<minicsp::Var>>& evars,
-        const std::vector<minicsp::cspvar>& xvars, cons_base& constraint, Op op)
-        : EdgeBrancher<N, D>(s, g, evars, xvars, constraint)
+        const std::vector<minicsp::cspvar>& xvars, cons_base& constraint,
+        const options& opt, Op op)
+        : EdgeBrancher<N, D>(s, g, evars, xvars, constraint, opt)
         , op(op)
     {
     }
@@ -279,10 +307,11 @@ template <int N, int D, typename Op>
 std::unique_ptr<DegreeBrancher<N, D, Op>> make_degree_brancher(
     minicsp::Solver& s, graph& g,
     const std::vector<std::vector<minicsp::Var>>& evars,
-    const std::vector<minicsp::cspvar>& xvars, cons_base& constraint, Op op)
+    const std::vector<minicsp::cspvar>& xvars, cons_base& constraint,
+    const options& opt, Op op)
 {
     return std::make_unique<DegreeBrancher<N, D, Op>>(
-        s, g, evars, xvars, constraint, op);
+        s, g, evars, xvars, constraint, opt, op);
 }
 
 template<int N, int D>
@@ -291,8 +320,9 @@ struct DegreeUnionBrancher : public EdgeBrancher<N, D> {
 
     DegreeUnionBrancher(minicsp::Solver& s, graph& g,
         const std::vector<std::vector<minicsp::Var>>& evars,
-        const std::vector<minicsp::cspvar>& xvars, cons_base& constraint)
-        : EdgeBrancher<N, D>(s, g, evars, xvars, constraint)
+        const std::vector<minicsp::cspvar>& xvars, cons_base& constraint,
+        const options& opt)
+        : EdgeBrancher<N, D>(s, g, evars, xvars, constraint, opt)
     {
     }
 
