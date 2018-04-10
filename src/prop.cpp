@@ -1,6 +1,7 @@
 #include "prop.hpp"
 #include "minicsp/core/utils.hpp"
 #include "utils.hpp"
+#include "statistics.hpp"
 
 namespace gc
 {
@@ -88,11 +89,15 @@ public:
         , expl_covered_neighbors(g.capacity())
         , adjacency_list(g)
     {
+				stat.binds(this);
         ub = g.capacity();
         assert(vars.size() == static_cast<size_t>(g.capacity()));
         for (int i = 0; i != g.capacity(); ++i) {
-            assert(vars[i].size() == static_cast<size_t>(g.capacity()));
+            if (!g.nodes.contain(i))
+                continue;
             for (int j = 0; j != g.capacity(); ++j) {
+                if (!g.nodes.contain(j))
+                    continue;
                 if (j < i) {
                     assert(vars[i][j] == vars[j][i]);
                     continue;
@@ -483,13 +488,13 @@ public:
             } else if (opt.boundalg == options::GREEDYMYCIELSKI) {
                 mlb = mf.improve_greedy(lb - 1, lb, ub, s, vars);
             }
-						
-						// std::cout << lb << " --> " << mlb << std::endl;
-            stat.notify_bound_delta(lb, mlb);	
-						
-						// if(stat.num_bound_delta%100 == 0)
-						// 		stat.describe(std::cout);
-						
+
+            // std::cout << lb << " --> " << mlb << std::endl;
+            stat.notify_bound_delta(lb, mlb);
+
+            // if(stat.num_bound_delta%100 == 0)
+            //              stat.describe(std::cout);
+
             lb = mlb;
         }
 
@@ -501,20 +506,16 @@ public:
 
         if (s.decisionLevel() == 0 && lb > bestlb) {
             bestlb = lb;
-            std::cout << "c new lower bound " << bestlb
-                      << " time = " << minicsp::cpuTime()
-                      << " conflicts = " << s.conflicts 
-											<< " delta = " << stat.get_bound_increase() << std::endl;
-						
-						bool simplification = false;
-						for( auto v : g.nodes ) {
-								if( g.matrix[v].size() < bestlb ) {
-										std::cout << " " << v ;
-										simplification = true;
-									}
-						}
-						if(simplification)
-								std::cout << std::endl;
+						stat.describe(std::cout);
+            bool simplification = false;
+            for (auto v : g.nodes) {
+                if (g.matrix[v].size() < bestlb) {
+                    std::cout << " " << v;
+                    simplification = true;
+                }
+            }
+            if (simplification)
+                std::cout << std::endl;
         }
         if (cf.num_cliques == 1)
             assert(g.nodes.size() == cf.cliques[0].size());
@@ -526,10 +527,10 @@ public:
             return explain();
         }
 				
+				if(opt.dominance)
+						return contractWhenNIncluded();
 				
-				return
-				contractWhenNIncluded();
-        // NO_REASON;
+				return NO_REASON;
     }
 
     void check_consistency()
@@ -796,9 +797,10 @@ void gc_constraint::verify_myc_reason()
 cons_base* post_gc_constraint(Solver& s, graph& g,
     const std::vector<std::vector<Var>>& vars, const options& opt,
     statistics& stat)
-{
+{	
     auto cons = new gc_constraint(s, g, vars, opt, stat);
     s.addConstraint(cons);
+		
     return cons;
 }
 } // namespace gc
