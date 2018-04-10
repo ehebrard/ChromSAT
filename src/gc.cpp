@@ -305,7 +305,6 @@ struct gc_model {
 
         minicsp::lbool sat{l_True};
         while (sat != l_False && lb < ub) {
-            std::cout << "sat = " << toInt(sat) << "\n";
             sat = s.solveBudget();
             if (sat == l_True) {
                 auto col_r = get_solution();
@@ -314,10 +313,7 @@ struct gc_model {
                 cons->sync_graph();
                 int actualub = reduction.extend_solution(col_r);
                 statistics.describe(std::cout);
-                if (actualub != solub)
-                    std::cout << " UB in reduced graph = " << solub << std::endl;
 
-                std::cout << "setting cons->ub to " << solub << "\n";
                 cons->ub = solub;
                 if (options.xvars) {
                     for (auto v : xvars)
@@ -329,7 +325,6 @@ struct gc_model {
             } else {
                 cons->bestlb = cons->ub;
                 statistics.describe(std::cout);
-                std::cout << "UNSAT\n";
             }
         }
         return std::make_pair(cons->bestlb, cons->ub);
@@ -417,7 +412,6 @@ int main(int argc, char* argv[])
     case gc::options::TOPDOWN: {
         auto [lb, ub] = initial_bounds(g, statistics);
         for (int i = ub - 1; i >= lb; --i) {
-            std::cout << "solving with nbcolors = " << i << "\n";
             gc::graph gcopy{g};
             gc_model model(
                 gcopy, options, statistics, std::make_pair(i, i + 1));
