@@ -46,6 +46,8 @@ struct Brancher {
 struct BrelazBrancher : public Brancher {
     using Brancher::Brancher;
     std::vector<int> mindom;
+    // a maximal clique
+    std::vector<int> clique;
     bitset util_set;
 
     BrelazBrancher(minicsp::Solver& s, graph& g,
@@ -54,10 +56,26 @@ struct BrelazBrancher : public Brancher {
         : Brancher(s, g, evars, xvars, constraint)
         , util_set(0, g.capacity() - 1, bitset::empt)
     {
+        auto& cf = constraint.cf;
+        auto maxidx = std::distance(begin(cf.clique_sz),
+            std::max_element(
+                begin(cf.clique_sz), begin(cf.clique_sz) + cf.num_cliques));
+        auto& clq = cf.cliques[maxidx];
+        for (auto v : clq)
+            clique.push_back(v);
     }
 
     void select_candidates(std::vector<minicsp::Lit>& cand)
     {
+        for (auto v : clique) {
+            auto x = xvars[v];
+            if (x.domsize(s) != 1) {
+                cand.clear();
+                cand.push_back(x.e_eq(s, x.min(s)));
+                return;
+            }
+        }
+
         int mind{-1};
         mindom.clear();
         for (auto v : g.nodes) {
