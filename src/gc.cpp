@@ -370,6 +370,7 @@ std::pair<int, int> initial_bounds(const gc::graph& g, gc::statistics& stat)
     return std::make_pair(lb, ub);
 }
 
+
 int main(int argc, char* argv[])
 {
     auto options = gc::parse(argc, argv);
@@ -384,7 +385,7 @@ int main(int argc, char* argv[])
         },
         [&](int, gc::weight) {});
     g.describe(std::cout);
-		
+
 		gc::statistics statistics(g.capacity());
 
     switch (options.strategy) {
@@ -425,7 +426,7 @@ int main(int argc, char* argv[])
             gc_model model(
                 gcopy, options, statistics, std::make_pair(i, i + 1));
             auto [ilb, iub] = model.solve();
-            if (ilb == i + 1) {	
+            if (ilb == i + 1) {
 								statistics.notify_ub(ub);
             		statistics.describe(std::cout);
                 break;
