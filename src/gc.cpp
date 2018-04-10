@@ -228,6 +228,11 @@ struct gc_model {
             } else
                 s.varbranch = minicsp::VAR_VSIDS;
             break;
+        case gc::options::VSIDS_PHASED:
+            brancher = std::make_unique<gc::VSIDSPhaseBrancher>(
+                s, g, vars, xvars, *cons, options, -1, -1);
+            brancher->use();
+            break;
         case gc::options::BRELAZ:
             if (!options.xvars) {
                 std::cout << "Cannot use Brelaz ordering without xvars\n";

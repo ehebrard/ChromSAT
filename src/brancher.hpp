@@ -48,7 +48,6 @@ struct Brancher {
 };
 
 struct VSIDSBrancher : public Brancher {
-    using Brancher::Brancher;
     bitset util_set, low_degree;
 
     struct evarinfo_t {
@@ -80,9 +79,22 @@ struct VSIDSBrancher : public Brancher {
 
     void select_candidates(std::vector<minicsp::Lit>& cand)
     {
-        // this should never happen really
-        if (!opt.branching_low_degree)
+        if (!opt.branching_low_degree) {
+            // plain VSIDS in this case
+            auto &heap = s.vsids_heap();
+            minicsp::Var next;
+            do {
+                next = minicsp::var_Undef;
+                if (heap.empty())
+                    break;
+                next = heap.removeMin();
+                if (s.value(next) != minicsp::l_Undef)
+                    next = minicsp::var_Undef;
+            } while (next == minicsp::var_Undef);
+            if (next != minicsp::var_Undef)
+                cand.push_back(minicsp::Lit(next));
             return;
+        }
 
         // size_t instead of int because it gets compared to a size()
         size_t elb = std::max(*constraint.lastlb, constraint.bestlb);
@@ -136,6 +148,61 @@ struct VSIDSBrancher : public Brancher {
             for (int i = 0; i != s.nVars(); ++i)
                 assert(s.value(i) != minicsp::l_Undef);
         }
+    }
+};
+
+struct VSIDSPhaseBrancher : public Brancher {
+    VSIDSBrancher vsids;
+    std::vector<int> candcopy;
+
+    int D{1}, N{1};
+
+    VSIDSPhaseBrancher(minicsp::Solver& s, graph& g,
+        const std::vector<std::vector<minicsp::Var>>& evars,
+        const std::vector<minicsp::cspvar>& xvars, cons_base& constraint,
+        const options& opt, int D, int N)
+        : Brancher(s, g, evars, xvars, constraint, opt)
+        , vsids(s, g, evars, xvars, constraint, opt)
+        , D(D)
+        , N(N)
+    {
+    }
+
+    void select_candidates(std::vector<minicsp::Lit>& cand)
+    {
+        vsids.select_candidates(cand);
+        assert(cand.size() <= 1);
+        if (cand.empty())
+            return;
+        auto l = cand[0];
+
+        auto x = var(l);
+        auto event = s.event(l);
+
+        // if VSIDS has chosen a color variable, do nothing
+        if (event.type != minicsp::domevent::NONE)
+            return;
+
+        auto info = vsids.evarinfo[x];
+        auto u = info.u;
+        auto v = info.v;
+
+        vsids.util_set.copy(g.matrix[u]);
+        vsids.util_set.intersect_with(g.matrix[v]);
+        vsids.util_set.intersect_with(g.nodeset);
+
+        auto inter_size = vsids.util_set.size();
+
+        vsids.util_set.copy(g.matrix[u]);
+        vsids.util_set.union_with(g.matrix[v]);
+        vsids.util_set.intersect_with(g.nodeset);
+
+        auto union_size = vsids.util_set.size();
+
+        if (inter_size * D > union_size * N)
+            cand[0] = minicsp::Lit(x);
+        else
+            cand[0] = ~minicsp::Lit(x);
     }
 };
 
