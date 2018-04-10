@@ -14,7 +14,7 @@ struct options {
     std::string cmdline; // for reference
     std::string instance_file;
 
-    // minicsp options		
+    // minicsp options
     bool trace{false};
 
     enum learning_level { NO_LEARNING, NAIVE_POSITIVE, NAIVE, MYC_POSITIVE };
@@ -32,6 +32,7 @@ struct options {
         DYNAMIC_DEGENERACY
     };
     ordering_heuristic ordering;
+    bool ordering_low_degree;
 
     enum dual_policy {
         CLIQUES,
@@ -68,8 +69,8 @@ struct options {
 
     enum preprocessing_types { NO_PREPROCESSING, LOW_DEGREE };
     preprocessing_types preprocessing;
-		
-		bool dominance;
+
+    bool dominance;
 };
 
 options parse(int argc, char* argv[]);
