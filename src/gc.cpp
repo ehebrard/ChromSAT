@@ -221,7 +221,12 @@ struct gc_model {
 
         switch (options.branching) {
         case gc::options::VSIDS:
-            s.varbranch = minicsp::VAR_VSIDS;
+            if (options.branching_low_degree) {
+                brancher = std::make_unique<gc::VSIDSBrancher>(
+                    s, g, vars, xvars, *cons, options);
+                brancher->use();
+            } else
+                s.varbranch = minicsp::VAR_VSIDS;
             break;
         case gc::options::BRELAZ:
             if (!options.xvars) {
