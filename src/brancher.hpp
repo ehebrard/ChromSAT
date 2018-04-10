@@ -47,8 +47,55 @@ struct Brancher {
     virtual void select_candidates(std::vector<minicsp::Lit>& cand) = 0;
 };
 
-struct BrelazBrancher : public Brancher {
+struct VSIDSBrancher : public Brancher {
     using Brancher::Brancher;
+    bitset util_set, low_degree;
+
+    VSIDSBrancher(minicsp::Solver& s, graph& g,
+        const std::vector<std::vector<minicsp::Var>>& evars,
+        const std::vector<minicsp::cspvar>& xvars, cons_base& constraint,
+        const options& opt)
+        : Brancher(s, g, evars, xvars, constraint, opt)
+        , util_set(0, g.capacity() - 1, bitset::empt)
+        , low_degree(0, g.capacity() - 1, bitset::empt)
+    {}
+
+    void select_candidates(std::vector<minicsp::Lit>& cand)
+    {
+        // this should never happen really
+        if (!opt.branching_low_degree)
+            return;
+
+        // size_t instead of int because it gets compared to a size()
+        size_t elb = std::max(*constraint.lastlb, constraint.bestlb);
+
+        low_degree.clear();
+        for (auto v : g.nodes) {
+            util_set.copy(g.matrix[v]);
+            util_set.intersect_with(g.nodeset);
+            if (util_set.size() < elb)
+                low_degree.fast_add(v);
+        }
+
+        for (auto v : g.nodes) {
+            if (low_degree.fast_contain(v))
+                continue;
+            for (auto u : g.nodes) {
+                if (u <= v)
+                    continue;
+                auto var = evars[v][u];
+                if (var == minicsp::var_Undef
+                    || s.value(var) != minicsp::l_Undef)
+                    continue;
+                if (low_degree.fast_contain(u))
+                    continue;
+                cand.push_back(minicsp::Lit(evars[v][u]));
+            }
+        }
+    }
+};
+
+struct BrelazBrancher : public Brancher {
     std::vector<int> mindom;
     // a maximal clique
     std::vector<int> clique;
@@ -84,6 +131,9 @@ struct BrelazBrancher : public Brancher {
             }
         }
 
+        // size_t instead of int because it gets compared to a size()
+        size_t elb = std::max(*constraint.lastlb, constraint.bestlb);
+
         int mind{-1};
         mindom.clear();
         low_degree.clear();
@@ -95,7 +145,7 @@ struct BrelazBrancher : public Brancher {
             if (opt.branching_low_degree) {
                 util_set.copy(g.matrix[v]);
                 util_set.intersect_with(g.nodeset);
-                if (util_set.size() < static_cast<size_t>(*constraint.lastlb)) {
+                if (util_set.size() < elb) {
                     low_degree.push_back(v);
                     continue;
                 }
