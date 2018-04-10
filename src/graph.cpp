@@ -89,6 +89,38 @@ void graph::separate(int u, int v)
     }
 }
 
+void contractPreprocess() {
+		// bool some_propagation = true;
+		// while(some_propagation) {
+		// 		some_propagation = false;
+		// 		for(auto u : g.nodes) {
+		// 				for(auto v : g.nodes) {
+		// 						if(u != v && !g.origmatrix[u].fast_contain(v) && s.value(vars[u][v]) == l_Undef) {
+		// 								neighborhood.copy(g.matrix[v]);
+		// 								neighborhood.setminus_with(g.matrix[u]);
+		// 								if(!neighborhood.intersect(g.nodeset)) {
+		// 										// N(v) <= N(U)s
+		// 										some_propagation = true;
+		// 										++stat.num_neighborhood_contractions;
+		//
+		// 										// explanation: the edges (ON(v) \ ON(u)) x u
+		// 										neighborhood.copy(g.origmatrix[v]);
+		// 										neighborhood.setminus_with(g.origmatrix[u]);
+		// 										neighborhood.intersect_with(g.nodeset);
+		//
+		// 										reason.clear();
+		// 										for(auto w : neighborhood) {
+		// 												reason.push(Lit(vars[u][w]));
+		// 										}
+		// 										DO_OR_RETURN(s.enqueueFill(Lit(vars[u][v]), reason));
+		// 								}
+		// 						}
+		// 				}
+		// 		}
+		// }
+		// return NO_REASON;
+}
+
 int graph::checkpoint()
 {
     ++cur_ckpt;

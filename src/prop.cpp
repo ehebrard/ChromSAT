@@ -510,12 +510,13 @@ public:
             bool simplification = false;
             for (auto v : g.nodes) {
                 if (g.matrix[v].size() < bestlb) {
-                    std::cout << " " << v;
+                    // std::cout << " " << v;
                     simplification = true;
+										++stat.num_vertex_removals;
                 }
             }
-            if (simplification)
-                std::cout << std::endl;
+            // if (simplification)
+            //     std::cout << std::endl;
         }
         if (cf.num_cliques == 1)
             assert(g.nodes.size() == cf.cliques[0].size());

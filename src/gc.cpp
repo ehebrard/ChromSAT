@@ -170,7 +170,7 @@ struct gc_model {
                 g.origmatrix[v].setminus_with(removedv);
             }
         }
-        // std::cout << "c " << numremoved
+        // std::cout << "c " << stat.num_vertex_removals
         //           << " vertices removed in preprocessing\n";
         return gr;
     }
