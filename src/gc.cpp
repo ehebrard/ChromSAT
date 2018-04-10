@@ -168,8 +168,10 @@ struct gc_model {
             if (sat == l_True) {
                 std::cout << "c new UB " << g.nodes.size()
                           << " time = " << minicsp::cpuTime()
-                          << " conflicts = " << s.conflicts 
-													<< " delta = " << statistics.get_bound_increase() << std::endl;
+                          << " conflicts = " << s.conflicts ;
+								statistics.describe(std::cout);
+								std::cout << std::endl;
+													// << " delta = " << statistics.get_bound_increase() << std::endl;
                 assert(g.nodes.size() < static_cast<size_t>(cons->ub));
                 cons->ub = g.nodes.size();
                 if (options.xvars) {
@@ -183,8 +185,10 @@ struct gc_model {
                 cons->bestlb = cons->ub;
                 std::cout << "c new lower bound " << cons->ub
                           << " time = " << minicsp::cpuTime()
-                          << " conflicts = " << s.conflicts 
-													<< " delta = " << statistics.get_bound_increase() << std::endl;
+                          << " conflicts = " << s.conflicts ;
+								statistics.describe(std::cout);
+								std::cout << std::endl;
+													// << " delta = " << statistics.get_bound_increase() << std::endl;
                 std::cout << "UNSAT\n";
             }
         }
@@ -200,6 +204,7 @@ struct gc_model {
                       << "]\n";
         minicsp::printStats(s);
         statistics.describe(std::cout);
+				std::cout << std::endl;
     }
 };
 
@@ -217,10 +222,14 @@ std::pair<int, int> preprocess(gc::graph& g)
     int ub{*max_element(begin(sol), end(sol)) + 1};
     std::cout << "c new UB " << ub << " time = " << minicsp::cpuTime()
               << " conflicts = 0" 
-							<< " delta = 0" << std::endl;
+		// statistics.describe(std::cout);
+		// std::cout << std::endl;
+							<< " delta = 0 domainance = 0" << std::endl;
     std::cout << "c new lower bound " << lb << " time = " << minicsp::cpuTime()
               << " conflicts = 0" 
-							<< " delta = 0" << std::endl;
+		// statistics.describe(std::cout);
+		// std::cout << std::endl;
+							<< " delta = 0 domainance = 0" << std::endl;
 
     return std::pair<int, int>{lb, ub};
 }
@@ -266,7 +275,10 @@ int main(int argc, char* argv[])
 		            } else {
 		                std::cout << "c new lower bound " << ilb
 		                          << " time = " << minicsp::cpuTime() 
-															<< " conflicts = 0 delta = 0"<< "\n";
+															<< " conflicts = 0";
+										statistics.describe(std::cout);
+										std::cout << std::endl;
+										// delta = 0"<< "\n";
 		            }
 		        }
 		    }

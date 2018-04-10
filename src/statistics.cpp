@@ -16,9 +16,9 @@ double statistics::get_bound_increase() const {
 
 void statistics::describe(std::ostream& os) const
 {
-    os << "GC statistics\n";
-    os << "avg bound increase = " << get_bound_increase() << "\n";
-    os << std::endl;
+    // os << "GC statistics\n";
+    os << " delta = " << get_bound_increase() << " dominance = " << num_neighborhood_contractions;
+    // os << std::endl;
 }
 
 } // namespace gc

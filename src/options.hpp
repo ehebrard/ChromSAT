@@ -14,7 +14,7 @@ struct options {
     std::string cmdline; // for reference
     std::string instance_file;
 
-    // minicsp options
+    // minicsp options		
     bool trace{false};
 
     enum learning_level { NO_LEARNING, NAIVE_POSITIVE, NAIVE, MYC_POSITIVE };
