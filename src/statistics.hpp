@@ -22,6 +22,9 @@ struct statistics {
 				total_conflicts = 0;
 				best_lb = 0;
 				best_ub = size;
+				
+				update_lb = true;
+				update_ub = true;
 							
 			
 				total_bound_1 = 0;
@@ -46,6 +49,8 @@ struct statistics {
 		void notify_ub(const int u);
 			
 
+		bool update_lb;
+		bool update_ub;
 
 		// double total_time;
 		uint64_t total_conflicts;

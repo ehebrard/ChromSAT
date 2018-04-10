@@ -38,24 +38,28 @@ double statistics::get_bound_increase() const {
 
 void statistics::describe(std::ostream& os)
 {	
-		if(cons && best_lb < cons->bestlb) {
+		if(update_lb && cons && best_lb < cons->bestlb) {
 				changed = true;
 				best_lb = cons->bestlb;
 		}
-		if(cons && best_ub > cons->ub) {
+		if(update_ub && cons && best_ub > cons->ub) {
 				changed = true;
 				best_ub = cons->ub;
 		}
 		
-		if(changed)
+		
+		
+		if(changed) {
+				os.setf(std::ios_base::fixed, std::ios_base::floatfield);
 		    os << "d lb = " << std::setw(4) << std::left << best_lb
 					 << "| ub = " << std::setw(4) << std::left << best_ub
-					 << "| time = " << std::setw(10) << std::left << std::setprecision(5) << minicsp::cpuTime()
-					 << "| conflicts = " << std::setw(10) << std::left << (cons ? total_conflicts + cons->s.conflicts : 0)
-					 << "| delta = " << std::setw(6) << std::left << std::setprecision(3) << get_bound_increase() 
+					 << "| time = " << std::setw(10) << std::left << std::setprecision(4) << minicsp::cpuTime()
+					 << "| conflicts = " << std::setw(10) << std::left << (cons ? total_conflicts + cons->s.conflicts : total_conflicts)
+					 << "| delta = " << std::setw(8) << std::left << std::setprecision(4) << get_bound_increase() 
 					 << "| #dom = " << std::setw(10) << std::left << num_neighborhood_contractions
 					 << "| #rem = " << std::setw(10) << std::left << num_vertex_removals
 		    	 << std::endl;
+		}
 		
 		changed = false;
 }

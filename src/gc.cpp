@@ -55,12 +55,12 @@ struct graph_reduction {
 
 struct gc_model {
     int lb{0}, ub{-1};
-
     const gc::options& options;
+    gc::statistics& statistics;
+
     graph_reduction reduction;
     gc::graph& g;
     minicsp::Solver s;
-    gc::statistics& statistics;
     std::vector<std::vector<minicsp::Var>> vars;
     gc::cons_base* cons;
     std::vector<minicsp::cspvar> xvars;
@@ -103,7 +103,7 @@ struct gc_model {
         return vars;
     }
 
-    graph_reduction preprocess(gc::graph& g, std::pair<int, int> bounds, gc::statistics& stat)
+    graph_reduction preprocess(gc::graph& g, std::pair<int, int> bounds)
     {
         graph_reduction gr(g);
         if (options.preprocessing == gc::options::NO_PREPROCESSING)
@@ -118,7 +118,6 @@ struct gc_model {
         gc::bitset removedv(0, g.capacity(), gc::bitset::empt);
         std::vector<int> toremove;
         bool removed{false};
-        // int numremoved{0};
         int niteration{0};
         do {
             ++niteration;
@@ -128,17 +127,17 @@ struct gc_model {
                 for (auto v : g.matrix[u])
                     assert(sol[u] != sol[v]);
             int hub{*max_element(begin(sol), end(sol)) + 1};
-            if (ub < 0 || hub < ub) {
+            if (ub < 0 || (hub < ub && hub >= lb)) {
                 ub = hub;
-								stat.notify_ub(ub);
+                statistics.notify_ub(ub);
             }
 
             hlb = cf.find_cliques(g.nodes);
             if (hlb > lb) {
                 lb = hlb;
-								stat.notify_lb(lb);
+                statistics.notify_lb(lb);
             }
-						stat.describe(std::cout);
+            statistics.describe(std::cout);
 
             forbidden.clear();
             toremove.clear();
@@ -151,7 +150,7 @@ struct gc_model {
                     continue;
                 removed = true;
                 removedv.fast_add(u);
-                ++stat.num_vertex_removals;
+                ++statistics.num_vertex_removals;
                 toremove.push_back(u);
                 gr.removed_vertices.push_back(u);
                 forbidden.union_with(g.matrix[u]);
@@ -160,9 +159,6 @@ struct gc_model {
                 g.nodes.remove(u);
                 g.nodeset.remove(u);
             }
-            // std::cout << "c " << toremove.size()
-            //           << " vertices removed in iteration " << niteration
-            //           << "\n";
         } while (removed);
         if (removedv.size() > 0) {
             for (auto v : g.nodes) {
@@ -170,17 +166,15 @@ struct gc_model {
                 g.origmatrix[v].setminus_with(removedv);
             }
         }
-        // std::cout << "c " << stat.num_vertex_removals
-        //           << " vertices removed in preprocessing\n";
         return gr;
     }
 
     gc_model(gc::graph& g, const gc::options& options,
         gc::statistics& statistics, std::pair<int, int> bounds)
         : options(options)
-        , reduction(preprocess(g, bounds, statistics))
-        , g(g)
         , statistics(statistics)
+        , reduction(preprocess(g, bounds))
+        , g(g)
         , vars(create_vars())
         , cons(gc::post_gc_constraint(s, g, vars, options, statistics))
         , rewriter(s, g, *cons, vars, xvars)
@@ -310,7 +304,7 @@ struct gc_model {
         using minicsp::l_Undef;
 
         minicsp::lbool sat{l_True};
-        while (sat != l_False) {
+        while (sat != l_False && lb < ub) {
             sat = s.solveBudget();
             if (sat == l_True) {
                 auto col_r = get_solution();
@@ -318,10 +312,10 @@ struct gc_model {
                 assert(solub < cons->ub);
                 cons->sync_graph();
                 int actualub = reduction.extend_solution(col_r);
-								statistics.describe(std::cout);
+								statistics.notify_ub(actualub);
+                statistics.describe(std::cout);
                 if (actualub != solub)
                     std::cout << " UB in reduced graph = " << solub << std::endl;
-
                 cons->ub = solub;
                 if (options.xvars) {
                     for (auto v : xvars)
@@ -332,8 +326,7 @@ struct gc_model {
                 break;
             } else {
                 cons->bestlb = cons->ub;
-								statistics.describe(std::cout);
-								std::cout << "UNSAT\n";
+                statistics.describe(std::cout);
             }
         }
         return std::make_pair(cons->bestlb, cons->ub);
@@ -348,7 +341,7 @@ struct gc_model {
                       << "]\n";
         minicsp::printStats(s);
         statistics.describe(std::cout);
-				std::cout << std::endl;
+        std::cout << std::endl;
     }
 };
 
@@ -364,9 +357,9 @@ std::pair<int, int> initial_bounds(const gc::graph& g, gc::statistics& stat)
             assert(sol[u] != sol[v]);
 
     int ub{*max_element(begin(sol), end(sol)) + 1};
-		stat.notify_lb(lb);
-		stat.notify_ub(ub);
-		stat.describe(std::cout);
+    stat.notify_lb(lb);
+    stat.notify_ub(ub);
+    stat.describe(std::cout);
     return std::make_pair(lb, ub);
 }
 
@@ -386,7 +379,9 @@ int main(int argc, char* argv[])
         [&](int, gc::weight) {});
     g.describe(std::cout);
 
-		gc::statistics statistics(g.capacity());
+    gc::statistics statistics(g.capacity());
+		if(options.preprocessing)
+				statistics.update_ub = false;
 
     switch (options.strategy) {
     case gc::options::BNB: {
@@ -396,6 +391,7 @@ int main(int argc, char* argv[])
         break;
     }
     case gc::options::BOTTOMUP: {
+				statistics.update_ub = false;
         auto [lb, ub] = initial_bounds(g, statistics);
         for (int i = lb; i < ub; ++i) {
             gc::graph gcopy{g};
@@ -403,42 +399,41 @@ int main(int argc, char* argv[])
                 gcopy, options, statistics, std::make_pair(i, i + 1));
             auto [ilb, iub] = model.solve();
             if (iub == i) {
-								statistics.notify_ub(ub);
-              	statistics.describe(std::cout);
+                statistics.notify_ub(iub);
+                statistics.describe(std::cout);
                 break;
             } else if (ilb != iub) {
-								statistics.notify_lb(i);
-								statistics.notify_ub(ub);
+                statistics.notify_lb(ilb);
                 statistics.describe(std::cout);
                 std::cout << "INTERRUPTED\n";
             } else {
-								statistics.notify_lb(ilb);
-								statistics.describe(std::cout);
+                statistics.notify_lb(ilb);
+                statistics.describe(std::cout);
             }
-						statistics.unbinds();
+            statistics.unbinds();
         }
     } break;
     case gc::options::TOPDOWN: {
+				statistics.update_lb = false;
         auto [lb, ub] = initial_bounds(g, statistics);
         for (int i = ub - 1; i >= lb; --i) {
-            std::cout << "solving with nbcolors = " << i << "\n";
             gc::graph gcopy{g};
             gc_model model(
                 gcopy, options, statistics, std::make_pair(i, i + 1));
             auto [ilb, iub] = model.solve();
             if (ilb == i + 1) {
-								statistics.notify_ub(ub);
-            		statistics.describe(std::cout);
+                statistics.notify_lb(ilb);
+                statistics.describe(std::cout);
                 break;
             } else if (ilb != iub) {
-								statistics.notify_lb(i);
-								statistics.notify_ub(ub);
-              	statistics.describe(std::cout);
+                statistics.notify_ub(iub);
+                statistics.describe(std::cout);
                 std::cout << "INTERRUPTED\n";
             } else {
-								statistics.notify_lb(ilb);
-								statistics.describe(std::cout);
+                statistics.notify_ub(iub);
+                statistics.describe(std::cout);
             }
+						statistics.unbinds();
         }
     } break;
     }
