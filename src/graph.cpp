@@ -89,6 +89,29 @@ void graph::separate(int u, int v)
     }
 }
 
+int graph::contractPreprocess() {
+		int num_contractions = 0; 
+		bool some_propagation = true;
+		while(some_propagation) {
+				some_propagation = false;
+				for(auto u : nodes) {
+						for(auto v : nodes) {
+								if(u != v && !matrix[u].fast_contain(v)) {
+										util_set.copy(matrix[v]);
+										util_set.setminus_with(matrix[u]);
+										if(!util_set.intersect(nodeset)) {
+												// N(v) <= N(U)s
+												some_propagation = true;
+												++num_contractions;
+												merge(u,v);
+										}
+								}
+						}
+				}
+		}
+		return num_contractions;
+}
+
 int graph::checkpoint()
 {
     ++cur_ckpt;

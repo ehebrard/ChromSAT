@@ -202,6 +202,9 @@ public:
     // checkpointing
     void separate(int u, int v);
 
+		int contractPreprocess();
+
+
     int checkpoint();
     void restore(int ckpt);
     int current_checkpoint() const { return cur_ckpt; }

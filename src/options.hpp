@@ -14,7 +14,7 @@ struct options {
     std::string cmdline; // for reference
     std::string instance_file;
 
-    // minicsp options
+    // minicsp options		
     bool trace{false};
 
     enum learning_level { NO_LEARNING, NAIVE_POSITIVE, NAIVE, MYC_POSITIVE };
@@ -45,14 +45,31 @@ struct options {
 
     bool adaptive;
 
-    enum branching_heuristic { VSIDS, BRELAZ, PARTITION_PRODUCT, PARTITION_SUM, DEGREE_PRODUCT, DEGREE_SUM, DEGREE_UNION, PARTITION_PRODUCT_DYN, PARTITION_SUM_DYN, DEGREE_PRODUCT_DYN, DEGREE_SUM_DYN, DEGREE_UNION_DYN };
+    enum branching_heuristic {
+        VSIDS,
+        BRELAZ,
+        PARTITION_PRODUCT,
+        PARTITION_SUM,
+        DEGREE_PRODUCT,
+        DEGREE_SUM,
+        DEGREE_UNION,
+        PARTITION_PRODUCT_DYN,
+        PARTITION_SUM_DYN,
+        DEGREE_PRODUCT_DYN,
+        DEGREE_SUM_DYN,
+        DEGREE_UNION_DYN
+    };
     branching_heuristic branching;
-		
-		int cliquelimit;
 
-    enum solution_strategy { BNB, BOTTOMUP };
+    int cliquelimit;
+
+    enum solution_strategy { BNB, BOTTOMUP, TOPDOWN };
     solution_strategy strategy;
 
+    enum preprocessing_types { NO_PREPROCESSING, LOW_DEGREE };
+    preprocessing_types preprocessing;
+		
+		bool dominance;
 };
 
 options parse(int argc, char* argv[]);

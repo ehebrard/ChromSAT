@@ -4,10 +4,11 @@
 #include "graph.hpp"
 #include "minicsp/core/solver.hpp"
 #include "options.hpp"
-#include "statistics.hpp"
 
 namespace gc
 {
+
+struct statistics;
 
 struct cons_base {
     minicsp::Solver& s;

@@ -102,145 +102,170 @@ struct BrelazBrancher : public Brancher {
 
 template<int N, int D>
 struct EdgeBrancher : public Brancher {
-		using Brancher::Brancher;
-		std::vector<edge> e_cand;
-		std::vector<int> nodes;
-		bitset neighbors_u;
-		bitset neighbors_v;
-		bitset counter;
-		int max_tied;
+    using Brancher::Brancher;
+    std::vector<edge> e_cand;
+    std::vector<int> nodes;
+    bitset neighbors_u;
+    bitset neighbors_v;
+    bitset counter;
+    int max_tied;
 
-	
-	  EdgeBrancher(minicsp::Solver& s, graph& g,
-	      const std::vector<std::vector<minicsp::Var>>& evars,
-	      const std::vector<minicsp::cspvar>& xvars, cons_base& constraint)
-	      : Brancher(s, g, evars, xvars, constraint)
-				, neighbors_u(0, g.capacity() - 1, bitset::empt)
-				, neighbors_v(0, g.capacity() - 1, bitset::empt)
-				, counter(0, g.capacity() - 1, bitset::empt)
-				, max_tied(g.capacity()*g.capacity())
-	  {
-	  }
-	
-		void select_candidates(std::vector<minicsp::Lit>& cand) = 0;
-	
-		void select_branch(std::vector<minicsp::Lit>& cand) {
-				for(auto e : e_cand) {
-						if(N < 0)
-								cand.push_back(minicsp::Lit(evars[e.first][e.second]));
-						else {
-								auto u{e.first};
-								auto v{e.second};
+    EdgeBrancher(minicsp::Solver& s, graph& g,
+        const std::vector<std::vector<minicsp::Var>>& evars,
+        const std::vector<minicsp::cspvar>& xvars, cons_base& constraint)
+        : Brancher(s, g, evars, xvars, constraint)
+        , neighbors_u(0, g.capacity() - 1, bitset::empt)
+        , neighbors_v(0, g.capacity() - 1, bitset::empt)
+        , counter(0, g.capacity() - 1, bitset::empt)
+        , max_tied(g.capacity() * g.capacity())
+    {
+    }
 
-								counter.copy(g.matrix[u]);
-								counter.intersect_with(g.matrix[v]);
-								counter.intersect_with(g.nodeset);
+    void select_candidates(std::vector<minicsp::Lit>& cand) = 0;
 
-								auto inter_size = counter.size();
+    void select_branch(std::vector<minicsp::Lit>& cand)
+    {
+        for (auto e : e_cand) {
+            if (N < 0)
+                cand.push_back(minicsp::Lit(evars[e.first][e.second]));
+            else {
+                auto u{e.first};
+                auto v{e.second};
 
-								counter.copy(g.matrix[u]);
-								counter.union_with(g.matrix[v]);
-								counter.intersect_with(g.nodeset);
+                counter.copy(g.matrix[u]);
+                counter.intersect_with(g.matrix[v]);
+                counter.intersect_with(g.nodeset);
 
-								auto union_size = counter.size();
+                auto inter_size = counter.size();
 
-								if( inter_size * D > union_size * N) {
-										cand.push_back(minicsp::Lit(evars[u][v]));
-								} else {
-										cand.push_back(~minicsp::Lit(evars[u][v]));
-								}
-						}
-				}
-		}
-	
+                counter.copy(g.matrix[u]);
+                counter.union_with(g.matrix[v]);
+                counter.intersect_with(g.nodeset);
+
+                auto union_size = counter.size();
+
+                if (inter_size * D > union_size * N) {
+                    cand.push_back(minicsp::Lit(evars[u][v]));
+                } else {
+                    cand.push_back(~minicsp::Lit(evars[u][v]));
+                }
+            }
+        }
+    }
 };
 
-
-template<int N, int D, int(*op)(int,int)>
+template <int N, int D, typename Op>
 struct PartitionBrancher : public EdgeBrancher<N, D> {
-		// using EdgeBrancher<N, D>::Brancher;
+    Op op;
 
     PartitionBrancher(minicsp::Solver& s, graph& g,
         const std::vector<std::vector<minicsp::Var>>& evars,
-        const std::vector<minicsp::cspvar>& xvars, cons_base& constraint)
+        const std::vector<minicsp::cspvar>& xvars, cons_base& constraint, Op op)
         : EdgeBrancher<N, D>(s, g, evars, xvars, constraint)
+        , op(op)
     {
     }
 
     void select_candidates(std::vector<minicsp::Lit>& cand)
-    {	
+    {
         int best_crit{0};
 
         this->nodes.clear();
-        std::copy(begin(this->g.nodeset), end(this->g.nodeset), back_inserter(this->nodes));
-						
-				this->e_cand.clear();
-				for(auto u : this->nodes) {
-						auto u_part_size{this->g.partition[u].size()};
-						for(auto v : this->nodes) {
-								if(u == v || this->g.matrix[u].fast_contain(v)) continue;
-								
-								auto criterion{op(u_part_size, this->g.partition[v].size())};
-								if(criterion >= best_crit) {
-										if(criterion == best_crit) this->e_cand.clear();
-										else best_crit = criterion;
-										if(this->e_cand.size() < this->max_tied)
-												this->e_cand.push_back(edge{u,v});
-								}	
-						}
-				}
-				
-				this->select_branch(cand);
-		}
+        std::copy(begin(this->g.nodeset), end(this->g.nodeset),
+            back_inserter(this->nodes));
 
+        this->e_cand.clear();
+        for (auto u : this->nodes) {
+            auto u_part_size{this->g.partition[u].size()};
+            for (auto v : this->nodes) {
+                if (u == v || this->g.matrix[u].fast_contain(v))
+                    continue;
+
+                auto criterion{op(u_part_size, this->g.partition[v].size())};
+                if (criterion >= best_crit) {
+                    if (criterion == best_crit)
+                        this->e_cand.clear();
+                    else
+                        best_crit = criterion;
+                    if (this->e_cand.size()
+                        < static_cast<size_t>(this->max_tied))
+                        this->e_cand.push_back(edge{u, v});
+                }
+            }
+        }
+
+        this->select_branch(cand);
+    }
 };
 
+template <int N, int D, typename Op>
+std::unique_ptr<PartitionBrancher<N, D, Op>> make_partition_brancher(
+    minicsp::Solver& s, graph& g,
+    const std::vector<std::vector<minicsp::Var>>& evars,
+    const std::vector<minicsp::cspvar>& xvars, cons_base& constraint, Op op)
+{
+    return std::make_unique<PartitionBrancher<N, D, Op>>(
+        s, g, evars, xvars, constraint, op);
+}
 
-template<int N, int D, int(*op)(int,int)>
+template <int N, int D, typename Op>
 struct DegreeBrancher : public EdgeBrancher<N, D> {
-    // using EdgeBrancher::EdgeBrancher;
+    Op op;
 
     DegreeBrancher(minicsp::Solver& s, graph& g,
         const std::vector<std::vector<minicsp::Var>>& evars,
-        const std::vector<minicsp::cspvar>& xvars, cons_base& constraint)
+        const std::vector<minicsp::cspvar>& xvars, cons_base& constraint, Op op)
         : EdgeBrancher<N, D>(s, g, evars, xvars, constraint)
+        , op(op)
     {
     }
 
     void select_candidates(std::vector<minicsp::Lit>& cand)
-    {	
+    {
         int best_crit{0};
 
         this->nodes.clear();
-        std::copy(begin(this->g.nodeset), end(this->g.nodeset), back_inserter(this->nodes));
-						
-						
-				this->e_cand.clear();
-				for(auto u : this->nodes) {
-						this->neighbors_u.copy(this->g.matrix[u]);
-						this->neighbors_u.intersect_with(this->g.nodeset);
-						auto u_degree{this->neighbors_u.size()};
-						for(auto v : this->nodes) {
-								if(u == v || this->g.matrix[u].fast_contain(v)) continue;
-								
-								this->neighbors_v.copy(this->g.matrix[v]);
-								this->neighbors_v.intersect_with(this->g.nodeset);
-														
-								auto criterion{op(this->neighbors_v.size(), u_degree)};
-								if(criterion >= best_crit) {
-										if(criterion == best_crit) this->e_cand.clear();
-										else best_crit = criterion;
-										if(this->e_cand.size() < this->max_tied)
-												this->e_cand.push_back(edge{u,v});
-								}	
-						}
-				}
+        std::copy(begin(this->g.nodeset), end(this->g.nodeset),
+            back_inserter(this->nodes));
 
-				this->select_branch(cand);
-		}
+        this->e_cand.clear();
+        for (auto u : this->nodes) {
+            this->neighbors_u.copy(this->g.matrix[u]);
+            this->neighbors_u.intersect_with(this->g.nodeset);
+            auto u_degree{this->neighbors_u.size()};
+            for (auto v : this->nodes) {
+                if (u == v || this->g.matrix[u].fast_contain(v))
+                    continue;
 
+                this->neighbors_v.copy(this->g.matrix[v]);
+                this->neighbors_v.intersect_with(this->g.nodeset);
+
+                auto criterion{op(this->neighbors_v.size(), u_degree)};
+                if (criterion >= best_crit) {
+                    if (criterion == best_crit)
+                        this->e_cand.clear();
+                    else
+                        best_crit = criterion;
+                    if (this->e_cand.size()
+                        < static_cast<size_t>(this->max_tied))
+                        this->e_cand.push_back(edge{u, v});
+                }
+            }
+        }
+
+        this->select_branch(cand);
+    }
 };
 
+template <int N, int D, typename Op>
+std::unique_ptr<DegreeBrancher<N, D, Op>> make_degree_brancher(
+    minicsp::Solver& s, graph& g,
+    const std::vector<std::vector<minicsp::Var>>& evars,
+    const std::vector<minicsp::cspvar>& xvars, cons_base& constraint, Op op)
+{
+    return std::make_unique<DegreeBrancher<N, D, Op>>(
+        s, g, evars, xvars, constraint, op);
+}
 
 template<int N, int D>
 struct DegreeUnionBrancher : public EdgeBrancher<N, D> {
@@ -254,32 +279,36 @@ struct DegreeUnionBrancher : public EdgeBrancher<N, D> {
     }
 
     void select_candidates(std::vector<minicsp::Lit>& cand)
-    {			
+    {
         int best_crit{0};
 
         this->nodes.clear();
-        std::copy(begin(this->g.nodeset), end(this->g.nodeset), back_inserter(this->nodes));
-												
-				this->e_cand.clear();
-				for(auto u : this->nodes) {
-						this->neighbors_u.copy(this->g.matrix[u]);
-						for(auto v : this->nodes) {
-								if(u == v || this->g.matrix[u].fast_contain(v)) continue;								
-								this->counter.copy(this->g.matrix[v]);
-								this->counter.intersect_with(this->g.nodeset);
-								auto criterion{this->counter.size()};
-								if(criterion >= best_crit) {
-										if(criterion == best_crit) this->e_cand.clear();
-										else best_crit = criterion;
-										if(this->e_cand.size() < this->max_tied)
-												this->e_cand.push_back(edge{u,v});
-								}	
-						}
-				}
+        std::copy(begin(this->g.nodeset), end(this->g.nodeset),
+            back_inserter(this->nodes));
 
-				this->select_branch(cand);
-		}
+        this->e_cand.clear();
+        for (auto u : this->nodes) {
+            this->neighbors_u.copy(this->g.matrix[u]);
+            for (auto v : this->nodes) {
+                if (u == v || this->g.matrix[u].fast_contain(v))
+                    continue;
+                this->counter.copy(this->g.matrix[v]);
+                this->counter.intersect_with(this->g.nodeset);
+                int criterion = this->counter.size();
+                if (criterion >= best_crit) {
+                    if (criterion == best_crit)
+                        this->e_cand.clear();
+                    else
+                        best_crit = criterion;
+                    if (this->e_cand.size()
+                        < static_cast<size_t>(this->max_tied))
+                        this->e_cand.push_back(edge{u, v});
+                }
+            }
+        }
 
+        this->select_branch(cand);
+    }
 };
 
 } // namespace gc
