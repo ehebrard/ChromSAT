@@ -51,6 +51,12 @@ struct VSIDSBrancher : public Brancher {
     using Brancher::Brancher;
     bitset util_set, low_degree;
 
+    struct evarinfo_t {
+        int u{-1}, v{-1};
+    };
+    std::vector<evarinfo_t> evarinfo;
+    std::vector<minicsp::Var> removed;
+
     VSIDSBrancher(minicsp::Solver& s, graph& g,
         const std::vector<std::vector<minicsp::Var>>& evars,
         const std::vector<minicsp::cspvar>& xvars, cons_base& constraint,
@@ -58,7 +64,19 @@ struct VSIDSBrancher : public Brancher {
         : Brancher(s, g, evars, xvars, constraint, opt)
         , util_set(0, g.capacity() - 1, bitset::empt)
         , low_degree(0, g.capacity() - 1, bitset::empt)
-    {}
+    {
+        for (auto u : g.nodes)
+            for (auto v : g.nodes) {
+                if (v <= u)
+                    continue;
+                if (evars[u][v] == minicsp::var_Undef)
+                    continue;
+                minicsp::Var var = evars[u][v];
+                if (static_cast<size_t>(var) >= evarinfo.size())
+                    evarinfo.resize(var+1);
+                evarinfo[var] = {u,v};
+            }
+    }
 
     void select_candidates(std::vector<minicsp::Lit>& cand)
     {
@@ -73,24 +91,50 @@ struct VSIDSBrancher : public Brancher {
         for (auto v : g.nodes) {
             util_set.copy(g.matrix[v]);
             util_set.intersect_with(g.nodeset);
-            if (util_set.size() < elb)
+            if (util_set.size() < elb - 1)
                 low_degree.fast_add(v);
         }
 
-        for (auto v : g.nodes) {
-            if (low_degree.fast_contain(v))
+        minicsp::Var next{minicsp::var_Undef};
+        auto &heap = s.vsids_heap();
+        removed.clear();
+        do {
+            next = minicsp::var_Undef;
+            if (heap.empty())
+                break;
+            next = heap.removeMin();
+            if (s.value(next) != minicsp::l_Undef) {
+                next = minicsp::var_Undef;
                 continue;
-            for (auto u : g.nodes) {
-                if (u <= v)
-                    continue;
-                auto var = evars[v][u];
-                if (var == minicsp::var_Undef
-                    || s.value(var) != minicsp::l_Undef)
-                    continue;
-                if (low_degree.fast_contain(u))
-                    continue;
-                cand.push_back(minicsp::Lit(evars[v][u]));
             }
+            auto event = s.event(minicsp::Lit(next));
+            if (event.type != minicsp::domevent::NONE) {
+                if(low_degree.fast_contain(event.x.id())) {
+                    removed.push_back(next);
+                    next = minicsp::var_Undef;
+                    continue;
+                }
+            } else {
+                auto info = evarinfo[next];
+                if (low_degree.fast_contain(info.u)
+                    || low_degree.fast_contain(info.v)) {
+                    removed.push_back(next);
+                    next = minicsp::var_Undef;
+                    continue;
+                }
+            }
+        } while(next == minicsp::var_Undef);
+
+        for (auto var : removed) {
+            heap.insert(var);
+        }
+
+        if (next != minicsp::var_Undef)
+            cand.push_back(minicsp::Lit(next));
+
+        if (heap.empty()) {
+            for (int i = 0; i != s.nVars(); ++i)
+                assert(s.value(i) != minicsp::l_Undef);
         }
     }
 };
