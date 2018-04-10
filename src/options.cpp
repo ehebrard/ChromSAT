@@ -95,6 +95,8 @@ options parse(int argc, char* argv[])
         opt.polarity, "", "polarity", "polarity policy", false, 0, "int");
     cmd.add<ValueArg<int>>(opt.ordering, "", "ordering",
         "clique finding heuristic [0-4]", false, 3, "int");
+    cmd.add<SwitchArg>(opt.ordering_low_degree, "", "ord-low-degree",
+        "Use low degree information to improve clique ordering", false);
     cmd.add<ValueArg<int>>(opt.boundalg, "", "bound",
         "lower bound algorithm [0-3]", false, 0, "int");
     cmd.add<SwitchArg>(opt.prune, "", "prune", "enable pruning", false);
@@ -102,13 +104,16 @@ options parse(int argc, char* argv[])
         "Switch between CLIQUES and declared bound policy dynamically", false);
     cmd.add<ValueArg<int>>(opt.branching, "", "branching",
         "Variable branching heuristic [0-6]", false, 0, "int");
+    cmd.add<SwitchArg>(opt.branching_low_degree, "", "branch-low-degree",
+        "Use low degree information to improve branching", false);
     cmd.add<ValueArg<int>>(opt.cliquelimit, "", "cliquelimit",
         "Maximum number of cliques in the lower bound algorithm", false, 0xfffffff, "int");
     cmd.add<ValueArg<int>>(opt.strategy, "", "strategy",
         "Solution strategy [0=BNB-1=bottom-up]", false, 0, "int");
     cmd.add<ValueArg<int>>(opt.preprocessing, "", "preprocessing",
         "Level of preprocessing [0=none-1=low-degree]", false, 0, "int");
-		cmd.add<SwitchArg>(opt.dominance, "", "dominance", "enable neighborhood-based dominance", false);
+    cmd.add<SwitchArg>(opt.dominance, "", "dominance",
+        "enable neighborhood-based dominance", false);
 
     cmd.parse(argc, argv);
     return opt;
@@ -122,6 +127,7 @@ void options::describe(std::ostream& os)
     os << "Clause learning = " << learning << "\n";
     os << "Polarity policy = " << polarity << "\n";
     os << "Clique ordering = " << ordering << "\n";
+    os << " ... low degree = " << ordering_low_degree << "\n";
     os << "Color variables = " << (xvars ? "present" : "absent") << "\n";
     os << "Bound policy    = " << boundalg << "\n";
     os << "Adaptive bounds = " << adaptive << "\n";
@@ -165,8 +171,20 @@ void options::describe(std::ostream& os)
         os << "Largest edge neighborhood (select)\n";
         break;
     }
-    os << "Strategy        = "
-       << (strategy == BNB ? "branch and bound" : "bottom-up") << "\n";
+    os << " ... low degree = " << branching_low_degree << "\n";
+    os << "Strategy        = ";
+    switch (strategy) {
+    case BNB:
+        os << "branch and bound";
+        break;
+    case BOTTOMUP:
+        os << "bottom-up";
+        break;
+    case TOPDOWN:
+        os << "top-down";
+        break;
+    }
+    os << "\n";
     os << std::endl;
 }
 

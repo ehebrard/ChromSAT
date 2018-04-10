@@ -39,6 +39,9 @@ private:
     bitset expl_N, expl_covered, expl_residue;
     bitset expl_clqcopy;
     bitset neighborhood;
+    bitset ordering_tmp, ordering_forbidden, ordering_removed_bs;
+
+    std::vector<int> ordering_removed;
 
     std::vector<int> myc_reason;
     // bitset count;
@@ -81,15 +84,16 @@ public:
         , expl_residue(0, g.capacity() - 1, bitset::empt)
         , expl_clqcopy(0, g.capacity() - 1, bitset::empt)
         , neighborhood(0, g.capacity() - 1, bitset::empt)
-        // , global_myciel_clique(-1)
-        // , count(0, g.capacity()*g.capacity(), bitset::empt)
+        , ordering_tmp(0, g.capacity() - 1, bitset::empt)
+        , ordering_forbidden(0, g.capacity() - 1, bitset::empt)
+        , ordering_removed_bs(0, g.capacity() - 1, bitset::empt)
         , expl_partitions(g.capacity())
         , expl_revmap(g.capacity())
         , expl_part_rep(g.capacity())
         , expl_covered_neighbors(g.capacity())
         , adjacency_list(g)
     {
-				stat.binds(this);
+        stat.binds(this);
         ub = g.capacity();
         assert(vars.size() == static_cast<size_t>(g.capacity()));
         for (int i = 0; i != g.capacity(); ++i) {
@@ -395,46 +399,46 @@ public:
         }
     }
 
+    Clause* contractWhenNIncluded()
+    {
+        bool some_propagation = true;
+        while (some_propagation) {
+            some_propagation = false;
+            for (auto u : g.nodes) {
+                for (auto v : g.nodes) {
+                    if (u != v && !g.origmatrix[u].fast_contain(v)
+                        && s.value(vars[u][v]) == l_Undef) {
+                        neighborhood.copy(g.matrix[v]);
+                        neighborhood.setminus_with(g.matrix[u]);
+                        if (!neighborhood.intersect(g.nodeset)) {
+                            // N(v) <= N(U)s
+                            some_propagation = true;
+                            ++stat.num_neighborhood_contractions;
 
-		Clause* contractWhenNIncluded() {
-				bool some_propagation = true;
-				while(some_propagation) {
-						some_propagation = false;
-						for(auto u : g.nodes) {
-								for(auto v : g.nodes) {
-										if(u != v && !g.origmatrix[u].fast_contain(v) && s.value(vars[u][v]) == l_Undef) {
-												neighborhood.copy(g.matrix[v]);
-												neighborhood.setminus_with(g.matrix[u]);
-												if(!neighborhood.intersect(g.nodeset)) {
-														// N(v) <= N(U)s	
-														some_propagation = true;
-														++stat.num_neighborhood_contractions;
+                            // explanation: the edges (ON(v) \ ON(u)) x u
+                            neighborhood.copy(g.origmatrix[v]);
+                            neighborhood.setminus_with(g.origmatrix[u]);
+                            neighborhood.intersect_with(g.nodeset);
 
-														// explanation: the edges (ON(v) \ ON(u)) x u
-														neighborhood.copy(g.origmatrix[v]);
-														neighborhood.setminus_with(g.origmatrix[u]);
-														neighborhood.intersect_with(g.nodeset);
-
-														reason.clear();
-														for(auto w : neighborhood) {
-																reason.push(Lit(vars[u][w]));
-														}
-														DO_OR_RETURN(s.enqueueFill(Lit(vars[u][v]), reason));
-												}
-										}
-								}
-						}
-				}
-				return NO_REASON;
-		}
-
+                            reason.clear();
+                            for (auto w : neighborhood) {
+                                reason.push(Lit(vars[u][w]));
+                            }
+                            DO_OR_RETURN(
+                                s.enqueueFill(Lit(vars[u][v]), reason));
+                        }
+                    }
+                }
+            }
+        }
+        return NO_REASON;
+    }
 
     Clause* propagate(Solver&) final
     {
         int lb{0};
 
         bound_source = options::CLIQUES;
-				
 
         // recompute the degenracy order
         if (opt.ordering == options::DYNAMIC_DEGENERACY) {
@@ -457,10 +461,36 @@ public:
             lb = cf.find_cliques(heuristic, opt.cliquelimit);
         } else if (opt.ordering == options::PARTITION) {
 
+            if (opt.ordering_low_degree) {
+                bool removed_some{false};
+                ordering_removed_bs.clear();
+                ordering_removed.clear();
+                do {
+                    removed_some = false;
+                    ordering_forbidden.clear();
+                    for (auto v : g.nodes) {
+                        if (ordering_forbidden.fast_contain(v)
+                            || ordering_removed_bs.fast_contain(v))
+                            continue;
+                        ordering_tmp.copy(g.matrix[v]);
+                        ordering_tmp.intersect_with(g.nodeset);
+                        if (ordering_tmp.size()
+                            >= static_cast<size_t>(std::max(bestlb, *lastlb)))
+                            continue;
+                        removed_some = true;
+                        ordering_removed_bs.fast_add(v);
+                        ordering_removed.push_back(v);
+                        ordering_forbidden.union_with(g.matrix[v]);
+                        ordering_forbidden.fast_add(v);
+                    }
+                } while (removed_some);
+            }
+
             // sort by partition size
             heuristic.clear();
             for (auto v : g.nodes)
-                heuristic.push_back(v);
+                if (!ordering_removed_bs.fast_contain(v))
+                    heuristic.push_back(v);
 
             std::sort(heuristic.begin(), heuristic.end(),
                 [&](const int x, const int y) {
@@ -468,6 +498,12 @@ public:
                         || (g.partition[x].size() == g.partition[y].size()
                                && x < y));
                 });
+
+            std::reverse(begin(ordering_removed), end(ordering_removed));
+            for (auto v : ordering_removed)
+                heuristic.push_back(v);
+
+            assert(heuristic.size() == g.nodes.size());
 
             lb = cf.find_cliques(heuristic, opt.cliquelimit);
         } else {
@@ -477,7 +513,9 @@ public:
 
         // std::cout << cf.num_cliques << std::endl;
 
-        if (s.decisionLevel() == 0 || !opt.adaptive || run_expensive_bound) {
+        if (lb < ub
+            && (s.decisionLevel() == 0 || !opt.adaptive
+                   || run_expensive_bound)) {
             run_expensive_bound = false;
             bound_source = opt.boundalg;
             auto mlb{lb};
@@ -498,6 +536,8 @@ public:
             lb = mlb;
         }
 
+        *lastlb = lb;
+
         bool use_global_bound = false;
         if (lb <= bestlb) {
             lb = bestlb;
@@ -506,13 +546,13 @@ public:
 
         if (s.decisionLevel() == 0 && lb > bestlb) {
             bestlb = lb;
-						stat.describe(std::cout);
+            stat.describe(std::cout);
             bool simplification = false;
             for (auto v : g.nodes) {
                 if (g.matrix[v].size() < bestlb) {
                     // std::cout << " " << v;
                     simplification = true;
-										++stat.num_vertex_removals;
+                    ++stat.num_vertex_removals;
                 }
             }
             // if (simplification)
@@ -527,11 +567,11 @@ public:
             }
             return explain();
         }
-				
-				if(opt.dominance)
-						return contractWhenNIncluded();
-				
-				return NO_REASON;
+
+        if (opt.dominance)
+            return contractWhenNIncluded();
+
+        return NO_REASON;
     }
 
     void check_consistency()
@@ -798,10 +838,10 @@ void gc_constraint::verify_myc_reason()
 cons_base* post_gc_constraint(Solver& s, graph& g,
     const std::vector<std::vector<Var>>& vars, const options& opt,
     statistics& stat)
-{	
+{
     auto cons = new gc_constraint(s, g, vars, opt, stat);
     s.addConstraint(cons);
-		
+
     return cons;
 }
 } // namespace gc
