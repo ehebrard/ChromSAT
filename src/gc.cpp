@@ -312,7 +312,7 @@ struct gc_model {
                 assert(solub < cons->ub);
                 cons->sync_graph();
                 int actualub = reduction.extend_solution(col_r);
-								statistics.notify_ub(actualub);
+                statistics.notify_ub(actualub);
                 statistics.describe(std::cout);
                 if (actualub != solub)
                     std::cout << " UB in reduced graph = " << solub << std::endl;
@@ -380,18 +380,21 @@ int main(int argc, char* argv[])
     g.describe(std::cout);
 
     gc::statistics statistics(g.capacity());
-		if(options.preprocessing)
-				statistics.update_ub = false;
+    if (options.preprocessing)
+        statistics.update_ub = false;
 
     switch (options.strategy) {
     case gc::options::BNB: {
-        gc_model model(g, options, statistics, std::make_pair(0, g.capacity()));
+        std::pair<int, int> bounds{0, g.capacity()};
+        if (options.preprocessing == gc::options::NO_PREPROCESSING)
+            bounds = initial_bounds(g, statistics);
+        gc_model model(g, options, statistics, bounds);
         model.solve();
         model.print_stats();
         break;
     }
     case gc::options::BOTTOMUP: {
-				statistics.update_ub = false;
+        statistics.update_ub = false;
         auto [lb, ub] = initial_bounds(g, statistics);
         for (int i = lb; i < ub; ++i) {
             gc::graph gcopy{g};
@@ -414,7 +417,7 @@ int main(int argc, char* argv[])
         }
     } break;
     case gc::options::TOPDOWN: {
-				statistics.update_lb = false;
+        statistics.update_lb = false;
         auto [lb, ub] = initial_bounds(g, statistics);
         for (int i = ub - 1; i >= lb; --i) {
             gc::graph gcopy{g};
@@ -433,7 +436,7 @@ int main(int argc, char* argv[])
                 statistics.notify_ub(iub);
                 statistics.describe(std::cout);
             }
-						statistics.unbinds();
+            statistics.unbinds();
         }
     } break;
     }
