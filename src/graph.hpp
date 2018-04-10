@@ -202,7 +202,7 @@ public:
     // checkpointing
     void separate(int u, int v);
 
-		void contractPreprocess();
+		int contractPreprocess();
 
 
     int checkpoint();

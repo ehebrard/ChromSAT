@@ -89,7 +89,7 @@ void graph::separate(int u, int v)
     }
 }
 
-void contractPreprocess() {
+int graph::contractPreprocess() {
 		int num_contractions = 0; 
 		bool some_propagation = true;
 		while(some_propagation) {
@@ -97,9 +97,9 @@ void contractPreprocess() {
 				for(auto u : nodes) {
 						for(auto v : nodes) {
 								if(u != v && !matrix[u].fast_contain(v)) {
-										neighborhood.copy(matrix[v]);
-										neighborhood.setminus_with(matrix[u]);
-										if(!neighborhood.intersect(nodeset)) {
+										util_set.copy(matrix[v]);
+										util_set.setminus_with(matrix[u]);
+										if(!util_set.intersect(nodeset)) {
 												// N(v) <= N(U)s
 												some_propagation = true;
 												++num_contractions;
