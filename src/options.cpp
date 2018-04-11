@@ -103,7 +103,7 @@ options parse(int argc, char* argv[])
     cmd.add<SwitchArg>(opt.adaptive, "", "adaptive",
         "Switch between CLIQUES and declared bound policy dynamically", false);
     cmd.add<ValueArg<int>>(opt.branching, "", "branching",
-        "Variable branching heuristic [0-12]", false, 0, "int");
+        "Variable branching heuristic [0-13]", false, 0, "int");
     cmd.add<SwitchArg>(opt.branching_low_degree, "", "branch-low-degree",
         "Use low degree information to improve branching", false);
     cmd.add<ValueArg<int>>(opt.cliquelimit, "", "cliquelimit",
@@ -172,6 +172,9 @@ void options::describe(std::ostream& os)
         break;
     case gc::options::VSIDS_PHASED:
         os << "VSIDS with partition phase heuristic\n";
+        break;
+    case gc::options::VSIDS_GUIDED:
+        os << "VSIDS with solution phase saving\n";
         break;
     }
     os << " ... low degree = " << branching_low_degree << "\n";

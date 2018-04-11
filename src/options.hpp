@@ -59,7 +59,8 @@ struct options {
         DEGREE_PRODUCT_DYN,
         DEGREE_SUM_DYN,
         DEGREE_UNION_DYN,
-        VSIDS_PHASED
+        VSIDS_PHASED,
+				VSIDS_GUIDED
     };
     branching_heuristic branching;
 
