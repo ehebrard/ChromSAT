@@ -228,6 +228,16 @@ struct gc_model {
             } else
                 s.varbranch = minicsp::VAR_VSIDS;
             break;
+        case gc::options::VSIDS_GUIDED:
+            if (options.branching_low_degree) {
+                brancher = std::make_unique<gc::VSIDSBrancher>(
+                    s, g, vars, xvars, *cons, options);
+                brancher->use();
+            } else
+                s.varbranch = minicsp::VAR_VSIDS;
+						s.phase_saving = false; 
+						s.solution_phase_saving = true;
+            break;
         case gc::options::VSIDS_PHASED:
             brancher = std::make_unique<gc::VSIDSPhaseBrancher>(
                 s, g, vars, xvars, *cons, options, -1, -1);
