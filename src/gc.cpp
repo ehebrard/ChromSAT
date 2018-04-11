@@ -228,6 +228,11 @@ struct gc_model {
             } else
                 s.varbranch = minicsp::VAR_VSIDS;
             break;
+        case gc::options::VSIDS_PHASED:
+            brancher = std::make_unique<gc::VSIDSPhaseBrancher>(
+                s, g, vars, xvars, *cons, options, -1, -1);
+            brancher->use();
+            break;
         case gc::options::BRELAZ:
             if (!options.xvars) {
                 std::cout << "Cannot use Brelaz ordering without xvars\n";
@@ -368,6 +373,29 @@ std::pair<int, int> initial_bounds(const gc::graph& g, gc::statistics& stat)
     return std::make_pair(lb, ub);
 }
 
+void histogram(gc::graph& g)
+{
+    std::vector<int> degrees;
+    gc::bitset N(0, g.capacity()-1, gc::bitset::empt);
+    for (auto v : g.nodes) {
+        N.copy(g.matrix[v]);
+        N.intersect_with(g.nodeset);
+        degrees.push_back(N.size());
+    }
+    std::sort(begin(degrees), end(degrees));
+    int psize = degrees.size()/10;
+    int pstart{0};
+    while (static_cast<size_t>(pstart) < degrees.size()) {
+        int pend
+            = std::min(static_cast<size_t>(pstart + psize), degrees.size() - 1);
+        while (static_cast<size_t>(pend) < degrees.size() - 1
+            && degrees[pend + 1] == degrees[pend])
+            ++pend;
+        std::cout << (pend - pstart + 1) << " vertices: degree "
+                  << degrees[pstart] << "-" << degrees[pend] << "\n";
+        pstart = pend+1;
+    }
+}
 
 int main(int argc, char* argv[])
 {
@@ -383,6 +411,7 @@ int main(int argc, char* argv[])
         },
         [&](int, gc::weight) {});
     g.describe(std::cout);
+    histogram(g);
 
     gc::statistics statistics(g.capacity());
     if (options.preprocessing)

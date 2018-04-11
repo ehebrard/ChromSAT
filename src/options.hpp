@@ -58,7 +58,8 @@ struct options {
         PARTITION_SUM_DYN,
         DEGREE_PRODUCT_DYN,
         DEGREE_SUM_DYN,
-        DEGREE_UNION_DYN
+        DEGREE_UNION_DYN,
+        VSIDS_PHASED
     };
     branching_heuristic branching;
 
