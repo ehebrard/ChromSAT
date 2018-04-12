@@ -531,7 +531,7 @@ public:
             stat.notify_bound_delta(lb, mlb);
 
             // if(stat.num_bound_delta%100 == 0)
-            //              stat.describe(std::cout);
+            //              stat.display(std::cout);
 
             lb = mlb;
         }
@@ -546,7 +546,7 @@ public:
 
         if (s.decisionLevel() == 0 && lb > bestlb) {
             bestlb = lb;
-            stat.describe(std::cout);
+            stat.display(std::cout);
             bool simplification = false;
             for (auto v : g.nodes) {
                 if (g.matrix[v].size() < bestlb) {
