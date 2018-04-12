@@ -442,6 +442,7 @@ int main(int argc, char* argv[])
         statistics.update_ub = false;
 		
 		statistics.describe(std::cout);
+		
 
     switch (options.strategy) {
     case gc::options::BNB: {
@@ -498,6 +499,10 @@ int main(int argc, char* argv[])
             }
             statistics.unbinds();
         }
+    } break;
+    case gc::options::BOUNDS: {
+        std::pair<int, int> bounds{0, g.capacity()};
+				bounds = initial_bounds(g, statistics, options.boundalg!=gc::options::CLIQUES);
     } break;
     }
 

@@ -109,7 +109,7 @@ options parse(int argc, char* argv[])
     cmd.add<ValueArg<int>>(opt.cliquelimit, "", "cliquelimit",
         "Maximum number of cliques in the lower bound algorithm", false, 0xfffffff, "int");
     cmd.add<ValueArg<int>>(opt.strategy, "", "strategy",
-        "Solution strategy [0=BNB-1=bottom-up]", false, 0, "int");
+        "Solution strategy [0=BNB-1=bottom-up-2=top-down-3=computes initial bounds and stops]", false, 0, "int");
     cmd.add<ValueArg<int>>(opt.preprocessing, "", "preprocessing",
         "Level of preprocessing [0=none-1=low-degree]", false, 0, "int");
     cmd.add<SwitchArg>(opt.dominance, "", "dominance",
@@ -191,6 +191,9 @@ void options::describe(std::ostream& os)
         break;
     case TOPDOWN:
         os << "top-down";
+        break;
+    case BOUNDS:
+        os << "bounds";
         break;
     }
     os << "\n";

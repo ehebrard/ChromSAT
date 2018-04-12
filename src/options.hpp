@@ -69,13 +69,14 @@ struct options {
 
     int cliquelimit;
 
-    enum solution_strategy { BNB, BOTTOMUP, TOPDOWN };
+    enum solution_strategy { BNB, BOTTOMUP, TOPDOWN, BOUNDS };
     solution_strategy strategy;
 
     enum preprocessing_types { NO_PREPROCESSING, LOW_DEGREE };
     preprocessing_types preprocessing;
 
     bool dominance;
+
 };
 
 options parse(int argc, char* argv[]);
