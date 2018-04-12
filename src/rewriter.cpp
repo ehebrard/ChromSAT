@@ -131,7 +131,10 @@ minicsp::Solver::clause_callback_result_t rewriter::rewrite(
                 DOUT << "Adding "
                      << minicsp::lit_printer(s, minicsp::Lit(evars[r0][r1]))
                      << "\n";
-                clause.push(minicsp::Lit(evars[r0][r1]));
+                if (s.varLevel(evars[r0][r1]) == 0) {
+                    DOUT << "\tlevel 0, ignoring\n";
+                } else
+                    clause.push(minicsp::Lit(evars[r0][r1]));
             }
         }
 
