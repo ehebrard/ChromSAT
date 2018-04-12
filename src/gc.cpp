@@ -323,9 +323,6 @@ struct gc_model {
         using minicsp::l_True;
         using minicsp::l_Undef;
 
-        s.debugclauses = true;
-        s.allow_clause_dbg = false;
-
         minicsp::lbool sat{l_True};
         while (sat != l_False && lb < ub) {
             sat = s.solveBudget();
