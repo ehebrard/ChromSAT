@@ -20,8 +20,9 @@ minicsp::Solver::clause_callback_result_t rewriter::rewrite(
     using minicsp::domevent;
 
     ++numruns;
-    DOUT << "Rewriting clause #" << numruns << " = " << print(s, &clause)
-         << "\n";
+    if (s.trace)
+        std::cout << "Rewriting clause #" << numruns << " = "
+                  << print(s, &clause) << "\n";
     int ncol = c.ub - 1;
     partitions_eq.resize(ncol);
     partitions_neq.resize(ncol);
@@ -135,7 +136,8 @@ minicsp::Solver::clause_callback_result_t rewriter::rewrite(
         }
 
     if (modified) {
-        DOUT << "Rewrote to " << print(s, &clause) << std::endl;
+        if (s.trace)
+            std::cout << "Rewrote to " << print(s, &clause) << std::endl;
         return minicsp::Solver::CCB_MODIFIED;
     } else {
         DOUT << "Not modified\n";

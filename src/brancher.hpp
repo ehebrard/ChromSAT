@@ -2,8 +2,9 @@
 #define GC_BRANCHER_HPP
 
 #include "graph.hpp"
-#include "prop.hpp"
 #include "options.hpp"
+#include "prop.hpp"
+#include "utils.hpp"
 
 namespace gc
 {
@@ -208,8 +209,12 @@ struct VSIDSPhaseBrancher : public Brancher {
 
 struct BrelazBrancher : public Brancher {
     std::vector<int> mindom;
-    // a maximal clique
+    // a maximal clique in 3 forms: vector, bitset and remapped to the
+    // representatives
     std::vector<int> clique;
+    bitset clique_bs;
+
+    // temp
     bitset util_set;
 
     // vertices that are ignored because they have low degree
@@ -220,6 +225,7 @@ struct BrelazBrancher : public Brancher {
         const std::vector<minicsp::cspvar>& xvars, cons_base& constraint,
         const options& opt)
         : Brancher(s, g, evars, xvars, constraint, opt)
+        , clique_bs(0, g.capacity() - 1, bitset::empt)
         , util_set(0, g.capacity() - 1, bitset::empt)
     {
         auto& cf = constraint.cf;
@@ -231,7 +237,7 @@ struct BrelazBrancher : public Brancher {
             clique.push_back(v);
     }
 
-    void select_candidates(std::vector<minicsp::Lit>& cand)
+    void select_candidates_xvars(std::vector<minicsp::Lit>& cand)
     {
         for (auto v : clique) {
             auto x = xvars[v];
@@ -300,6 +306,68 @@ struct BrelazBrancher : public Brancher {
         //           << " domsize ties = " << tiedv << "\n";
         cand.clear();
         cand.push_back(x.e_eq(s, x.min(s)));
+    }
+
+    void select_candidates_evars(std::vector<minicsp::Lit>& cand)
+    {
+        auto& cf = constraint.cf;
+        auto maxidx = std::distance(begin(cf.clique_sz),
+            std::max_element(
+                begin(cf.clique_sz), begin(cf.clique_sz) + cf.num_cliques));
+        auto& clq = cf.cliques[maxidx];
+
+        clique_bs.copy(clq);
+        if (clique_bs.size() == g.nodeset.size())
+            return;
+
+        util_set.copy(clique_bs);
+        util_set.intersect_with(g.nodeset);
+        int clqsize = util_set.size();
+
+        int maxc{-1}, maxd{-1}, maxv{-1};
+        for (auto v : g.nodes) {
+            if (clique_bs.fast_contain(v))
+                continue;
+
+            // number of neighboring colors == intersection of
+            // neighborhood with clique
+            util_set.copy(g.matrix[v]);
+            util_set.intersect_with(clique_bs);
+            int vc = util_set.size();
+            if (vc < maxc || vc == clqsize)
+                continue;
+
+            // degree == neighborhood setminus clique (restricted to
+            // current graph)
+            util_set.copy(g.matrix[v]);
+            util_set.setminus_with(clique_bs);
+            util_set.intersect_with(g.nodeset);
+            int vd = util_set.size();
+
+            // max neighboring colors, tie breaking by degree
+            if ((vc > maxc && vc < clqsize) || (vc == maxc && vd > maxd)) {
+                maxv = v;
+                maxc = vc;
+                maxd = vd;
+            }
+        }
+
+        assert(maxv >= 0);
+
+        util_set.copy(clique_bs);
+        util_set.setminus_with(g.matrix[maxv]);
+        int u = util_set.min();
+        minicsp::Var evar = evars[u][maxv];
+        assert(evar != minicsp::var_Undef);
+        cand.push_back(minicsp::Lit(evar));
+    }
+
+    void select_candidates(std::vector<minicsp::Lit>& cand)
+    {
+        if (opt.xvars)
+            select_candidates_xvars(cand);
+        else
+            select_candidates_evars(cand);
     }
 };
 

@@ -240,8 +240,8 @@ struct gc_model {
                 brancher->use();
             } else
                 s.varbranch = minicsp::VAR_VSIDS;
-						s.phase_saving = false; 
-						s.solution_phase_saving = true;
+            s.phase_saving = false;
+            s.solution_phase_saving = true;
             break;
         case gc::options::VSIDS_PHASED:
             brancher = std::make_unique<gc::VSIDSPhaseBrancher>(
@@ -249,25 +249,10 @@ struct gc_model {
             brancher->use();
             break;
         case gc::options::BRELAZ:
-            if (!options.xvars) {
-                std::cout << "Cannot use Brelaz ordering without xvars\n";
-                exit(1);
-            }
             brancher = std::make_unique<gc::BrelazBrancher>(
                 s, g, vars, xvars, *cons, options);
             brancher->use();
             break;
-						//         case gc::options::BRELAZ_GUIDED:
-						//             if (!options.xvars) {
-						//                 std::cout << "Cannot use Brelaz ordering without xvars\n";
-						//                 exit(1);
-						//             }
-						//             brancher = std::make_unique<gc::BrelazBrancher>(
-						//                 s, g, vars, xvars, *cons, options);
-						//             brancher->use();
-						// s.phase_saving = false;
-						// s.solution_phase_saving = true;
-						//             break;
         case gc::options::PARTITION_SUM:
             brancher = gc::make_partition_brancher<-1, -1>(
                 s, g, vars, xvars, *cons, options, sum);
@@ -350,8 +335,7 @@ struct gc_model {
                 int actualub = reduction.extend_solution(col_r);
                 statistics.notify_ub(actualub);
                 statistics.display(std::cout);
-                if (actualub != solub)
-                    std::cout << " UB in reduced graph = " << solub << std::endl;
+
                 cons->ub = solub;
                 if (options.xvars) {
                     for (auto v : xvars)
@@ -381,15 +365,16 @@ struct gc_model {
     }
 };
 
-std::pair<int, int> initial_bounds(const gc::graph& g, gc::statistics& stat, bool myciel=false)
+std::pair<int, int> initial_bounds(
+    const gc::graph& g, gc::statistics& stat, bool myciel = false)
 {
     gc::clique_finder cf{g};
     gc::mycielskan_subgraph_finder mf(g, cf, false);
     int lb{cf.find_cliques(g.nodes)};
 
-		if(myciel)
-				lb = mf.improve_cliques_larger_than(lb - 1);
-		
+    if (myciel)
+        lb = mf.improve_cliques_larger_than(lb - 1);
+
     auto sol{gc::brelaz_color(g)};
     for (auto u : g.nodes)
         for (auto v : g.matrix[u])
@@ -405,14 +390,14 @@ std::pair<int, int> initial_bounds(const gc::graph& g, gc::statistics& stat, boo
 void histogram(gc::graph& g)
 {
     std::vector<int> degrees;
-    gc::bitset N(0, g.capacity()-1, gc::bitset::empt);
+    gc::bitset N(0, g.capacity() - 1, gc::bitset::empt);
     for (auto v : g.nodes) {
         N.copy(g.matrix[v]);
         N.intersect_with(g.nodeset);
         degrees.push_back(N.size());
     }
     std::sort(begin(degrees), end(degrees));
-    int psize = degrees.size()/10;
+    int psize = degrees.size() / 10;
     int pstart{0};
     while (static_cast<size_t>(pstart) < degrees.size()) {
         int pend
@@ -422,7 +407,7 @@ void histogram(gc::graph& g)
             ++pend;
         std::cout << (pend - pstart + 1) << " vertices: degree "
                   << degrees[pstart] << "-" << degrees[pend] << "\n";
-        pstart = pend+1;
+        pstart = pend + 1;
     }
 }
 
@@ -445,15 +430,15 @@ int main(int argc, char* argv[])
     gc::statistics statistics(g.capacity());
     if (options.preprocessing)
         statistics.update_ub = false;
-		
-		statistics.describe(std::cout);
-		
+
+    statistics.describe(std::cout);
 
     switch (options.strategy) {
     case gc::options::BNB: {
         std::pair<int, int> bounds{0, g.capacity()};
         if (options.preprocessing == gc::options::NO_PREPROCESSING)
-            bounds = initial_bounds(g, statistics, options.boundalg!=gc::options::CLIQUES);
+            bounds = initial_bounds(
+                g, statistics, options.boundalg != gc::options::CLIQUES);
         gc_model model(g, options, statistics, bounds);
         model.solve();
         model.print_stats();
@@ -461,7 +446,8 @@ int main(int argc, char* argv[])
     }
     case gc::options::BOTTOMUP: {
         statistics.update_ub = false;
-        auto [lb, ub] = initial_bounds(g, statistics, options.boundalg!=gc::options::CLIQUES);
+        auto [lb, ub] = initial_bounds(
+            g, statistics, options.boundalg != gc::options::CLIQUES);
         for (int i = lb; i < ub; ++i) {
             gc::graph gcopy{g};
             gc_model model(
@@ -484,7 +470,8 @@ int main(int argc, char* argv[])
     } break;
     case gc::options::TOPDOWN: {
         statistics.update_lb = false;
-        auto [lb, ub] = initial_bounds(g, statistics, options.boundalg!=gc::options::CLIQUES);
+        auto [lb, ub] = initial_bounds(
+            g, statistics, options.boundalg != gc::options::CLIQUES);
         for (int i = ub - 1; i >= lb; --i) {
             gc::graph gcopy{g};
             gc_model model(
@@ -507,8 +494,8 @@ int main(int argc, char* argv[])
     } break;
     case gc::options::BOUNDS: {
         std::pair<int, int> bounds{0, g.capacity()};
-				bounds = initial_bounds(g, statistics, options.boundalg!=gc::options::CLIQUES);
+        bounds = initial_bounds(
+            g, statistics, options.boundalg != gc::options::CLIQUES);
     } break;
     }
-
 }
