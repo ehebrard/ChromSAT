@@ -244,10 +244,6 @@ struct gc_model {
             brancher->use();
             break;
         case gc::options::BRELAZ:
-            if (!options.xvars) {
-                std::cout << "Cannot use Brelaz ordering without xvars\n";
-                exit(1);
-            }
             brancher = std::make_unique<gc::BrelazBrancher>(
                 s, g, vars, xvars, *cons, options);
             brancher->use();
