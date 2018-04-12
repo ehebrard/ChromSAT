@@ -47,21 +47,22 @@ struct options {
     bool adaptive;
 
     enum branching_heuristic {
-        VSIDS
-        ,BRELAZ
-        ,PARTITION_PRODUCT
-        ,PARTITION_SUM
-        ,DEGREE_PRODUCT
-        ,DEGREE_SUM
-        ,DEGREE_UNION
-        ,PARTITION_PRODUCT_DYN
-        ,PARTITION_SUM_DYN
-        ,DEGREE_PRODUCT_DYN
-        ,DEGREE_SUM_DYN
-        ,DEGREE_UNION_DYN
-        ,VSIDS_PHASED
-				,VSIDS_GUIDED
-				// ,BRELAZ_GUIDED
+        VSIDS,
+        BRELAZ,
+        PARTITION_PRODUCT,
+        PARTITION_SUM,
+        DEGREE_PRODUCT,
+        DEGREE_SUM,
+        DEGREE_UNION,
+        PARTITION_PRODUCT_DYN,
+        PARTITION_SUM_DYN,
+        DEGREE_PRODUCT_DYN,
+        DEGREE_SUM_DYN,
+        DEGREE_UNION_DYN,
+        VSIDS_PHASED,
+        VSIDS_GUIDED,
+        VSIDS_CLIQUE
+        // ,BRELAZ_GUIDED
     };
     branching_heuristic branching;
 

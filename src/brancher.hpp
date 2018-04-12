@@ -207,6 +207,63 @@ struct VSIDSPhaseBrancher : public Brancher {
     }
 };
 
+    // makes sure when choosing
+struct VSIDSCliqueBrancher : public Brancher {
+    VSIDSBrancher vsids;
+
+    VSIDSCliqueBrancher(minicsp::Solver& s, graph& g,
+        const std::vector<std::vector<minicsp::Var>>& evars,
+        const std::vector<minicsp::cspvar>& xvars, cons_base& constraint,
+        const options& opt)
+        : Brancher(s, g, evars, xvars, constraint, opt)
+        , vsids(s, g, evars, xvars, constraint, opt)
+    {
+    }
+
+    void select_candidates(std::vector<minicsp::Lit>& cand)
+    {
+        // all vertices that appear in a maximal clique
+        auto& cf = constraint.cf;
+        auto& util_set = vsids.util_set;
+        util_set.clear();
+        int maxclqsz = *std::max_element(begin(cf.clique_sz), end(cf.clique_sz));
+        for (size_t i = 0, iend = cf.clique_sz.size(); i != iend; ++i) {
+            if (cf.clique_sz[i] == maxclqsz)
+                util_set.union_with(cf.cliques[i]);
+        }
+
+        // choose e_ij so that at least one of i,j is in a maximal
+        // clique
+        auto& heap = s.vsids_heap();
+        auto& removed = vsids.removed;
+        removed.clear();
+        minicsp::Var next;
+        do {
+            next = minicsp::var_Undef;
+            if (heap.empty())
+                break;
+            next = heap.removeMin();
+            if (s.value(next) != minicsp::l_Undef) {
+                next = minicsp::var_Undef;
+                continue;
+            }
+            if (s.event(minicsp::Lit(next)).type != minicsp::domevent::NONE)
+                break;
+            auto varinfo = vsids.evarinfo[next];
+            if (!util_set.fast_contain(varinfo.u)
+                && !util_set.fast_contain(varinfo.v)) {
+                removed.push_back(next);
+                next = minicsp::var_Undef;
+            }
+        } while (next == minicsp::var_Undef);
+        if (next != minicsp::var_Undef)
+            cand.push_back(minicsp::Lit(next));
+        for (auto var : removed)
+            heap.insert(var);
+        return;
+    }
+};
+
 struct BrelazBrancher : public Brancher {
     std::vector<int> mindom;
     // a maximal clique in 3 forms: vector, bitset and remapped to the
