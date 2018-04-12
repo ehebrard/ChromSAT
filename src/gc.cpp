@@ -137,7 +137,7 @@ struct gc_model {
                 lb = hlb;
                 statistics.notify_lb(lb);
             }
-            statistics.describe(std::cout);
+            statistics.display(std::cout);
 
             forbidden.clear();
             toremove.clear();
@@ -252,6 +252,17 @@ struct gc_model {
                 s, g, vars, xvars, *cons, options);
             brancher->use();
             break;
+						//         case gc::options::BRELAZ_GUIDED:
+						//             if (!options.xvars) {
+						//                 std::cout << "Cannot use Brelaz ordering without xvars\n";
+						//                 exit(1);
+						//             }
+						//             brancher = std::make_unique<gc::BrelazBrancher>(
+						//                 s, g, vars, xvars, *cons, options);
+						//             brancher->use();
+						// s.phase_saving = false;
+						// s.solution_phase_saving = true;
+						//             break;
         case gc::options::PARTITION_SUM:
             brancher = gc::make_partition_brancher<-1, -1>(
                 s, g, vars, xvars, *cons, options, sum);
@@ -333,7 +344,7 @@ struct gc_model {
                 cons->sync_graph();
                 int actualub = reduction.extend_solution(col_r);
                 statistics.notify_ub(actualub);
-                statistics.describe(std::cout);
+                statistics.display(std::cout);
                 if (actualub != solub)
                     std::cout << " UB in reduced graph = " << solub << std::endl;
                 cons->ub = solub;
@@ -346,7 +357,7 @@ struct gc_model {
                 break;
             } else {
                 cons->bestlb = cons->ub;
-                statistics.describe(std::cout);
+                statistics.display(std::cout);
             }
         }
         return std::make_pair(cons->bestlb, cons->ub);
@@ -360,17 +371,20 @@ struct gc_model {
             std::cout << "Best bounds [" << cons->bestlb << ", " << cons->ub
                       << "]\n";
         minicsp::printStats(s);
-        statistics.describe(std::cout);
+        statistics.display(std::cout);
         std::cout << std::endl;
     }
 };
 
-std::pair<int, int> initial_bounds(const gc::graph& g, gc::statistics& stat)
+std::pair<int, int> initial_bounds(const gc::graph& g, gc::statistics& stat, bool myciel=false)
 {
     gc::clique_finder cf{g};
     gc::mycielskan_subgraph_finder mf(g, cf, false);
     int lb{cf.find_cliques(g.nodes)};
-    lb = mf.improve_cliques_larger_than(lb - 1);
+
+		if(myciel)
+				lb = mf.improve_cliques_larger_than(lb - 1);
+		
     auto sol{gc::brelaz_color(g)};
     for (auto u : g.nodes)
         for (auto v : g.matrix[u])
@@ -379,7 +393,7 @@ std::pair<int, int> initial_bounds(const gc::graph& g, gc::statistics& stat)
     int ub{*max_element(begin(sol), end(sol)) + 1};
     stat.notify_lb(lb);
     stat.notify_ub(ub);
-    stat.describe(std::cout);
+    stat.display(std::cout);
     return std::make_pair(lb, ub);
 }
 
@@ -426,12 +440,14 @@ int main(int argc, char* argv[])
     gc::statistics statistics(g.capacity());
     if (options.preprocessing)
         statistics.update_ub = false;
+		
+		statistics.describe(std::cout);
 
     switch (options.strategy) {
     case gc::options::BNB: {
         std::pair<int, int> bounds{0, g.capacity()};
         if (options.preprocessing == gc::options::NO_PREPROCESSING)
-            bounds = initial_bounds(g, statistics);
+            bounds = initial_bounds(g, statistics, options.boundalg!=gc::options::CLIQUES);
         gc_model model(g, options, statistics, bounds);
         model.solve();
         model.print_stats();
@@ -439,7 +455,7 @@ int main(int argc, char* argv[])
     }
     case gc::options::BOTTOMUP: {
         statistics.update_ub = false;
-        auto [lb, ub] = initial_bounds(g, statistics);
+        auto [lb, ub] = initial_bounds(g, statistics, options.boundalg!=gc::options::CLIQUES);
         for (int i = lb; i < ub; ++i) {
             gc::graph gcopy{g};
             gc_model model(
@@ -447,22 +463,22 @@ int main(int argc, char* argv[])
             auto [ilb, iub] = model.solve();
             if (iub == i) {
                 statistics.notify_ub(iub);
-                statistics.describe(std::cout);
+                statistics.display(std::cout);
                 break;
             } else if (ilb != iub) {
                 statistics.notify_lb(ilb);
-                statistics.describe(std::cout);
+                statistics.display(std::cout);
                 std::cout << "INTERRUPTED\n";
             } else {
                 statistics.notify_lb(ilb);
-                statistics.describe(std::cout);
+                statistics.display(std::cout);
             }
             statistics.unbinds();
         }
     } break;
     case gc::options::TOPDOWN: {
         statistics.update_lb = false;
-        auto [lb, ub] = initial_bounds(g, statistics);
+        auto [lb, ub] = initial_bounds(g, statistics, options.boundalg!=gc::options::CLIQUES);
         for (int i = ub - 1; i >= lb; --i) {
             gc::graph gcopy{g};
             gc_model model(
@@ -470,15 +486,15 @@ int main(int argc, char* argv[])
             auto [ilb, iub] = model.solve();
             if (ilb == i + 1) {
                 statistics.notify_lb(ilb);
-                statistics.describe(std::cout);
+                statistics.display(std::cout);
                 break;
             } else if (ilb != iub) {
                 statistics.notify_ub(iub);
-                statistics.describe(std::cout);
+                statistics.display(std::cout);
                 std::cout << "INTERRUPTED\n";
             } else {
                 statistics.notify_ub(iub);
-                statistics.describe(std::cout);
+                statistics.display(std::cout);
             }
             statistics.unbinds();
         }

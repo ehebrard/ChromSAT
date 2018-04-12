@@ -176,6 +176,9 @@ void options::describe(std::ostream& os)
     case gc::options::VSIDS_GUIDED:
         os << "VSIDS with solution phase saving\n";
         break;
+    // case gc::options::BRELAZ_GUIDED:
+    //     os << "Brelaz with solution phase saving\n";
+    //     break;
     }
     os << " ... low degree = " << branching_low_degree << "\n";
     os << "Strategy        = ";

@@ -35,6 +35,7 @@ struct statistics {
 	
     // outputs a nice description of all statistics
     void describe(std::ostream&);
+		void display(std::ostream&);
 
 		void binds(cons_base* c);
 		void unbinds();
