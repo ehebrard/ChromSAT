@@ -103,7 +103,7 @@ struct gc_model {
         return vars;
     }
 
-    graph_reduction preprocess(gc::graph& g, std::pair<int, int> bounds)
+    graph_reduction preprocess(gc::graph& g, std::pair<int, int> bounds, bool myciel=false)
     {
         graph_reduction gr(g);
         if (options.preprocessing == gc::options::NO_PREPROCESSING)
@@ -113,6 +113,8 @@ struct gc_model {
         ub = bounds.second;
         int hlb{0};
         gc::clique_finder cf{g};
+				gc::mycielskan_subgraph_finder mf(g, cf, false);
+				
         gc::bitset forbidden(0, g.capacity(), gc::bitset::empt);
         gc::bitset util_set(0, g.capacity(), gc::bitset::empt);
         gc::bitset removedv(0, g.capacity(), gc::bitset::empt);
@@ -133,6 +135,9 @@ struct gc_model {
             }
 
             hlb = cf.find_cliques(g.nodes);
+						if(myciel)
+								hlb = mf.improve_cliques_larger_than(lb);
+						
             if (hlb > lb) {
                 lb = hlb;
                 statistics.notify_lb(lb);
