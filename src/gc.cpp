@@ -248,6 +248,10 @@ struct gc_model {
                 s, g, vars, xvars, *cons, options, -1, -1);
             brancher->use();
             break;
+        case gc::options::VSIDS_CLIQUE:
+            brancher = std::make_unique<gc::VSIDSCliqueBrancher>(
+                s, g, vars, xvars, *cons, options);
+            break;
         case gc::options::BRELAZ:
             brancher = std::make_unique<gc::BrelazBrancher>(
                 s, g, vars, xvars, *cons, options);
