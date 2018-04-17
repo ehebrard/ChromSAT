@@ -561,7 +561,7 @@ public:
             bestlb = lb;
             stat.display(std::cout);
             for (auto v : g.nodes) {
-                if (g.matrix[v].size() < bestlb) {
+                if (g.matrix[v].size() < static_cast<size_t>(bestlb)) {
                     // std::cout << " " << v;
                     ++stat.num_vertex_removals;
                 }
