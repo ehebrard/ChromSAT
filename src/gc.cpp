@@ -114,8 +114,8 @@ struct gc_model {
         ub = bounds.second;
         int hlb{0};
         gc::clique_finder cf{g};
-				gc::mycielskan_subgraph_finder mf(g, cf, false);
-				
+        gc::mycielskan_subgraph_finder mf(g, cf, false);
+
         gc::bitset forbidden(0, g.capacity(), gc::bitset::empt);
         gc::bitset util_set(0, g.capacity(), gc::bitset::empt);
         gc::bitset removedv(0, g.capacity(), gc::bitset::empt);
@@ -136,9 +136,9 @@ struct gc_model {
             }
 
             hlb = cf.find_cliques(g.nodes);
-						if(myciel)
-								hlb = mf.improve_cliques_larger_than(lb);
-						
+            if (myciel)
+                hlb = mf.improve_cliques_larger_than(lb);
+
             if (hlb > lb) {
                 lb = hlb;
                 statistics.notify_lb(lb);
@@ -192,7 +192,9 @@ struct gc_model {
         if (options.learning == gc::options::NO_LEARNING)
             s.learning = false;
 
-        auto [plb, pub] = bounds;
+        auto plb = bounds.first;
+        auto pub = bounds.second;
+
         lb = std::max(lb, plb);
         if (ub < 0 || pub < ub)
             ub = pub;
@@ -451,13 +453,17 @@ int main(int argc, char* argv[])
     }
     case gc::options::BOTTOMUP: {
         statistics.update_ub = false;
-        auto [lb, ub] = initial_bounds(
+        auto bounds = initial_bounds(
             g, statistics, options.boundalg != gc::options::CLIQUES);
+        auto lb = bounds.first;
+        auto ub = bounds.second;
         for (int i = lb; i < ub; ++i) {
             gc::graph gcopy{g};
             gc_model model(
                 gcopy, options, statistics, std::make_pair(i, i + 1));
-            auto [ilb, iub] = model.solve();
+            auto ibounds = model.solve();
+            auto ilb = ibounds.first;
+            auto iub = ibounds.second;
             if (iub == i) {
                 statistics.notify_ub(iub);
                 statistics.display(std::cout);
