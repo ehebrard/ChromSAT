@@ -1,5 +1,6 @@
-project('gc', 'cpp',
+project('gc', ['c', 'cpp'],
 	default_options : ['c_std=c11', 'cpp_std=c++1z'])
+compiler = meson.get_compiler('cpp')
 
 basic_lib = static_library('basic', ['src/intstack.cpp',
 				     'src/graph.cpp',
@@ -26,7 +27,6 @@ if use_gecode
   gecode_root = get_option('gecode')
   gecode_libs = gecode_root+'/lib'
   gecode_inc = include_directories(gecode_root+'/include')
-  compiler = meson.get_compiler('cpp')
   gecodedriver_lib = compiler.find_library('gecodedriver', dirs:gecode_root+'/lib')
   gecodesearch_lib = compiler.find_library('gecodesearch', dirs:gecode_root+'/lib')
   gecodeminimodel_lib = compiler.find_library('gecodeminimodel', dirs:gecode_root+'/lib')
@@ -49,4 +49,16 @@ if use_gecode
   executable('gecode-gc', ['sota/graph-color.cpp'],
 	     dependencies: [gecode_dep, basic_dep])
 endif
+
+executable('minicolor-converter',
+	   ['sota/converter/main.c',
+	    'sota/converter/converter.c'])
+
+gzip_lib = compiler.find_library('z')
+gzip_dep = declare_dependency(dependencies: gzip_lib)
+executable('minicolor',
+	   ['sota/MiniMerge/core/Main.cpp',
+	    'sota/MiniMerge/core/Solver.cpp'],
+	   include_directories: include_directories(['sota/MiniMerge/mtl']),
+	   dependencies: gzip_dep)
 
