@@ -96,7 +96,7 @@ options parse(int argc, char* argv[])
     cmd.add<ValueArg<int>>(opt.ordering, "", "ordering",
         "clique finding heuristic [0-4]", false, 3, "int");
     cmd.add<ValueArg<int>>(opt.ordering_low_degree, "", "ord-low-degree",
-        "Use low degree information to improve clique ordering", 0, 2, "int");
+        "Use low degree information to improve clique ordering", false, 0, "int");
     cmd.add<ValueArg<int>>(opt.boundalg, "", "bound",
         "lower bound algorithm [0-3]", false, 0, "int");
     cmd.add<SwitchArg>(opt.prune, "", "prune", "enable pruning", false);
