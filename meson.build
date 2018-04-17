@@ -88,3 +88,10 @@ if use_cplex
 	     dependencies: [cplex_dep, basic_dep],
 	     cpp_args: ['-DIL_STD'])
 endif
+
+
+executable('dsatur',
+	   ['sota/trick/dsatur.c'])
+
+executable('color6',
+	   ['sota/color6/color6.c'])
