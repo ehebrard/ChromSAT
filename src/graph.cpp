@@ -402,10 +402,6 @@ int mycielskan_subgraph_finder::another_myciel_layer(const int start)
     while (ith < static_cast<int>(subgraph.nodes.size())) {
         auto v{subgraph.nodes[ith++]};
 
-        non_neighbors.copy(g.nodeset);
-        non_neighbors.setminus_with(g.matrix[v]);
-        non_neighbors.fast_remove(v);
-
         // Sv contains v
         extra.push_back(v);
         neighbors_Sv.copy(g.matrix[v]);
@@ -413,8 +409,14 @@ int mycielskan_subgraph_finder::another_myciel_layer(const int start)
 #ifdef _DEBUG_MYCIEL
         std::cout << " - " << v << ":";
 #endif
-
-        for (auto u : non_neighbors) {
+				
+        // non_neighbors.copy(g.nodeset);
+        // non_neighbors.setminus_with(g.matrix[v]);
+        // non_neighbors.fast_remove(v);
+        // for (auto u : non_neighbors) {
+				for(auto u : g.nodes) {
+						if (u==v)
+								continue;
 
             if (g.rep_of[u] != u)
                 continue; // use only representatives ?
