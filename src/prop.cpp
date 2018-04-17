@@ -2,6 +2,7 @@
 #include "minicsp/core/utils.hpp"
 #include "utils.hpp"
 #include "statistics.hpp"
+#include "mycielski.hpp"
 
 namespace gc
 {
@@ -461,7 +462,7 @@ public:
             lb = cf.find_cliques(heuristic, opt.cliquelimit);
         } else if (opt.ordering == options::PARTITION) {
 
-            if (opt.ordering_low_degree) {
+            if (opt.ordering_low_degree == options::PREPROCESSING_ORDERING) {
                 bool removed_some{false};
                 ordering_removed_bs.clear();
                 ordering_removed.clear();
@@ -484,6 +485,18 @@ public:
                         ordering_forbidden.fast_add(v);
                     }
                 } while (removed_some);
+            } else if (opt.ordering_low_degree == options::DEGREE_ORDERING) {
+                ordering_removed_bs.clear();
+                ordering_removed.clear();
+                for (auto v : g.nodes) {
+                    ordering_tmp.copy(g.matrix[v]);
+                    ordering_tmp.intersect_with(g.nodeset);
+                    if (ordering_tmp.size()
+                        >= static_cast<size_t>(std::max(bestlb, *lastlb)))
+                        continue;
+                    ordering_removed_bs.fast_add(v);
+                    ordering_removed.push_back(v);
+                }
             }
 
             // sort by partition size
@@ -547,11 +560,9 @@ public:
         if (s.decisionLevel() == 0 && lb > bestlb) {
             bestlb = lb;
             stat.display(std::cout);
-            bool simplification = false;
             for (auto v : g.nodes) {
                 if (g.matrix[v].size() < bestlb) {
                     // std::cout << " " << v;
-                    simplification = true;
                     ++stat.num_vertex_removals;
                 }
             }

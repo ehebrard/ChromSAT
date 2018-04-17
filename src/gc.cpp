@@ -3,6 +3,7 @@
 #include "brancher.hpp"
 #include "dimacs.hpp"
 #include "graph.hpp"
+#include "mycielski.hpp"
 #include "options.hpp"
 #include "prop.hpp"
 #include "rewriter.hpp"
