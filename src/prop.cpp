@@ -563,7 +563,6 @@ public:
             for (auto v : g.nodes) {
                 if (g.matrix[v].size() < bestlb) {
                     // std::cout << " " << v;
-                    simplification = true;
                     ++stat.num_vertex_removals;
                 }
             }
