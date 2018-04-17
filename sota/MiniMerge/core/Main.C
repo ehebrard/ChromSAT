@@ -377,10 +377,11 @@ int main(int argc, char** argv)
 		int algo = atoi(argv[4]);
 		algo_type policy{(algo == 0 ? TOP_DOWN : (algo == 1 ? BOTTOM_UP : BINARY))};
 		
-		printf( "new UB %8d search time = 0 parse time = 0 encode time = 0 conflicts = 0\n", ub );
-		printf( "new LB %8d search time = 0 parse time = 0 encode time = 0 conflicts = 0\n", lb );
+		// printf( "new UB %8d search time = 0 parse time = 0 encode time = 0 conflicts = 0\n", ub );
+		// printf( "new LB %8d search time = 0 parse time = 0 encode time = 0 conflicts = 0\n", lb );
 		
-		
+		printf( "d lb = %8d, ub = %8d, time = %10f, parsetime = %10f, encodetime = %10f, conflicts = %8ld\n", 
+						lb, ub, 0, 0, 0, 0);
 		
 		
 		bool solved = (lb == ub);
@@ -408,17 +409,12 @@ int main(int argc, char** argv)
 		
 						if( success ) {
 								ub = n_colors--;
-				
-								printf( "new UB %8d search time = %10f parse time = %10f encode time = %10f conflicts = %8ld\n", 
-												ub, search_time, parse_time, encode_time, n_conflicts);
-				
 						} else {
 								lb = ++n_colors;
-				
-								printf( "new LB %8d search time = %10f parse time = %10f encode time = %10f conflicts = %8ld\n", 
-												lb, search_time, parse_time, encode_time, n_conflicts);
-
 						}
+						
+						printf( "d lb = %8d, ub = %8d, time = %10f, parsetime = %10f, encodetime = %10f, conflicts = %8ld\n", 
+										lb, ub, search_time, parse_time, encode_time, n_conflicts);
 				
 						if(policy == BINARY) n_colors = (lb+ub)/2;
 		

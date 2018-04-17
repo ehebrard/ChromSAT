@@ -4,9 +4,10 @@
 #include "bitset.hpp"
 #include "intstack.hpp"
 
-#include <minicsp/mtl/Heap.h>
+#include "Heap.h"
 
 #include <vector>
+#include <algorithm>
 
 
 namespace gc

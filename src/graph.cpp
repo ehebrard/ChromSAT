@@ -477,7 +477,7 @@ std::vector<int> brelaz_color(const graph& g)
     auto& cf = state.cf;
     cf.clear();
     std::vector<int> solution(cf.g.capacity(), -1);
-    auto sheap = Heap<detail::saturation_gt>(detail::saturation_gt{state});
+    Heap<detail::saturation_gt> sheap(detail::saturation_gt{state});
 
     for (auto v : cf.g.nodeset)
         sheap.insert(v);
