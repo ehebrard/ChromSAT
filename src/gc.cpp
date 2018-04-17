@@ -481,13 +481,17 @@ int main(int argc, char* argv[])
     } break;
     case gc::options::TOPDOWN: {
         statistics.update_lb = false;
-        auto [lb, ub] = initial_bounds(
+        auto bounds = initial_bounds(
             g, statistics, options.boundalg != gc::options::CLIQUES);
+        auto lb = bounds.first;
+        auto ub = bounds.second;
         for (int i = ub - 1; i >= lb; --i) {
             gc::graph gcopy{g};
             gc_model model(
                 gcopy, options, statistics, std::make_pair(i, i + 1));
-            auto [ilb, iub] = model.solve();
+            auto ibounds = model.solve();
+            auto ilb = ibounds.first;
+            auto iub = ibounds.second;
             if (ilb == i + 1) {
                 statistics.notify_lb(ilb);
                 statistics.display(std::cout);
