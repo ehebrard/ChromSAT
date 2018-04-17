@@ -393,7 +393,7 @@ int main(int argc, char** argv)
 						printf("\nc try with #colors = %d\n", n_colors);
 		
 						double cpu_time = cpuTime();
-						sprintf(temp, "/home/ehebrard/experiments/gc/sota/converter/converter %s %d 1 1 %s", filename.c_str(), n_colors, basename.c_str());
+						sprintf(temp, "./sota/converter/converter %s %d 1 1 %s", filename.c_str(), n_colors, basename.c_str());
 				
 						// printf( "%s", temp );
 				
