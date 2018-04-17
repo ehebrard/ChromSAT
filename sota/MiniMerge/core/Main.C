@@ -377,11 +377,13 @@ int main(int argc, char** argv)
 		int algo = atoi(argv[4]);
 		algo_type policy{(algo == 0 ? TOP_DOWN : (algo == 1 ? BOTTOM_UP : BINARY))};
 		
-		// printf( "new UB %8d search time = 0 parse time = 0 encode time = 0 conflicts = 0\n", ub );
-		// printf( "new LB %8d search time = 0 parse time = 0 encode time = 0 conflicts = 0\n", lb );
+		double x_a = 0.0;
+		double x_b = 0.0;
+		double x_c = 0.0;
+		long int x_d = 0;
 		
-		printf( "d lb = %8d, ub = %8d, time = %10f, parsetime = %10f, encodetime = %10f, conflicts = %8ld\n", 
-						lb, ub, 0, 0, 0, 0);
+		printf( ">>data: lb = %8d, ub = %8d, time = %10f, parsetime = %10f, encodetime = %10f, conflicts = %8ld\n", 
+						lb, ub, x_a, x_b, x_c, x_d);
 		
 		
 		bool solved = (lb == ub);
@@ -413,7 +415,7 @@ int main(int argc, char** argv)
 								lb = ++n_colors;
 						}
 						
-						printf( "d lb = %8d, ub = %8d, time = %10f, parsetime = %10f, encodetime = %10f, conflicts = %8ld\n", 
+						printf( ">>data: lb = %8d, ub = %8d, time = %10f, parsetime = %10f, encodetime = %10f, conflicts = %8ld\n", 
 										lb, ub, search_time, parse_time, encode_time, n_conflicts);
 				
 						if(policy == BINARY) n_colors = (lb+ub)/2;
