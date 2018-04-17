@@ -7,12 +7,13 @@ minicsp_lib = library('minicsp', ['minicsp/core/solver.cpp',
 				  'minicsp/core/utils.cpp'])
 minicsp_dep = declare_dependency(link_with: minicsp_lib,
 				 include_directories: minicsp_inc)
-  
+
 executable('gc', ['src/gc.cpp',
 		  'src/intstack.cpp',
 		  'src/graph.cpp',
 		  'src/prop.cpp',
 		  'src/rewriter.cpp',
 		  'src/options.cpp',
-		  'src/statistics.cpp'],
+		  'src/statistics.cpp',
+		  'src/mycielski.cpp'],
 	   dependencies: minicsp_dep)

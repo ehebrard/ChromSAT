@@ -32,7 +32,13 @@ struct options {
         DYNAMIC_DEGENERACY
     };
     ordering_heuristic ordering;
-    bool ordering_low_degree;
+
+    enum ordering_low_degree_sorting {
+        NO_LD_ORDERING,
+        PREPROCESSING_ORDERING,
+        DEGREE_ORDERING
+    };
+    ordering_low_degree_sorting ordering_low_degree;
 
     enum dual_policy {
         CLIQUES,
