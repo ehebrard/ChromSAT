@@ -62,3 +62,29 @@ executable('minicolor',
 	   include_directories: include_directories(['sota/MiniMerge/mtl']),
 	   dependencies: gzip_dep)
 
+use_cplex = get_option('use_cplex')
+if use_cplex
+  cplex_root = get_option('cplex')
+  cplex_libdir = cplex_root+'cplex/lib/x86-64_linux/static_pic'
+  concert_libdir = cplex_root+'concert/lib/x86-64_linux/static_pic'
+  cplex_incdir = cplex_root+'cplex/include'
+  concert_incdir = cplex_root+'concert/include'
+
+  cplex_lib = compiler.find_library('cplex', dirs:cplex_libdir)
+  ilocplex_lib = compiler.find_library('ilocplex', dirs:cplex_libdir)
+  concert_lib = compiler.find_library('concert', dirs:concert_libdir)
+
+  cplex_inc = include_directories([cplex_incdir,
+				   concert_incdir])
+  threads_dep = dependency('threads')
+  cplex_dep = declare_dependency(dependencies: [cplex_lib,
+						ilocplex_lib,
+						concert_lib,
+						threads_dep],
+				 include_directories: cplex_inc)
+
+  executable('cplex-color',
+	     ['sota/cplex.cpp'],
+	     dependencies: [cplex_dep, basic_dep],
+	     cpp_args: ['-DIL_STD'])
+endif
