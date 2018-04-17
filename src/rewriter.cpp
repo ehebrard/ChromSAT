@@ -87,12 +87,12 @@ minicsp::Solver::clause_callback_result_t rewriter::rewrite(
 
     D
     {
-        DOUT << "active partitions = " << print_container{active_partitions}
+        DOUT << "active partitions = " << print_container<std::vector<int>>{active_partitions}
              << "\n";
         for (int i = 0; i != ncol; ++i)
             DOUT << "color " << i
-                 << " eq = " << print_container{partitions_eq[i]}
-                 << " neq = " << print_container{partitions_neq[i]} << "\n";
+                 << " eq = " << print_container<std::vector<int>>{partitions_eq[i]}
+                 << " neq = " << print_container<std::vector<int>>{partitions_neq[i]} << "\n";
     }
 
     DOUT << std::endl;
