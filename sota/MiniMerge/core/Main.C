@@ -353,6 +353,7 @@ int main(int argc, char** argv)
     if (argc != 5)
         reportf("Usage: %s <col file> <lb> <ub> <algo in {0 (TOP_DOWN), 1 (BOTTOM_UP), 2 (BINARY)}>\n");
 			
+		printf(">>statistics: lb ub time parsetime encodetime conflicts\n");
 		
 		time_t rawtime;
 		struct tm * timeinfo;
