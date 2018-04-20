@@ -207,7 +207,8 @@ struct VSIDSPhaseBrancher : public Brancher {
     }
 };
 
-    // makes sure when choosing
+// makes sure when choosing e_i,j that at least of i,j is in a maximal
+// clique
 struct VSIDSCliqueBrancher : public Brancher {
     VSIDSBrancher vsids;
 
@@ -260,6 +261,52 @@ struct VSIDSCliqueBrancher : public Brancher {
             cand.push_back(minicsp::Lit(next));
         for (auto var : removed)
             heap.insert(var);
+        return;
+    }
+};
+
+struct VSIDSColorBrancher : public Brancher {
+    VSIDSColorBrancher(minicsp::Solver& s, graph& g,
+        const std::vector<std::vector<minicsp::Var>>& evars,
+        const std::vector<minicsp::cspvar>& xvars, cons_base& constraint,
+        const options& opt)
+        : Brancher(s, g, evars, xvars, constraint, opt)
+    {
+        for (auto& uv : evars)
+            for (auto e : uv) {
+                if (e != minicsp::var_Undef)
+                    s.setDecisionVar(e, false);
+            }
+        for (auto x : xvars)
+            for (int i = x.omin(s); i <= x.omax(s); ++i) {
+                auto v = x.leqi(s, i);
+                if (v != minicsp::var_Undef)
+                    continue;
+                s.setDecisionVar(v, false);
+            }
+    }
+
+    void select_candidates(std::vector<minicsp::Lit>& cand)
+    {
+        auto& heap = s.vsids_heap();
+        minicsp::Var next;
+        do {
+            next = minicsp::var_Undef;
+            if (heap.empty())
+                break;
+            next = heap.removeMin();
+            if (s.value(next) != minicsp::l_Undef)
+                next = minicsp::var_Undef;
+            auto event = s.event(minicsp::Lit(next));
+            if (event.type != minicsp::domevent::EQ) {
+                next = minicsp::var_Undef;
+                continue;
+            }
+        } while (next == minicsp::var_Undef);
+        if (next != minicsp::var_Undef) {
+            auto l = minicsp::Lit(next);
+            cand.push_back(l);
+        }
         return;
     }
 };

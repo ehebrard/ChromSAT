@@ -67,7 +67,8 @@ struct options {
         DEGREE_UNION_DYN,
         VSIDS_PHASED,
         VSIDS_GUIDED,
-        VSIDS_CLIQUE
+        VSIDS_CLIQUE,
+        VSIDS_COLORS_POSITIVE
         // ,BRELAZ_GUIDED
     };
     branching_heuristic branching;

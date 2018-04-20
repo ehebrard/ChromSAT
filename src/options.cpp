@@ -179,9 +179,9 @@ void options::describe(std::ostream& os)
     case gc::options::VSIDS_CLIQUE:
         os << "VSIDS restricted to merging with large cliques\n";
         break;
-    // case gc::options::BRELAZ_GUIDED:
-    //     os << "Brelaz with solution phase saving\n";
-    //     break;
+    case gc::options::VSIDS_COLORS_POSITIVE:
+        os << "VSIDS restricted to assignments to color variables\n";
+        break;
     }
     os << " ... low degree = " << branching_low_degree << "\n";
     os << "Strategy        = ";

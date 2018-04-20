@@ -255,6 +255,15 @@ struct gc_model {
             brancher = std::make_unique<gc::VSIDSCliqueBrancher>(
                 s, g, vars, xvars, *cons, options);
             break;
+        case gc::options::VSIDS_COLORS_POSITIVE:
+            if (!options.xvars) {
+                std::cout << "VSIDS_COLORS_POSITIVE needs --xvars\n";
+                exit(1);
+            }
+            brancher = std::make_unique<gc::VSIDSColorBrancher>(
+                s, g, vars, xvars, *cons, options);
+            brancher->use();
+            break;
         case gc::options::BRELAZ:
             brancher = std::make_unique<gc::BrelazBrancher>(
                 s, g, vars, xvars, *cons, options);
