@@ -66,13 +66,20 @@ public:
 	int capacity() const { return adjacency.size(); } // adjacency.size() instead of matrix.size()... same thing ?
 
 	// Adding each other in their neighbors
-	// Add control ? (already existing edge...)
 	void add_edge(const int u, const int v)
 	{
 		adjacency[u].push_back(v);
 		adjacency[v].push_back(u);
 		origadjacency[u].push_back(v);
 		origadjacency[v].push_back(u);
+	}
+
+	// if u is not already in adjacency[v]	
+	void safe_add_edge(const int u, const int v)
+	{	 
+		std::vector<int>::iterator it;
+		it = find(adjacency[v].begin(), adjacency[v].end(), u);
+  		if (it == adjacency[v].end()) add_edge(u,v); 
 	}
 
 	// TO STUDY
