@@ -162,16 +162,33 @@ vertices_vec BronKerbosch::intersect(vertices_vec const& v1,vertices_vec const& 
 	return v_intersection;
 }
 
-// TODO SORT HERE
-vertices_vec BronKerbosch::unite(vertices_vec v,int i) // v is a copy 
+vertices_vec BronKerbosch::unite_vector_element(vertices_vec& v,const int i) // v is assumed to be sorted
 {
-	v.push_back(i);	
+	// Increase size by one
+	v.resize(v.size() + 1);
+	
+	// Case i > last of v (empty vector works too)
+	if (v[v.size()-2] < i ){
+		v[v.size()-1] = i;
+		return v;
+	}
+
+	// Find where to place the new value
+	auto upper = std::upper_bound(v.begin(), v.end(), i);
+
+	// Shift the elements above i to the right
+	for(std::vector<int>::reverse_iterator rit = v.rbegin(); &*rit != &*upper ; ++rit)	
+		*rit = *(rit+1);
+
+	// Insert new value
+	*upper = i;
+	
 	return v;
 }
 
+// Display calls
 void BronKerbosch::bronkerbosch_calls_display(vertices_vec clique, vertices_vec candidates, vertices_vec banned)
 {
-	// Display calls
 	std::cout << "BronKerbosch( {" ;
 	for(std::vector<int>::const_iterator it1 = clique.begin(); it1 != clique.end(); ++it1){
 		std::cout << " " << *it1;}
@@ -191,17 +208,17 @@ void BronKerbosch::find_cliques_withoutPivot(vertices_vec clique, vertices_vec c
 	if(candidates.empty() && banned.empty())
 		add_max_clique(clique);
 	
-	// TREAT CANDIDATES BACKWARD
 	for(std::vector<int>::const_reverse_iterator rit = candidates.crbegin(); rit != candidates.crend(); ++rit) {
-		// RECURSIVE CALL
-		find_cliques_withoutPivot(unite(clique, *rit), intersect(candidates, g.adjacency[*rit]), intersect(banned, g.adjacency[*rit]));
+		// Recursive call
+		find_cliques_withoutPivot(unite_vector_element(clique, *rit), intersect(candidates, g.adjacency[*rit]), intersect(banned, g.adjacency[*rit]));
 		// P := \ {v}
-		candidates.pop_back(); // MUCH BETTER TO TREAT CANDIDATES BACKWARDS AND USE POP_BACK !
+		candidates.pop_back(); // Vector -> more efficient to treat candidates backward
 
-		// X := X U {v} // Need to be sorted -> Consuming 
+		// X := X U {v} // Use unite_vector_element
 		banned.push_back(*rit); 
 		std::sort (banned.begin(), banned.end());
 
+/* Use print_container instead ?
 		std::cout << "candidates left: ";
 		for(std::vector<int>::const_iterator it2 = candidates.begin(); it2 != candidates.end(); ++it2){
 			std::cout << " " << *it2;}
@@ -211,6 +228,7 @@ void BronKerbosch::find_cliques_withoutPivot(vertices_vec clique, vertices_vec c
 		for(std::vector<int>::const_iterator it3 = banned.begin(); it3 != banned.end(); ++it3){
 		std::cout << " " << *it3;}
 		std::cout << std::endl;
+*/
 	}		
 }
 

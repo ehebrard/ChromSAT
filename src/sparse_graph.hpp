@@ -226,7 +226,7 @@ struct BronKerbosch {
 
 	// Intersection, union
 	vertices_vec intersect(vertices_vec const & v1, vertices_vec const & v2);
-	vertices_vec unite(vertices_vec v,int i);
+	vertices_vec unite_vector_element(vertices_vec & v,const int i);
 };
 
 } // namespace gc
