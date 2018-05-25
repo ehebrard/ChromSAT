@@ -162,7 +162,7 @@ vertices_vec BronKerbosch::intersect(vertices_vec const& v1,vertices_vec const& 
 	return v_intersection;
 }
 
-vertices_vec BronKerbosch::unite_vector_element(vertices_vec& v,const int i) // v is assumed to be sorted
+vertices_vec BronKerbosch::unite_vector_element(vertices_vec v,const int i) // v is assumed to be sorted
 {
 	// Increase size by one
 	v.resize(v.size() + 1);
@@ -173,11 +173,13 @@ vertices_vec BronKerbosch::unite_vector_element(vertices_vec& v,const int i) // 
 		return v;
 	}
 
+	v[v.size()-1] = v[v.size()-2] + 1; // So v is still sorted
+
 	// Find where to place the new value
 	auto upper = std::upper_bound(v.begin(), v.end(), i);
 
 	// Shift the elements above i to the right
-	for(std::vector<int>::reverse_iterator rit = v.rbegin(); &*rit != &*upper ; ++rit)	
+	for(std::vector<int>::reverse_iterator rit = v.rbegin(); &*rit > &*upper ; ++rit)	
 		*rit = *(rit+1);
 
 	// Insert new value
