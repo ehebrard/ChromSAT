@@ -29,7 +29,7 @@ public:
 
     basic_graph() {}
     explicit basic_graph(int nv)
-        : nodeset(0, nv - 1, bitset::empt)
+        : nodeset(0, nv - 1, bitset::full)
         , matrix(nv)
     {
         nodes.reserve(nv);
@@ -106,12 +106,12 @@ public:
 };
 
 
-class graph
+class graph : public basic_graph
 {
 public:
-    bitset nodeset;
-    IntStack nodes;
-    std::vector<bitset> matrix;
+    // bitset nodeset;
+    // IntStack nodes;
+    // std::vector<bitset> matrix;
     // we keep a copy of the original matrix because we modify matrix
     // when we do merge/separate
     std::vector<bitset> origmatrix;
@@ -153,10 +153,11 @@ public:
     void add_dirty_edge(int u, int v);
 
 public:
-    graph() {}
+    graph() : basic_graph() {}
     explicit graph(int nv)
-        : nodeset(0, nv - 1, bitset::full)
-        , matrix(nv)
+        // : nodeset(0, nv - 1, bitset::full)
+        // , matrix(nv)
+				: basic_graph(nv)
         , origmatrix(nv)
         , rep_of(nv)
         , partition(nv)
@@ -165,11 +166,11 @@ public:
         , partu(0, nv - 1, bitset::empt)
         , partv(0, nv - 1, bitset::empt)
     {
-        nodes.reserve(nv);
-        nodes.fill();
-        for (auto& bs : matrix) {
-            bs.initialise(0, nv, bitset::empt);
-        }
+        // nodes.reserve(nv);
+        // nodes.fill();
+        // for (auto& bs : matrix) {
+        //     bs.initialise(0, nv, bitset::empt);
+        // }
         for (auto& bs : origmatrix) {
             bs.initialise(0, nv, bitset::empt);
         }
