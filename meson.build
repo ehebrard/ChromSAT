@@ -4,8 +4,7 @@ compiler = meson.get_compiler('cpp')
 
 basic_lib = static_library('basic', ['src/intstack.cpp',
 				     'src/graph.cpp',
-				     'src/options.cpp',
-				     'src/statistics.cpp'])
+				     'src/options.cpp'])
 basic_dep = declare_dependency(link_with:basic_lib,
 			       include_directories: include_directories('src'))
 
@@ -19,7 +18,8 @@ minicsp_dep = declare_dependency(link_with: minicsp_lib,
 executable('gc', ['src/gc.cpp',
 		  'src/prop.cpp',
 		  'src/rewriter.cpp',
-		  'src/mycielski.cpp'],
+		  'src/mycielski.cpp',
+		  'src/statistics.cpp'],
 	   dependencies: [minicsp_dep, basic_dep])
 
 use_gecode = get_option('use_gecode')
