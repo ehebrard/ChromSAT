@@ -137,10 +137,10 @@ struct sparse_clique_finder {
 
     sparse_clique_finder(const sparse_graph& g);
 	
-	// clear previously cached results
-	void clear();
-	// initialize a new clique
-	void new_clique();
+		// clear previously cached results
+		void clear();
+		// initialize a new clique
+		void new_clique();
     // initialize a new color
     void new_color();
     // insert v into the clq^th clique. assumes it fits
