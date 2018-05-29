@@ -12,7 +12,7 @@ using namespace minicsp;
 class gc_constraint : public minicsp::cons, public cons_base
 {
 private:
-    mycielskan_subgraph_finder mf;
+    mycielskan_subgraph_finder<bitset> mf;
 
     const std::vector<std::vector<Var>>& vars;
     const options& opt;
@@ -60,7 +60,7 @@ private:
     // the vertex chosen as w at each step
     std::vector<int> expl_myc_w;
 
-    neighbors_wrapper adjacency_list;
+    // neighbors_wrapper adjacency_list;
 
     std::vector<int> degeneracy_order;
     std::vector<int> heuristic;
@@ -71,10 +71,10 @@ private:
     // long int n_prunings;
 
 public:
-    gc_constraint(Solver& solver, dense_graph& pg,
+    gc_constraint(Solver& solver, dense_graph& g,
         const std::vector<std::vector<Var>>& tvars, const options& opt,
         statistics& stat)
-        : cons_base(solver, pg)
+        : cons_base(solver, g)
         , mf(g, cf, opt.prune)
         , vars(tvars)
         , opt(opt)
@@ -92,7 +92,7 @@ public:
         , expl_revmap(g.capacity())
         , expl_part_rep(g.capacity())
         , expl_covered_neighbors(g.capacity())
-        , adjacency_list(g)
+    // , adjacency_list(g)
     {
         stat.binds(this);
         ub = g.capacity();
@@ -443,23 +443,25 @@ public:
 
         // recompute the degenracy order
         if (opt.ordering == options::DYNAMIC_DEGENERACY) {
-            heuristic.clear();
-            adjacency_list.get_degeneracy_order(heuristic);
-            std::reverse(heuristic.begin(), heuristic.end());
-            lb = cf.find_cliques(heuristic, opt.cliquelimit);
+            assert(false);
+            // heuristic.clear();
+            // adjacency_list.get_degeneracy_order(heuristic);
+            // std::reverse(heuristic.begin(), heuristic.end());
+            // lb = cf.find_cliques(heuristic, opt.cliquelimit);
         } else if (opt.ordering == options::DEGENERACY
             or opt.ordering == options::INVERSE_DEGENERACY) {
-            if (degeneracy_order.empty()) {
-                adjacency_list.get_degeneracy_order(degeneracy_order);
-                if (opt.ordering == options::INVERSE_DEGENERACY)
-                    std::reverse(
-                        degeneracy_order.begin(), degeneracy_order.end());
-            }
-            heuristic.clear();
-            for (auto v : degeneracy_order)
-                if (g.nodeset.fast_contain(v))
-                    heuristic.push_back(v);
-            lb = cf.find_cliques(heuristic, opt.cliquelimit);
+            assert(false);
+            // if (degeneracy_order.empty()) {
+            //     adjacency_list.get_degeneracy_order(degeneracy_order);
+            //     if (opt.ordering == options::INVERSE_DEGENERACY)
+            //         std::reverse(
+            //             degeneracy_order.begin(), degeneracy_order.end());
+            // }
+            // heuristic.clear();
+            // for (auto v : degeneracy_order)
+            //     if (g.nodeset.fast_contain(v))
+            //         heuristic.push_back(v);
+            // lb = cf.find_cliques(heuristic, opt.cliquelimit);
         } else if (opt.ordering == options::PARTITION) {
 
             if (opt.ordering_low_degree == options::PREPROCESSING_ORDERING) {
