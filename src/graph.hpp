@@ -446,7 +446,7 @@ struct clique_finder {
     std::vector<int> last_clique;
     int num_cliques;
 
-    clique_finder(const graph<adjacency_struct>& g);
+    clique_finder(const graph<adjacency_struct>& g)
 		    : g(g)
 		    , num_cliques(1)
 		{
@@ -677,7 +677,7 @@ namespace detail
 } // namespace detail
 
 template< class adjacency_struct >
-std::vector<int> brelaz_color(const graph<adjacency_struct>& g);
+std::vector<int> brelaz_color(const graph<adjacency_struct>& g)
 {
     detail::brelaz_state state{g};
     auto& cf = state.cf;
