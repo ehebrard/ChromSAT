@@ -461,9 +461,9 @@ struct clique_finder {
 		}
 
     // clear previously cached results
-    void clique_finder::clear() { num_cliques = 0; }
+    void clear() { num_cliques = 0; }
     // initialize a new clique
-		void clique_finder::new_clique()
+		void new_clique()
 		{
 		    assert(num_cliques < g.capacity());
 		    cliques[num_cliques].clear();
@@ -472,7 +472,7 @@ struct clique_finder {
 		    ++num_cliques;
 		}
     // initialize a new color
-		void clique_finder::new_color()
+		void new_color()
 		{
 		    assert(num_cliques < g.capacity());
 		    cliques[num_cliques].clear();
@@ -481,7 +481,7 @@ struct clique_finder {
 		    ++num_cliques;
 		}
     // insert v into the clq^th clique. assumes it fits
-		void clique_finder::insert(int v, int clq)
+		void insert(int v, int clq)
 		{
 		    cliques[clq].fast_add(v);
 		    ++clique_sz[clq];
@@ -490,7 +490,7 @@ struct clique_finder {
 		}
     // insert v into the col^th color. assumes it fits. Puts vertices
     // added from candidates[i] into diff
-		void clique_finder::insert_color(int v, int clq, bitset& diff)
+		void insert_color(int v, int clq, bitset& diff)
 		{
 		    cliques[clq].fast_add(v);
 		    ++clique_sz[clq];
