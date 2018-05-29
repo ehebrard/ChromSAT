@@ -384,6 +384,15 @@ struct gc_model {
 std::pair<int, int> initial_bounds(
     const gc::graph& g, gc::statistics& stat, bool myciel = false)
 {
+		gc::degeneracy_finder df{g};
+		df.degeneracy_ordering();
+		for( auto u : df.order ) {
+			std::cout << u << "(" << g.matrix[u].size() << ") ";
+		}
+		std::cout << std::endl;
+		
+
+	
     gc::clique_finder cf{g};
     gc::mycielskan_subgraph_finder mf(g, cf, false);
     int lb{cf.find_cliques(g.nodes)};

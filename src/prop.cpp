@@ -71,7 +71,7 @@ private:
     // long int n_prunings;
 
 public:
-    gc_constraint(Solver& solver, graph& pg,
+    gc_constraint(Solver& solver, dense_graph& pg,
         const std::vector<std::vector<Var>>& tvars, const options& opt,
         statistics& stat)
         : cons_base(solver, pg)
@@ -655,7 +655,7 @@ bool intersect_vec_bs_p(const std::vector<int> vec, const bitset& bs)
 };
 
 // pick which partition will be our w
-int pick_partition(const graph& g, const bitset& clq, bitset& util_set,
+int pick_partition(const dense_graph& g, const bitset& clq, bitset& util_set,
     const std::vector<std::vector<int>>& partitions,
     const std::vector<int>& revmap)
 {
@@ -681,7 +681,7 @@ int pick_partition(const graph& g, const bitset& clq, bitset& util_set,
 }
 
 // pick a neighbor of w to remove from each partition of clq
-void update_partitions(const graph& g,
+void update_partitions(const dense_graph& g,
     std::vector<std::vector<int>>& partitions,
     std::vector<int>& covered_neighbors, const bitset& clq, int w,
     const std::vector<int>& revmap, bitset& util_set)
@@ -702,7 +702,7 @@ void update_partitions(const graph& g,
     }
 }
 
-int pick_vertex(const graph& g, const bitset& clq, int w,
+int pick_vertex(const dense_graph& g, const bitset& clq, int w,
     const std::vector<std::vector<int>>& partitions,
     const std::vector<int>& revmap, bitset& util_set)
 {
@@ -846,7 +846,7 @@ void gc_constraint::verify_myc_reason()
     assert(0);
 }
 
-cons_base* post_gc_constraint(Solver& s, graph& g,
+cons_base* post_gc_constraint(Solver& s, dense_graph& g,
     const std::vector<std::vector<Var>>& vars, const options& opt,
     statistics& stat)
 {
