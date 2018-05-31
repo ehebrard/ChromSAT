@@ -14,12 +14,12 @@
 #include <minicsp/core/utils.hpp>
 
 struct graph_reduction {
-    const gc::graph& g;
+    const gc::dense_graph& g;
     std::vector<int> removed_vertices;
     gc::bitset nodeset;
     gc::bitset util_set;
 
-    explicit graph_reduction(const gc::graph& g)
+    explicit graph_reduction(const gc::dense_graph& g)
         : g(g)
         , nodeset(0, g.capacity(), gc::bitset::empt)
         , util_set(0, g.capacity(), gc::bitset::empt)
@@ -60,7 +60,7 @@ struct gc_model {
     gc::statistics& statistics;
 
     graph_reduction reduction;
-    gc::graph& g;
+    gc::dense_graph& g;
     minicsp::Solver s;
     std::vector<std::vector<minicsp::Var>> vars;
     gc::cons_base* cons;
@@ -104,7 +104,8 @@ struct gc_model {
         return vars;
     }
 
-    graph_reduction preprocess(gc::graph& g, std::pair<int, int> bounds, bool myciel=false)
+    graph_reduction preprocess(
+        gc::dense_graph& g, std::pair<int, int> bounds, bool myciel = false)
     {
         graph_reduction gr(g);
         if (options.preprocessing == gc::options::NO_PREPROCESSING)
@@ -113,8 +114,8 @@ struct gc_model {
         lb = bounds.first;
         ub = bounds.second;
         int hlb{0};
-        gc::clique_finder cf{g};
-        gc::mycielskan_subgraph_finder mf(g, cf, false);
+        gc::clique_finder<gc::bitset> cf{g};
+        gc::mycielskan_subgraph_finder<gc::bitset> mf(g, cf, false);
 
         gc::bitset forbidden(0, g.capacity(), gc::bitset::empt);
         gc::bitset util_set(0, g.capacity(), gc::bitset::empt);
@@ -175,7 +176,7 @@ struct gc_model {
         return gr;
     }
 
-    gc_model(gc::graph& g, const gc::options& options,
+    gc_model(gc::dense_graph& g, const gc::options& options,
         gc::statistics& statistics, std::pair<int, int> bounds)
         : options(options)
         , statistics(statistics)
@@ -382,10 +383,17 @@ struct gc_model {
 };
 
 std::pair<int, int> initial_bounds(
-    const gc::graph& g, gc::statistics& stat, bool myciel = false)
+    const gc::dense_graph& g, gc::statistics& stat, bool myciel = false)
 {
-    gc::clique_finder cf{g};
-    gc::mycielskan_subgraph_finder mf(g, cf, false);
+    // gc::degeneracy_finder df{g};
+    // df.degeneracy_ordering();
+    // for( auto u : df.order ) {
+    // 	std::cout << u << "(" << g.matrix[u].size() << ") ";
+    // }
+    // std::cout << std::endl;
+
+    gc::clique_finder<gc::bitset> cf{g};
+    gc::mycielskan_subgraph_finder<gc::bitset> mf(g, cf, false);
     int lb{cf.find_cliques(g.nodes)};
 
     if (myciel)
@@ -403,7 +411,7 @@ std::pair<int, int> initial_bounds(
     return std::make_pair(lb, ub);
 }
 
-void histogram(gc::graph& g)
+void histogram(gc::dense_graph& g)
 {
     std::vector<int> degrees;
     gc::bitset N(0, g.capacity() - 1, gc::bitset::empt);
@@ -432,9 +440,9 @@ int main(int argc, char* argv[])
     auto options = gc::parse(argc, argv);
     options.describe(std::cout);
 
-    gc::graph g;
+    gc::dense_graph g;
     dimacs::read_graph(options.instance_file.c_str(),
-        [&](int nv, int) { g = gc::graph{nv}; },
+        [&](int nv, int) { g = gc::dense_graph{nv}; },
         [&](int u, int v) {
             if (u != v)
                 g.add_edge(u - 1, v - 1);
