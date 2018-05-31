@@ -12,7 +12,7 @@ using namespace minicsp;
 class gc_constraint : public minicsp::cons, public cons_base
 {
 private:
-    mycielskan_subgraph_finder mf;
+    mycielskan_subgraph_finder<bitset> mf;
 
     const std::vector<std::vector<Var>>& vars;
     const options& opt;
@@ -60,7 +60,7 @@ private:
     // the vertex chosen as w at each step
     std::vector<int> expl_myc_w;
 
-    neighbors_wrapper adjacency_list;
+    // neighbors_wrapper adjacency_list;
 
     std::vector<int> degeneracy_order;
     std::vector<int> heuristic;
@@ -71,10 +71,10 @@ private:
     // long int n_prunings;
 
 public:
-    gc_constraint(Solver& solver, graph& pg,
+    gc_constraint(Solver& solver, dense_graph& g,
         const std::vector<std::vector<Var>>& tvars, const options& opt,
         statistics& stat)
-        : cons_base(solver, pg)
+        : cons_base(solver, g)
         , mf(g, cf, opt.prune)
         , vars(tvars)
         , opt(opt)
@@ -92,7 +92,7 @@ public:
         , expl_revmap(g.capacity())
         , expl_part_rep(g.capacity())
         , expl_covered_neighbors(g.capacity())
-        , adjacency_list(g)
+    // , adjacency_list(g)
     {
         stat.binds(this);
         ub = g.capacity();
@@ -443,23 +443,25 @@ public:
 
         // recompute the degenracy order
         if (opt.ordering == options::DYNAMIC_DEGENERACY) {
-            heuristic.clear();
-            adjacency_list.get_degeneracy_order(heuristic);
-            std::reverse(heuristic.begin(), heuristic.end());
-            lb = cf.find_cliques(heuristic, opt.cliquelimit);
+            assert(false);
+            // heuristic.clear();
+            // adjacency_list.get_degeneracy_order(heuristic);
+            // std::reverse(heuristic.begin(), heuristic.end());
+            // lb = cf.find_cliques(heuristic, opt.cliquelimit);
         } else if (opt.ordering == options::DEGENERACY
             or opt.ordering == options::INVERSE_DEGENERACY) {
-            if (degeneracy_order.empty()) {
-                adjacency_list.get_degeneracy_order(degeneracy_order);
-                if (opt.ordering == options::INVERSE_DEGENERACY)
-                    std::reverse(
-                        degeneracy_order.begin(), degeneracy_order.end());
-            }
-            heuristic.clear();
-            for (auto v : degeneracy_order)
-                if (g.nodeset.fast_contain(v))
-                    heuristic.push_back(v);
-            lb = cf.find_cliques(heuristic, opt.cliquelimit);
+            assert(false);
+            // if (degeneracy_order.empty()) {
+            //     adjacency_list.get_degeneracy_order(degeneracy_order);
+            //     if (opt.ordering == options::INVERSE_DEGENERACY)
+            //         std::reverse(
+            //             degeneracy_order.begin(), degeneracy_order.end());
+            // }
+            // heuristic.clear();
+            // for (auto v : degeneracy_order)
+            //     if (g.nodeset.fast_contain(v))
+            //         heuristic.push_back(v);
+            // lb = cf.find_cliques(heuristic, opt.cliquelimit);
         } else if (opt.ordering == options::PARTITION) {
 
             if (opt.ordering_low_degree == options::PREPROCESSING_ORDERING) {
@@ -655,7 +657,7 @@ bool intersect_vec_bs_p(const std::vector<int> vec, const bitset& bs)
 };
 
 // pick which partition will be our w
-int pick_partition(const graph& g, const bitset& clq, bitset& util_set,
+int pick_partition(const dense_graph& g, const bitset& clq, bitset& util_set,
     const std::vector<std::vector<int>>& partitions,
     const std::vector<int>& revmap)
 {
@@ -681,7 +683,7 @@ int pick_partition(const graph& g, const bitset& clq, bitset& util_set,
 }
 
 // pick a neighbor of w to remove from each partition of clq
-void update_partitions(const graph& g,
+void update_partitions(const dense_graph& g,
     std::vector<std::vector<int>>& partitions,
     std::vector<int>& covered_neighbors, const bitset& clq, int w,
     const std::vector<int>& revmap, bitset& util_set)
@@ -702,7 +704,7 @@ void update_partitions(const graph& g,
     }
 }
 
-int pick_vertex(const graph& g, const bitset& clq, int w,
+int pick_vertex(const dense_graph& g, const bitset& clq, int w,
     const std::vector<std::vector<int>>& partitions,
     const std::vector<int>& revmap, bitset& util_set)
 {
@@ -846,7 +848,7 @@ void gc_constraint::verify_myc_reason()
     assert(0);
 }
 
-cons_base* post_gc_constraint(Solver& s, graph& g,
+cons_base* post_gc_constraint(Solver& s, dense_graph& g,
     const std::vector<std::vector<Var>>& vars, const options& opt,
     statistics& stat)
 {

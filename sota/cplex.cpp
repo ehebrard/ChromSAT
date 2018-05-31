@@ -49,6 +49,8 @@ int main(int argc, char* argv[])
     for (int i = 0; i < ub; ++i) {
         mod.add(usedColors[i]);
         obj += usedColors[i];
+        if (i < ub - 1)
+            mod.add(usedColors[i] >= usedColors[i+1]);
     }
 
     std::cout << "node colors variables\n";

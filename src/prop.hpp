@@ -5,20 +5,24 @@
 #include "minicsp/core/solver.hpp"
 #include "options.hpp"
 
+
+
 namespace gc
 {
+	
+using dense_graph = graph<bitset>;
 
 struct statistics;
 
 struct cons_base {
     minicsp::Solver& s;
-    graph& g;
+    dense_graph& g;
     int ub;
     int bestlb{0};
-    clique_finder cf;
+    clique_finder<bitset> cf;
     minicsp::backtrackable<int> lastlb;
 
-    explicit cons_base(minicsp::Solver& s, graph& g)
+    explicit cons_base(minicsp::Solver& s, dense_graph& g)
         : s(s)
         , g(g)
         , cf(g)
@@ -46,7 +50,7 @@ protected:
     minicsp::backtrackable<int> lastdlvl;
 };
 
-cons_base* post_gc_constraint(minicsp::Solver& s, graph& g,
+cons_base* post_gc_constraint(minicsp::Solver& s, dense_graph& g,
     const std::vector<std::vector<minicsp::Var>>& vars, const options& opt,
     statistics& stat);
 
