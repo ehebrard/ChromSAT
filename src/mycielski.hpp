@@ -50,7 +50,7 @@ public:
 
     // extend the subgraph G into a mycielski of subsequent order if possible,
     // the additional vertices go into "subgraph"
-    int extends(const bitset& G);
+    int extends(const adjacency_struct& G);
 
     int improve_cliques_larger_than(const int size);
     int full_myciel(const int lb, const int ub, Solver& s,
@@ -215,7 +215,7 @@ private:
     Clause* do_prune(Solver& s, const std::vector<std::vector<Var>>& vars)
     {
         pruning.copy(candidates);
-        candidates.fill();
+        candidates.add_interval(0,g.capacity());
 
         if (another_myciel_layer(ith_node)
             == static_cast<int>(subgraph.nodes.size())) {
@@ -318,7 +318,7 @@ private:
 };
 
 template <class adjacency_struct>
-int mycielskan_subgraph_finder<adjacency_struct>::extends(const bitset& G)
+int mycielskan_subgraph_finder<adjacency_struct>::extends(const adjacency_struct& G)
 {
     int iter = 0;
 
@@ -330,7 +330,7 @@ int mycielskan_subgraph_finder<adjacency_struct>::extends(const bitset& G)
         // w's
         extra.clear(); // extra contains the union of the Sv's
         endS.clear(); // where do the Sv's en in the vector extra
-        candidates.fill(); // potential candidates for w
+        candidates.add_interval(0,g.capacity()); // potential candidates for w
 
 #ifdef _DEBUG_MYCIEL
         std::cout << "\nextends " << subgraph.nodeset << std::endl;

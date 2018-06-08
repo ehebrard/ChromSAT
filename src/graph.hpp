@@ -67,7 +67,7 @@ public:
 
     void add_node(const int v);
 
-    void add_clique(const bitset& C);
+    void add_clique(const adjacency_struct& C);
 
     void remove_edge(int u, int v);
 
@@ -307,7 +307,7 @@ void basic_graph<adjacency_struct>::add_node(const int v)
 }
 
 template< class adjacency_struct >
-void basic_graph<adjacency_struct>::add_clique(const bitset& C)
+void basic_graph<adjacency_struct>::add_clique(const adjacency_struct& C)
 {
     for (auto v : C) {
         add_node(v);

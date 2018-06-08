@@ -21,6 +21,13 @@ executable('gc', ['src/gc.cpp',
 		  'src/mycielski.cpp',
 		  'src/statistics.cpp'],
 	   dependencies: [minicsp_dep, basic_dep])
+		 
+executable('preprocessing', ['src/preprocessing.cpp',
+	  'src/prop.cpp',
+	  'src/rewriter.cpp',
+	  'src/mycielski.cpp',
+	  'src/statistics.cpp'],
+   dependencies: [minicsp_dep, basic_dep])
 
 use_gecode = get_option('use_gecode')
 if use_gecode

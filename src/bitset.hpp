@@ -9,6 +9,7 @@
 #include <cassert>
 
 #include "constants.hpp"
+#include "vertices_vec.hpp"
 
 namespace gc {
 
@@ -314,6 +315,14 @@ public:
             table[k] = empt;
         if (i > j)
             memcpy(table + j, s.table + j, size_word_byte * (i - j));
+    }
+		
+    void copy(const vertices_vec& s)
+    {
+			clear();
+			for(auto x : s) {
+				add(x);
+			}
     }
 
     virtual ~Bitset()
@@ -754,6 +763,13 @@ public:
             }
         }
         return diff;
+    }
+		
+    inline bool setminus_with(const vertices_vec& s)
+    {
+			for(auto x : s) {
+				remove(x);
+			}
     }
 
     inline bool intersect_with_check(const Bitset<WORD_TYPE, FLOAT_TYPE>& s)
