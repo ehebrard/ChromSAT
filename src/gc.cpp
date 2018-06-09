@@ -388,7 +388,7 @@ std::pair<int, int> initial_bounds(
     // gc::degeneracy_finder df{g};
     // df.degeneracy_ordering();
     // for( auto u : df.order ) {
-    // 	std::cout << u << "(" << g.matrix[u].size() << ") ";
+    //  std::cout << u << "(" << g.matrix[u].size() << ") ";
     // }
     // std::cout << std::endl;
 

@@ -35,7 +35,7 @@ public:
     basic_graph() {}
     explicit basic_graph(int nv)
         : nodeset(0, nv - 1, bitset::full)
-				// : nodeset(0, nv - 1, bitset::empt)
+        // : nodeset(0, nv - 1, bitset::empt)
         , matrix(nv)
     {
         nodes.reserve(nv);
@@ -59,7 +59,7 @@ public:
     basic_graph& operator=(basic_graph&&) = default;
 
     int capacity() const { return matrix.size(); }
-		int size() const { return nodes.size(); }
+    int size() const { return nodes.size(); }
 
     void add_edge(const int u, const int v);
 
@@ -74,7 +74,6 @@ public:
     void remove_node(int v);
 
     void clear();
-		
 };
 
 template <class adjacency_struct>
@@ -130,7 +129,7 @@ public:
     {
     }
     explicit graph(int nv)
-				: basic_graph<adjacency_struct>(nv)
+        : basic_graph<adjacency_struct>(nv)
         , origmatrix(nv)
         , rep_of(nv)
         , partition(nv)
@@ -158,25 +157,24 @@ public:
 
     // merge vertices and return the id of the new vertex (one of u,
     // v)
-		int merge(int u, int v);
+    int merge(int u, int v);
 
     // separate u and v. Just adds an edge, but it is reversible through
     // checkpointing
-		void separate(int u, int v);
+    void separate(int u, int v);
 
-		int contractPreprocess();
+    int contractPreprocess();
 
-		int checkpoint();
-		
-		void restore(int ckpt);
-		
+    int checkpoint();
+
+    void restore(int ckpt);
+
     int current_checkpoint() const { return cur_ckpt; }
 
-		void describe(std::ostream& os) const;
+    void describe(std::ostream& os) const;
 
     // debugging
-		void check_consistency() const;
-
+    void check_consistency() const;
 };
 
 
@@ -192,90 +190,88 @@ struct clique_finder {
     int num_cliques;
 
     clique_finder(const graph<adjacency_struct>& g)
-		    : g(g)
-		    , num_cliques(1)
-		{
-		    last_clique.resize(g.capacity());
-		    cliques.resize(g.capacity());
-		    clique_sz.resize(g.capacity());
-		    candidates.resize(g.capacity());
-		    for (auto& b : cliques)
-		        b.initialise(0, g.capacity(), bitset::empt);
-		    for (auto& b : candidates)
-		        b.initialise(0, g.capacity(), bitset::full);
-		}
+        : g(g)
+        , num_cliques(1)
+    {
+        last_clique.resize(g.capacity());
+        cliques.resize(g.capacity());
+        clique_sz.resize(g.capacity());
+        candidates.resize(g.capacity());
+        for (auto& b : cliques)
+            b.initialise(0, g.capacity(), bitset::empt);
+        for (auto& b : candidates)
+            b.initialise(0, g.capacity(), bitset::full);
+    }
 
     // clear previously cached results
     void clear() { num_cliques = 0; }
     // initialize a new clique
-		void new_clique();
+    void new_clique();
 
     // initialize a new color
-		void new_color();
+    void new_color();
 
     // insert v into the clq^th clique. assumes it fits
-		void insert(int v, int clq);
+    void insert(int v, int clq);
 
     // insert v into the col^th color. assumes it fits. Puts vertices
     // added from candidates[i] into diff
-		void insert_color(int v, int clq, bitset& diff);
+    void insert_color(int v, int clq, bitset& diff);
 
     // heuristically find a set of cliques and return the size of the
     // largest
 
     template <class ordering> int find_cliques(ordering o, const int limit=0xfffffff)
-		{
-		    clear();
-		    if (o.size() == 0)
-		        return 0;
-		    for (auto u : o) {
-		        bool found{false};
-		        for (int i = 0; i != num_cliques; ++i)
-		            if (candidates[i].fast_contain(u)) {
-		                found = true;
-		                insert(u, i);
-		            }
-		        if (!found && num_cliques < limit) {
-		            new_clique();
-		            insert(u, num_cliques - 1);
-		        }
-		    }
+    {
+        clear();
+        if (o.size() == 0)
+            return 0;
+        for (auto u : o) {
+            bool found{false};
+            for (int i = 0; i != num_cliques; ++i)
+                if (candidates[i].fast_contain(u)) {
+                    found = true;
+                    insert(u, i);
+                }
+            if (!found && num_cliques < limit) {
+                new_clique();
+                insert(u, num_cliques - 1);
+            }
+        }
 
-		    for (auto u : o) {
-		        for (int i = last_clique[u] + 1; i < num_cliques; ++i)
-		            if (candidates[i].fast_contain(u)) {
-		                insert(u, i);
-		            }
-		    }
+        for (auto u : o) {
+            for (int i = last_clique[u] + 1; i < num_cliques; ++i)
+                if (candidates[i].fast_contain(u)) {
+                    insert(u, i);
+                }
+        }
 
-		    return *std::max_element(
-		        begin(clique_sz), begin(clique_sz) + num_cliques);
-		}
-
+        return *std::max_element(
+            begin(clique_sz), begin(clique_sz) + num_cliques);
+    }
 };
 
 
 template< class adjacency_struct >
 struct degeneracy_finder {
 
-	const basic_graph<adjacency_struct>& g;
-	int d;
-	std::vector<int> order;
-  std::vector<int> degrees;
-  std::vector<std::list<int>::iterator> iterators;
-  std::vector<bool> ordered;
-	std::vector<std::list<int>> buckets;
+    const basic_graph<adjacency_struct>& g;
+    int d;
+    std::vector<int> order;
+    std::vector<int> degrees;
+    std::vector<std::list<int>::iterator> iterators;
+    std::vector<bool> ordered;
+    std::vector<std::list<int>> buckets;
 
+    degeneracy_finder(const basic_graph<adjacency_struct>& g)
+        : g(g)
+        , degrees(g.size())
+        , iterators(g.size())
+        , ordered(g.size())
+    {
+    }
 
-	degeneracy_finder(const basic_graph<adjacency_struct>& g)
-		:	g(g)
-		, degrees(g.size())
-    , iterators(g.size())
-		, ordered(g.size())
-	{}
-
-	void degeneracy_ordering();
-
+    void degeneracy_ordering();
 };
 
 
@@ -435,9 +431,9 @@ void graph<adjacency_struct>::separate(int u, int v)
 
 template< class adjacency_struct >
 int graph<adjacency_struct>::contractPreprocess() {
-		int num_contractions = 0;
-		bool some_propagation = true;
-		while(some_propagation) {
+    int num_contractions = 0;
+    bool some_propagation = true;
+    while (some_propagation) {
         some_propagation = false;
         for(auto u : nodes) {
             for(auto v : nodes) {
@@ -453,8 +449,8 @@ int graph<adjacency_struct>::contractPreprocess() {
                 }
             }
         }
-		}
-		return num_contractions;
+    }
+    return num_contractions;
 }
 
 template< class adjacency_struct >
@@ -658,8 +654,7 @@ void degeneracy_finder<adjacency_struct>::degeneracy_ordering()
 
 namespace detail
 {
-		template< class adjacency_struct >
-    struct brelaz_state {
+    template <class adjacency_struct> struct brelaz_state {
         clique_finder<adjacency_struct> cf;
 
         // degrees are valid only if the corresponding bit is not set in dirty

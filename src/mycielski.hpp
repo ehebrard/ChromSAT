@@ -31,22 +31,22 @@ public:
 
     mycielskan_subgraph_finder(const graph<adjacency_struct>& g,
         const clique_finder<adjacency_struct>& cf, const bool prune)
-		    : prune(prune)
-		    , g(g)
-		    , cf(cf)
-		    , explanation_subgraph(g.capacity())
-		    , subgraph(g.capacity())
-		    , ith_node(0)
-		{
-		    non_neighbors.initialise(0, g.capacity() + 1, bitset::empt);
-		    neighbors_Sv.initialise(0, g.capacity() + 1, bitset::empt);
-		    neighbors_w.initialise(0, g.capacity() + 1, bitset::empt);
-		    candidates.initialise(0, g.capacity() + 1, bitset::empt);
-		    pruning.initialise(0, g.capacity() + 1, bitset::empt);
-		    real_pruning.initialise(0, g.capacity() + 1, bitset::empt);
+        : prune(prune)
+        , g(g)
+        , cf(cf)
+        , explanation_subgraph(g.capacity())
+        , subgraph(g.capacity())
+        , ith_node(0)
+    {
+        non_neighbors.initialise(0, g.capacity() + 1, bitset::empt);
+        neighbors_Sv.initialise(0, g.capacity() + 1, bitset::empt);
+        neighbors_w.initialise(0, g.capacity() + 1, bitset::empt);
+        candidates.initialise(0, g.capacity() + 1, bitset::empt);
+        pruning.initialise(0, g.capacity() + 1, bitset::empt);
+        real_pruning.initialise(0, g.capacity() + 1, bitset::empt);
 
-		    explanation_clique = -1;
-		}
+        explanation_clique = -1;
+    }
 
     // extend the subgraph G into a mycielski of subsequent order if possible,
     // the additional vertices go into "subgraph"
@@ -338,9 +338,9 @@ int mycielskan_subgraph_finder<adjacency_struct>::extends(const adjacency_struct
 
         ith_node = another_myciel_layer(0);
 
-        assert(ith_node == endS.size());
+        assert(static_cast<size_t>(ith_node) == endS.size());
 
-        if (ith_node < subgraph.nodes.size())
+        if (static_cast<size_t>(ith_node) < subgraph.nodes.size())
             return iter;
 
         // select any (?) w

@@ -4,7 +4,8 @@ compiler = meson.get_compiler('cpp')
 
 basic_lib = static_library('basic', ['src/intstack.cpp',
 				     'src/graph.cpp',
-				     'src/options.cpp'])
+				     'src/options.cpp',
+				     'src/vertices_vec.cpp'])
 basic_dep = declare_dependency(link_with:basic_lib,
 			       include_directories: include_directories('src'))
 

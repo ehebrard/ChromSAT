@@ -316,13 +316,13 @@ public:
         if (i > j)
             memcpy(table + j, s.table + j, size_word_byte * (i - j));
     }
-		
+
     void copy(const vertices_vec& s)
     {
-			clear();
-			for(auto x : s) {
-				add(x);
-			}
+        clear();
+        for (auto x : s) {
+            add(x);
+        }
     }
 
     virtual ~Bitset()
@@ -685,6 +685,12 @@ public:
             table[0] |= s;
     }
 
+    template <typename Cont> void union_with(Cont const& cont)
+    {
+        for (auto&& e : cont)
+            add(e);
+    }
+
     inline void union_to(Bitset<WORD_TYPE, FLOAT_TYPE>& s) const
     {
         s.union_with(*this);
@@ -764,12 +770,12 @@ public:
         }
         return diff;
     }
-		
-    inline bool setminus_with(const vertices_vec& s)
+
+    inline void setminus_with(const vertices_vec& s)
     {
-			for(auto x : s) {
-				remove(x);
-			}
+        for (auto x : s) {
+            remove(x);
+        }
     }
 
     inline bool intersect_with_check(const Bitset<WORD_TYPE, FLOAT_TYPE>& s)
@@ -908,7 +914,7 @@ public:
         }
         return inc;
     }
-		
+
     inline bool included(const Bitset<WORD_TYPE, FLOAT_TYPE>& s) const
     {
         int i = (pos_words > s.pos_words ? s.pos_words : pos_words);
@@ -931,7 +937,7 @@ public:
     }
 
     inline bool includes(const Bitset<WORD_TYPE, FLOAT_TYPE>& s) const
-    {			
+    {
         int i = (pos_words > s.pos_words ? s.pos_words : pos_words);
         int j = (neg_words < s.neg_words ? s.neg_words : neg_words);
         int k = s.pos_words;

@@ -20,9 +20,10 @@ int main(int argc, char* argv[])
 
     auto options = gc::parse(argc, argv);
 
-    gc::graph g;
+    using dense_graph = gc::graph<gc::bitset>;
+    dense_graph g;
     dimacs::read_graph(options.instance_file.c_str(),
-        [&](int nv, int) { g = gc::graph{nv}; },
+        [&](int nv, int) { g = dense_graph{nv}; },
         [&](int u, int v) {
             if (u != v) {
                 g.add_edge(u - 1, v - 1);
