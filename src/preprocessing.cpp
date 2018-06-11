@@ -10,6 +10,7 @@
 #include "vertices_vec.hpp"
 
 
+// store the pruning done on the original graph in order to trace them back (e.g. for printing a coloring)
 template< class adjacency_struct >
 struct graph_reduction {
     const gc::graph<adjacency_struct>& g;
@@ -84,6 +85,8 @@ struct gc_preprocessor {
         do {
             ++niteration;
             removed = false;
+						
+						// compute an upper bound
             auto sol{gc::brelaz_color(g)};
             for (auto u : g.nodes)
                 for (auto v : g.matrix[u])
@@ -94,25 +97,28 @@ struct gc_preprocessor {
                 statistics.notify_ub(ub);
             }
 
+						// compute a lower bound
             hlb = cf.find_cliques(g.nodes);
             if (myciel)
                 hlb = mf.improve_cliques_larger_than(lb);
-
             if (hlb > lb) {
                 lb = hlb;
                 statistics.notify_lb(lb);
             }
             statistics.display(std::cout);
 
+						// remove nodes whose neighborhood is not of size at least lb [they can take any of the lb-|N(v)| colors not taken by their neighbors]
             forbidden.clear();
             toremove.clear();
             for (auto u : g.nodes) {
                 if (forbidden.fast_contain(u))
                     continue;
-                util_set.copy(g.matrix[u]);
-                util_set.intersect_with(g.nodeset);
-                if (util_set.size() >= static_cast<size_t>(lb))
+								
+								// TODO: REPLACE BY A "NEIGHBORHOOD_SIZE" METHOD
+                if (g.matrix[u].size() >= static_cast<size_t>(lb))
                     continue;
+								
+								// v 
                 removed = true;
                 removedv.fast_add(u);
                 ++statistics.num_vertex_removals;
@@ -123,14 +129,18 @@ struct gc_preprocessor {
             for (auto u : toremove) {
                 g.nodes.remove(u);
                 g.nodeset.remove(u);
+		            for (auto v : g.matrix[u]) {
+		                g.matrix[v].remove(u);
+		                g.origmatrix[v].remove(u);
+		            }
             }
         } while (removed);
-        if (removedv.size() > 0) {
-            for (auto v : g.nodes) {
-                g.matrix[v].setminus_with(removedv);
-                g.origmatrix[v].setminus_with(removedv);
-            }
-        }
+        // if (removedv.size() > 0) {
+        //     for (auto v : g.nodes) {
+        //         g.matrix[v].setminus_with(removedv);
+        //         g.origmatrix[v].setminus_with(removedv);
+        //     }
+        // }
         return gr;
     }
 
