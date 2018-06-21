@@ -83,6 +83,7 @@ int main(int argc, char* argv[]){
 	/**********************/
 	/*   Test BK search   */
 	/**********************/
+/*
 	gc::BronKerbosch bk{g};
 	bk.find_cliques_withoutPivot(bk.actual_clique, bk.candidates, bk.banned);
 	//bk.find_cliques_withoutPivot(bk.actual_clique, bk.candidates, bk.banned);
@@ -92,6 +93,18 @@ int main(int argc, char* argv[]){
 
 	//bk.order_by_degree();
 	
+*/
+	/**********************/
+	/*   Test MDED	      */
+	/**********************/
+	
+	gc::Min_deg_elim_game mdeg{g};
+	mdeg.elimination_game(mdeg.reverse_ordering);
+
+	mdeg.g_filled.describe(std::cout);
+	std::cout << "Filled #edges : " << mdeg.g_filled.num_edges() << std::endl;	
+	mdeg.g_filled.display_adjacency(std::cout);
+	std::cout << "Filled Density : " << mdeg.g_filled.sparsity()*10000 << "%°°" << std::endl;
 	
 	/* Printer of vertices_vec, works
 	gc::print_container<gc::vertices_vec> my_p(g.adjacency[0]);
