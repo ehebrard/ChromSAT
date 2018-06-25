@@ -644,7 +644,11 @@ void degeneracy_finder<adjacency_struct>::degeneracy_ordering()
                  break;
          if (i == buckets.size())
              break;
+				 
          d = std::max(d,static_cast<int>(i));
+				 
+				 // std::cout << " " << d ;
+				 
          auto v = buckets[i].back();
          order.push_back(v);
          buckets[i].pop_back();
@@ -660,7 +664,7 @@ void degeneracy_finder<adjacency_struct>::degeneracy_ordering()
          }
      }
 
-     std::cout << "graph has degeneracy " << d << std::endl;
+     std::cout << "\ngraph has degeneracy " << d << std::endl;
 }
 
 

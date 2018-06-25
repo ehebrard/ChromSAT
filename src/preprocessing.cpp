@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iomanip>
 
 #include "dimacs.hpp"
 #include "graph.hpp"
@@ -223,7 +224,100 @@ std::pair<int, int> initial_bounds(
 }
 
 
+template< class adjacency_struct >
+void preprocess(gc::options& options, gc::graph<adjacency_struct>& g) {
+	
+  dimacs::read_graph(options.instance_file.c_str(),
+      [&](int nv, int) { g = gc::graph<adjacency_struct>{nv}; },
+      [&](int u, int v) {
+          if (u != v)
+              g.add_edge(u - 1, v - 1);
+      },
+      [&](int, gc::weight) {});
+  g.describe(std::cout);
+	g.sort();
+	
+	gc::statistics statistics(g.capacity());
+	
+	
+	gc::degeneracy_finder<adjacency_struct> df(g);
+	
+	df.degeneracy_ordering();
+	
+	for(auto v : df.order) {
+		std::cout << std::setw(4) << v << " " << std::setw(3) << df.degrees[v] << " " << std::setw(3) << g.matrix[v].size() << std::endl;
+	}
+	
+	gc::graph<adjacency_struct> h(g);
+	
+  std::pair<int, int> bounds{0, g.capacity()};
+	
+	
+	// bounds = initial_bounds(g, statistics, options.boundalg != gc::options::CLIQUES);
+	// gc::clique_finder<adjacency_struct> cf{g};
+	// // bitset restriction(0, h.capacity(), bitset::empt);
+	// for(auto vp = rbegin(df.order); vp != rend(df.order); ++vp) {
+	// 	for(auto up = vp+1; up != rend(df.order); ++up) {
+	// 		if(!h.matrix[*vp].fast_contain(*up)) {
+	// 			g.nodeset.copy(h.matrix[*vp]);
+	// 			g.nodeset.union_with(h.matrix[*up]);
+	//
+	//
+	// 			if(g.nodeset.size() >= bounds.first) {
+	// 	    			g.nodes.clear();
+	// 				for(auto x : g.nodeset) {
+	// 					g.nodes.add(x);
+	// 				}
+	//
+	//
+	// 				// std::cout << g.nodeset << std::endl;
+	// 				auto maxclique = cf.find_cliques(g.nodes);
+	// 				if(maxclique >= bounds.first) {
+	// 					std::cout << *vp << " " << *up << std::endl;
+	// 				} else {
+	// 					std::cout << ".";
+	// 					std::cout.flush();
+	// 				}
+	// 				cf.clear();
+	// 			}
+	// 		}
+	// 	}
+	// }
+	
+	
+	
+	std::cout << "\noriginal graph (" << g.size() << ") =\n";
+	histogram(g);
+	
+  // std::pair<int, int> bounds{0, g.capacity()};
+	// bounds = initial_bounds(g, statistics, options.boundalg != gc::options::CLIQUES);
 
+	gc_preprocessor<adjacency_struct> p(g, options, statistics, bounds);
+	
+
+	if(g.size() == 0) {
+		
+		std::cout << "\nresidual graph is empty\n";
+		
+		std::vector<int> sol(g.capacity(), -1);
+		auto ncolors = p.reduction.extend_solution(sol,h);
+		std::cout << "coloring = "<< ncolors << std::endl;
+		
+	  for (auto u : h.nodes)
+	      for (auto v : h.matrix[u])
+	          assert(sol[u] != sol[v]);
+		
+	} else if(g.size() == h.size()) {
+		
+		std::cout << "\nno reduction\n";
+		
+	} else {
+		
+		std::cout << "\nreduced graph (" << g.size() << ") =\n";
+		histogram(g);
+		
+	}
+}
 
 
 int main(int argc, char* argv[])
@@ -231,55 +325,12 @@ int main(int argc, char* argv[])
     auto options = gc::parse(argc, argv);
     options.describe(std::cout);
 		
-    
-		gc::graph<gc::vertices_vec> g;
-    dimacs::read_graph(options.instance_file.c_str(),
-        [&](int nv, int) { g = gc::graph<gc::vertices_vec>{nv}; },
-        [&](int u, int v) {
-            if (u != v)
-                g.add_edge(u - 1, v - 1);
-        },
-        [&](int, gc::weight) {});
-    g.describe(std::cout);
-		g.sort();
-
-		gc::graph<gc::vertices_vec> h(g);
-		
-
-		gc::statistics statistics(g.capacity());
-		
-		
-		std::cout << "\noriginal graph =\n";
-		histogram(g);
-		
-    std::pair<int, int> bounds{0, g.capacity()};
-		// bounds = initial_bounds(g, statistics, options.boundalg != gc::options::CLIQUES);
-
-		gc_preprocessor<gc::vertices_vec> p(g, options, statistics, bounds);
-		
-
-		if(g.size() == 0) {
-			
-			std::cout << "\nresidual graph is empty\n";
-			
-			std::vector<int> sol(g.capacity(), -1);
-			auto ncolors = p.reduction.extend_solution(sol,h);
-			std::cout << "coloring = "<< ncolors << std::endl;
-			
-		  for (auto u : h.nodes)
-		      for (auto v : h.matrix[u])
-		          assert(sol[u] != sol[v]);
-			
-		} else if(g.size() == h.size()) {
-			
-			std::cout << "\nno reduction\n";
-			
+		if(options.preprocessing == gc::options::SPARSE) {
+				gc::graph<gc::vertices_vec> g;
+				preprocess(options, g);
 		} else {
-			
-			std::cout << "\nreduced graph =\n";
-			histogram(g);
-			
+				gc::graph<gc::bitset> g;	
+				preprocess(options, g);
 		}
-
-
+		
 }
