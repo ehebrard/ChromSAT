@@ -315,9 +315,14 @@ void preprocess(gc::options& options, gc::graph<adjacency_struct>& g) {
 		
 		std::cout << "\nreduced graph (" << g.size() << ") =\n";
 		histogram(g);
-		
+
+		gc::degeneracy_finder<adjacency_struct> df(g);
+		df.degeneracy_ordering();
+		df.display_ordering();
+
 	}
 }
+
 
 
 int main(int argc, char* argv[])
