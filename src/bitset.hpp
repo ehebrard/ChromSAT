@@ -1354,6 +1354,13 @@ public:
         while (i > neg_words)
             table[--i] = empt;
     }
+		
+    /*!
+    do nothing [template compatibility]
+    */
+    inline void sort()
+    {
+    }
 
     /*!
     Remove all elements but v [O(N/32)]

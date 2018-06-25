@@ -35,10 +35,10 @@ void vertices_vec::copy(BitSet const& elts) {
 }
 
 std::vector<int>::const_iterator vertices_vec::find(const int elt) const
-{
+{		
     auto i = std::lower_bound(begin(), end(), elt);
     if (i == end() or *i != elt)
-	     return end();
+	     return end();		 
     return i;
 }
 

@@ -50,6 +50,7 @@ public:
     bool empty() const { return vertices.empty(); }
     size_t size() const { return vertices.size(); }
     void clear() { vertices.clear(); }
+		void sort() { std::sort(begin(), end()); }
     void push_back(int i) { vertices.push_back(i); }
     void reserve(size_t n) { vertices.reserve(n); }
 

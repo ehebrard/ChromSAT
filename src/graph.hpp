@@ -74,6 +74,8 @@ public:
     void remove_node(int v);
 
     void clear();
+		
+		void sort();
 };
 
 template <class adjacency_struct>
@@ -334,6 +336,15 @@ void basic_graph<adjacency_struct>::clear()
     }
     nodeset.clear();
     nodes.clear();
+}
+
+
+template< class adjacency_struct >
+void basic_graph<adjacency_struct>::sort()
+{
+    for (auto v : nodes) {
+        matrix[v].sort();
+    }
 }
 
 
@@ -759,8 +770,6 @@ std::vector<int> brelaz_color(const graph<adjacency_struct>& g)
 								// std::cout << std::endl ;
 								// std::cout << std::endl ;
 
-								
-								
                 state.util_set.intersect_with(state.nodes);
                 for (auto u : state.util_set) {
                     ++state.saturation[u];
@@ -782,11 +791,9 @@ std::vector<int> brelaz_color(const graph<adjacency_struct>& g)
 						// 	std::cout << std::endl;
 						// }
 						
-						
             cf.insert_color(v, cf.num_cliques - 1, state.util_set);
             solution[v] = cf.num_cliques - 1;
-						
-						
+								
 						// std::cout << "color " << v << " with " << solution[v] << " (" << g.matrix[v].size() << "):";
 						// for( auto u : g.matrix[v] ) {
 						// 	if( state.nodes.contain(u) ) {

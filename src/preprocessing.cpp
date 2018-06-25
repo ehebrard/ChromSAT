@@ -239,6 +239,7 @@ int main(int argc, char* argv[])
         },
         [&](int, gc::weight) {});
     g.describe(std::cout);
+		g.sort();
 
 
 		gc::statistics statistics(g.capacity());
