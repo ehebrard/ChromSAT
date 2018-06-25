@@ -176,6 +176,14 @@ std::pair<int, int> initial_bounds(
     // 	std::cout << u << "(" << g.matrix[u].size() << ") ";
     // }
     // std::cout << std::endl;
+	
+	
+	
+  auto sol{gc::brelaz_color(g)};
+  for (auto u : g.nodes)
+      for (auto v : g.matrix[u])
+          assert(sol[u] != sol[v]);
+	
 
     gc::clique_finder<adjacency_struct> cf{g};
     gc::mycielskan_subgraph_finder<adjacency_struct> mf(g, cf, false);
@@ -184,16 +192,35 @@ std::pair<int, int> initial_bounds(
     if (myciel)
         lb = mf.improve_cliques_larger_than(lb - 1);
 
-    auto sol{gc::brelaz_color(g)};
-    for (auto u : g.nodes)
-        for (auto v : g.matrix[u])
-            assert(sol[u] != sol[v]);
 
     int ub{*max_element(begin(sol), end(sol)) + 1};
     stat.notify_lb(lb);
     stat.notify_ub(ub);
     stat.display(std::cout);
     return std::make_pair(lb, ub);
+}
+
+
+template<class adjacency_struct>
+void histogram(gc::graph<adjacency_struct>& g)
+{
+    std::vector<int> degrees;
+    for (auto v : g.nodes) {
+        degrees.push_back(g.matrix[v].size());
+    }
+    std::sort(begin(degrees), end(degrees));
+    int psize = degrees.size() / 10;
+    int pstart{0};
+    while (static_cast<size_t>(pstart) < degrees.size()) {
+        int pend
+            = std::min(static_cast<size_t>(pstart + psize), degrees.size() - 1);
+        while (static_cast<size_t>(pend) < degrees.size() - 1
+            && degrees[pend + 1] == degrees[pend])
+            ++pend;
+        std::cout << (pend - pstart + 1) << " vertices: degree "
+                  << degrees[pstart] << "-" << degrees[pend] << "\n";
+        pstart = pend + 1;
+    }
 }
 
 
@@ -216,10 +243,15 @@ int main(int argc, char* argv[])
 
 		gc::statistics statistics(g.capacity());
 		
+		
+		histogram(g);
+		
     std::pair<int, int> bounds{0, g.capacity()};
 		bounds = initial_bounds(g, statistics, options.boundalg != gc::options::CLIQUES);
 
 		gc_preprocessor<gc::vertices_vec> p(g, options, statistics, bounds);
+		
+		histogram(g);
 
 		// graph_reduction<gc::vertices_vec> gr =
 

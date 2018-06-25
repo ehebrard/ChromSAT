@@ -510,6 +510,9 @@ template< class adjacency_struct >
 void graph<adjacency_struct>::describe(std::ostream& os) const
 {
     os << "# vertices = " << capacity() << std::endl;
+		// for( auto v : nodes ) {
+		// 	os << matrix[v].size() << std::endl;
+		// }
 }
 
 template< class adjacency_struct >
@@ -727,7 +730,7 @@ std::vector<int> brelaz_color(const graph<adjacency_struct>& g)
 
     while (!sheap.empty()) {
         int v = sheap.removeMin();
-        state.remove(v);
+        state.remove(v); // O(N/64) on bitsets, O(|N(v)|) on lists
 
         bool found{false};
         for (int i = 0; i != cf.num_cliques; ++i) {
@@ -735,6 +738,23 @@ std::vector<int> brelaz_color(const graph<adjacency_struct>& g)
                 found = true;
                 state.util_set.clear();
                 cf.insert_color(v, i, state.util_set);
+								
+								std::cout << "color " << v << " with " << i << " (" << g.matrix[v].size() << "):";
+								for( auto u : g.matrix[v] ) {
+									if( state.nodes.contain(u) ) {
+										std::cout << " " << u;
+									}
+								}
+								std::cout << std::endl ;
+								for (int j = 0; j != cf.num_cliques; ++j) {
+									std::cout << "v[" << j << "] = " ;
+									for( auto u : cf.candidates[j] )
+										std::cout << " " << u;
+									std::cout << std::endl;
+								}
+								std::cout << std::endl ;
+								
+								
                 state.util_set.intersect_with(state.nodes);
                 for (auto u : state.util_set) {
                     ++state.saturation[u];
