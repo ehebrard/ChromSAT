@@ -274,6 +274,7 @@ struct degeneracy_finder {
     }
 
     void degeneracy_ordering();
+	void display_ordering();
 };
 
 
@@ -663,6 +664,14 @@ void degeneracy_finder<adjacency_struct>::degeneracy_ordering()
      std::cout << "graph has degeneracy " << d << std::endl;
 }
 
+template< class adjacency_struct >
+void degeneracy_finder<adjacency_struct>::display_ordering()
+{
+	std::cout << "Degeneracy ordering : " << std::endl;;
+	for (auto v : order)
+		std::cout << v+1 << "(" << degrees[v] << ")" << std::endl;
+	std::cout << std::endl;
+}
 
 
 

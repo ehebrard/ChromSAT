@@ -251,8 +251,12 @@ int main(int argc, char* argv[])
 		
 		std::cout << "\noriginal graph =\n";
 		histogram(g);
+
+		gc::degeneracy_finder<gc::vertices_vec> df(g);
+		df.degeneracy_ordering();
+		df.display_ordering();
 		
-    std::pair<int, int> bounds{0, g.capacity()};
+   		std::pair<int, int> bounds{0, g.capacity()};
 		// bounds = initial_bounds(g, statistics, options.boundalg != gc::options::CLIQUES);
 
 		gc_preprocessor<gc::vertices_vec> p(g, options, statistics, bounds);
