@@ -728,6 +728,9 @@ std::vector<int> brelaz_color(const graph<adjacency_struct>& g)
     for (auto v : cf.g.nodeset)
         sheap.insert(v);
 
+
+		// std::cout << std::endl << cf.num_cliques << std::endl;
+
     while (!sheap.empty()) {
         int v = sheap.removeMin();
         state.remove(v); // O(N/64) on bitsets, O(|N(v)|) on lists
@@ -737,22 +740,25 @@ std::vector<int> brelaz_color(const graph<adjacency_struct>& g)
             if (!cf.candidates[i].fast_contain(v)) {
                 found = true;
                 state.util_set.clear();
-                cf.insert_color(v, i, state.util_set);
 								
-								std::cout << "color " << v << " with " << i << " (" << g.matrix[v].size() << "):";
-								for( auto u : g.matrix[v] ) {
-									if( state.nodes.contain(u) ) {
-										std::cout << " " << u;
-									}
-								}
-								std::cout << std::endl ;
-								for (int j = 0; j != cf.num_cliques; ++j) {
-									std::cout << "v[" << j << "] = " ;
-									for( auto u : cf.candidates[j] )
-										std::cout << " " << u;
-									std::cout << std::endl;
-								}
-								std::cout << std::endl ;
+								// for (int j = 0; j != cf.num_cliques; ++j) {
+								// 	std::cout << "v[" << j << "] = " ;
+								// 	for( auto u : cf.candidates[j] )
+								// 		std::cout << " " << u;
+								// 	std::cout << std::endl;
+								// }
+								
+								cf.insert_color(v, i, state.util_set);
+								
+								// std::cout << "color " << v << " with " << i << " (" << g.matrix[v].size() << "):";
+								// for( auto u : g.matrix[v] ) {
+								// 	if( state.nodes.contain(u) ) {
+								// 		std::cout << " " << u;
+								// 	}
+								// }
+								// std::cout << std::endl ;
+								// std::cout << std::endl ;
+
 								
 								
                 state.util_set.intersect_with(state.nodes);
@@ -765,9 +771,31 @@ std::vector<int> brelaz_color(const graph<adjacency_struct>& g)
             }
         }
         if (!found) {
+					
+						
             cf.new_color();
+						
+						// for (int j = 0; j != cf.num_cliques; ++j) {
+						// 	std::cout << "v[" << j << "] = " ;
+						// 	for( auto u : cf.candidates[j] )
+						// 		std::cout << " " << u;
+						// 	std::cout << std::endl;
+						// }
+						
+						
             cf.insert_color(v, cf.num_cliques - 1, state.util_set);
             solution[v] = cf.num_cliques - 1;
+						
+						
+						// std::cout << "color " << v << " with " << solution[v] << " (" << g.matrix[v].size() << "):";
+						// for( auto u : g.matrix[v] ) {
+						// 	if( state.nodes.contain(u) ) {
+						// 		std::cout << " " << u;
+						// 	}
+						// }
+						// std::cout << std::endl ;
+						// std::cout << std::endl ;
+						
         }
     }
 
