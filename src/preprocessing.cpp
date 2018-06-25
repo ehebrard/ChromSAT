@@ -10,26 +10,48 @@
 #include "vertices_vec.hpp"
 
 
+template<class adjacency_struct>
+void histogram(gc::graph<adjacency_struct>& g)
+{
+    std::vector<int> degrees;
+    for (auto v : g.nodes) {
+        degrees.push_back(g.matrix[v].size());
+    }
+    std::sort(begin(degrees), end(degrees));
+    int psize = degrees.size() / 10;
+    int pstart{0};
+    while (static_cast<size_t>(pstart) < degrees.size()) {
+        int pend
+            = std::min(static_cast<size_t>(pstart + psize), degrees.size() - 1);
+        while (static_cast<size_t>(pend) < degrees.size() - 1
+            && degrees[pend + 1] == degrees[pend])
+            ++pend;
+        std::cout << (pend - pstart + 1) << " vertices: degree "
+                  << degrees[pstart] << "-" << degrees[pend] << "\n";
+        pstart = pend + 1;
+    }
+}
+
 // store the pruning done on the original graph in order to trace them back (e.g. for printing a coloring)
 template< class adjacency_struct >
 struct graph_reduction {
-    const gc::graph<adjacency_struct>& g;
+    const gc::graph<adjacency_struct>& residual;
     std::vector<int> removed_vertices;
     gc::bitset nodeset;
     gc::bitset util_set;
 
     explicit graph_reduction(const gc::graph<adjacency_struct>& g)
-        : g(g)
+        : residual(g)
         , nodeset(0, g.capacity(), gc::bitset::empt)
         , util_set(0, g.capacity(), gc::bitset::empt)
     {
     }
 
-    int extend_solution(std::vector<int>& col)
+    int extend_solution(std::vector<int>& col, const gc::graph<adjacency_struct>& g)
     {
         int maxc{0};
-        nodeset.copy(g.nodeset);
-        for (auto v : g.nodes)
+        nodeset.copy(residual.nodeset);
+        for (auto v : residual.nodes)
             maxc = std::max(maxc, col[v]);
         for (auto i = removed_vertices.rbegin(), iend = removed_vertices.rend();
              i != iend; ++i) {
@@ -67,8 +89,8 @@ struct gc_preprocessor {
         gc::graph<adjacency_struct>& g, std::pair<int, int> bounds, bool myciel = false)
     {
         graph_reduction gr(g);
-        if (options.preprocessing == gc::options::NO_PREPROCESSING)
-            return gr;
+        // if (options.preprocessing == gc::options::NO_PREPROCESSING)
+        //     return gr;
 
         lb = bounds.first;
         ub = bounds.second;
@@ -84,6 +106,9 @@ struct gc_preprocessor {
         int niteration{0};
         do {
             ++niteration;
+
+						// std::cout << "iteration " << niteration << std::endl;
+						
             removed = false;
 						
 						// compute an upper bound
@@ -126,6 +151,7 @@ struct gc_preprocessor {
                 gr.removed_vertices.push_back(u);
                 forbidden.union_with(g.matrix[u]);
             }
+
             for (auto u : toremove) {
                 g.nodes.remove(u);
                 g.nodeset.remove(u);
@@ -135,12 +161,6 @@ struct gc_preprocessor {
 		            }
             }
         } while (removed);
-        // if (removedv.size() > 0) {
-        //     for (auto v : g.nodes) {
-        //         g.matrix[v].setminus_with(removedv);
-        //         g.origmatrix[v].setminus_with(removedv);
-        //     }
-        // }
         return gr;
     }
 
@@ -179,10 +199,13 @@ std::pair<int, int> initial_bounds(
 	
 	
 	
-  auto sol{gc::brelaz_color(g)};
-  for (auto u : g.nodes)
-      for (auto v : g.matrix[u])
-          assert(sol[u] != sol[v]);
+	  auto sol{gc::brelaz_color(g)};
+	  for (auto u : g.nodes)
+	      for (auto v : g.matrix[u])
+	          assert(sol[u] != sol[v]);
+	  int ub{*max_element(begin(sol), end(sol)) + 1};
+		stat.notify_ub(ub);
+		stat.display(std::cout);
 	
 
     gc::clique_finder<adjacency_struct> cf{g};
@@ -193,35 +216,14 @@ std::pair<int, int> initial_bounds(
         lb = mf.improve_cliques_larger_than(lb - 1);
 
 
-    int ub{*max_element(begin(sol), end(sol)) + 1};
+
     stat.notify_lb(lb);
-    stat.notify_ub(ub);
     stat.display(std::cout);
     return std::make_pair(lb, ub);
 }
 
 
-template<class adjacency_struct>
-void histogram(gc::graph<adjacency_struct>& g)
-{
-    std::vector<int> degrees;
-    for (auto v : g.nodes) {
-        degrees.push_back(g.matrix[v].size());
-    }
-    std::sort(begin(degrees), end(degrees));
-    int psize = degrees.size() / 10;
-    int pstart{0};
-    while (static_cast<size_t>(pstart) < degrees.size()) {
-        int pend
-            = std::min(static_cast<size_t>(pstart + psize), degrees.size() - 1);
-        while (static_cast<size_t>(pend) < degrees.size() - 1
-            && degrees[pend + 1] == degrees[pend])
-            ++pend;
-        std::cout << (pend - pstart + 1) << " vertices: degree "
-                  << degrees[pstart] << "-" << degrees[pend] << "\n";
-        pstart = pend + 1;
-    }
-}
+
 
 
 int main(int argc, char* argv[])
@@ -241,20 +243,43 @@ int main(int argc, char* argv[])
     g.describe(std::cout);
 		g.sort();
 
+		gc::graph<gc::vertices_vec> h(g);
+		
 
 		gc::statistics statistics(g.capacity());
 		
 		
+		std::cout << "\noriginal graph =\n";
 		histogram(g);
 		
     std::pair<int, int> bounds{0, g.capacity()};
-		bounds = initial_bounds(g, statistics, options.boundalg != gc::options::CLIQUES);
+		// bounds = initial_bounds(g, statistics, options.boundalg != gc::options::CLIQUES);
 
 		gc_preprocessor<gc::vertices_vec> p(g, options, statistics, bounds);
 		
-		histogram(g);
 
-		// graph_reduction<gc::vertices_vec> gr =
+		if(g.size() == 0) {
+			
+			std::cout << "\nresidual graph is empty\n";
+			
+			std::vector<int> sol(g.capacity(), -1);
+			auto ncolors = p.reduction.extend_solution(sol,h);
+			std::cout << "coloring = "<< ncolors << std::endl;
+			
+		  for (auto u : h.nodes)
+		      for (auto v : h.matrix[u])
+		          assert(sol[u] != sol[v]);
+			
+		} else if(g.size() == h.size()) {
+			
+			std::cout << "\nno reduction\n";
+			
+		} else {
+			
+			std::cout << "\nreduced graph =\n";
+			histogram(g);
+			
+		}
 
 
 }
