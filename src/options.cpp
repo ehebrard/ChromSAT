@@ -131,7 +131,7 @@ void options::describe(std::ostream& os)
     os << "Color variables = " << (xvars ? "present" : "absent") << "\n";
     os << "Bound policy    = " << boundalg << "\n";
     os << "Adaptive bounds = " << adaptive << "\n";
-    os << "Preprocessing   = " << preprocessing << "\n";
+    os << "Preprocessing   = " << (preprocessing == 0 ? "none" : preprocessing == 1 ?  "dense" : "sparse") << "\n";
     os << "Branching strat = ";
     switch (branching) {
     case gc::options::VSIDS:
