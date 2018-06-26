@@ -871,6 +871,7 @@ std::vector<int> brelaz_color(const graph<adjacency_struct>& g)
 //}
 
 
+
 template< class adjacency_struct >
 void minimum_degree_elimination_game<adjacency_struct>::elimination_game(std::vector<int> ordering)
 {
