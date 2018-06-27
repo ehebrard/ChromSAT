@@ -877,25 +877,25 @@ void minimum_degree_elimination_game<adjacency_struct>::elimination_game(std::ve
 {
 	int num_fill(0);
 	for (auto o : ordering) { std::cout << o+1 << std::endl;
+		if (o+1 == g.capacity()) break;
 		// Check every pair n1n2 of neighbors of o
-		//for (auto n1 : g_filled.matrix[o]) {  std::cout << "	" << n1+1 << std::endl;
 		for(std::vector<int>::iterator n1 = g_section.matrix[o].begin() ; n1 != g_section.matrix[o].end()-1; ++n1) { std::cout << "	" << *n1+1 << std::endl;
-			//for (auto n2 : g_filled.matrix[o]) { std::cout << "		" << n2+1 << std::endl;
 			for(std::vector<int>::iterator n2 = n1 + 1 ; n2 != g_section.matrix[o].end(); ++n2) { std::cout << "		" << *n2+1 << std::endl;
 				// If n1n2 are not neighors add to g_section and g_filled
 				std::vector<int>::iterator it;
 				it = std::find(g_section.matrix[*n1].begin(), g_section.matrix[*n1].end(), *n2);
 				if (it == std::end(g_section.matrix[*n1]) && (*g_section.matrix[*n1].end() != *n2)) {
-					g_filled.add_edge(*n1, *n2);
+					g_filled.add_edge(*n1, *n2); 					 
 					g_section.add_edge(*n1, *n2);
-					std::cout << "Adding edge: ("<< *n1+1 << "," << *n2+1 << ")" << std::endl;
+					g_section.sort(); 					
+//					std::cout << "Adding edge: ("<< *n1+1 << "," << *n2+1 << ")" << std::endl;
 					++num_fill;
 				}
 				
 			}
 		}
-		g_section.remove_node(o);
-		std::cout << "Removing edge :" << o+1 << std::endl;
+//		g_section.remove_node(o);
+//		std::cout << "Removing edge :" << o+1 << std::endl;
 		// Remove o from the adjacency matrix of its neighbors
 		for (auto u: g_section.matrix[o]) {
 			std::vector<int>::iterator itr;
@@ -905,7 +905,27 @@ void minimum_degree_elimination_game<adjacency_struct>::elimination_game(std::ve
 			}
 		}
 
-//		display_adjacency3(std::cout, g_section);
+//		// Display g_section
+//		std::cout << "Eliminated graph :" << std::endl;
+//    	for (auto its : g_section.nodes) {
+//        	std::cout << "Vertex " << its+1 << "   Neighbors : ( ";
+//			for (std::vector<int>::const_iterator itN = g_section.matrix[its].vertices.begin(); itN < g_section.matrix[its].vertices.end(); ++itN) {
+//				std::cout << *itN+1 << " ";
+//			}
+//	    	std::cout << ")";
+//			std::cout << " degree =" << g_section.matrix[its].vertices.size() << std::endl;
+//		}
+
+//		// Display g_filled
+//		std::cout << "Filled graph :" << std::endl;
+//    	for (auto itf : g_filled.nodes) {
+//        	std::cout << "Vertex " << itf+1 << "   Neighbors : ( ";
+//			for (std::vector<int>::const_iterator itN = g_filled.matrix[itf].vertices.begin(); itN < g_filled.matrix[itf].vertices.end(); ++itN) {
+//				std::cout << *itN+1 << " ";
+//			}
+//	    	std::cout << ")";
+//			std::cout << " degree =" << g_filled.matrix[itf].vertices.size() << std::endl;
+//		}
 	}
 	std::cout << "# fill edges: " << num_fill << std::endl;	
 }
