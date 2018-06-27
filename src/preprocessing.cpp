@@ -31,6 +31,12 @@ void histogram(gc::graph<adjacency_struct>& g)
                   << degrees[pstart] << "-" << degrees[pend] << "\n";
         pstart = pend + 1;
     }
+
+	float sum_degrees(0);
+	for(auto d: degrees){
+		sum_degrees += d;
+	}
+	std::cout << "Density : " << sum_degrees/(g.capacity()*(g.capacity()-1))*100 << "%" << std::endl;
 }
 
 // store the pruning done on the original graph in order to trace them back (e.g. for printing a coloring)
@@ -234,7 +240,7 @@ void preprocess(gc::options& options, gc::graph<adjacency_struct>& g) {
               g.add_edge(u - 1, v - 1);
       },
       [&](int, gc::weight) {});
-  g.describe(std::cout);
+  	g.describe(std::cout);
 	g.sort();
 	
 	gc::statistics statistics(g.capacity());
@@ -249,7 +255,7 @@ void preprocess(gc::options& options, gc::graph<adjacency_struct>& g) {
 	
 	gc::graph<adjacency_struct> h(g);
 	
-  std::pair<int, int> bounds{0, g.capacity()};
+  	std::pair<int, int> bounds{0, g.capacity()};
 	
 	
 	// bounds = initial_bounds(g, statistics, options.boundalg != gc::options::CLIQUES);
@@ -322,7 +328,6 @@ void preprocess(gc::options& options, gc::graph<adjacency_struct>& g) {
 	}
 
 }
-
 
 
 int main(int argc, char* argv[])

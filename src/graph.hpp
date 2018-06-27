@@ -285,6 +285,7 @@ struct minimum_degree_elimination_game {
 	const basic_graph<adjacency_struct>& g;
 	basic_graph<adjacency_struct> g_filled;
 	basic_graph<adjacency_struct> g_section;
+	std::vector<std::pair<int, int>> fill_edges;
 	
 	std::vector<int> increasing_ordering; 
 
@@ -871,23 +872,25 @@ std::vector<int> brelaz_color(const graph<adjacency_struct>& g)
 //}
 
 
-
+// ok for vertices_vec but not for bitset
 template< class adjacency_struct >
 void minimum_degree_elimination_game<adjacency_struct>::elimination_game(std::vector<int> ordering)
 {
 	int num_fill(0);
-	for (auto o : ordering) { std::cout << o+1 << std::endl;
+	for (auto o : ordering) { //std::cout << o+1 << std::endl;
 		if (o+1 == g.capacity()) break;
 		// Check every pair n1n2 of neighbors of o
-		for(std::vector<int>::iterator n1 = g_section.matrix[o].begin() ; n1 != g_section.matrix[o].end()-1; ++n1) { std::cout << "	" << *n1+1 << std::endl;
-			for(std::vector<int>::iterator n2 = n1 + 1 ; n2 != g_section.matrix[o].end(); ++n2) { std::cout << "		" << *n2+1 << std::endl;
+		for(std::vector<int>::iterator n1 = g_section.matrix[o].begin() ; n1 != g_section.matrix[o].end()-1; ++n1) { //std::cout << "	" << *n1+1 << std::endl;
+			for(std::vector<int>::iterator n2 = n1 + 1 ; n2 != g_section.matrix[o].end(); ++n2) { //std::cout << "		" << *n2+1 << std::endl;
 				// If n1n2 are not neighors add to g_section and g_filled
 				std::vector<int>::iterator it;
 				it = std::find(g_section.matrix[*n1].begin(), g_section.matrix[*n1].end(), *n2);
 				if (it == std::end(g_section.matrix[*n1]) && (*g_section.matrix[*n1].end() != *n2)) {
 					g_filled.add_edge(*n1, *n2); 					 
 					g_section.add_edge(*n1, *n2);
-					g_section.sort(); 					
+					g_section.sort();
+					std::pair<int, int> edge = std::make_pair(*n1, *n2);
+					fill_edges.push_back(edge); 					
 //					std::cout << "Adding edge: ("<< *n1+1 << "," << *n2+1 << ")" << std::endl;
 					++num_fill;
 				}
@@ -927,7 +930,11 @@ void minimum_degree_elimination_game<adjacency_struct>::elimination_game(std::ve
 //			std::cout << " degree =" << g_filled.matrix[itf].vertices.size() << std::endl;
 //		}
 	}
-	std::cout << "# fill edges: " << num_fill << std::endl;	
+	std::cout << "# fill edges: " << num_fill << std::endl;
+	for(auto edge: fill_edges){
+		std::cout << "("<< edge.first << "," << edge.second << ")	";
+	}
+	std::cout << std::endl;
 }
 
 } // namespace gc
