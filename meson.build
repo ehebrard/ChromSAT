@@ -5,7 +5,8 @@ compiler = meson.get_compiler('cpp')
 basic_lib = static_library('basic', ['src/intstack.cpp',
 				     'src/graph.cpp',
 				     'src/options.cpp',
-				     'src/vertices_vec.cpp'])
+				     'src/vertices_vec.cpp',
+						 'src/sparse_dynamic_graph.cpp'])
 basic_dep = declare_dependency(link_with:basic_lib,
 			       include_directories: include_directories('src'))
 
@@ -27,7 +28,9 @@ executable('preprocessing', ['src/preprocessing.cpp',
 	  'src/prop.cpp',
 	  'src/rewriter.cpp',
 	  'src/mycielski.cpp',
-	  'src/statistics.cpp'],
+	  'src/statistics.cpp',
+		'src/sparse_dynamic_graph.cpp',
+		'src/interval_list.cpp'],
    dependencies: [minicsp_dep, basic_dep])
 
 use_gecode = get_option('use_gecode')

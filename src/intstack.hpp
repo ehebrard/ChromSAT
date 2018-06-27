@@ -7,11 +7,11 @@
 #define __INTSTACK_HPP
 
 /**********************************************
- * IntStack
+ * intstack
  **********************************************/
 /// Sparse set representation
 
-class IntStack
+class intstack
 {
 private:
     /*!@name Parameters*/
@@ -27,7 +27,7 @@ private:
 public:
     /*!@name Constructors*/
     //@{
-    IntStack(const size_t n = 0);
+    intstack(const size_t n = 0);
 
     void reserve(const size_t n);
 
@@ -94,6 +94,6 @@ public:
     std::ostream& display(std::ostream& os) const;
 };
 
-std::ostream& operator<<(std::ostream& os, const IntStack& x);
+std::ostream& operator<<(std::ostream& os, const intstack& x);
 
 #endif // __INTSTACK_HPP

@@ -34,6 +34,11 @@ void vertices_vec::copy(BitSet const& elts) {
         vertices.push_back(v);
 }
 
+void vertices_vec::canonize() {
+		sort_by_number();
+		vertices.erase(std::unique(begin(), end()), end());
+}
+
 std::vector<int>::const_iterator vertices_vec::find(const int elt) const
 {		
     auto i = std::lower_bound(begin(), end(), elt);

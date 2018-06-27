@@ -1356,9 +1356,19 @@ public:
     }
 		
     /*!
+    Remove all elements [O(N/32)]
+    */
+    inline void clear_until(const int bound)
+    {
+        int i = (bound >> EXP);
+        while (i > neg_words)
+            table[--i] = empt;
+    }
+		
+    /*!
     do nothing [template compatibility]
     */
-    inline void sort()
+    inline void canonize()
     {
     }
 
