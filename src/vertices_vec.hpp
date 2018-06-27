@@ -71,7 +71,7 @@ public:
     void initialise(const int lb, const int ub, const int p);
 
     inline void add(const int v) { vertices.push_back(v); }
-	inline void erase(iterator it) { vertices.erase(it); }
+		inline void erase(iterator it) { vertices.erase(it); }
     inline void fast_add(const int v) { vertices.push_back(v); }
     bool fast_contain(const int elt) const;
 

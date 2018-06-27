@@ -165,6 +165,8 @@ struct coloring {
 		
 		void brelaz_color(dyngraph& g);
 		
+		void remove(const int y, const int d);
+		
 		void clear() {
 				first.clear();
 				for(auto v : order) 

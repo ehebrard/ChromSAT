@@ -3,166 +3,267 @@
 #include "sparse_dynamic_graph.hpp"
 
 
-#define _VERIFY_MCGRAPH
+// #define _VERIFY_MCGRAPH
 
 using std::swap;
 
 using namespace gc;
 
 
+// remove d from the bag 'd'
+void coloring::remove(const int y, const int d) {
+	
+	int idy = rank[y];
+	
+	// std::cout << "remove " << y << " @ " << idy << " from bag " << d << std::endl;
+	
+	
+	// swap y with first[satur[y].size-1], and increment first[satur[y].size-1]
+	int idf = first[d];
+	int f = order[idf];
+	
+	
+	
+	// std::cout << " -> swap with " << f << " @ " << idf << std::endl;
+	
+	rank[y] = idf;
+	rank[f] = idy;
+	
+	order[idf] = y;
+	order[idy] = f; 
+
+	++first[d];
+	
+	
+	// exit(1);
+}
+
 
 void coloring::brelaz_color(dyngraph& g) {	
-		// if(g.node.empty()) return;
-		//
-		// // first order the nodes by degree
-		// // degree.resize(g.node.size());
-		// for(auto v : g.node) {
-		// 		order.push_back(v);
-		// 		// degree[v] = degree(v);
-		// }
-		//
-		//     std::sort(begin(order), end(order),
-		//         [&](const int x, const int y) { return (g.degree(x) > g.degree(y)); });
-		//
-		// int iter = 0;
-		// rank.resize(g.capacity);
-		// for(auto v : order) {
-		// 	rank[v] = iter++;
-		// 	// std::cout << v << " " << g.degree(v) << std::endl;
-		// }
-		//
-		//
-		// iter = 0;
-		// int c;
-		// int x = order[iter]; // the next vertex to color
+		if(g.node.empty()) return;
+
+		// first order the nodes by degree
+		// degree.resize(g.node.size());
+		for(auto v : g.node) {
+				order.push_back(v);
+				// degree[v] = degree(v);
+		}
+
+    // std::sort(begin(order), end(order),
+    //     [&](const int x, const int y) { return (g.degree(x) > g.degree(y)); });
+
+		int iter = 0;
+		rank.resize(g.capacity);
+		for(auto v : order) {
+			rank[v] = iter++;
+			// std::cout << v << " " << g.degree(v) << std::endl;
+		}
+
+
+		iter = 0;	
+		int c, d;
+		int x; // = order[iter]; // the next vertex to color
 		// int num_colors = 0; // the number of colors used so far
-		//
-		// color.resize(g.capacity);
-		// satur.resize(g.capacity);
-		// first.push_back(1); // every node has saturation degree 0
-		//
-		//
-		//
-		// do {
-		// 	int i, prev;
-		//
-		//
-		// 	for(auto v : order) {
-		// 		if(rank[v] >= iter)
-		// 			std::cout << std::setw(3) << v << " ";
-		// 	}
-		// 	std::cout << std::endl;
-		// 	for(auto v : order) {
-		// 		if(rank[v] >= iter)
-		// 			std::cout << std::setw(3) << satur[v].size << " ";
-		// 	}
-		// 	std::cout << std::endl;
-		// 	for(auto v : order) {
-		// 		if(rank[v] >= iter)
-		// 			std::cout << std::setw(3) << g.degree(v) << " ";
-		// 	}
-		// 	std::cout << std::endl;
-		// 	for(auto r : first) {
-		// 		std::cout << std::setw(3) << order[r] << " ";
-		// 	}
-		// 	std::cout << std::endl;
-		//
-		//
-		//
-		//
-		// 	i = 0;
-		// 	for(auto v : order) {
-		// 		assert(rank[v] == i++);
-		// 	}
-		// 	prev = -1;
-		// 	for(auto v : order) {
-		// 		assert(rank[v] <= iter or satur[v].size <= satur[prev].size);
-		// 		prev = v;
-		// 	}
-		// 	// prev = -1;
-		// 	// for(auto v : order) {
-		// 	// 	assert(prev < 0 or satur[v].size < satur[prev].size or g.degree(v) <= g.degree(prev));
-		// 	// 	prev = v;
-		// 	// }
-		// 	i=0;
-		// 	for(auto r : first) {
-		// 		assert(r>=1);
-		// 		assert(r<=order.size());
-		// 		if(r<order.size()) {
-		// 			assert(satur[order[r]].size == i);
-		// 			if(r>1)
-		// 				assert(satur[order[r-1]].size == i - 1);
-		// 		}
-		// 		++i;
-		// 	}
-		//
-		//
-		// 		c = satur[x].get();
-		//
-		// 		std::cout << std::endl << "color " << x << " " << satur[x] << " with " << c << std::endl;
-		// 		std::cout << std::endl;
-		//
-		//
-		// 		color[x] = c;
-		// 		if(c >= num_colors)
-		// 				++num_colors;
-		//
-		//
-		// 		assert(g.node.contain(x));
-		// 		assert(g.nodeset.contain(x));
-		//
-		// 		g.rem_node(x);
-		// 		if(g.node.empty()) return;
-		//
-		// 		for(auto y : g.neighbor[x])
-		// 				if(satur[y].add(c)) {
-		// 						if(first.size() <= satur[y].size) {
-		// 								assert(first.size() == satur[y].size);
-		// 								first.push_back(*rbegin(first));
-		// 						}
-		//
-		// 						// swap y with first[satur[y].size-1], and increment first[satur[y].size-1]
-		// 						int idf = first[satur[y].size-1];
-		// 						int f = order[idf];
-		// 						int idy = rank[y];
-		//
-		// 						rank[y] = idf;
-		// 						rank[f] = idy;
-		//
-		// 						order[idf] = y;
-		// 						order[idy] = f;
-		//
-		// 						++first[satur[y].size-1];
-		//
-		// 						// int i = rank[y];
-		// 						// int l = first[satur[y].size];
-		// 						// assert(l > iter);
-		// 						//
-		// 						// std::cout << "re-rank " << y << " in [" << l << ".." << i << "]\n";
-		// 						//
-		// 						// // reorder y w.r.t. its degree
-		// 						// while(i > l && g.degree(y) > g.degree(order[i-1])) {
-		// 						// 		// std::cout << " -> " << (i-1) << std::endl;
-		// 						//
-		// 						// 		order[i] = order[i-1];
-		// 						// 		rank[order[i]] = i;
-		// 						// 		order[i-1] = y;
-		// 						// 		rank[y] = --i;
-		// 						//
-		// 						// }
-		//
-		// 				}
-		//
-		// 		int d = satur[order[++iter]].size;
-		// 		x = std::max_element()
-		//
-		//
-		// 		// x = order[++iter];
-		// 		// ++first[satur[x].size];
-		//
-		// } while( true );
-		//
-		//
+
+		color.resize(g.capacity); 
+		satur.resize(g.capacity); 
+		first.push_back(0); // every node has saturation degree 0
+
+
+		
+		do {
+			if(g.node.empty()) break;
+			
+			
+			
+			d = satur[order[iter]].size;
+			
+			while(first.size() > d + 1) {
+				first.pop_back();
+			}
+						
+			int i, prev;
+			//
+			//
+			// for(auto v : order) {
+			// 	if(rank[v] == iter)
+			// 		std::cout << "| ";
+			// 		std::cout << std::setw(3) << v << " ";
+			// }
+			// std::cout << std::endl;
+			// for(auto v : order) {
+			// 	if(rank[v] == iter)
+			// 		std::cout << "| ";
+			// 		std::cout << std::setw(3) << satur[v].size << " ";
+			// }
+			// std::cout << std::endl;
+			// for(auto v : order) {
+			// 	if(rank[v] == iter)
+			// 		std::cout << "| ";
+			// 		std::cout << std::setw(3) << g.degree(v) << " ";
+			// }
+			// std::cout << std::endl;
+			// for(auto r : first) {
+			// 	std::cout << std::setw(3) << order[r] << " ";
+			// }
+			// std::cout << std::endl;
+			// std::cout << order[iter] << std::endl;
+			
+			
+			
+			
+			i = 0;
+			for(auto v : order) {
+				assert(rank[v] == i++);
+			}
+			prev = -1;
+			for(auto v : order) {
+				assert(rank[v] <= iter or satur[v].size <= satur[prev].size);
+				prev = v;
+			}
+			// prev = -1;
+			// for(auto v : order) {
+			// 	assert(prev < 0 or satur[v].size < satur[prev].size or g.degree(v) <= g.degree(prev));
+			// 	prev = v;
+			// }
+			i=0;
+			for(auto r : first) {
+				assert(r>=0);
+				assert(r<=order.size());
+				if(r<order.size()) {
+					// std::cout << "assert the satur degree of the first elt of bag " << i << " (" << order[r] << ") [or first["<< i-1 << "] == " << order[r] << "]\n";
+					// std::cout << "r = " << r << " iter = " << iter << std::endl;
+					
+					if(r>=iter) {
+					assert(satur[order[r]].size == i or (i>0 and first[i-1] == r));
+					}
+						// std::cout << "assert that satur degree of the predecessor " << order[r-1] << " of " << order[r] << " is " << (i+1) << " or empty " << std::endl;
+
+						
+					if(r>iter) {	
+						assert(satur[order[r-1]].size == i + 1 or (first.size() > i + 1 and first[i + 1] == r));
+					}
+				}				
+				++i;
+			}
+			
+
+			
+			
+			
+			// std::cout << "d(" << order[iter] << ") = " << d << std::endl;
+			//
+			// if(d > 0)
+			// 	std::cout << "search in ["<< *(begin(order)+first[d]) << ".." <<  *(begin(order)+first[d-1]) << "[\n";
+			// else
+			// 	std::cout << "search from " << order[iter] << std::endl;
+			
+			
+			d = satur[order[iter++]].size;
+			
+			x = *std::max_element(begin(order)+first[d], (d > 0 ? begin(order)+first[d-1] : end(order)), [&](const int x_, const int y_) { return (g.degree(x_) < g.degree(y_)); });
+			
+			
+			// std::cout << "assert that satur[" << x << "] = " << d << std::endl;
+			assert( satur[x].size == d );
+			
+			remove(x, d);
+		
+				c = satur[x].get();
+				
+				// std::cout << std::endl << "color " << x << " " << satur[x] << " with " << c << std::endl;
+				// std::cout << std::endl;
+				
+				
+				color[x] = c;
+				// if(c >= num_colors)
+				// 		++num_colors;
+				
+				
+				assert(g.node.contain(x));
+				assert(g.nodeset.contain(x));
+				
+				g.rem_node(x);
+				
+				
+				// for(auto v : order) {
+				// 	if(rank[v] == iter)
+				// 		std::cout << "| ";
+				// 		std::cout << std::setw(3) << v << " ";
+				// }
+				// std::cout << std::endl;
+				// for(auto v : order) {
+				// 	if(rank[v] == iter)
+				// 		std::cout << "| ";
+				// 		std::cout << std::setw(3) << satur[v].size << " ";
+				// }
+				// std::cout << std::endl;
+				// for(auto v : order) {
+				// 	if(rank[v] == iter)
+				// 		std::cout << "| ";
+				// 		std::cout << std::setw(3) << g.degree(v) << " ";
+				// }
+				// std::cout << std::endl;
+				// for(auto r : first) {
+				// 	std::cout << std::setw(3) << order[r] << " ";
+				// }
+				// std::cout << std::endl;
+				// std::cout << order[iter] << std::endl;
+				//
+				// std::cout << "update saturation degree:\n";
+				
+				
+				for(auto y : g.neighbor[x])
+						if(satur[y].add(c)) {
+								if(first.size() <= satur[y].size) {
+										assert(first.size() == satur[y].size);
+										first.push_back(*rbegin(first));
+								}
+								
+								d = satur[y].size-1;
+								
+								remove(y,d);
+
+								// int i = rank[y];
+								// int l = first[satur[y].size];
+								// assert(l > iter);
+								//
+								// std::cout << "re-rank " << y << " in [" << l << ".." << i << "]\n";
+								//
+								// // reorder y w.r.t. its degree
+								// while(i > l && g.degree(y) > g.degree(order[i-1])) {
+								// 		// std::cout << " -> " << (i-1) << std::endl;
+								//
+								// 		order[i] = order[i-1];
+								// 		rank[order[i]] = i;
+								// 		order[i-1] = y;
+								// 		rank[y] = --i;
+								//
+								// }
+								
+						}
+						
+
+						// // clean the "first" pointer struct
+						// while(first.back() < iter) {
+						// 	first.pop_back();
+						// }
+						// while(first.back() == iter and first.size() > 0 and first.back() == *(rbegin(first)-1)) {
+						// 	first.pop_back();
+						// }
+						
+						// while(first.back() < iter) {
+						// 	first.pop_back();
+						// }
+				
+				// x = order[++iter];
+				// ++first[satur[x].size];
+
+		} while( true );
+		
+
+
+		// std::cout << "num_colors = " << num_colors << std::endl;
 
 }
 
