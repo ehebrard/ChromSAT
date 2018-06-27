@@ -242,8 +242,7 @@ void preprocess(gc::options& options, gc::graph<adjacency_struct>& g) {
 	gc::statistics statistics(g.capacity());
 	
 	
-	gc::degeneracy_finder<adjacency_struct> df(g);
-	
+	gc::degeneracy_finder<adjacency_struct> df(g);	
 	df.degeneracy_ordering();
 	
 	for(auto v : df.order) {
@@ -323,6 +322,7 @@ void preprocess(gc::options& options, gc::graph<adjacency_struct>& g) {
 		df.display_ordering();
 
 	}
+
 }
 
 

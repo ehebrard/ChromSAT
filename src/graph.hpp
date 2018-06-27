@@ -56,7 +56,10 @@ public:
         }
         return *this;
     }
+
     basic_graph& operator=(basic_graph&&) = default;
+
+	// Method to initialize a non-const basic graph from a const basic_graph	
 
     int capacity() const { return matrix.size(); }
     int size() const { return nodes.size(); }
@@ -277,6 +280,37 @@ struct degeneracy_finder {
 	void display_ordering();
 };
 
+template< class adjacency_struct >
+struct minimum_degree_elimination_game {
+	const basic_graph<adjacency_struct>& g;
+	basic_graph<adjacency_struct> g_filled;
+	basic_graph<adjacency_struct> g_section;
+	
+	std::vector<int> increasing_ordering; 
+
+	minimum_degree_elimination_game(const basic_graph<adjacency_struct>& g)
+		: g(g)
+		, g_filled(g.capacity())
+		, g_section(g.capacity())
+{
+// COPY G 
+//	g_filled = g;
+//	g_section = g;
+    for (auto v : g.nodes) {
+        g_filled.add_node(v);
+        g_filled.matrix[v].copy(g.matrix[v]);
+
+        g_section.add_node(v);
+        g_section.matrix[v].copy(g.matrix[v]);
+    }
+
+	for(auto u : g.nodes) {
+		increasing_ordering.push_back(u);
+	} 
+}
+
+	void elimination_game(std::vector<int> ordering);
+};
 
 
 
@@ -822,6 +856,80 @@ std::vector<int> brelaz_color(const graph<adjacency_struct>& g)
     }
 
     return solution;
+}
+
+//std::ostream& display_adjacency3(std::ostream& os, gc::basic_graph<gc::vertices_vec>& g)
+//{
+//	os << "Displaying adjacency\n";
+//    for (auto it : g.nodes) {
+//        os << "Vertex " << it+1 << "   Neighbors : ( ";
+//		for (std::vector<int>::const_iterator itN = g.matrix[it].vertices.begin(); itN < g.matrix[it].vertices.end(); ++itN) {
+//			os << *itN+1 << " ";
+//		}
+//	    os << ")";
+//		os << " degree =" << g.matrix[it].vertices.size() << "\n";
+//    }
+//    return os;
+//}
+
+
+
+template< class adjacency_struct >
+void minimum_degree_elimination_game<adjacency_struct>::elimination_game(std::vector<int> ordering)
+{
+	int num_fill(0);
+	for (auto o : ordering) { std::cout << o+1 << std::endl;
+		if (o+1 == g.capacity()) break;
+		// Check every pair n1n2 of neighbors of o
+		for(std::vector<int>::iterator n1 = g_section.matrix[o].begin() ; n1 != g_section.matrix[o].end()-1; ++n1) { std::cout << "	" << *n1+1 << std::endl;
+			for(std::vector<int>::iterator n2 = n1 + 1 ; n2 != g_section.matrix[o].end(); ++n2) { std::cout << "		" << *n2+1 << std::endl;
+				// If n1n2 are not neighors add to g_section and g_filled
+				std::vector<int>::iterator it;
+				it = std::find(g_section.matrix[*n1].begin(), g_section.matrix[*n1].end(), *n2);
+				if (it == std::end(g_section.matrix[*n1]) && (*g_section.matrix[*n1].end() != *n2)) {
+					g_filled.add_edge(*n1, *n2); 					 
+					g_section.add_edge(*n1, *n2);
+					g_section.sort(); 					
+//					std::cout << "Adding edge: ("<< *n1+1 << "," << *n2+1 << ")" << std::endl;
+					++num_fill;
+				}
+				
+			}
+		}
+//		g_section.remove_node(o);
+//		std::cout << "Removing edge :" << o+1 << std::endl;
+		// Remove o from the adjacency matrix of its neighbors
+		for (auto u: g_section.matrix[o]) {
+			std::vector<int>::iterator itr;
+			itr = std::find(g_section.matrix[u].begin(), g_section.matrix[u].end(), o);
+			if (itr != std::end(g_section.matrix[u]) || (*g_section.matrix[u].end() == o)) {
+				g_section.matrix[u].erase(itr);
+			}
+		}
+
+//		// Display g_section
+//		std::cout << "Eliminated graph :" << std::endl;
+//    	for (auto its : g_section.nodes) {
+//        	std::cout << "Vertex " << its+1 << "   Neighbors : ( ";
+//			for (std::vector<int>::const_iterator itN = g_section.matrix[its].vertices.begin(); itN < g_section.matrix[its].vertices.end(); ++itN) {
+//				std::cout << *itN+1 << " ";
+//			}
+//	    	std::cout << ")";
+//			std::cout << " degree =" << g_section.matrix[its].vertices.size() << std::endl;
+//		}
+
+//		// Display g_filled
+//		std::cout << "Filled graph :" << std::endl;
+//    	for (auto itf : g_filled.nodes) {
+//        	std::cout << "Vertex " << itf+1 << "   Neighbors : ( ";
+//			for (std::vector<int>::const_iterator itN = g_filled.matrix[itf].vertices.begin(); itN < g_filled.matrix[itf].vertices.end(); ++itN) {
+//				std::cout << *itN+1 << " ";
+//			}
+//	    	std::cout << ")";
+//			std::cout << " degree =" << g_filled.matrix[itf].vertices.size() << std::endl;
+//		}
+	}
+	std::cout << "# fill edges: " << num_fill << std::endl;	
 }
 
 } // namespace gc
