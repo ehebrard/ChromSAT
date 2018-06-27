@@ -3,13 +3,13 @@
 
 #include "intstack.hpp"
 
-IntStack::IntStack(const size_t n)
+intstack::intstack(const size_t n)
 {
     size_ = 0;
     reserve(n);
 }
 
-void IntStack::reserve(const size_t n)
+void intstack::reserve(const size_t n)
 {
     while (list_.size() < n) {
         index_.push_back(list_.size());
@@ -22,69 +22,69 @@ void IntStack::reserve(const size_t n)
 /*!@name Accessors*/
 //@{
 
-bool IntStack::safe_contain(const int elt) const
+bool intstack::safe_contain(const int elt) const
 {
     if (elt >= 0 && (size_t)elt < index_.size())
         return contain(elt);
     return false;
 }
 
-bool IntStack::contain(const int elt) const { return index_[elt] < size_; }
+bool intstack::contain(const int elt) const { return index_[elt] < size_; }
 
-size_t IntStack::size() const { return size_; }
+size_t intstack::size() const { return size_; }
 
-bool IntStack::empty() const { return size_ == 0; }
+bool intstack::empty() const { return size_ == 0; }
 
-int IntStack::next(const int elt) const
+int intstack::next(const int elt) const
 {
     size_t idx = index_[elt] + 1;
     return (idx < size_ ? list_[idx] : elt);
 }
-int IntStack::prev(const int elt) const
+int intstack::prev(const int elt) const
 {
     size_t idx = index_[elt];
     return (idx > 0 ? list_[idx - 1] : elt);
 }
 
-int IntStack::operator[](const size_t idx) const { return list_[idx]; }
+int intstack::operator[](const size_t idx) const { return list_[idx]; }
 
-int& IntStack::operator[](const size_t idx) { return list_[idx]; }
+int& intstack::operator[](const size_t idx) { return list_[idx]; }
 //@}
 
 /*!@name List Manipulation*/
 //@{
-std::vector<int>::iterator IntStack::begin() { return list_.begin(); }
-std::vector<int>::reverse_iterator IntStack::rbegin()
+std::vector<int>::iterator intstack::begin() { return list_.begin(); }
+std::vector<int>::reverse_iterator intstack::rbegin()
 {
     return list_.rend() + size_;
 }
 
-std::vector<int>::iterator IntStack::end() { return list_.begin() + size_; }
-std::vector<int>::reverse_iterator IntStack::rend() { return list_.rend(); }
+std::vector<int>::iterator intstack::end() { return list_.begin() + size_; }
+std::vector<int>::reverse_iterator intstack::rend() { return list_.rend(); }
 
-std::vector<int>::const_iterator IntStack::begin() const
+std::vector<int>::const_iterator intstack::begin() const
 {
     return list_.begin();
 }
-std::vector<int>::const_reverse_iterator IntStack::rbegin() const
+std::vector<int>::const_reverse_iterator intstack::rbegin() const
 {
     return list_.rend() + size_;
 }
 
-std::vector<int>::const_iterator IntStack::end() const
+std::vector<int>::const_iterator intstack::end() const
 {
     return list_.begin() + size_;
 }
-std::vector<int>::const_reverse_iterator IntStack::rend() const
+std::vector<int>::const_reverse_iterator intstack::rend() const
 {
     return list_.rend();
 }
 
-void IntStack::fill() { size_ = list_.size(); }
+void intstack::fill() { size_ = list_.size(); }
 
-void IntStack::clear() { size_ = 0; }
+void intstack::clear() { size_ = 0; }
 
-void IntStack::remove(const int elt)
+void intstack::remove(const int elt)
 {
     auto last = list_[--size_];
     index_[last] = index_[elt];
@@ -93,7 +93,7 @@ void IntStack::remove(const int elt)
     index_[elt] = size_;
 }
 
-void IntStack::move_up(const int elt, const int idx_to)
+void intstack::move_up(const int elt, const int idx_to)
 {
     auto idx_from = index_[elt];
 
@@ -106,13 +106,13 @@ void IntStack::move_up(const int elt, const int idx_to)
     index_[elt] = idx_to;
 }
 
-void IntStack::pop_back() { --size_; }
-void IntStack::pop_head() { remove(list_[0]); }
+void intstack::pop_back() { --size_; }
+void intstack::pop_head() { remove(list_[0]); }
 
-int IntStack::head() const { return list_[0]; }
-int IntStack::back() const { return list_[size_ - 1]; }
+int intstack::head() const { return list_[0]; }
+int intstack::back() const { return list_[size_ - 1]; }
 
-void IntStack::safe_add(const int elt)
+void intstack::safe_add(const int elt)
 {
     if (elt >= 0) {
         if (static_cast<size_t>(elt) >= list_.size()) {
@@ -122,13 +122,13 @@ void IntStack::safe_add(const int elt)
     }
 }
 
-void IntStack::add(const int elt)
+void intstack::add(const int elt)
 {
     if (index_[elt] >= size_)
         push(elt);
 }
 
-void IntStack::push(const int elt)
+void intstack::push(const int elt)
 {
     auto next = list_[size_];
     index_[next] = index_[elt];
@@ -137,13 +137,13 @@ void IntStack::push(const int elt)
     list_[size_++] = elt;
 }
 
-int IntStack::index(const int elt) const
+int intstack::index(const int elt) const
 {
 		return index_[elt];
 }
 //@}
 
-std::ostream& IntStack::display(std::ostream& os) const
+std::ostream& intstack::display(std::ostream& os) const
 {
     os << "(";
     for (auto it = begin(); it < end(); ++it) {
@@ -153,12 +153,12 @@ std::ostream& IntStack::display(std::ostream& os) const
     return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const IntStack& x)
+std::ostream& operator<<(std::ostream& os, const intstack& x)
 {
     return x.display(os);
 }
 
-std::ostream& operator<<(std::ostream& os, const IntStack* x)
+std::ostream& operator<<(std::ostream& os, const intstack* x)
 {
     return (x ? x->display(os) : os);
 }

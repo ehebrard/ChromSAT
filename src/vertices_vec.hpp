@@ -80,6 +80,8 @@ public:
     {
         return std::is_sorted(vertices.begin(), vertices.end());
     }
+		
+		void canonize();
 
     // Modifies this
     void intersect_with(vertices_vec const& v);

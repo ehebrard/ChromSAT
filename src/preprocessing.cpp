@@ -9,6 +9,8 @@
 #include "statistics.hpp"
 #include "utils.hpp"
 #include "vertices_vec.hpp"
+#include "interval_list.hpp"
+#include "sparse_dynamic_graph.hpp"
 
 
 template<class adjacency_struct>
@@ -240,8 +242,10 @@ void preprocess(gc::options& options, gc::graph<adjacency_struct>& g) {
               g.add_edge(u - 1, v - 1);
       },
       [&](int, gc::weight) {});
-  	g.describe(std::cout);
-	g.sort();
+
+  g.describe(std::cout);
+	g.canonize();
+
 	
 	gc::statistics statistics(g.capacity());
 	
@@ -330,6 +334,52 @@ void preprocess(gc::options& options, gc::graph<adjacency_struct>& g) {
 }
 
 
+void preprocess(gc::options& options, gc::dyngraph& g) 
+{
+		
+  // dimacs::read_graph(options.instance_file.c_str(),
+  //     [&](int nv, int) { g = gc::dyngraph{nv}; },
+  //     [&](int u, int v) {
+  //         if (u != v) {
+  //             g.add_edge(u - 1, v - 1);
+  // 					}
+  //     },
+  //     [&](int, gc::weight) {});
+	
+	
+	gc::graph<gc::vertices_vec> sg;
+  dimacs::read_graph(options.instance_file.c_str(),
+      [&](int nv, int) { sg = gc::graph<gc::vertices_vec>{nv}; },
+      [&](int u, int v) {
+          if (u != v)
+              sg.add_edge(u - 1, v - 1);
+      },
+      [&](int, gc::weight) {});
+  sg.describe(std::cout);
+	sg.canonize();
+
+
+	g = gc::dyngraph{sg.capacity()};
+	for(auto v : sg.nodes) 
+		for(auto u : sg.matrix[v]) 
+			if(u > v) 
+				g.add_edge(v,u);
+			
+		
+	
+	
+
+	g.verify("after reading");
+
+	std::cout << g << std::endl;
+	
+	gc::coloring col;
+	col.brelaz_color(g);
+
+}
+
+
+
 int main(int argc, char* argv[])
 {
     auto options = gc::parse(argc, argv);
@@ -338,8 +388,11 @@ int main(int argc, char* argv[])
 		if(options.preprocessing == gc::options::SPARSE) {
 				gc::graph<gc::vertices_vec> g;
 				preprocess(options, g);
-		} else {
+		} else if(options.preprocessing == gc::options::LOW_DEGREE) {
 				gc::graph<gc::bitset> g;	
+				preprocess(options, g);
+		} else {
+				gc::dyngraph g;
 				preprocess(options, g);
 		}
 		

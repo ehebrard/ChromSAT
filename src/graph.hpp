@@ -29,7 +29,7 @@ class basic_graph
 {
 public:
     bitset nodeset;
-    IntStack nodes;
+    intstack nodes;
     std::vector<adjacency_struct> matrix;
 
     basic_graph() {}
@@ -71,14 +71,14 @@ public:
     void add_node(const int v);
 
     void add_clique(const adjacency_struct& C);
-
+		
     void remove_edge(int u, int v);
 
     void remove_node(int v);
 
     void clear();
 		
-		void sort();
+		void canonize();
 };
 
 template <class adjacency_struct>
@@ -376,10 +376,12 @@ void basic_graph<adjacency_struct>::clear()
 
 
 template< class adjacency_struct >
-void basic_graph<adjacency_struct>::sort()
+void basic_graph<adjacency_struct>::canonize()
 {
     for (auto v : nodes) {
-        matrix[v].sort();
+				matrix[v].canonize();
+				//         matrix[v].sort();
+				// std::unique(begin(matrix[v]), end(matrix[v]));
     }
 }
 
