@@ -22,8 +22,15 @@ executable('gc', ['src/gc.cpp',
 		  'src/mycielski.cpp',
 		  'src/statistics.cpp'],
 	   dependencies: [minicsp_dep, basic_dep])
-		 
+
 executable('preprocessing', ['src/preprocessing.cpp',
+	  'src/prop.cpp',
+	  'src/rewriter.cpp',
+	  'src/mycielski.cpp',
+	  'src/statistics.cpp'],
+   dependencies: [minicsp_dep, basic_dep])
+
+executable('local_test', ['src/local_tests.cpp',
 	  'src/prop.cpp',
 	  'src/rewriter.cpp',
 	  'src/mycielski.cpp',
