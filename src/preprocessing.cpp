@@ -1,6 +1,7 @@
 #include <iostream>
 #include <iomanip>
 
+#include "snap.hpp"
 #include "dimacs.hpp"
 #include "graph.hpp"
 #include "mycielski.hpp"
@@ -338,16 +339,29 @@ void upper_bound(gc::options& options, gc::graph<adjacency_struct>& g) {
 	std::cout.flush();
 	
 	int num_edges = 0;
-  dimacs::read_graph(options.instance_file.c_str(),
-      [&](int nv, int) { g = gc::graph<adjacency_struct>{nv}; },
-      [&](int u, int v) {
-          if (u != v) {
-              g.add_edge(u - 1, v - 1);
-							++num_edges;
-					}
-      },
-      [&](int, gc::weight) {});
-  // g.describe(std::cout);
+	if(options.format == "snap") 
+		  snap::read_graph(options.instance_file.c_str(),
+		      [&](int nv, int) { g = gc::graph<adjacency_struct>{nv}; },
+		      [&](int u, int v) {
+		          if (u != v) {
+									num_edges += 1 - g.matrix[u].fast_contain(v);
+									g.add_edge(u, v);
+									// ++num_edges;
+							}
+		      },
+		    	[&](int, gc::weight) {});
+	else
+		  dimacs::read_graph(options.instance_file.c_str(),
+		      [&](int nv, int) { g = gc::graph<adjacency_struct>{nv}; },
+		      [&](int u, int v) {
+		          if (u != v) {
+									num_edges += 1 - g.matrix[u - 1].fast_contain(v - 1);
+		              g.add_edge(u - 1, v - 1);
+									// ++num_edges;
+							}
+		      },
+		      [&](int, gc::weight) {});
+
 	g.canonize();
 	
 	// gc::statistics statistics(g.capacity());
@@ -372,6 +386,9 @@ void upper_bound(gc::options& options, gc::graph<adjacency_struct>& g) {
 	std::cout << "num_colors = " << *max_element(begin(sol), end(sol)) + 1 << std::endl;
 	
 
+  for (auto u : g.nodes)
+      for (auto v : g.matrix[u])
+          assert(sol[u] != sol[v]);
 
 }
 
@@ -394,14 +411,24 @@ void upper_bound(gc::options& options, gc::dyngraph& g)
 	
 	
 	gc::graph<gc::vertices_vec> sg;
-  dimacs::read_graph(options.instance_file.c_str(),
-      [&](int nv, int) { sg = gc::graph<gc::vertices_vec>{nv}; },
-      [&](int u, int v) {
-          if (u != v) 
-              sg.add_edge(u - 1, v - 1);
-      },
-      [&](int, gc::weight) {});
-  // sg.describe(std::cout);
+
+	if(options.format == "snap") 
+		  snap::read_graph(options.instance_file.c_str(),
+		      [&](int nv, int) { sg = gc::graph<gc::vertices_vec>{nv}; },
+		      [&](int u, int v) {
+		          if (u != v) 
+		              sg.add_edge(u, v);
+		      },
+		    	[&](int, gc::weight) {});
+	else
+		  dimacs::read_graph(options.instance_file.c_str(),
+		      [&](int nv, int) { sg = gc::graph<gc::vertices_vec>{nv}; },
+		      [&](int u, int v) {
+		          if (u != v) 
+		              sg.add_edge(u - 1, v - 1);
+		      },
+		      [&](int, gc::weight) {});
+
 	sg.canonize();
 	
 	tnow = minicsp::cpuTime();
@@ -416,6 +443,9 @@ void upper_bound(gc::options& options, gc::dyngraph& g)
 			if(u > v) 
 				g.add_edge(v,u);
 			
+			
+	// std::ofstream out_graph("big.col", std::ios_base::out);
+	// g.print_dimacs(out_graph);
 		
 	tnow = minicsp::cpuTime();
 	std::cout << (tnow - t) << std::endl << g.size() << " nodes, " << g.num_edges << " edges\n";
@@ -432,6 +462,10 @@ void upper_bound(gc::options& options, gc::dyngraph& g)
 	t = tnow;
 	
 	std::cout << "num_colors = " << *std::max_element(begin(col.color), end(col.color)) + 1 << std::endl;
+	
+  for (auto u : sg.nodes)
+      for (auto v : sg.matrix[u])
+          assert(col.color[u] != col.color[v]);
 
 }
 
@@ -449,11 +483,11 @@ int main(int argc, char* argv[])
 				gc::graph<gc::bitset> g;	
 				preprocess(options, g);
 		} else {
-			std::cout << "\nsparse graph\n";
+				std::cout << "\nsparse graph\n";
 				gc::dyngraph g;
 				upper_bound(options, g);
 				
-			std::cout << "\nbitset graph\n";
+				std::cout << "\nbitset graph\n";
 				gc::graph<gc::bitset> h;	
 				upper_bound(options, h);
 		}
