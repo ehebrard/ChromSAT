@@ -281,14 +281,14 @@ public:
             }
             int bestu{-1}, bestv{-1};
             for (auto vp : vbag) {
-                if (g.origmatrix[u].fast_contain(v)) {
+                if (g.origmatrix[up].fast_contain(vp)) {
                     expl_reps[u] = up;
                     expl_reps[v] = vp;
                     maxvar = var_Undef;
                     return true;
                 } else {
                     auto var = vars[up][vp];
-                    auto varact = s.var_activity(maxvar);
+                    auto varact = s.var_activity(var);
                     if (varact > maxactivity) {
                         maxactivity = varact;
                         maxvar = var;
@@ -309,8 +309,8 @@ public:
                 auto u = culprit[i], v = culprit[j];
                 assert(g.rep_of[u] == u);
                 assert(g.rep_of[v] == v);
-                auto& ubag = g.partition[u];
-                auto& vbag = g.partition[v];
+                auto ubag = &g.partition[u];
+                auto vbag = &g.partition[v];
                 maxactivity = 0.0;
                 maxvar = var_Undef;
                 if (expl_reps[v] >= 0 && expl_reps[u] < 0) {
@@ -321,11 +321,11 @@ public:
                 if (expl_reps[v] < 0 && expl_reps[u] >= 0) {
                     // find a rep for vbag only
                     auto up = expl_reps[u];
-                    bestmatch(u, v, ubag, vbag, up);
+                    bestmatch(u, v, *ubag, *vbag, up);
                 } else if (expl_reps[v] < 0 && expl_reps[u] < 0) {
                     // find a rep for both vbag and ubag
-                    for (auto up : ubag) {
-                        if (bestmatch(u, v, ubag, vbag, up))
+                    for (auto up : *ubag) {
+                        if (bestmatch(u, v, *ubag, *vbag, up))
                             break;
                     }
                 } else {
@@ -333,8 +333,10 @@ public:
                     auto vr = expl_reps[v];
                     maxvar = vars[ur][vr];
                 }
-                if (maxvar != var_Undef)
+                if (maxvar != var_Undef) {
+                    assert(s.value(maxvar) == l_False);
                     reason.push(Lit(maxvar));
+                }
             }
 
         if (bound_source != options::CLIQUES && mf.explanation_clique != -1) {

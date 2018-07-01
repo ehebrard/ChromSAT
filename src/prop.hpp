@@ -9,7 +9,7 @@
 
 namespace gc
 {
-	
+
 using dense_graph = graph<bitset>;
 
 struct statistics;
