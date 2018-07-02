@@ -6,9 +6,16 @@ basic_lib = static_library('basic', ['src/intstack.cpp',
 				     'src/graph.cpp',
 				     'src/options.cpp',
 				     'src/vertices_vec.cpp',
-						 'src/sparse_dynamic_graph.cpp'])
+				     'src/sparse_dynamic_graph.cpp'])
 basic_dep = declare_dependency(link_with:basic_lib,
 			       include_directories: include_directories('src'))
+
+prop_lib = static_library('prop', ['src/prop.cpp',
+				   'src/rewriter.cpp',
+				   'src/mycielski.cpp',
+				   'src/statistics.cpp'])
+prop_dep = declare_dependency(link_with: prop_lib,
+			      include_directories: include_directories('src'))
 
 minicsp_inc = include_directories('minicsp')
 minicsp_lib = library('minicsp', ['minicsp/core/solver.cpp',
@@ -17,21 +24,13 @@ minicsp_lib = library('minicsp', ['minicsp/core/solver.cpp',
 minicsp_dep = declare_dependency(link_with: minicsp_lib,
 				 include_directories: minicsp_inc)
 
-executable('gc', ['src/gc.cpp',
-		  'src/prop.cpp',
-		  'src/rewriter.cpp',
-		  'src/mycielski.cpp',
-		  'src/statistics.cpp'],
-	   dependencies: [minicsp_dep, basic_dep])
+executable('gc', ['src/gc.cpp'],
+	   dependencies: [minicsp_dep, basic_dep, prop_dep])
 
 executable('preprocessing', ['src/preprocessing.cpp',
-	  'src/prop.cpp',
-	  'src/rewriter.cpp',
-	  'src/mycielski.cpp',
-	  'src/statistics.cpp',
-		'src/sparse_dynamic_graph.cpp',
-		'src/interval_list.cpp'],
-   dependencies: [minicsp_dep, basic_dep])
+			     'src/sparse_dynamic_graph.cpp',
+			     'src/interval_list.cpp'],
+	   dependencies: [minicsp_dep, basic_dep, prop_dep])
 
 executable('local_test', ['src/local_tests.cpp',
 	  'src/prop.cpp',

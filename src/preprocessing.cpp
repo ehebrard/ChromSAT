@@ -12,6 +12,8 @@
 #include "interval_list.hpp"
 #include "sparse_dynamic_graph.hpp"
 
+#include <minicsp/core/utils.hpp>
+
 
 template<class adjacency_struct>
 void histogram(gc::graph<adjacency_struct>& g)
@@ -334,7 +336,55 @@ void preprocess(gc::options& options, gc::graph<adjacency_struct>& g) {
 }
 
 
-void preprocess(gc::options& options, gc::dyngraph& g) 
+
+template< class adjacency_struct >
+void upper_bound(gc::options& options, gc::graph<adjacency_struct>& g) {
+	
+	
+	double tnow, t = minicsp::cpuTime();
+	std::cout << "read file into sorted vectors...";
+	std::cout.flush();
+	
+	int num_edges = 0;
+  dimacs::read_graph(options.instance_file.c_str(),
+      [&](int nv, int) { g = gc::graph<adjacency_struct>{nv}; },
+      [&](int u, int v) {
+          if (u != v) {
+              g.add_edge(u - 1, v - 1);
+							++num_edges;
+					}
+      },
+      [&](int, gc::weight) {});
+  // g.describe(std::cout);
+	g.canonize();
+	
+	// gc::statistics statistics(g.capacity());
+			
+	tnow = minicsp::cpuTime();
+	std::cout << (tnow - t) << std::endl << g.size() << " nodes, " << num_edges << " edges\n";
+	std::cout << "compute brelaz coloring...";
+	std::cout.flush();
+	t = tnow;
+	
+	
+  auto sol{gc::brelaz_color(g)};
+  // for (auto u : g.nodes)
+  //     for (auto v : g.matrix[u])
+  //         assert(sol[u] != sol[v]);
+  
+
+	tnow = minicsp::cpuTime();
+	std::cout << (tnow - t) << std::endl;
+	t = tnow;
+	
+	std::cout << "num_colors = " << *max_element(begin(sol), end(sol)) + 1 << std::endl;
+	
+
+
+}
+
+
+void upper_bound(gc::options& options, gc::dyngraph& g) 
 {
 		
   // dimacs::read_graph(options.instance_file.c_str(),
@@ -346,18 +396,27 @@ void preprocess(gc::options& options, gc::dyngraph& g)
   //     },
   //     [&](int, gc::weight) {});
 	
+	double tnow, t = minicsp::cpuTime();
+	std::cout << "read file into sorted vectors...";
+	std::cout.flush();
+	
 	
 	gc::graph<gc::vertices_vec> sg;
   dimacs::read_graph(options.instance_file.c_str(),
       [&](int nv, int) { sg = gc::graph<gc::vertices_vec>{nv}; },
       [&](int u, int v) {
-          if (u != v)
+          if (u != v) 
               sg.add_edge(u - 1, v - 1);
       },
       [&](int, gc::weight) {});
-  sg.describe(std::cout);
+  // sg.describe(std::cout);
 	sg.canonize();
-
+	
+	tnow = minicsp::cpuTime();
+	std::cout << (tnow - t) << std::endl;
+	std::cout << "copy into sparse graph...";
+	std::cout.flush();
+	t = tnow;
 
 	g = gc::dyngraph{sg.capacity()};
 	for(auto v : sg.nodes) 
@@ -366,15 +425,21 @@ void preprocess(gc::options& options, gc::dyngraph& g)
 				g.add_edge(v,u);
 			
 		
+	tnow = minicsp::cpuTime();
+	std::cout << (tnow - t) << std::endl << g.size() << " nodes, " << g.num_edges << " edges\n";
+	std::cout << "compute brelaz coloring...";
+	std::cout.flush();
+	t = tnow;
 	
-	
-
-	g.verify("after reading");
-
-	std::cout << g << std::endl;
 	
 	gc::coloring col;
 	col.brelaz_color(g);
+	
+	tnow = minicsp::cpuTime();
+	std::cout << (tnow - t) << std::endl;
+	t = tnow;
+	
+	std::cout << "num_colors = " << *std::max_element(begin(col.color), end(col.color)) + 1 << std::endl;
 
 }
 
@@ -392,8 +457,13 @@ int main(int argc, char* argv[])
 				gc::graph<gc::bitset> g;	
 				preprocess(options, g);
 		} else {
+			std::cout << "\nsparse graph\n";
 				gc::dyngraph g;
-				preprocess(options, g);
+				upper_bound(options, g);
+				
+			std::cout << "\nbitset graph\n";
+				gc::graph<gc::bitset> h;	
+				upper_bound(options, h);
 		}
 		
 }
