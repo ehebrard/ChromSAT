@@ -84,6 +84,8 @@ struct options {
     preprocessing_types preprocessing;
 
     bool dominance;
+		
+		std::string format;
 
 };
 
