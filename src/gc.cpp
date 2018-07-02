@@ -475,7 +475,7 @@ int main(int argc, char* argv[])
         auto lb = bounds.first;
         auto ub = bounds.second;
         for (int i = lb; i < ub; ++i) {
-            gc::graph gcopy{g};
+            gc::graph<gc::bitset> gcopy{g};
             gc_model model(
                 gcopy, options, statistics, std::make_pair(i, i + 1));
             auto ibounds = model.solve();
@@ -503,7 +503,7 @@ int main(int argc, char* argv[])
         auto lb = bounds.first;
         auto ub = bounds.second;
         for (int i = ub - 1; i >= lb; --i) {
-            gc::graph gcopy{g};
+            gc::graph<gc::bitset> gcopy{g};
             gc_model model(
                 gcopy, options, statistics, std::make_pair(i, i + 1));
             auto ibounds = model.solve();
