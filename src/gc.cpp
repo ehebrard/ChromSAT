@@ -107,7 +107,7 @@ struct gc_model {
     graph_reduction preprocess(
         gc::dense_graph& g, std::pair<int, int> bounds, bool myciel = false)
     {
-        graph_reduction gr(g);
+        graph_reduction<gc::bitset> gr(g);
         if (options.preprocessing == gc::options::NO_PREPROCESSING)
             return gr;
 
