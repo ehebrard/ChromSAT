@@ -94,7 +94,7 @@ struct gc_preprocessor {
     graph_reduction<adjacency_struct> preprocess(
         gc::graph<adjacency_struct>& g, std::pair<int, int> bounds, bool myciel = false)
     {
-        graph_reduction gr(g);
+        graph_reduction<adjacency_struct> gr(g);
         // if (options.preprocessing == gc::options::NO_PREPROCESSING)
         //     return gr;
 
