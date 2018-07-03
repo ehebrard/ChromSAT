@@ -289,6 +289,7 @@ public:
                 } else {
                     auto var = vars[up][vp];
                     auto varact = s.var_activity(var);
+                    assert(s.value(var) == l_False);
                     if (varact > maxactivity) {
                         maxactivity = varact;
                         maxvar = var;
@@ -309,6 +310,8 @@ public:
                 auto u = culprit[i], v = culprit[j];
                 assert(g.rep_of[u] == u);
                 assert(g.rep_of[v] == v);
+                assert(g.matrix[u].fast_contain(v));
+                assert(g.matrix[v].fast_contain(u));
                 auto ubag = &g.partition[u];
                 auto vbag = &g.partition[v];
                 maxactivity = 0.0;
@@ -332,6 +335,7 @@ public:
                     auto ur = expl_reps[u];
                     auto vr = expl_reps[v];
                     maxvar = vars[ur][vr];
+                    assert(maxvar == var_Undef || s.value(maxvar) == l_False);
                 }
                 if (maxvar != var_Undef) {
                     assert(s.value(maxvar) == l_False);
