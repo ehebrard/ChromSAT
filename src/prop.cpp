@@ -356,7 +356,14 @@ public:
                         > mf.explanation_subgraph.nodes.index(u)) {
                         assert(g.rep_of[u] == u);
                         assert(g.rep_of[v] == v);
-                        reason.push(Lit(vars[u][v]));
+                        auto ur = expl_reps[u];
+                        auto vr = expl_reps[v];
+                        if (ur < 0)
+                            ur = u;
+                        if (vr < 0)
+                            vr = v;
+                        if (vars[ur][vr] != var_Undef)
+                            reason.push(Lit(vars[ur][vr]));
                     }
                 }
             }
