@@ -3,7 +3,6 @@ project('gc', ['c', 'cpp'],
 compiler = meson.get_compiler('cpp')
 
 basic_lib = static_library('basic', ['src/intstack.cpp',
-				     'src/graph.cpp',
 				     'src/options.cpp',
 				     'src/vertices_vec.cpp',
 				     'src/sparse_dynamic_graph.cpp'])
@@ -31,13 +30,6 @@ executable('preprocessing', ['src/preprocessing.cpp',
 			     'src/sparse_dynamic_graph.cpp',
 			     'src/interval_list.cpp'],
 	   dependencies: [minicsp_dep, basic_dep, prop_dep])
-
-executable('local_test', ['src/local_tests.cpp',
-	  'src/prop.cpp',
-	  'src/rewriter.cpp',
-	  'src/mycielski.cpp',
-	  'src/statistics.cpp'],
-   dependencies: [minicsp_dep, basic_dep])
 
 use_gecode = get_option('use_gecode')
 if use_gecode
