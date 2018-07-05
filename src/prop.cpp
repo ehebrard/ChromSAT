@@ -15,6 +15,8 @@ private:
     mycielskan_subgraph_finder<bitset> mf;
 
     const std::vector<std::vector<Var>>& vars;
+    std::vector<indset_constraint> isconses;
+
     const options& opt;
     statistics& stat;
 
@@ -49,11 +51,13 @@ private:
 
 public:
     gc_constraint(Solver& solver, dense_graph& g,
-        const std::vector<std::vector<Var>>& tvars, const options& opt,
+        const std::vector<std::vector<Var>>& tvars,
+        const std::vector<indset_constraint>& isconses, const options& opt,
         statistics& stat)
         : cons_base(solver, g)
         , mf(g, cf, opt.prune)
         , vars(tvars)
+        , isconses(isconses)
         , opt(opt)
         , stat(stat)
         , util_set(0, g.capacity() - 1, bitset::empt)
@@ -246,22 +250,12 @@ public:
         return NO_REASON;
     }
 
-    Clause* explain_positive()
+    // fills in reason with explanation for clq. Also generates
+    // this->culprit and fills in this->expl_reps
+    void explain_positive_clique(const bitset& clq)
     {
-        auto maxidx{std::distance(begin(cf.clique_sz),
-            std::max_element(
-                begin(cf.clique_sz), begin(cf.clique_sz) + cf.num_cliques))};
-
-        if (bound_source != options::CLIQUES && mf.explanation_clique != -1) {
-            maxidx = mf.explanation_clique;
-        }
-
-        // explain the base clique
-        reason.clear();
-
         culprit.clear();
-        std::copy(begin(cf.cliques[maxidx]), end(cf.cliques[maxidx]),
-            back_inserter(culprit));
+        std::copy(begin(clq), end(clq), back_inserter(culprit));
         // sort by increasing partition size
         std::sort(begin(culprit), end(culprit), [&](auto u, auto v) {
             return g.partition[u].size() < g.partition[v].size();
@@ -342,6 +336,21 @@ public:
                     reason.push(Lit(maxvar));
                 }
             }
+    }
+
+    Clause* explain_positive()
+    {
+        auto maxidx{std::distance(begin(cf.clique_sz),
+            std::max_element(
+                begin(cf.clique_sz), begin(cf.clique_sz) + cf.num_cliques))};
+
+        if (bound_source != options::CLIQUES && mf.explanation_clique != -1) {
+            maxidx = mf.explanation_clique;
+        }
+
+        // explain the base clique
+        reason.clear();
+        explain_positive_clique(cf.cliques[maxidx]);
 
         if (bound_source != options::CLIQUES && mf.explanation_clique != -1) {
             // for (auto v : mf.explanation_subgraph.nodes) {
@@ -497,8 +506,6 @@ public:
             lb = cf.find_cliques(g.nodes, opt.cliquelimit);
         }
 
-        // std::cout << cf.num_cliques << std::endl;
-
         if (lb < ub
             && (s.decisionLevel() == 0 || !opt.adaptive
                    || run_expensive_bound)) {
@@ -535,12 +542,9 @@ public:
             stat.display(std::cout);
             for (auto v : g.nodes) {
                 if (g.matrix[v].size() < static_cast<size_t>(bestlb)) {
-                    // std::cout << " " << v;
                     ++stat.num_vertex_removals;
                 }
             }
-            // if (simplification)
-            //     std::cout << std::endl;
         }
         if (cf.num_cliques == 1)
             assert(g.nodes.size() == cf.cliques[0].size());
@@ -550,6 +554,25 @@ public:
                 return s.addInactiveClause(reason);
             }
             return explain();
+        }
+
+        if (lb >= ub - 1) {
+            for (int i = 0; i != cf.num_cliques; ++i) {
+                if (cf.clique_sz[i] < ub -1)
+                    continue;
+                for (auto& c : isconses) {
+                    util_set.clear();
+                    for (auto v : c.vs)
+                        util_set.fast_add(g.rep_of[v]);
+                    util_set.intersect_with(cf.cliques[i]);
+
+                    if (static_cast<int>(util_set.size()) >= ub - 1) {
+                        reason.clear();
+                        explain_positive_clique(util_set);
+                        return s.addInactiveClause(reason);
+                    }
+                }
+            }
         }
 
         if (opt.dominance)
@@ -676,10 +699,11 @@ void update_partitions(const dense_graph& g,
 }
 
 cons_base* post_gc_constraint(Solver& s, dense_graph& g,
-    const std::vector<std::vector<Var>>& vars, const options& opt,
+    const std::vector<std::vector<Var>>& vars,
+    const std::vector<indset_constraint>& isconses, const options& opt,
     statistics& stat)
 {
-    auto cons = new gc_constraint(s, g, vars, opt, stat);
+    auto cons = new gc_constraint(s, g, vars, isconses, opt, stat);
     s.addConstraint(cons);
 
     return cons;

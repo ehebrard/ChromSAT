@@ -83,10 +83,11 @@ struct options {
     enum preprocessing_types { NO_PREPROCESSING, LOW_DEGREE, SPARSE };
     preprocessing_types preprocessing;
 
-    bool dominance;
-		
-		std::string format;
+    bool indset_constraints;
 
+    bool dominance;
+
+    std::string format;
 };
 
 options parse(int argc, char* argv[]);

@@ -114,6 +114,8 @@ options parse(int argc, char* argv[])
         "Level of preprocessing [0=none-1=low-degree-2=low-degree (sparse)]", false, 1, "int");
     cmd.add<SwitchArg>(opt.dominance, "", "dominance",
         "enable neighborhood-based dominance", false);
+    cmd.add<SwitchArg>(opt.indset_constraints, "", "indset",
+        "reduce by independent set constraints", false);
     cmd.add<ValueArg<std::string>>(opt.format, "", "format",
         "File format", false, "dimacs", "string");
 
