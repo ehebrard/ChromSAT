@@ -255,10 +255,10 @@ struct clique_finder {
 };
 
 
-template< class adjacency_struct >
+template< class graph_struct >
 struct degeneracy_finder {
 
-    const basic_graph<adjacency_struct>& g;
+    const graph_struct& g;
     int d;
     std::vector<int> order;
     std::vector<int> degrees;
@@ -266,7 +266,7 @@ struct degeneracy_finder {
     std::vector<bool> ordered;
     std::vector<std::list<int>> buckets;
 
-    degeneracy_finder(const basic_graph<adjacency_struct>& g)
+    degeneracy_finder(const graph_struct& g)
         : g(g)
         , degrees(g.size())
         , iterators(g.size())
@@ -665,8 +665,8 @@ void clique_finder<adjacency_struct>::insert_color(int v, int clq, bitset& diff)
 // largest
 
 
-template< class adjacency_struct >
-void degeneracy_finder<adjacency_struct>::degeneracy_ordering()
+template< class graph_struct >
+void degeneracy_finder<graph_struct>::degeneracy_ordering()
 {
      for (auto v : g.nodes) {
          auto vd = g.matrix[v].size();
@@ -705,11 +705,11 @@ void degeneracy_finder<adjacency_struct>::degeneracy_ordering()
          }
      }
 
-     std::cout << "\ngraph has degeneracy " << d << std::endl;
+     // std::cout << "\ngraph has degeneracy " << d << std::endl;
 }
 
-template< class adjacency_struct >
-void degeneracy_finder<adjacency_struct>::display_ordering()
+template< class graph_struct >
+void degeneracy_finder<graph_struct>::display_ordering()
 {
     std::cout << "Degeneracy ordering : " << std::endl;
     ;

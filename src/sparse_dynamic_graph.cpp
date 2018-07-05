@@ -40,7 +40,7 @@ void coloring::remove(const int y, const int d) {
 
 
 void coloring::brelaz_color(dyngraph& g) {	
-		if(g.node.empty()) return;
+		if(g.nodes.empty()) return;
 		
 		int iter = 0, c, d, x; 
 		
@@ -49,7 +49,7 @@ void coloring::brelaz_color(dyngraph& g) {
 		satur.resize(g.capacity); 
 		
 		// nodes are stored by non-increasing saturation degree
-		for(auto v : g.node) {
+		for(auto v : g.nodes) {
 				rank[v] = order.size();
 				order.push_back(v);
 		}
@@ -58,7 +58,7 @@ void coloring::brelaz_color(dyngraph& g) {
 		first.push_back(0); // every node has saturation degree 0
 		
 		do {
-				if(g.node.empty()) break;
+				if(g.nodes.empty()) break;
 			
 				// get the highest saturation degree
 				d = satur[order[iter++]].size;
@@ -80,7 +80,7 @@ void coloring::brelaz_color(dyngraph& g) {
 				g.rem_node(x);
 				
 				// update the saturation degree of x's neighbors
-				for(auto y : g.neighbor[x])
+				for(auto y : g.matrix[x])
 						if(satur[y].add(c)) {
 								// new highest saturation degree, new pointer 
 								if(first.size() <= satur[y].size) first.push_back(*rbegin(first));
@@ -100,12 +100,12 @@ dyngraph::dyngraph(const int n)
 {
 	  capacity = n;
 
-	  node.reserve(capacity);
-		node.fill();
+	  nodes.reserve(capacity);
+		nodes.fill();
 
 	  nodeset.initialise(0, capacity - 1, gc::bitset::full);
 
-	  neighbor.resize(capacity); 
+	  matrix.resize(capacity); 
 	  nb_index.resize(capacity); 
 
 	  num_edges = 0;
@@ -115,11 +115,11 @@ dyngraph::dyngraph(const dyngraph& g) {
 	  capacity = g.capacity;
 
 	  nodeset.initialise(0, capacity - 1, gc::bitset::empt);
-		for(auto v : g.node) {
+		for(auto v : g.nodes) {
 			declare_node(v);
 		}
 
-	  neighbor.resize(capacity); 
+	  matrix.resize(capacity); 
 	  nb_index.resize(capacity); 
 
 	  num_edges = g.num_edges;
@@ -131,23 +131,23 @@ dyngraph::dyngraph(const dyngraph& g) {
 
 	  for (int x = 0; x < capacity; ++x) {
 
-	      for (auto it = begin(g.neighbor[x]); it != end(g.neighbor[x]); ++it)
-	          neighbor[x].push_back(*it);
+	      for (auto it = begin(g.matrix[x]); it != end(g.matrix[x]); ++it)
+	          matrix[x].push_back(*it);
 
 	      for (auto it = begin(g.nb_index[x]); it != end(g.nb_index[x]); ++it)
 	          nb_index[x].push_back(*it);
 	  }
 }
 
-int dyngraph::size() const { return node.size(); }
+int dyngraph::size() const { return nodes.size(); }
 
-bool dyngraph::null() const { return node.size() == 0; }
+bool dyngraph::null() const { return nodes.size() == 0; }
 
 bool dyngraph::empty() const { return num_edges == 0; }
 
 bool dyngraph::full() const
 {
-    return node.size() * (node.size() - 1) == 2 * num_edges;
+    return nodes.size() * (nodes.size() - 1) == 2 * num_edges;
 }
 
 double dyngraph::get_density() const
@@ -161,7 +161,7 @@ void dyngraph::sort(bool non_decreasing)
 
     std::vector<int> sorted;
     for (int i = 0; i < size(); ++i) {
-        sorted.push_back(node[i]);
+        sorted.push_back(nodes[i]);
     }
 
     std::sort(sorted.begin(), sorted.end(),
@@ -178,7 +178,7 @@ void dyngraph::sort(bool non_decreasing)
     std::swap(edges, old_edges);
 
     for (auto x = 0; x < capacity; ++x) {
-        neighbor[x].clear();
+        matrix[x].clear();
         nb_index[x].clear();
     }
 
@@ -193,10 +193,10 @@ void dyngraph::sort(bool non_decreasing)
 void dyngraph::clear()
 {
     int x;
-    while (!node.empty()) {
-        x = node.back();
-				node.pop_back();
-        neighbor[x].clear();
+    while (!nodes.empty()) {
+        x = nodes.back();
+				nodes.pop_back();
+        matrix[x].clear();
         nb_index[x].clear();
     }
     ranks.clear();
@@ -204,12 +204,12 @@ void dyngraph::clear()
 
 void dyngraph::declare_node(const int x)
 {
-    node.add(x);
+    nodes.add(x);
     nodeset.add(x);
 
 		// if(x >= capacity) {
 		// 		capacity = x+1;
-		// 	  		neighbor.resize(capacity);
+		// 	  		matrix.resize(capacity);
 		// 	  		nb_index.resize(capacity);
 		// }
 }
@@ -226,20 +226,20 @@ void dyngraph::add_node(const int x)
     num_edges += i;
 
     while (i--) {
-        y = neighbor[x][i];
+        y = matrix[x][i];
         e = nb_index[x][i];
 
         // we add x at the back of y's neighbor list
         pos = (e & 1);
 
         // we change the position of x in y's neighbor list
-        ranks[e / 2][1 - pos] = neighbor[y].size();
+        ranks[e / 2][1 - pos] = matrix[y].size();
 
         // points to the edge from y's perspective
         nb_index[y].push_back(e ^ 1);
 
         // add x in y's neighbors
-        neighbor[y].push_back(x);
+        matrix[y].push_back(x);
 
     }
 
@@ -255,7 +255,7 @@ void dyngraph::rem_node(const int x)
     verify("before rem node");
 #endif
 	
-    node.remove(x);
+    nodes.remove(x);
     nodeset.remove(x);
     auto i = degree(x);
     int y, z, rx, ex, posx, ey, posy;
@@ -263,7 +263,7 @@ void dyngraph::rem_node(const int x)
 
     while (i--) {
 
-        y = neighbor[x][i];
+        y = matrix[x][i];
 
         ex = nb_index[x][i];
         posx = ex & 1;
@@ -273,7 +273,7 @@ void dyngraph::rem_node(const int x)
 
 				assert(edges[ex / 2][posx] == x);
 				assert(edges[ex / 2][1- posx] == y);
-				assert(neighbor[y][rx] == x);
+				assert(matrix[y][rx] == x);
 				assert(ranks[ex / 2][posx] == i);
 				
 
@@ -282,8 +282,8 @@ void dyngraph::rem_node(const int x)
 
 
         // replace x by z
-        z = neighbor[y].back();
-        neighbor[y].pop_back();
+        z = matrix[y].back();
+        matrix[y].pop_back();
 				
 				// if(y == 73 or y == 74)
 				// std::cout << "replace edge " << edges[ex / 2] << " by edge " << edges[ nb_index[y].back() / 2 ] << std::endl;
@@ -291,7 +291,7 @@ void dyngraph::rem_node(const int x)
 				
 				
 				if(z != x) {
-						neighbor[y][rx] = z;
+						matrix[y][rx] = z;
 
 		        // set the new position of z in y's neighborhood
 		        ey = nb_index[y].back();
@@ -314,20 +314,20 @@ bool dyngraph::has_node(int x) const { return nodeset.fast_contain(x); }
 
 int dyngraph::add_edge(const int x, const int y)
 {
-    assert(node.contain(x));
-    assert(node.contain(y));
+    assert(nodes.contain(x));
+    assert(nodes.contain(y));
 
     nb_index[x].push_back(2 * ranks.size());
     nb_index[y].push_back(2 * ranks.size() + 1);
 
-    Edge r(neighbor[x].size(), neighbor[y].size());
+    Edge r(matrix[x].size(), matrix[y].size());
     ranks.push_back(r);
 
     Edge e(x, y);
     edges.push_back(e);
 
-    neighbor[x].push_back(y);
-    neighbor[y].push_back(x);
+    matrix[x].push_back(y);
+    matrix[y].push_back(x);
 
     ++num_edges;
 
@@ -347,15 +347,15 @@ void dyngraph::rem_edge(const int x, const int y, const int e)
 {
 
 #ifdef _VERIFY_MCGRAPH
-    assert(node.contain(x));
-    assert(node.contain(y));
+    assert(nodes.contain(x));
+    assert(nodes.contain(y));
 #endif
 
     int ry = ranks[e][0];
     int rx = ranks[e][1];
 
-    int sx = neighbor[y].back();
-    neighbor[y].pop_back();
+    int sx = matrix[y].back();
+    matrix[y].pop_back();
 
     int ey = nb_index[y].back();
     nb_index[y].pop_back();
@@ -363,12 +363,12 @@ void dyngraph::rem_edge(const int x, const int y, const int e)
         int posy = (ey & 1);
         ranks[ey / 2][posy] = rx;
 
-        neighbor[y][rx] = sx;
+        matrix[y][rx] = sx;
         nb_index[y][rx] = ey;
     }
 
-    int sy = neighbor[x].back();
-    neighbor[x].pop_back();
+    int sy = matrix[x].back();
+    matrix[x].pop_back();
 
     int ex = nb_index[x].back();
     nb_index[x].pop_back();
@@ -377,7 +377,7 @@ void dyngraph::rem_edge(const int x, const int y, const int e)
 
         ranks[ex / 2][posx] = ry;
 
-        neighbor[x][ry] = sy;
+        matrix[x][ry] = sy;
         nb_index[x][ry] = ex;
     }
 
@@ -420,10 +420,10 @@ void dyngraph::maximal_matching(
     matching.assign(capacity, -1);
     nmatch = 0;
     for (auto i = 0; i < size(); i++) {
-        u = node[ranklist[i]];
+        u = nodes[ranklist[i]];
         if (matching[u] == -1) {
-            for (auto j = 0; j < neighbor[u].size(); j++) {
-                v = neighbor[u][j];
+            for (auto j = 0; j < matrix[u].size(); j++) {
+                v = matrix[u][j];
                 if (matching[v] == -1) {
                     matching[u] = v;
                     matching[v] = u;
@@ -439,10 +439,10 @@ std::ostream& dyngraph::display(std::ostream& os) const
 {
 
     for (auto i = 0; i < size(); ++i) {
-        int x = node[i];
+        int x = nodes[i];
 
         os << x << ": ";
-        vecdisplay(neighbor[x], os);
+        vecdisplay(matrix[x], os);
 				os << " (" << degree(x) << ")" << std::endl;
 				
 				// os << "   [";
@@ -485,14 +485,14 @@ void dyngraph::verify(const char* msg)
 				// for()
 				
 
-        if (node.contain(y) && neighbor[x][ry] != y) {
+        if (nodes.contain(y) && matrix[x][ry] != y) {
             std::cout << msg << " " << i << "-th edge " << e << " points to "
                       << r << ", however the " << ry << "-th element of ";
-            vecdisplay(neighbor[x], std::cout);
+            vecdisplay(matrix[x], std::cout);
             std::cout << " is not " << y << std::endl;
             assert(0);
         }
-        if (node.contain(y) && static_cast<unsigned>(nb_index[x][ry]) != 2 * i) {
+        if (nodes.contain(y) && static_cast<unsigned>(nb_index[x][ry]) != 2 * i) {
             std::cout << msg << " " << i << "-th edge " << e << " points to "
                       << r << ", however the " << ry << "-th element of ";
             vecdisplay(nb_index[x], std::cout);
@@ -500,14 +500,14 @@ void dyngraph::verify(const char* msg)
             assert(0);
         }
 
-        if (node.contain(x) && neighbor[y][rx] != x) {
+        if (nodes.contain(x) && matrix[y][rx] != x) {
             std::cout << msg << " " << i << "-th edge " << e << " points to "
                       << r << ", however the " << rx << "-th element of ";
-            vecdisplay(neighbor[y], std::cout);
+            vecdisplay(matrix[y], std::cout);
             std::cout << " is not " << x << std::endl;
             assert(0);
         }
-        if (node.contain(x)
+        if (nodes.contain(x)
             && static_cast<unsigned>(nb_index[y][rx]) != 2 * i + 1) {
             std::cout << msg << " " << i << "-th edge " << e << " points to "
                       << r << ", however the " << ry << "-th element of ";
@@ -519,12 +519,12 @@ void dyngraph::verify(const char* msg)
 
     int ecount = 0;
     for (int i = 0; i < size(); ++i) {
-        int x = node[i];
+        int x = nodes[i];
 
-        for (unsigned j = 0; j < neighbor[x].size(); ++j) {
+        for (unsigned j = 0; j < matrix[x].size(); ++j) {
 
             ++ecount;
-            int y = neighbor[x][j];
+            int y = matrix[x][j];
             int ey = nb_index[x][j];
 
             Edge e = edges[ey / 2];
