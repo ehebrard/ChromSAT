@@ -18,7 +18,11 @@ struct statistics;
 // added during preprocessing. We place a tighter upper bound on
 // these sets of vertices
 struct indset_constraint {
+    // the vertices in the local constraint
     bitset vs;
+    // where it came from (i.e., which vertex's neighborhood is
+    // it). for debugging
+    int source;
 };
 
 struct cons_base {

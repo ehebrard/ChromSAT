@@ -15,15 +15,26 @@
 #include <minicsp/core/solver.hpp>
 #include <minicsp/core/utils.hpp>
 
+enum class vertex_status : uint8_t {
+    in_graph,
+    low_degree_removed,
+    indset_removed,
+};
+
 struct graph_reduction {
     const gc::dense_graph& g;
+    const gc::statistics& statistics;
     std::vector<int> removed_vertices;
     std::vector<gc::indset_constraint> constraints;
+    std::vector<vertex_status> status;
     gc::bitset nodeset;
     gc::bitset util_set;
 
-    explicit graph_reduction(const gc::dense_graph& g)
+    explicit graph_reduction(
+        const gc::dense_graph& g, const gc::statistics& statistics)
         : g(g)
+        , statistics(statistics)
+        , status(g.capacity(), vertex_status::in_graph)
         , nodeset(0, g.capacity(), gc::bitset::empt)
         , util_set(0, g.capacity(), gc::bitset::empt)
     {
@@ -38,6 +49,7 @@ struct graph_reduction {
         for (auto i = removed_vertices.rbegin(), iend = removed_vertices.rend();
              i != iend; ++i) {
             auto v = *i;
+            assert(status[v] != vertex_status::in_graph);
             util_set.clear();
             for (auto u : g.matrix[v]) {
                 if (!nodeset.fast_contain(u))
@@ -47,6 +59,7 @@ struct graph_reduction {
             for (int q = 0; q != g.capacity(); ++q) {
                 if (util_set.fast_contain(q))
                     continue;
+                assert(q < statistics.best_ub);
                 maxc = std::max(maxc, q);
                 col[v] = q;
                 break;
@@ -110,7 +123,7 @@ struct gc_model {
     graph_reduction core_reduction(
         gc::dense_graph& g, std::pair<int, int> bounds, bool myciel = false)
     {
-        graph_reduction gr(g);
+        graph_reduction gr(g, statistics);
         if (options.preprocessing == gc::options::NO_PREPROCESSING)
             return gr;
 
@@ -163,6 +176,7 @@ struct gc_model {
                 ++statistics.num_vertex_removals;
                 toremove.push_back(u);
                 gr.removed_vertices.push_back(u);
+                gr.status[u] = vertex_status::low_degree_removed;
                 forbidden.union_with(g.matrix[u]);
             }
             for (auto u : toremove) {
@@ -189,7 +203,8 @@ struct gc_model {
         std::cout << "IS size = " << bs.size() << "\n";
         for (auto v : bs) {
             gr.removed_vertices.push_back(v);
-            gr.constraints.emplace_back(gc::indset_constraint{g.matrix[v]});
+            gr.status[v] = vertex_status::indset_removed;
+            gr.constraints.emplace_back(gc::indset_constraint{g.matrix[v], v});
             g.nodes.remove(v);
             g.nodeset.remove(v);
         }

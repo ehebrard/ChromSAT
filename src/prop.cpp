@@ -556,11 +556,12 @@ public:
             return explain();
         }
 
+        // check local constraints
         if (lb >= ub - 1) {
             for (int i = 0; i != cf.num_cliques; ++i) {
                 if (cf.clique_sz[i] < ub -1)
                     continue;
-                for (auto& c : isconses) {
+                for (const auto& c : isconses) {
                     util_set.clear();
                     for (auto v : c.vs)
                         util_set.fast_add(g.rep_of[v]);
