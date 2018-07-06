@@ -82,7 +82,7 @@ public:
     // the maximum capacity of the graph (number of nodes)
     size_t capacity;
     // the list of nodes of the graph, in no particular order
-    intstack node;
+    intstack nodes;
     // the nodes in a bitset, to help bitwise operations
     gc::bitset nodeset;
 
@@ -97,7 +97,7 @@ public:
 
     /** neighborhood */
     // the list of neighbors of each node
-    std::vector<std::vector<int>> neighbor;
+    std::vector<std::vector<int>> matrix;
     // the indices of the incident edges
     std::vector<std::vector<int>> nb_index;
 
@@ -112,7 +112,7 @@ public:
     bool empty() const;
     bool full() const;
     bool has_node(int x) const;
-    int degree(const int x) const { return neighbor[x].size(); }
+    int degree(const int x) const { return matrix[x].size(); }
 		double get_density() const;
 
     // remove every edge and node
@@ -142,6 +142,13 @@ public:
 		void maximal_matching(std::vector<int>& matching, int& nmatch, std::vector<int>& indexlist);
 		// void brelaz_color(coloring& col);
 		// void degeneracy();
+		
+		
+		void undo() {
+				while(size() < capacity) {
+						add_node( *(nodes.end()) );
+				}
+		}
 		
 		
 		

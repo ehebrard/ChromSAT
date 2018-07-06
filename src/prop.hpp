@@ -14,6 +14,13 @@ using dense_graph = graph<bitset>;
 
 struct statistics;
 
+// constraint on a subset of the vertices of the graph that get
+// added during preprocessing. We place a tighter upper bound on
+// these sets of vertices
+struct indset_constraint {
+    bitset vs;
+};
+
 struct cons_base {
     minicsp::Solver& s;
     dense_graph& g;
@@ -51,7 +58,8 @@ protected:
 };
 
 cons_base* post_gc_constraint(minicsp::Solver& s, dense_graph& g,
-    const std::vector<std::vector<minicsp::Var>>& vars, const options& opt,
+    const std::vector<std::vector<minicsp::Var>>& vars,
+    const std::vector<indset_constraint>& isconses, const options& opt,
     statistics& stat);
 
 } // namespace gc

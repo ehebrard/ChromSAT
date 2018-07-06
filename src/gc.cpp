@@ -9,6 +9,8 @@
 #include "rewriter.hpp"
 #include "statistics.hpp"
 #include "utils.hpp"
+#include "vcsolver.hpp"
+
 #include <minicsp/core/cons.hpp>
 #include <minicsp/core/solver.hpp>
 #include <minicsp/core/utils.hpp>
@@ -16,6 +18,7 @@
 struct graph_reduction {
     const gc::dense_graph& g;
     std::vector<int> removed_vertices;
+    std::vector<gc::indset_constraint> constraints;
     gc::bitset nodeset;
     gc::bitset util_set;
 
@@ -104,7 +107,7 @@ struct gc_model {
         return vars;
     }
 
-    graph_reduction preprocess(
+    graph_reduction core_reduction(
         gc::dense_graph& g, std::pair<int, int> bounds, bool myciel = false)
     {
         graph_reduction gr(g);
@@ -173,6 +176,33 @@ struct gc_model {
                 g.origmatrix[v].setminus_with(removedv);
             }
         }
+
+        return gr;
+    }
+
+    // find an IS, drop its vertices and add the appropriate
+    // constraints to the rest of the graph
+    void find_is_constraints(gc::dense_graph& g, graph_reduction& gr)
+    {
+        gc::degeneracy_vc_solver vc(g);
+        auto bs = vc.find_is();
+        std::cout << "IS size = " << bs.size() << "\n";
+        for (auto v : bs) {
+            gr.removed_vertices.push_back(v);
+            gr.constraints.emplace_back(gc::indset_constraint{g.matrix[v]});
+            g.nodes.remove(v);
+            g.nodeset.remove(v);
+        }
+        for (auto v : g.nodes)
+            g.matrix[v].intersect_with(g.nodeset);
+    }
+
+    graph_reduction preprocess(
+        gc::dense_graph& g, std::pair<int, int> bounds, bool myciel = false)
+    {
+        auto gr{core_reduction(g, bounds, myciel)};
+        if (options.indset_constraints)
+            find_is_constraints(g, gr);
         return gr;
     }
 
@@ -183,7 +213,8 @@ struct gc_model {
         , reduction(preprocess(g, bounds))
         , g(g)
         , vars(create_vars())
-        , cons(gc::post_gc_constraint(s, g, vars, options, statistics))
+        , cons(gc::post_gc_constraint(
+              s, g, vars, reduction.constraints, options, statistics))
         , rewriter(s, g, *cons, vars, xvars)
     {
         setup_signal_handlers(&s);
