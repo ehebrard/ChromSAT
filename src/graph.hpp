@@ -604,9 +604,9 @@ void graph<adjacency_struct>::check_consistency() const
                         std::cout << "matrix[v] = " << matrix[v] << std::endl;
                         std::cout << "matrix[u] = " << matrix[u] << std::endl;
                         std::cout << "partition[v] = "
-                                  << print_container{partition[v]} << std::endl;
+                                  << print_container<std::vector<int>>{partition[v]} << std::endl;
                         std::cout << "partition[u] = "
-                                  << print_container{partition[u]} << std::endl;
+                                  << print_container<std::vector<int>>{partition[u]} << std::endl;
                         assert(matrix[u].fast_contain(vp));
                     }
                 for (auto up : partition[u]) {
