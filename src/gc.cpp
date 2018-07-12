@@ -184,7 +184,7 @@ struct gc_model {
     // constraints to the rest of the graph
     void find_is_constraints(gc::dense_graph& g, graph_reduction& gr)
     {
-        gc::degeneracy_vc_solver vc(g);
+        gc::degeneracy_vc_solver<gc::dense_graph> vc(g);
         auto bs = vc.find_is();
         std::cout << "IS size = " << bs.size() << "\n";
         for (auto v : bs) {
