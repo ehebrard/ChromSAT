@@ -10,6 +10,7 @@
 #include "statistics.hpp"
 #include "utils.hpp"
 #include "vcsolver.hpp"
+#include "fillin.hpp"
 
 #include <minicsp/core/cons.hpp>
 #include <minicsp/core/solver.hpp>
@@ -78,7 +79,7 @@ struct gc_model {
     graph_reduction reduction;
     gc::dense_graph& g;
     minicsp::Solver s;
-    std::vector<std::vector<minicsp::Var>> vars;
+    gc::varmap vars;
     gc::cons_base* cons;
     std::vector<minicsp::cspvar> xvars;
     gc::rewriter rewriter;
@@ -87,33 +88,30 @@ struct gc_model {
 
     // std::vector<edge> var_map;
 
-    std::vector<std::vector<minicsp::Var>> create_vars()
+    gc::varmap create_vars()
     {
-        std::vector<std::vector<minicsp::Var>> vars;
-        vars.resize(g.capacity());
-        for (size_t i = 0; i != vars.size(); ++i) {
-            if (!g.nodes.contain(i))
-                continue;
-            vars[i].resize(g.capacity());
-            vars[i][i] = minicsp::var_Undef;
-            for (size_t j = 0; j != i; ++j) {
-                if (!g.nodes.contain(j))
-                    continue;
-                vars[i][j] = vars[j][i];
-            }
-            for (size_t j = i + 1; j != vars.size(); ++j) {
-                if (!g.nodes.contain(j))
+        gc::minfill_buffer mb{g};
+        mb.minfill();
+        std::cout << mb.fillin.size()
+                  << " edges in minfill, width = " << mb.width << "\n";
+
+        using std::begin;
+        using std::end;
+        gc::varmap vars(begin(g.nodes), end(g.nodes));
+        vars.vars.resize(g.size());
+        for (auto i : g.nodes) {
+             for (auto j : g.nodes) {
+                if (j < i)
                     continue;
                 if (g.matrix[i].fast_contain(j))
-                    vars[i][j] = minicsp::var_Undef;
-                else {
-                    vars[i][j] = s.newVar();
-                    if (options.trace) {
-                        using namespace std::string_literals;
-                        using std::to_string;
-                        auto n = "e"s + to_string(i) + "-"s + to_string(j);
-                        s.setVarName(vars[i][j], n);
-                    }
+                    continue;
+                vars.vars[i][j] = s.newVar();
+                vars.vars[j][i] = vars.vars[i][j];
+                if (options.trace) {
+                    using namespace std::string_literals;
+                    using std::to_string;
+                    auto n = "e"s + to_string(i) + "-"s + to_string(j);
+                    s.setVarName(vars.vars[i][j], n);
                 }
             }
         }
@@ -218,6 +216,7 @@ struct gc_model {
         auto gr{core_reduction(g, bounds, myciel)};
         if (options.indset_constraints)
             find_is_constraints(g, gr);
+        std::cout << "Preprocessing finished at " << minicsp::cpuTime() << "\n";
         return gr;
     }
 

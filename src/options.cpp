@@ -116,6 +116,8 @@ options parse(int argc, char* argv[])
         "enable neighborhood-based dominance", false);
     cmd.add<SwitchArg>(opt.indset_constraints, "", "indset",
         "reduce by independent set constraints", false);
+    cmd.add<SwitchArg>(opt.fillin, "", "fillin",
+        "compute fill-in of graph", false);
     cmd.add<ValueArg<std::string>>(opt.format, "", "format",
         "File format", false, "dimacs", "string");
 
@@ -136,6 +138,8 @@ void options::describe(std::ostream& os)
     os << "Bound policy    = " << boundalg << "\n";
     os << "Adaptive bounds = " << adaptive << "\n";
     os << "Preprocessing   = " << (preprocessing == 0 ? "none" : preprocessing == 1 ?  "dense" : "sparse") << "\n";
+    os << "IS constraints  = " << indset_constraints << "\n";
+    os << "fillin          = " << fillin << "\n";
     os << "Branching strat = ";
     switch (branching) {
     case gc::options::VSIDS:

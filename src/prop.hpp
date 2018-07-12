@@ -4,7 +4,7 @@
 #include "graph.hpp"
 #include "minicsp/core/solver.hpp"
 #include "options.hpp"
-
+#include "varmap.hpp"
 
 
 namespace gc
@@ -62,9 +62,8 @@ protected:
 };
 
 cons_base* post_gc_constraint(minicsp::Solver& s, dense_graph& g,
-    const std::vector<std::vector<minicsp::Var>>& vars,
-    const std::vector<indset_constraint>& isconses, const options& opt,
-    statistics& stat);
+    const varmap& vars, const std::vector<indset_constraint>& isconses,
+    const options& opt, statistics& stat);
 
 } // namespace gc
 

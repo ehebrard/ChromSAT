@@ -5,6 +5,7 @@
 #include "intstack.hpp"
 #include "graph.hpp"
 #include "minicsp/core/solver.hpp"
+#include "varmap.hpp"
 
 #include <algorithm>
 #include <list>
@@ -53,14 +54,13 @@ public:
     int extends(const adjacency_struct& G);
 
     int improve_cliques_larger_than(const int size);
-    int full_myciel(const int lb, const int ub, Solver& s,
-        const std::vector<std::vector<Var>>& vars);
+    int full_myciel(const int lb, const int ub, Solver& s, const varmap& vars);
 
     int improve_cliques_larger_than(const int size, const int lb, const int ub,
-        Solver& s, const std::vector<std::vector<Var>>& vars);
+        Solver& s, const varmap& vars);
 
     int improve_greedy(const int size, const int lb, const int ub, Solver& s,
-        const std::vector<std::vector<Var>>& vars);
+        const varmap& vars);
 
 private:
     // [tmp in "extends] subgraph that we try to build
@@ -212,7 +212,7 @@ private:
     // extending the current subgraph to order k+1
     // ith_node is the node after which the subgraph at which candidates would
     // become empty, we then go through the nodes from ith_node to the last
-    Clause* do_prune(Solver& s, const std::vector<std::vector<Var>>& vars)
+    Clause* do_prune(Solver& s, const varmap& vars)
     {
         pruning.copy(candidates);
         candidates.add_interval(0,g.capacity());
@@ -383,8 +383,8 @@ int mycielskan_subgraph_finder<adjacency_struct>::improve_cliques_larger_than(
 }
 
 template <class adjacency_struct>
-int mycielskan_subgraph_finder<adjacency_struct>::full_myciel(const int curlb,
-    const int ub, Solver& s, const std::vector<std::vector<Var>>& vars)
+int mycielskan_subgraph_finder<adjacency_struct>::full_myciel(
+    const int curlb, const int ub, Solver& s, const varmap& vars)
 {
     explanation_clique = -1;
     auto lb{curlb};
@@ -406,7 +406,7 @@ int mycielskan_subgraph_finder<adjacency_struct>::full_myciel(const int curlb,
 template <class adjacency_struct>
 int mycielskan_subgraph_finder<adjacency_struct>::improve_cliques_larger_than(
     const int size, const int curlb, const int ub, Solver& s,
-    const std::vector<std::vector<Var>>& vars)
+    const varmap& vars)
 {
     explanation_clique = -1;
     auto lb{curlb};
@@ -432,7 +432,7 @@ int mycielskan_subgraph_finder<adjacency_struct>::improve_cliques_larger_than(
 template <class adjacency_struct>
 int mycielskan_subgraph_finder<adjacency_struct>::improve_greedy(const int size,
     const int curlb, const int ub, Solver& s,
-    const std::vector<std::vector<Var>>& vars)
+    const varmap& vars)
 {
     explanation_clique = -1;
     auto lb{curlb};

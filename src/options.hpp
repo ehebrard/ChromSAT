@@ -85,6 +85,8 @@ struct options {
 
     bool indset_constraints;
 
+    bool fillin;
+
     bool dominance;
 
     std::string format;

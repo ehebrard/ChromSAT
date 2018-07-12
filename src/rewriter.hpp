@@ -11,7 +11,7 @@ struct rewriter {
     minicsp::Solver& s;
     const dense_graph& g;
     cons_base& c;
-    const std::vector<std::vector<minicsp::Var>>& evars;
+    const varmap& evars;
     const std::vector<minicsp::cspvar>& xvars;
 
     // which partitions have at least one vertex in them
@@ -36,8 +36,7 @@ struct rewriter {
     int numruns{0};
 
     rewriter(minicsp::Solver& s, const dense_graph& g, cons_base& c,
-        const std::vector<std::vector<minicsp::Var>>& evars,
-        const std::vector<minicsp::cspvar>& xvars)
+        const varmap& evars, const std::vector<minicsp::cspvar>& xvars)
         : s(s)
         , g(g)
         , c(c)

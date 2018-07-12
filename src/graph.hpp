@@ -42,7 +42,7 @@ public:
             bs.initialise(0, nv, bitset::empt);
         }
     }
-    basic_graph(basic_graph&) = default;
+    basic_graph(const basic_graph&) = default;
     basic_graph(basic_graph&&) = default;
     basic_graph& operator=(const basic_graph& g)
     {
@@ -149,7 +149,7 @@ public:
             partition[v].push_back(v);
         }
     }
-    graph(graph&) = default;
+    graph(const graph&) = default;
     graph(graph&&) = default;
     graph& operator=(const graph&) = default;
     graph& operator=(graph&&) = default;
@@ -712,6 +712,7 @@ void degeneracy_finder<graph_struct>::degeneracy_ordering()
 
      // std::cout << "\ngraph has degeneracy " << d << std::endl;
 }
+
 
 template< class graph_struct >
 void degeneracy_finder<graph_struct>::display_ordering()
