@@ -403,10 +403,10 @@ struct gc_model {
     void print_stats()
     {
         if (cons->bestlb >= cons->ub)
-            std::cout << "OPTIMUM " << cons->ub << "\n";
+            std::cout << "OPTIMUM " << statistics.best_ub << "\n";
         else
-            std::cout << "Best bounds [" << cons->bestlb << ", " << cons->ub
-                      << "]\n";
+            std::cout << "Best bounds [" << statistics.best_lb << ", "
+                      << statistics.best_ub << "]\n";
         minicsp::printStats(s);
         statistics.display(std::cout);
         std::cout << std::endl;
