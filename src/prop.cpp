@@ -256,10 +256,12 @@ public:
     {
         culprit.clear();
         std::copy(begin(clq), end(clq), back_inserter(culprit));
-        // sort by increasing partition size
-        std::sort(begin(culprit), end(culprit), [&](auto u, auto v) {
-            return g.partition[u].size() < g.partition[v].size();
-        });
+        if (opt.learning == options::CHOOSE_POSITIVE) {
+            // sort by increasing partition size
+            std::sort(begin(culprit), end(culprit), [&](auto u, auto v) {
+                return g.partition[u].size() < g.partition[v].size();
+            });
+        }
 
         expl_reps.clear();
         expl_reps.resize(g.capacity(), -1);
