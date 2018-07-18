@@ -191,15 +191,19 @@ struct clique_finder {
     std::vector<adjacency_struct> candidates;
     std::vector<int> last_clique;
     int num_cliques;
+		int limit;
 
-    clique_finder(const graph<adjacency_struct>& g)
+    clique_finder(const graph<adjacency_struct>& g, const int c=0xfffffff)
         : g(g)
         , num_cliques(1)
+				, limit(c)
     {
+			
+				auto m = std::min(limit, g.capacity());
         last_clique.resize(g.capacity());
-        cliques.resize(g.capacity());
-        clique_sz.resize(g.capacity());
-        candidates.resize(g.capacity());
+        cliques.resize(m);
+        clique_sz.resize(m);
+        candidates.resize(m);
         for (auto& b : cliques)
             b.initialise(0, g.capacity(), bitset::empt);
         for (auto& b : candidates)
@@ -224,8 +228,9 @@ struct clique_finder {
     // heuristically find a set of cliques and return the size of the
     // largest
 
-    template <class ordering> int find_cliques(ordering o, const int limit=0xfffffff)
+    template <class ordering> int find_cliques(ordering o, const int l=0xfffffff)
     {
+				if(l < limit) limit = l;
         clear();
         if (o.size() == 0)
             return 0;

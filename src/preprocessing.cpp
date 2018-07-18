@@ -376,7 +376,25 @@ int read_graph(gc::options& options, gc::graph<adjacency_struct>& g) {
 
 template< class adjacency_struct >
 std::vector<int> upper_bound(gc::options& options, gc::graph<adjacency_struct>& g) {
-  return gc::brelaz_color(g);
+	  return gc::brelaz_color(g);
+}
+
+template< class adjacency_struct >
+int lower_bound(gc::options& options, gc::graph<adjacency_struct>& g) {
+		gc::degeneracy_finder<gc::graph<adjacency_struct>> df(g);
+		df.degeneracy_ordering();	
+	
+		gc::clique_finder<adjacency_struct> cf{g,100};
+		// int l =  cf.find_cliques(df.order);
+		// std::cout << std::endl << l << std::endl;
+		
+		std::vector<int> reverse;
+		for(auto rit=df.order.rbegin(); rit!=df.order.rend(); ++rit) {
+			reverse.push_back(*rit);
+		}
+		auto l =  cf.find_cliques(reverse);
+		// std::cout << std::endl << l << std::endl;
+		return l;
 }
 
 
@@ -422,6 +440,12 @@ std::vector<int> upper_bound(gc::options& options, gc::dyngraph& g)
 	return col.color;
 }
 
+int lower_bound(gc::options& options, gc::dyngraph& g) 
+{
+	std::cout << " (not implemented) ";
+	return 0;
+}
+
 
 
 template< class graph_struct >
@@ -436,6 +460,16 @@ void test_preprocess(gc::options& options, graph_struct& g) {
 	tnow = minicsp::cpuTime();
 	std::cout << (tnow - t) << std::endl << g.size() << " nodes, " << ne << " edges\n";
 	
+	
+	t = tnow;
+	std::cout << "compute lower bound...";
+	std::cout.flush();
+		        
+	auto lb = lower_bound(options, g);
+		
+	tnow = minicsp::cpuTime();
+	std::cout << (tnow - t) << std::endl;
+	std::cout << "lb = " << lb << std::endl;
 	
 	
 	t = tnow;
