@@ -9,18 +9,33 @@
 #include "rewriter.hpp"
 #include "statistics.hpp"
 #include "utils.hpp"
+#include "vcsolver.hpp"
+#include "fillin.hpp"
+
 #include <minicsp/core/cons.hpp>
 #include <minicsp/core/solver.hpp>
 #include <minicsp/core/utils.hpp>
 
+enum class vertex_status : uint8_t {
+    in_graph,
+    low_degree_removed,
+    indset_removed,
+};
+
 struct graph_reduction {
     const gc::dense_graph& g;
+    const gc::statistics& statistics;
     std::vector<int> removed_vertices;
+    std::vector<gc::indset_constraint> constraints;
+    std::vector<vertex_status> status;
     gc::bitset nodeset;
     gc::bitset util_set;
 
-    explicit graph_reduction(const gc::dense_graph& g)
+    explicit graph_reduction(
+        const gc::dense_graph& g, const gc::statistics& statistics)
         : g(g)
+        , statistics(statistics)
+        , status(g.capacity(), vertex_status::in_graph)
         , nodeset(0, g.capacity(), gc::bitset::empt)
         , util_set(0, g.capacity(), gc::bitset::empt)
     {
@@ -35,6 +50,7 @@ struct graph_reduction {
         for (auto i = removed_vertices.rbegin(), iend = removed_vertices.rend();
              i != iend; ++i) {
             auto v = *i;
+            assert(status[v] != vertex_status::in_graph);
             util_set.clear();
             for (auto u : g.matrix[v]) {
                 if (!nodeset.fast_contain(u))
@@ -44,6 +60,7 @@ struct graph_reduction {
             for (int q = 0; q != g.capacity(); ++q) {
                 if (util_set.fast_contain(q))
                     continue;
+                assert(q < statistics.best_ub);
                 maxc = std::max(maxc, q);
                 col[v] = q;
                 break;
@@ -62,7 +79,7 @@ struct gc_model {
     graph_reduction reduction;
     gc::dense_graph& g;
     minicsp::Solver s;
-    std::vector<std::vector<minicsp::Var>> vars;
+    gc::varmap vars;
     gc::cons_base* cons;
     std::vector<minicsp::cspvar> xvars;
     gc::rewriter rewriter;
@@ -71,43 +88,40 @@ struct gc_model {
 
     // std::vector<edge> var_map;
 
-    std::vector<std::vector<minicsp::Var>> create_vars()
+    gc::varmap create_vars()
     {
-        std::vector<std::vector<minicsp::Var>> vars;
-        vars.resize(g.capacity());
-        for (size_t i = 0; i != vars.size(); ++i) {
-            if (!g.nodes.contain(i))
-                continue;
-            vars[i].resize(g.capacity());
-            vars[i][i] = minicsp::var_Undef;
-            for (size_t j = 0; j != i; ++j) {
-                if (!g.nodes.contain(j))
-                    continue;
-                vars[i][j] = vars[j][i];
-            }
-            for (size_t j = i + 1; j != vars.size(); ++j) {
-                if (!g.nodes.contain(j))
+        gc::minfill_buffer mb{g};
+        mb.minfill();
+        std::cout << mb.fillin.size()
+                  << " edges in minfill, width = " << mb.width << "\n";
+
+        using std::begin;
+        using std::end;
+        gc::varmap vars(begin(g.nodes), end(g.nodes));
+        vars.vars.resize(g.size());
+        for (auto i : g.nodes) {
+             for (auto j : g.nodes) {
+                if (j < i)
                     continue;
                 if (g.matrix[i].fast_contain(j))
-                    vars[i][j] = minicsp::var_Undef;
-                else {
-                    vars[i][j] = s.newVar();
-                    if (options.trace) {
-                        using namespace std::string_literals;
-                        using std::to_string;
-                        auto n = "e"s + to_string(i) + "-"s + to_string(j);
-                        s.setVarName(vars[i][j], n);
-                    }
+                    continue;
+                vars.vars[i][j] = s.newVar();
+                vars.vars[j][i] = vars.vars[i][j];
+                if (options.trace) {
+                    using namespace std::string_literals;
+                    using std::to_string;
+                    auto n = "e"s + to_string(i) + "-"s + to_string(j);
+                    s.setVarName(vars.vars[i][j], n);
                 }
             }
         }
         return vars;
     }
 
-    graph_reduction preprocess(
+    graph_reduction core_reduction(
         gc::dense_graph& g, std::pair<int, int> bounds, bool myciel = false)
     {
-        graph_reduction gr(g);
+        graph_reduction gr(g, statistics);
         if (options.preprocessing == gc::options::NO_PREPROCESSING)
             return gr;
 
@@ -160,6 +174,7 @@ struct gc_model {
                 ++statistics.num_vertex_removals;
                 toremove.push_back(u);
                 gr.removed_vertices.push_back(u);
+                gr.status[u] = vertex_status::low_degree_removed;
                 forbidden.union_with(g.matrix[u]);
             }
             for (auto u : toremove) {
@@ -173,6 +188,35 @@ struct gc_model {
                 g.origmatrix[v].setminus_with(removedv);
             }
         }
+
+        return gr;
+    }
+
+    // find an IS, drop its vertices and add the appropriate
+    // constraints to the rest of the graph
+    void find_is_constraints(gc::dense_graph& g, graph_reduction& gr)
+    {
+        gc::degeneracy_vc_solver<gc::dense_graph> vc(g);
+        auto bs = vc.find_is();
+        std::cout << "IS size = " << bs.size() << "\n";
+        for (auto v : bs) {
+            gr.removed_vertices.push_back(v);
+            gr.status[v] = vertex_status::indset_removed;
+            gr.constraints.emplace_back(gc::indset_constraint{g.matrix[v], v});
+            g.nodes.remove(v);
+            g.nodeset.remove(v);
+        }
+        for (auto v : g.nodes)
+            g.matrix[v].intersect_with(g.nodeset);
+    }
+
+    graph_reduction preprocess(
+        gc::dense_graph& g, std::pair<int, int> bounds, bool myciel = false)
+    {
+        auto gr{core_reduction(g, bounds, myciel)};
+        if (options.indset_constraints)
+            find_is_constraints(g, gr);
+        std::cout << "Preprocessing finished at " << minicsp::cpuTime() << "\n";
         return gr;
     }
 
@@ -183,7 +227,8 @@ struct gc_model {
         , reduction(preprocess(g, bounds))
         , g(g)
         , vars(create_vars())
-        , cons(gc::post_gc_constraint(s, g, vars, options, statistics))
+        , cons(gc::post_gc_constraint(
+              s, g, vars, reduction.constraints, options, statistics))
         , rewriter(s, g, *cons, vars, xvars)
     {
         setup_signal_handlers(&s);
@@ -372,10 +417,10 @@ struct gc_model {
     void print_stats()
     {
         if (cons->bestlb >= cons->ub)
-            std::cout << "OPTIMUM " << cons->ub << "\n";
+            std::cout << "OPTIMUM " << statistics.best_ub << "\n";
         else
-            std::cout << "Best bounds [" << cons->bestlb << ", " << cons->ub
-                      << "]\n";
+            std::cout << "Best bounds [" << statistics.best_lb << ", "
+                      << statistics.best_ub << "]\n";
         minicsp::printStats(s);
         statistics.display(std::cout);
         std::cout << std::endl;

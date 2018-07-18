@@ -11,7 +11,6 @@
 #include <list>
 #include <vector>
 
-
 // #define _DEBUG_CLIQUE
 // #define SUBCLASS
 
@@ -20,10 +19,9 @@ namespace gc
 
 using weight = int64_t;
 using bitset = BitSet;
-using edge = std::pair<int,int>;
+using edge = std::pair<int, int>;
 
-template< class adjacency_struct >
-class basic_graph
+template <class adjacency_struct> class basic_graph
 {
 public:
     bitset nodeset;
@@ -42,7 +40,7 @@ public:
             bs.initialise(0, nv, bitset::empt);
         }
     }
-    basic_graph(basic_graph&) = default;
+    basic_graph(const basic_graph&) = default;
     basic_graph(basic_graph&&) = default;
     basic_graph& operator=(const basic_graph& g)
     {
@@ -125,7 +123,6 @@ public:
     // add an edge that will be backtracked later
     void add_dirty_edge(int u, int v);
 
-
 public:
     graph()
         : basic_graph<adjacency_struct>()
@@ -149,7 +146,7 @@ public:
             partition[v].push_back(v);
         }
     }
-    graph(graph&) = default;
+    graph(const graph&) = default;
     graph(graph&&) = default;
     graph& operator=(const graph&) = default;
     graph& operator=(graph&&) = default;
@@ -180,11 +177,7 @@ public:
     void check_consistency() const;
 };
 
-
-
-
-template< class adjacency_struct >
-struct clique_finder {
+template <class adjacency_struct> struct clique_finder {
     const graph<adjacency_struct>& g;
     std::vector<adjacency_struct> cliques;
     std::vector<int> clique_sz;
@@ -229,7 +222,7 @@ struct clique_finder {
     // largest
 
     template <class ordering> int find_cliques(ordering o, const int l=0xfffffff)
-    {
+		{
 				if(l < limit) limit = l;
         clear();
         if (o.size() == 0)
@@ -259,9 +252,7 @@ struct clique_finder {
     }
 };
 
-
-template< class graph_struct >
-struct degeneracy_finder {
+template <class graph_struct> struct degeneracy_finder {
 
     const graph_struct& g;
     int d;
@@ -283,16 +274,16 @@ struct degeneracy_finder {
     void display_ordering();
 };
 
-template< class adjacency_struct >
-struct minimum_degree_elimination_game {
+template <class adjacency_struct> struct minimal_triangulator {
     const basic_graph<adjacency_struct>& g;
     basic_graph<adjacency_struct> g_filled;
     basic_graph<adjacency_struct> g_section;
     std::vector<std::pair<int, int>> fill_edges;
 
     std::vector<int> increasing_ordering;
+    std::vector<int> minimum_degree_ordering;
 
-    minimum_degree_elimination_game(const basic_graph<adjacency_struct>& g)
+    minimal_triangulator(const basic_graph<adjacency_struct>& g)
         : g(g)
         , g_filled(g.capacity())
         , g_section(g.capacity())
@@ -311,24 +302,27 @@ struct minimum_degree_elimination_game {
         for (auto u : g.nodes) {
             increasing_ordering.push_back(u);
         }
-}
+    }
+    // Sorting nodes by degree
+    void stable_sort();
 
-void elimination_game(std::vector<int> ordering);
+    void section_node(int n);
+
+    void elimination_game(const std::vector<int>& ordering);
 };
-
-
 
 /** IMPLEMENTATION **/
 
-template< class adjacency_struct >
+template <class adjacency_struct>
 void basic_graph<adjacency_struct>::add_edge(const int u, const int v)
 {
     matrix[u].add(v);
     matrix[v].add(u);
 }
 
-template< class adjacency_struct >
-void basic_graph<adjacency_struct>::add_edges(const int u, const adjacency_struct& N)
+template <class adjacency_struct>
+void basic_graph<adjacency_struct>::add_edges(
+    const int u, const adjacency_struct& N)
 {
     matrix[u].union_with(N);
     for (auto v : N) {
@@ -336,14 +330,14 @@ void basic_graph<adjacency_struct>::add_edges(const int u, const adjacency_struc
     }
 }
 
-template< class adjacency_struct >
+template <class adjacency_struct>
 void basic_graph<adjacency_struct>::add_node(const int v)
 {
     nodes.add(v);
     nodeset.add(v);
 }
 
-template< class adjacency_struct >
+template <class adjacency_struct>
 void basic_graph<adjacency_struct>::add_clique(const adjacency_struct& C)
 {
     for (auto v : C) {
@@ -353,22 +347,21 @@ void basic_graph<adjacency_struct>::add_clique(const adjacency_struct& C)
     }
 }
 
-template< class adjacency_struct >
+template <class adjacency_struct>
 void basic_graph<adjacency_struct>::remove_edge(int u, int v)
 {
     matrix[u].remove(v);
     matrix[v].remove(u);
 }
 
-template< class adjacency_struct >
+template <class adjacency_struct>
 void basic_graph<adjacency_struct>::remove_node(int v)
 {
     nodes.remove(v);
     nodeset.fast_remove(v);
 }
 
-template< class adjacency_struct >
-void basic_graph<adjacency_struct>::clear()
+template <class adjacency_struct> void basic_graph<adjacency_struct>::clear()
 {
     for (auto v : nodes) {
         matrix[v].clear();
@@ -377,9 +370,7 @@ void basic_graph<adjacency_struct>::clear()
     nodes.clear();
 }
 
-
-template< class adjacency_struct >
-void basic_graph<adjacency_struct>::canonize()
+template <class adjacency_struct> void basic_graph<adjacency_struct>::canonize()
 {
     for (auto v : nodes) {
         matrix[v].canonize();
@@ -388,10 +379,7 @@ void basic_graph<adjacency_struct>::canonize()
     }
 }
 
-
-
-
-template< class adjacency_struct >
+template <class adjacency_struct>
 void graph<adjacency_struct>::add_dirty_edge(int u, int v)
 {
     if (matrix[u].fast_contain(v))
@@ -403,7 +391,7 @@ void graph<adjacency_struct>::add_dirty_edge(int u, int v)
     }
 }
 
-template< class adjacency_struct >
+template <class adjacency_struct>
 void graph<adjacency_struct>::add_edge(int u, int v)
 {
     matrix[u].add(v);
@@ -412,7 +400,7 @@ void graph<adjacency_struct>::add_edge(int u, int v)
     origmatrix[v].add(u);
 }
 
-template< class adjacency_struct >
+template <class adjacency_struct>
 int graph<adjacency_struct>::merge(int u, int v)
 {
     // if( v < u ) {
@@ -468,7 +456,7 @@ int graph<adjacency_struct>::merge(int u, int v)
 
 // separate u and v. Just adds an edge, but it is reversible through
 // checkpointing
-template< class adjacency_struct >
+template <class adjacency_struct>
 void graph<adjacency_struct>::separate(int u, int v)
 {
     if (matrix[u].contain(v)) {
@@ -480,22 +468,23 @@ void graph<adjacency_struct>::separate(int u, int v)
     add_dirty_edge(v, u);
 }
 
-template< class adjacency_struct >
-int graph<adjacency_struct>::contractPreprocess() {
+template <class adjacency_struct>
+int graph<adjacency_struct>::contractPreprocess()
+{
     int num_contractions = 0;
     bool some_propagation = true;
     while (some_propagation) {
         some_propagation = false;
-        for(auto u : nodes) {
-            for(auto v : nodes) {
-                if(u != v && !matrix[u].fast_contain(v)) {
+        for (auto u : nodes) {
+            for (auto v : nodes) {
+                if (u != v && !matrix[u].fast_contain(v)) {
                     util_set.copy(matrix[v]);
                     util_set.setminus_with(matrix[u]);
-                    if(!util_set.intersect(nodeset)) {
+                    if (!util_set.intersect(nodeset)) {
                         // N(v) <= N(U)s
                         some_propagation = true;
                         ++num_contractions;
-                        merge(u,v);
+                        merge(u, v);
                     }
                 }
             }
@@ -504,8 +493,7 @@ int graph<adjacency_struct>::contractPreprocess() {
     return num_contractions;
 }
 
-template< class adjacency_struct >
-int graph<adjacency_struct>::checkpoint()
+template <class adjacency_struct> int graph<adjacency_struct>::checkpoint()
 {
     ++cur_ckpt;
 
@@ -526,7 +514,7 @@ int graph<adjacency_struct>::checkpoint()
     return cur_ckpt;
 }
 
-template< class adjacency_struct >
+template <class adjacency_struct>
 void graph<adjacency_struct>::restore(int ckpt)
 {
     cur_ckpt = ckpt;
@@ -557,7 +545,7 @@ void graph<adjacency_struct>::restore(int ckpt)
         partition[v].resize(partition_size_trail[cur_ckpt][v]);
 }
 
-template< class adjacency_struct >
+template <class adjacency_struct>
 void graph<adjacency_struct>::describe(std::ostream& os) const
 {
     os << "# vertices = " << capacity() << std::endl;
@@ -566,7 +554,7 @@ void graph<adjacency_struct>::describe(std::ostream& os) const
     // }
 }
 
-template< class adjacency_struct >
+template <class adjacency_struct>
 void graph<adjacency_struct>::check_consistency() const
 {
     std::cout << "checking graph consistency" << std::endl;
@@ -608,10 +596,14 @@ void graph<adjacency_struct>::check_consistency() const
                                   << " vp = " << vp << "\n";
                         std::cout << "matrix[v] = " << matrix[v] << std::endl;
                         std::cout << "matrix[u] = " << matrix[u] << std::endl;
-                        std::cout << "partition[v] = "
-                                  << print_container{partition[v]} << std::endl;
-                        std::cout << "partition[u] = "
-                                  << print_container{partition[u]} << std::endl;
+                        std::cout
+                            << "partition[v] = "
+                            << print_container<std::vector<int>>{partition[v]}
+                            << std::endl;
+                        std::cout
+                            << "partition[u] = "
+                            << print_container<std::vector<int>>{partition[u]}
+                            << std::endl;
                         assert(matrix[u].fast_contain(vp));
                     }
                 for (auto up : partition[u]) {
@@ -626,8 +618,7 @@ void graph<adjacency_struct>::check_consistency() const
     }
 }
 
-
-template< class adjacency_struct >
+template <class adjacency_struct>
 void clique_finder<adjacency_struct>::new_clique()
 {
     assert(num_cliques < g.capacity());
@@ -637,7 +628,7 @@ void clique_finder<adjacency_struct>::new_clique()
     ++num_cliques;
 }
 // initialize a new color
-template< class adjacency_struct >
+template <class adjacency_struct>
 void clique_finder<adjacency_struct>::new_color()
 {
     assert(num_cliques < g.capacity());
@@ -647,7 +638,7 @@ void clique_finder<adjacency_struct>::new_color()
     ++num_cliques;
 }
 // insert v into the clq^th clique. assumes it fits
-template< class adjacency_struct >
+template <class adjacency_struct>
 void clique_finder<adjacency_struct>::insert(int v, int clq)
 {
     cliques[clq].fast_add(v);
@@ -657,7 +648,7 @@ void clique_finder<adjacency_struct>::insert(int v, int clq)
 }
 // insert v into the col^th color. assumes it fits. Puts vertices
 // added from candidates[i] into diff
-template< class adjacency_struct >
+template <class adjacency_struct>
 void clique_finder<adjacency_struct>::insert_color(int v, int clq, bitset& diff)
 {
     cliques[clq].fast_add(v);
@@ -669,51 +660,50 @@ void clique_finder<adjacency_struct>::insert_color(int v, int clq, bitset& diff)
 // heuristically find a set of cliques and return the size of the
 // largest
 
-
-template< class graph_struct >
+template <class graph_struct>
 void degeneracy_finder<graph_struct>::degeneracy_ordering()
 {
-     for (auto v : g.nodes) {
-         auto vd = g.matrix[v].size();
-         if (vd >= buckets.size())
-             buckets.resize(vd+1);
-         buckets[vd].push_front(v);
-         degrees[v] = vd;
-         iterators[v] = buckets[vd].begin();
-         ordered[v] = false;
-     }
+    for (auto v : g.nodes) {
+        auto vd = g.matrix[v].size();
+        if (vd >= buckets.size())
+            buckets.resize(vd + 1);
+        buckets[vd].push_front(v);
+        degrees[v] = vd;
+        iterators[v] = buckets[vd].begin();
+        ordered[v] = false;
+    }
 
-     while(true) {
-         size_t i{0};
-         for (; i != buckets.size(); ++i)
-             if (!buckets[i].empty())
-                 break;
-         if (i == buckets.size())
-             break;
+    while (true) {
+        size_t i{0};
+        for (; i != buckets.size(); ++i)
+            if (!buckets[i].empty())
+                break;
+        if (i == buckets.size())
+            break;
 
-         d = std::max(d,static_cast<int>(i));
+        d = std::max(d, static_cast<int>(i));
 
-         // std::cout << " " << d ;
+        // std::cout << " " << d ;
 
-         auto v = buckets[i].back();
-         order.push_back(v);
-         buckets[i].pop_back();
-         ordered[v] = true;
-         for (auto u : g.matrix[v]) {
-             if (ordered[u])
-                 continue;
-             auto &ud = degrees[u];
-             buckets[ud].erase(iterators[u]);
-             --ud;
-             buckets[ud].push_front(u);
-             iterators[u] = buckets[ud].begin();
-         }
-     }
+        auto v = buckets[i].back();
+        order.push_back(v);
+        buckets[i].pop_back();
+        ordered[v] = true;
+        for (auto u : g.matrix[v]) {
+            if (ordered[u])
+                continue;
+            auto& ud = degrees[u];
+            buckets[ud].erase(iterators[u]);
+            --ud;
+            buckets[ud].push_front(u);
+            iterators[u] = buckets[ud].begin();
+        }
+    }
 
-     // std::cout << "\ngraph has degeneracy " << d << std::endl;
+    // std::cout << "\ngraph has degeneracy " << d << std::endl;
 }
 
-template< class graph_struct >
+template <class graph_struct>
 void degeneracy_finder<graph_struct>::display_ordering()
 {
     std::cout << "Degeneracy ordering : " << std::endl;
@@ -722,8 +712,6 @@ void degeneracy_finder<graph_struct>::display_ordering()
         std::cout << v + 1 << "(" << degrees[v] << ")" << std::endl;
     std::cout << std::endl;
 }
-
-
 
 namespace detail
 {
@@ -785,7 +773,7 @@ namespace detail
     };
 } // namespace detail
 
-template< class adjacency_struct >
+template <class adjacency_struct>
 std::vector<int> brelaz_color(const graph<adjacency_struct>& g)
 {
     detail::brelaz_state<adjacency_struct> state{g};
@@ -882,88 +870,126 @@ std::vector<int> brelaz_color(const graph<adjacency_struct>& g)
 //    return os;
 //}
 
-// ok for vertices_vec but not for bitset
-template< class adjacency_struct >
-void minimum_degree_elimination_game<adjacency_struct>::elimination_game(std::vector<int> ordering)
+template <class adjacency_struct>
+void minimal_triangulator<adjacency_struct>::section_node(int v)
+{
+    //      // PRINT
+    //      std::cout << "Removing node :" << v+1 << std::endl;
+    g_section.remove_node(v);
+    // Remove o from the adjacency matrix of its neighbors
+    for (auto u : g_section.matrix[v]) {
+        std::vector<int>::iterator itr;
+        itr = std::find(
+            g_section.matrix[u].begin(), g_section.matrix[u].end(), v);
+        if (itr != std::end(g_section.matrix[u])
+            || (*g_section.matrix[u].end() == v)) {
+            g_section.matrix[u].erase(itr);
+        }
+    }
+}
+
+// TODO: Genericity for dynamic sparse
+template <class adjacency_struct>
+void minimal_triangulator<adjacency_struct>::elimination_game(
+    const std::vector<int>& ordering)
 {
     int num_fill(0);
-    for (auto o : ordering) { // std::cout << o+1 << std::endl;
-        if (o + 1 == g.capacity())
-            break;
-        // Check every pair n1n2 of neighbors of o
-        for (std::vector<int>::iterator n1 = g_section.matrix[o].begin();
-             n1 != g_section.matrix[o].end() - 1;
-             ++n1) { // std::cout << "   " << *n1+1 << std::endl;
-            for (std::vector<int>::iterator n2 = n1 + 1;
-                 n2 != g_section.matrix[o].end();
-                 ++n2) { // std::cout << "          " << *n2+1 << std::endl;
-                // If n1n2 are not neighors add to g_section and g_filled
-                std::vector<int>::iterator it;
-                it = std::find(g_section.matrix[*n1].begin(),
-                    g_section.matrix[*n1].end(), *n2);
-                if (it == std::end(g_section.matrix[*n1])
-                    && (*g_section.matrix[*n1].end() != *n2)) {
-                    g_filled.add_edge(*n1, *n2);
-                    g_section.add_edge(*n1, *n2);
-                    g_section.sort();
-                    std::pair<int, int> edge = std::make_pair(*n1, *n2);
-                    fill_edges.push_back(edge);
-                    //                                      std::cout << "Adding
-                    //                                      edge: ("<< *n1+1 <<
-                    //                                      "," << *n2+1 << ")"
-                    //                                      << std::endl;
-                    ++num_fill;
+    for (auto o : ordering) {
+        //              // PRINT
+        //              std::cout << o+1 << std::endl;
+        if (g_section.matrix[o].size() < 1) {
+            // remove o !
+            section_node(o);
+            continue;
+        } else {
+            // Check every pair n1n2 of neighbors of o in g_section
+            for (std::vector<int>::iterator n1 = g_section.matrix[o].begin();
+                 n1 != (g_section.matrix[o].end() - 1); ++n1) {
+                //                              // PRINT
+                //                              std::cout << "   " << *n1+1 <<
+                //                              std::endl;
+                for (std::vector<int>::iterator n2 = n1 + 1;
+                     n2 != g_section.matrix[o].end(); ++n2) {
+                    //                                      // PRINT
+                    //                                      std::cout << " " <<
+                    //                                      *n2+1 << std::endl;
+                    // If n1n2 are not neighors add to g_section and g_filled
+                    std::vector<int>::iterator it;
+                    it = std::find(g_section.matrix[*n1].begin(),
+                        g_section.matrix[*n1].end(), *n2);
+                    if (it == std::end(g_section.matrix[*n1])
+                        && (*g_section.matrix[*n1].end() != *n2)) {
+                        g_filled.add_edge(*n1, *n2);
+                        g_section.add_edge(*n1, *n2);
+                        // Need to sort adjacency matrix in case vertices_vec
+                        // are used
+                        std::sort(g_section.nodes.begin(),
+                            g_section.nodes.end(),
+                            [](int a, int b) { return a < b; });
+                        std::pair<int, int> edge = std::make_pair(*n1, *n2);
+                        fill_edges.push_back(edge);
+                        std::cout << "Adding edge: (" << *n1 + 1 << ","
+                                  << *n2 + 1 << ")" << std::endl;
+                        ++num_fill;
+                    }
                 }
             }
-        }
-        //              g_section.remove_node(o);
-        //              std::cout << "Removing edge :" << o+1 << std::endl;
-        // Remove o from the adjacency matrix of its neighbors
-        for (auto u : g_section.matrix[o]) {
-            std::vector<int>::iterator itr;
-            itr = std::find(
-                g_section.matrix[u].begin(), g_section.matrix[u].end(), o);
-            if (itr != std::end(g_section.matrix[u])
-                || (*g_section.matrix[u].end() == o)) {
-                g_section.matrix[u].erase(itr);
-            }
-        }
 
-        //              // Display g_section
-        //              std::cout << "Eliminated graph :" << std::endl;
-        //      for (auto its : g_section.nodes) {
-        //              std::cout << "Vertex " << its+1 << "   Neighbors : ( ";
-        //                      for (std::vector<int>::const_iterator itN =
-        //                      g_section.matrix[its].vertices.begin(); itN <
-        //                      g_section.matrix[its].vertices.end(); ++itN) {
-        //                              std::cout << *itN+1 << " ";
-        //                      }
-        //              std::cout << ")";
-        //                      std::cout << " degree =" <<
-        //                      g_section.matrix[its].vertices.size() <<
-        //                      std::endl;
-        //              }
+            // Removing node o in section graph
+            section_node(o);
 
-        //              // Display g_filled
-        //              std::cout << "Filled graph :" << std::endl;
-        //      for (auto itf : g_filled.nodes) {
-        //              std::cout << "Vertex " << itf+1 << "   Neighbors : ( ";
-        //                      for (std::vector<int>::const_iterator itN =
-        //                      g_filled.matrix[itf].vertices.begin(); itN <
-        //                      g_filled.matrix[itf].vertices.end(); ++itN) {
-        //                              std::cout << *itN+1 << " ";
-        //                      }
-        //              std::cout << ")";
-        //                      std::cout << " degree =" <<
-        //                      g_filled.matrix[itf].vertices.size() <<
-        //                      std::endl;
-        //              }
+            //                      // DISPLAYING GRAPHS AND FILL EDGES
+            //            // Display g_section
+            //            std::cout << "Eliminated graph :" << std::endl;
+            //            for (auto its : g_section.nodes) {
+            //              std::cout << "Vertex " << its+1 << "   Neighbors : (
+            //              ";
+            //                for (std::vector<int>::const_iterator itN =
+            //                g_section.matrix[its].vertices.begin(); itN <
+            //                g_section.matrix[its].vertices.end(); ++itN) {
+            //                      std::cout << *itN+1 << " ";
+            //                }
+            //                std::cout << ")";
+            //                std::cout << " degree =" <<
+            //                g_section.matrix[its].vertices.size() <<
+            //                std::endl;
+            //            }
+
+            //            // Display g_filled
+            //            std::cout << "Filled graph :" << std::endl;
+            //            for (auto itf : g_filled.nodes) {
+            //              std::cout << "Vertex " << itf+1 << "   Neighbors : (
+            //              ";
+            //                for (std::vector<int>::const_iterator itN =
+            //                g_filled.matrix[itf].vertices.begin(); itN <
+            //                g_filled.matrix[itf].vertices.end(); ++itN) {
+            //                      std::cout << *itN+1 << " ";
+            //                }
+            //                std::cout << ")";
+            //                std::cout << " degree =" <<
+            //                g_filled.matrix[itf].vertices.size() << std::endl;
+            //                }
+            //                      }
+            //    }
+            //    std::cout << "# fill edges: " << num_fill << std::endl;
+            //    for (auto edge : fill_edges) {
+            //        std::cout << "(" << edge.first+1 << "," << edge.second+1
+            //        << ")        ";
+            //    }
+            //    std::cout << std::endl;
+        }
     }
-    std::cout << "# fill edges: " << num_fill << std::endl;
-    for (auto edge : fill_edges) {
-        std::cout << "(" << edge.first << "," << edge.second << ")       ";
+}
+
+template <class adjacency_struct>
+void minimal_triangulator<adjacency_struct>::stable_sort()
+{
+    for (auto u : g.nodes) {
+        minimum_degree_ordering.push_back(u);
     }
-    std::cout << std::endl;
+    std::stable_sort(minimum_degree_ordering.begin(),
+        minimum_degree_ordering.end(),
+        [&](int a, int b) { return g.matrix[a].size() < g.matrix[b].size(); });
 }
 
 } // namespace gc

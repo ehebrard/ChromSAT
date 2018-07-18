@@ -14,7 +14,9 @@ class gc_constraint : public minicsp::cons, public cons_base
 private:
     mycielskan_subgraph_finder<bitset> mf;
 
-    const std::vector<std::vector<Var>>& vars;
+    const varmap& vars;
+    std::vector<indset_constraint> isconses;
+
     const options& opt;
     statistics& stat;
 
@@ -48,12 +50,13 @@ private:
     std::vector<int> heuristic;
 
 public:
-    gc_constraint(Solver& solver, dense_graph& g,
-        const std::vector<std::vector<Var>>& tvars, const options& opt,
+    gc_constraint(Solver& solver, dense_graph& g, const varmap& tvars,
+        const std::vector<indset_constraint>& isconses, const options& opt,
         statistics& stat)
         : cons_base(solver, g)
         , mf(g, cf, opt.prune)
         , vars(tvars)
+        , isconses(isconses)
         , opt(opt)
         , stat(stat)
         , util_set(0, g.capacity() - 1, bitset::empt)
@@ -64,7 +67,6 @@ public:
     {
         stat.binds(this);
         ub = g.capacity();
-        assert(vars.size() == static_cast<size_t>(g.capacity()));
         for (int i = 0; i != g.capacity(); ++i) {
             if (!g.nodes.contain(i))
                 continue;
@@ -77,13 +79,14 @@ public:
                 }
                 if (j == i)
                     continue;
-                if (vars[i][j] == minicsp::var_Undef)
+                auto ijvar = vars[i][j];
+                if (ijvar == minicsp::var_Undef)
                     continue;
-                if (varinfo.size() <= static_cast<size_t>(vars[i][j]))
-                    varinfo.resize(vars[i][j] + 1);
-                varinfo[vars[i][j]] = {i, j};
-                s.wake_on_lit(vars[i][j], this, nullptr);
-                s.schedule_on_lit(vars[i][j], this);
+                if (varinfo.size() <= static_cast<size_t>(ijvar))
+                    varinfo.resize(ijvar + 1);
+                varinfo[ijvar] = {i, j};
+                s.wake_on_lit(ijvar, this, nullptr);
+                s.schedule_on_lit(ijvar, this);
             }
         }
         diffuv.initialise(0, g.capacity(), bitset::empt);
@@ -125,7 +128,8 @@ public:
         // helper: because u merged with v and v merged with x, x
         // merged with u
         auto merge_3way = [&](int u, int v, int x) -> Clause* {
-            if (s.value(vars[u][x]) == l_True)
+            Var uxvar = vars[u][x];
+            if (s.value(uxvar) == l_True)
                 return NO_REASON;
             if (u == v)
                 return NO_REASON;
@@ -135,7 +139,7 @@ public:
             if (g.origmatrix[x].fast_contain(u)) {
                 return s.addInactiveClause(reason);
             }
-            DO_OR_RETURN(s.enqueueFill(Lit(vars[u][x]), reason));
+            DO_OR_RETURN(s.enqueueFill(Lit(uxvar), reason));
             return NO_REASON;
         };
 
@@ -246,22 +250,12 @@ public:
         return NO_REASON;
     }
 
-    Clause* explain_positive()
+    // fills in reason with explanation for clq. Also generates
+    // this->culprit and fills in this->expl_reps
+    void explain_positive_clique(const bitset& clq)
     {
-        auto maxidx{std::distance(begin(cf.clique_sz),
-            std::max_element(
-                begin(cf.clique_sz), begin(cf.clique_sz) + cf.num_cliques))};
-
-        if (bound_source != options::CLIQUES && mf.explanation_clique != -1) {
-            maxidx = mf.explanation_clique;
-        }
-
-        // explain the base clique
-        reason.clear();
-
         culprit.clear();
-        std::copy(begin(cf.cliques[maxidx]), end(cf.cliques[maxidx]),
-            back_inserter(culprit));
+        std::copy(begin(clq), end(clq), back_inserter(culprit));
         // sort by increasing partition size
         std::sort(begin(culprit), end(culprit), [&](auto u, auto v) {
             return g.partition[u].size() < g.partition[v].size();
@@ -342,6 +336,21 @@ public:
                     reason.push(Lit(maxvar));
                 }
             }
+    }
+
+    Clause* explain_positive()
+    {
+        auto maxidx{std::distance(begin(cf.clique_sz),
+            std::max_element(
+                begin(cf.clique_sz), begin(cf.clique_sz) + cf.num_cliques))};
+
+        if (bound_source != options::CLIQUES && mf.explanation_clique != -1) {
+            maxidx = mf.explanation_clique;
+        }
+
+        // explain the base clique
+        reason.clear();
+        explain_positive_clique(cf.cliques[maxidx]);
 
         if (bound_source != options::CLIQUES && mf.explanation_clique != -1) {
             // for (auto v : mf.explanation_subgraph.nodes) {
@@ -362,7 +371,7 @@ public:
                             ur = u;
                         if (vr < 0)
                             vr = v;
-                        if (vars[ur][vr] != var_Undef)
+                        if (!g.matrix[ur].fast_contain(vr))
                             reason.push(Lit(vars[ur][vr]));
                     }
                 }
@@ -497,8 +506,6 @@ public:
             lb = cf.find_cliques(g.nodes, opt.cliquelimit);
         }
 
-        // std::cout << cf.num_cliques << std::endl;
-
         if (lb < ub
             && (s.decisionLevel() == 0 || !opt.adaptive
                    || run_expensive_bound)) {
@@ -535,12 +542,9 @@ public:
             stat.display(std::cout);
             for (auto v : g.nodes) {
                 if (g.matrix[v].size() < static_cast<size_t>(bestlb)) {
-                    // std::cout << " " << v;
                     ++stat.num_vertex_removals;
                 }
             }
-            // if (simplification)
-            //     std::cout << std::endl;
         }
         if (cf.num_cliques == 1)
             assert(g.nodes.size() == cf.cliques[0].size());
@@ -550,6 +554,26 @@ public:
                 return s.addInactiveClause(reason);
             }
             return explain();
+        }
+
+        // check local constraints
+        if (lb >= ub - 1) {
+            for (int i = 0; i != cf.num_cliques; ++i) {
+                if (cf.clique_sz[i] < ub -1)
+                    continue;
+                for (const auto& c : isconses) {
+                    util_set.clear();
+                    for (auto v : c.vs)
+                        util_set.fast_add(g.rep_of[v]);
+                    util_set.intersect_with(cf.cliques[i]);
+
+                    if (static_cast<int>(util_set.size()) >= ub - 1) {
+                        reason.clear();
+                        explain_positive_clique(util_set);
+                        return s.addInactiveClause(reason);
+                    }
+                }
+            }
         }
 
         if (opt.dominance)
@@ -583,8 +607,9 @@ public:
         }
 
         bool failed{false};
-        for (auto& vec : vars)
-            for (auto x : vec) {
+        for (auto& vec : vars.vars)
+            for (auto p : vec.second) {
+                auto x = p.second;
                 if (x == var_Undef)
                     continue;
                 auto info = varinfo[x];
@@ -676,10 +701,11 @@ void update_partitions(const dense_graph& g,
 }
 
 cons_base* post_gc_constraint(Solver& s, dense_graph& g,
-    const std::vector<std::vector<Var>>& vars, const options& opt,
+    const varmap& vars,
+    const std::vector<indset_constraint>& isconses, const options& opt,
     statistics& stat)
 {
-    auto cons = new gc_constraint(s, g, vars, opt, stat);
+    auto cons = new gc_constraint(s, g, vars, isconses, opt, stat);
     s.addConstraint(cons);
 
     return cons;

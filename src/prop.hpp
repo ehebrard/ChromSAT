@@ -4,7 +4,7 @@
 #include "graph.hpp"
 #include "minicsp/core/solver.hpp"
 #include "options.hpp"
-
+#include "varmap.hpp"
 
 
 namespace gc
@@ -13,6 +13,17 @@ namespace gc
 using dense_graph = graph<bitset>;
 
 struct statistics;
+
+// constraint on a subset of the vertices of the graph that get
+// added during preprocessing. We place a tighter upper bound on
+// these sets of vertices
+struct indset_constraint {
+    // the vertices in the local constraint
+    bitset vs;
+    // where it came from (i.e., which vertex's neighborhood is
+    // it). for debugging
+    int source;
+};
 
 struct cons_base {
     minicsp::Solver& s;
@@ -51,8 +62,8 @@ protected:
 };
 
 cons_base* post_gc_constraint(minicsp::Solver& s, dense_graph& g,
-    const std::vector<std::vector<minicsp::Var>>& vars, const options& opt,
-    statistics& stat);
+    const varmap& vars, const std::vector<indset_constraint>& isconses,
+    const options& opt, statistics& stat);
 
 } // namespace gc
 
