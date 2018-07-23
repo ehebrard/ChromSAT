@@ -71,6 +71,8 @@ public:
     void remove_edge(int u, int v);
 
     void remove_node(int v);
+		
+		void remove(const adjacency_struct& nodes);
 
     void clear();
 
@@ -271,6 +273,7 @@ template <class graph_struct> struct degeneracy_finder {
     }
 
     void degeneracy_ordering();
+		void clear();
     void display_ordering();
 };
 
@@ -345,6 +348,16 @@ void basic_graph<adjacency_struct>::add_clique(const adjacency_struct& C)
         matrix[v].union_with(C);
         matrix[v].remove(v);
     }
+}
+
+template <class adjacency_struct>
+void basic_graph<adjacency_struct>::remove(const adjacency_struct& toremove) {
+		for(auto v : toremove) {
+				remove_node(v);
+		}
+		for(auto v : nodes) {
+				matrix[v].setminus_with(toremove);
+		}
 }
 
 template <class adjacency_struct>
@@ -657,12 +670,18 @@ void clique_finder<adjacency_struct>::insert_color(int v, int clq, bitset& diff)
     diff.setminus_with(candidates[clq]);
     candidates[clq].union_with(g.matrix[v]);
 }
-// heuristically find a set of cliques and return the size of the
-// largest
 
 template <class graph_struct>
-void degeneracy_finder<graph_struct>::degeneracy_ordering()
+void degeneracy_finder<graph_struct>::clear()
 {
+		order.clear();
+}
+
+// heuristically find a set of cliques and return the size of the
+// largest
+template <class graph_struct>
+void degeneracy_finder<graph_struct>::degeneracy_ordering()
+{	
     for (auto v : g.nodes) {
         auto vd = g.matrix[v].size();
         if (vd >= buckets.size())
@@ -699,8 +718,6 @@ void degeneracy_finder<graph_struct>::degeneracy_ordering()
             iterators[u] = buckets[ud].begin();
         }
     }
-
-    // std::cout << "\ngraph has degeneracy " << d << std::endl;
 }
 
 template <class graph_struct>

@@ -37,11 +37,11 @@ void histogram(gc::graph<adjacency_struct>& g)
         pstart = pend + 1;
     }
 
-	float sum_degrees(0);
+	double sum_degrees(0);
 	for(auto d: degrees){
 		sum_degrees += d;
 	}
-	std::cout << "Density : " << sum_degrees/(g.capacity()*(g.capacity()-1))*100 << "%" << std::endl;
+	std::cout << "Density : " << sum_degrees/((double)(g.size())*(double)(g.size()-1))*100 << "%" << std::endl;
 }
 
 // store the pruning done on the original graph in order to trace them back (e.g. for printing a coloring)
@@ -93,9 +93,89 @@ struct gc_preprocessor {
     int lb{0}, ub{-1};
     const gc::options& options;
     gc::statistics& statistics;
-
-    graph_reduction<adjacency_struct> reduction;
+		
+    gc::clique_finder<adjacency_struct> cf;
+		gc::mycielskan_subgraph_finder<adjacency_struct> mf;
+		gc::degeneracy_finder<gc::graph<adjacency_struct>> df;
+		
     gc::graph<adjacency_struct>& g;
+		
+		adjacency_struct toremove;
+		
+		graph_reduction<adjacency_struct> reduction;
+		
+		
+		
+		
+    graph_reduction<adjacency_struct> degeneracy_peeling()
+    {
+				graph_reduction<adjacency_struct> gr(g);
+				
+        int plb{lb-1};
+				
+					
+
+				int iteration{0};
+				do {
+					
+						histogram(g);	
+						std::cout << "#iter " << (++iteration) << " " << g.size() << " nodes"; 
+						
+						if(lb == plb) {
+							std::cout << " [stopping]\n";
+							break;
+						}
+						plb = lb;
+						statistics.notify_lb(lb);
+						// statistics.display(std::cout);
+					
+						cf.clear();
+						df.clear();
+						// mf.clear();
+					
+						df.degeneracy_ordering();
+						std::vector<int> reverse; // TODO change that by using iterators in clique finder
+						for(auto rit=df.order.rbegin(); rit!=df.order.rend(); ++rit) {
+								reverse.push_back(*rit);
+						}
+					
+	          lb = cf.find_cliques(reverse);
+						// if (options.boundalg != gc::options::CLIQUES)
+						if(g.size() < 1000)
+								lb = mf.improve_cliques_larger_than(lb);
+						if(lb < plb)
+								lb = plb;
+
+						std::cout << ", lb = " << lb << std::endl;
+  
+						
+						bool removal = false;
+						for( auto v : df.order ) {
+								if(df.degrees[v] >= lb-1)
+										break;
+								toremove.add(v);
+								gr.removed_vertices.push_back(v);
+								removal = true;
+						}
+	
+						if(removal) {
+							
+								// std::cout << "\nremove";
+								// for( auto v : toremove ) {
+								// 	std::cout << " " << v ;
+								// }
+								// std::cout << std::endl;
+							
+								g.remove(toremove);
+								toremove.clear();
+						}
+					
+				} while(true);
+				
+				return gr;
+		}
+		
+		
 
     graph_reduction<adjacency_struct> preprocess(
         gc::graph<adjacency_struct>& g, std::pair<int, int> bounds, bool myciel = false)
@@ -176,12 +256,17 @@ struct gc_preprocessor {
         return gr;
     }
 
-    gc_preprocessor(gc::graph<adjacency_struct>& g, const gc::options& options,
-        gc::statistics& statistics, std::pair<int, int> bounds)
-        : options(options)
+    gc_preprocessor(gc::graph<adjacency_struct>& g_, const gc::options& options,
+        gc::statistics& statistics, std::pair<int, int> bounds, const int l)
+        : lb(bounds.first), ub(bounds.second)
+				, options(options)
         , statistics(statistics)
-        , reduction(preprocess(g, bounds))
-        , g(g)
+				, cf(g_, l)
+				,	mf(g_, cf, false)
+				, df(g_)
+        , g(g_)
+				, toremove(0, g_.capacity(), gc::bitset::empt)
+				, reduction(degeneracy_peeling())
     {
         auto plb = bounds.first;
         auto pub = bounds.second;
@@ -262,7 +347,7 @@ void preprocess(gc::options& options, gc::graph<adjacency_struct>& g) {
 	
 	gc::graph<adjacency_struct> h(g);
 	
-  	std::pair<int, int> bounds{0, g.capacity()};
+  std::pair<int, int> bounds{0, g.capacity()};
 	
 	
 	// bounds = initial_bounds(g, statistics, options.boundalg != gc::options::CLIQUES);
@@ -397,6 +482,40 @@ int lower_bound(gc::options& options, gc::graph<adjacency_struct>& g) {
 		return l;
 }
 
+template< class adjacency_struct >
+void peeling(gc::options& options, gc::graph<adjacency_struct>& g) {
+	
+		int lb = 0;
+		
+		histogram(g);
+		
+		while(true) {
+		
+				gc::degeneracy_finder<gc::graph<adjacency_struct>> df(g);
+				df.degeneracy_ordering();	
+	
+				gc::clique_finder<adjacency_struct> cf{g,100};
+		
+				std::vector<int> reverse;
+				for(auto rit=df.order.rbegin(); rit!=df.order.rend(); ++rit) {
+					reverse.push_back(*rit);
+				}
+				lb =  cf.find_cliques(reverse);
+
+				int nremoved = 0;
+				for( auto v  = df.order.begin(); v != df.order.end(); ++v ) {
+						// std::cout << df.degrees[*v] << " ";
+					
+						++nremoved;
+						if(df.degrees[*v] >= lb)
+								break;
+				}
+				std::cout << nremoved << std::endl;
+				
+				cf.clear();
+				break;
+		}
+}
 
 int read_graph(gc::options& options, gc::dyngraph& g) 
 {	
@@ -446,6 +565,10 @@ int lower_bound(gc::options& options, gc::dyngraph& g)
 	return 0;
 }
 
+void peeling(gc::options& options, gc::dyngraph& g) {
+	std::cout << " (not implemented) ";
+}
+
 
 
 template< class graph_struct >
@@ -487,6 +610,17 @@ void test_preprocess(gc::options& options, graph_struct& g) {
       for (auto v : g.matrix[u])
           assert(sol[u] != sol[v]);
 	
+	t = tnow;
+	std::cout << "peeling...";
+	std::cout.flush();
+	
+	peeling(options, g);
+	
+	tnow = minicsp::cpuTime();
+	std::cout << (tnow - t) << std::endl;
+
+	
+	
 }
 
 
@@ -496,12 +630,28 @@ int main(int argc, char* argv[])
     auto options = gc::parse(argc, argv);
     options.describe(std::cout);
 		
+		
 		if(options.preprocessing == gc::options::SPARSE) {
 				gc::graph<gc::vertices_vec> g;
-				preprocess(options, g);
+								
+				read_graph(options, g);
+				
+				gc::statistics stat(g.size());
+				std::pair<int,int> bounds{0,g.size()};
+				
+				gc_preprocessor pp(g, options, stat, bounds, 100);
+
 		} else if(options.preprocessing == gc::options::LOW_DEGREE) {
 				gc::graph<gc::bitset> g;	
-				preprocess(options, g);
+				
+				read_graph(options, g);
+				
+				
+				gc::statistics stat(g.size());
+				std::pair<int,int> bounds{0,g.size()};
+				
+				gc_preprocessor pp(g, options, stat, bounds, 100);
+
 		} else {
 				std::cout << "\nsparse graph\n";
 				gc::dyngraph g;
