@@ -4,6 +4,8 @@
 #include "statistics.hpp"
 #include "mycielski.hpp"
 
+#include <cmath>
+
 namespace gc
 {
 
@@ -432,12 +434,29 @@ public:
         return NO_REASON;
     }
 
-    Clause* propagate(Solver&) final
+    // find an upper bound u for the maximum IS. n/ceil(u) is a lower
+    // bound for the chromatic number
+    Clause* propagate_is()
     {
-        int lb{0};
+        create_ordering();
+        ccf.find_clique_cover(heuristic);
+        if (std::ceil(g.nodes.size() / static_cast<double>(ccf.num_cliques))
+            >= ub) {
+            std::cout << "\tIS ub = " << ccf.num_cliques
+                      << " |V| = " << g.nodes.size() << " coloring lb = "
+                      << std::ceil(g.nodes.size()
+                             / static_cast<double>(ccf.num_cliques))
+                      << "\n";
+            reason.clear();
+            for (int i = 0; i != ccf.num_cliques; ++i)
+                explain_positive_clique(ccf.cliques[i]);
+            return s.addInactiveClause(reason);
+        }
+        return NO_REASON;
+    }
 
-        bound_source = options::CLIQUES;
-
+    void create_ordering()
+    {
         // recompute the degenracy order
         if (opt.ordering == options::DYNAMIC_DEGENERACY) {
             assert(false);
@@ -501,12 +520,22 @@ public:
                 heuristic.push_back(v);
 
             assert(heuristic.size() == g.nodes.size());
-
-            lb = cf.find_cliques(heuristic, opt.cliquelimit);
         } else {
             // no ordering
-            lb = cf.find_cliques(g.nodes, opt.cliquelimit);
+            heuristic.clear();
+            std::copy(
+                g.nodes.begin(), g.nodes.end(), std::back_inserter(heuristic));
         }
+    }
+
+    Clause* propagate(Solver&) final
+    {
+        int lb{0};
+
+        bound_source = options::CLIQUES;
+
+        create_ordering();
+        lb = cf.find_cliques(heuristic, opt.cliquelimit);
 
         if (lb < ub
             && (s.decisionLevel() == 0 || !opt.adaptive
@@ -557,6 +586,9 @@ public:
             }
             return explain();
         }
+
+        if (opt.indset_lb)
+            DO_OR_RETURN(propagate_is());
 
         // check local constraints
         if (lb >= ub - 1) {

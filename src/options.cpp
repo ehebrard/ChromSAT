@@ -118,6 +118,8 @@ options parse(int argc, char* argv[])
         "reduce by independent set constraints", false);
     cmd.add<SwitchArg>(opt.fillin, "", "fillin",
         "compute fill-in of graph", false);
+    cmd.add<SwitchArg>(opt.indset_lb, "", "indset-lb",
+        "compute IS-based lower bound", false);
     cmd.add<ValueArg<std::string>>(opt.format, "", "format",
         "File format", false, "dimacs", "string");
 
