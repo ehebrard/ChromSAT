@@ -89,6 +89,8 @@ struct options {
 
     bool dominance;
 
+    bool indset_lb;
+
     std::string format;
 };
 

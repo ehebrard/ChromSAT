@@ -30,13 +30,15 @@ struct cons_base {
     dense_graph& g;
     int ub;
     int bestlb{0};
-    clique_finder<bitset> cf;
+    clique_finder<bitset> cf; // for cliques
+    clique_finder<bitset> ccf; // for clique covers
     minicsp::backtrackable<int> lastlb;
 
     explicit cons_base(minicsp::Solver& s, dense_graph& g)
         : s(s)
         , g(g)
         , cf(g)
+        , ccf(g)
         , lastlb(s)
         , lastdlvl(s)
     {

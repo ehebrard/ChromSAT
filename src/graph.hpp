@@ -252,6 +252,27 @@ template <class adjacency_struct> struct clique_finder {
         return *std::max_element(
             begin(clique_sz), begin(clique_sz) + num_cliques);
     }
+
+    template <class ordering>
+    void find_clique_cover(ordering o)
+    {
+        clear();
+        if (o.size() == 0)
+            return;
+        for (auto u : o) {
+            bool found{false};
+            for (int i = 0; i != num_cliques; ++i)
+                if (candidates[i].fast_contain(u)) {
+                    found = true;
+                    insert(u, i);
+                    break;
+                }
+            if (!found) {
+                new_clique();
+                insert(u, num_cliques - 1);
+            }
+        }
+    }
 };
 
 template <class graph_struct> struct degeneracy_finder {
