@@ -90,7 +90,7 @@ struct gc_model {
 
     gc::varmap create_vars()
     {
-        gc::minfill_buffer mb{g};
+        gc::minfill_buffer<gc::dense_graph> mb{g};
         mb.minfill();
         std::cout << mb.fillin.size()
                   << " edges in minfill, width = " << mb.width << "\n";

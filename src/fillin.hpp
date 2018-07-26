@@ -84,7 +84,7 @@ template <class graph_struct> struct minfill_buffer {
                         continue;
                     assert(!g.matrix[w].fast_contain(u));
                     g.add_edge(u, w);
-                    fillin.push_back(std::pair{u, w});
+                    fillin.push_back(std::pair<int,int>{u, w});
                     change_degree(u, 1);
                     change_degree(w, 1);
                 }
