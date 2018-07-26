@@ -138,18 +138,18 @@ my_type build_simple_graph_instance(char *input_file) {
     } else fscanf(fp_in, "%d%d", &edge[i][0], &edge[i][1]);
 		
     if (edge[i][0]==edge[i][1]) {
-			// i--;
-			// NB_EDGE--;
-      printf("auto edge %d over %d\n", i--, NB_EDGE--);
+			i--;
+			NB_EDGE--;
+      // printf("auto edge %d over %d\n", i--, NB_EDGE--);
     }
     else {
       if (edge[i][0]>edge[i][1]) {
 	e=edge[i][1]; edge[i][1]=edge[i][0]; edge[i][0]=e;
       }
       if (edge_redundant(edge[i][0], edge[i][1], i)==TRUE) {
-				// i--;
-				// NB_EDGE--;
-	printf("edge redundant %d over %d", i--, NB_EDGE--);
+				i--;
+				NB_EDGE--;
+	// printf("edge redundant %d over %d", i--, NB_EDGE--);
       }
       else {
 	nb_neibors[edge[i][0]]++;
