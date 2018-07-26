@@ -46,8 +46,8 @@ typedef unsigned char my_unsigned_type;
 /* the tables of nodes and edges are statically allocated. Modify the 
    parameters tab_node_size and tab_edge_size before compilation if 
    necessary */
-#define tab_node_size  10000
-#define tab_edge_size 1000000
+#define tab_node_size 11000
+#define tab_edge_size 1100000
 #define max_nb_value 500
 #define pop(stack) stack[--stack ## _fill_pointer]
 #define push(item, stack) stack[stack ## _fill_pointer++] = item
@@ -114,6 +114,8 @@ void free_graph_instance() {
 }
 
 my_type build_simple_graph_instance(char *input_file) {
+	printf("read file %s\n", input_file);
+	
   FILE* fp_in=fopen(input_file, "r");
   char ch, word2[WORD_LENGTH];
   int i, j, e, node1, node2;
@@ -128,6 +130,8 @@ my_type build_simple_graph_instance(char *input_file) {
   }
   else fscanf(fp_in, "%d%d", &NB_NODE, &NB_EDGE);
 	
+	// printf(" #nodes=%i, #edges=%i\n", NB_NODE, NB_EDGE);
+	
 	for(i=1; i<=NB_NODE; i++) {
 		nb_neibors[i] = 0;
 	}
@@ -137,6 +141,9 @@ my_type build_simple_graph_instance(char *input_file) {
       fscanf(fp_in, "%s%d%d", word2, &edge[i][0], &edge[i][1]);			
     } else fscanf(fp_in, "%d%d", &edge[i][0], &edge[i][1]);
 		
+		// if((i%1000) == 0)
+		// 	printf(" %i-th edge=%i,%i\n", i, edge[i][0], edge[i][1]);
+		
     if (edge[i][0]==edge[i][1]) {
 			// i--;
 			// NB_EDGE--;
@@ -144,20 +151,22 @@ my_type build_simple_graph_instance(char *input_file) {
     }
     else {
       if (edge[i][0]>edge[i][1]) {
-	e=edge[i][1]; edge[i][1]=edge[i][0]; edge[i][0]=e;
+				e=edge[i][1]; edge[i][1]=edge[i][0]; edge[i][0]=e;
       }
       if (edge_redundant(edge[i][0], edge[i][1], i)==TRUE) {
 				// i--;
 				// NB_EDGE--;
-	printf("edge redundant %d over %d", i--, NB_EDGE--);
+				printf("edge redundant %d over %d", i--, NB_EDGE--);
       }
       else {
-	nb_neibors[edge[i][0]]++;
-	nb_neibors[edge[i][1]]++;
+				nb_neibors[edge[i][0]]++;
+				nb_neibors[edge[i][1]]++;
       }
     }
   }
   fclose(fp_in);
+	
+	// printf("here\n");
 
   for (i=1; i<=NB_NODE; i++) {
     static_nb_neibors[i]=nb_neibors[i];
@@ -176,6 +185,8 @@ my_type build_simple_graph_instance(char *input_file) {
     node_neibors[node1][nb_neibors[node1]++]=node2;
     node_neibors[node2][nb_neibors[node2]++]=node1;
   }
+	// printf("there\n");
+	
   return TRUE;
 }
 
@@ -885,9 +896,18 @@ int solve(long begintime) {
   switch (build_simple_graph_instance(INPUT_FILE)) {
   case FALSE: printf("Input file error\n"); return FALSE;
   case TRUE:
+	
+		// printf("init\n");
+	
     init();
+		
+		// printf("search_by_up\n");
+		
     result=search_by_up(); 
     if (result==TRUE) {
+			
+			// printf("verify\n");
+			
       if (verify_solution()==TRUE) {
 				printf(">>data: lb = %5d | ub = %5d | ", lower_bound, NB_VALUE);
 				// print_solution(filename(INPUT_FILE), NB_VALUE);
@@ -897,6 +917,8 @@ int solve(long begintime) {
     else printf(">>data: lb = %5d | ub = %5d | ", NB_VALUE+1, upper_bound);
     break;
   }
+	
+	// printf("ok\n");
 	
 	// a_tms = ( struct tms *) malloc( sizeof (struct tms));
   mess=times(a_tms); 
