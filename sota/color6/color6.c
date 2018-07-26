@@ -157,7 +157,7 @@ my_type build_simple_graph_instance(char *input_file) {
 				i--;
 				NB_EDGE--;
 	// printf("edge redundant %d over %d", i--, NB_EDGE--);
-      else {
+      } else {
 				nb_neibors[edge[i][0]]++;
 				nb_neibors[edge[i][1]]++;
       }
