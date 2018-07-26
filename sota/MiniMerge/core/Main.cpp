@@ -216,7 +216,7 @@ void printStats(Solver& solver)
 Solver* solver;
 static void SIGINT_handler(int signum) {
     reportf("\n"); reportf("*** INTERRUPTED ***\n");
-		system((char *)tmp_file);
+		// system((char *)tmp_file);
     printStats(*solver);
     reportf("\n"); reportf("*** INTERRUPTED ***\n");
     exit(1); }
@@ -393,7 +393,7 @@ int main(int argc, char** argv)
 				int n_colors = ( policy == TOP_DOWN ? ub-1 : ( policy == BOTTOM_UP ? lb : (lb+ub)/2 ) );
 				while( lb < ub ) {
 		
-						printf("\nc try with #colors = %d\n", n_colors);
+						printf("\nc try with #colors = %d (%s)\n", n_colors, basename.c_str());
 		
 						double cpu_time = cpuTime();
 						sprintf(temp, "./sota/converter/converter %s %d 1 1 %s", filename.c_str(), n_colors, basename.c_str());
@@ -429,7 +429,7 @@ int main(int argc, char** argv)
 
 		// sprintf(temp, "rm %s", cnfname.c_str());
 		
-		if( !solved )
-				system((char *)tmp_file);
+		// if( !solved )
+		// 		system((char *)tmp_file);
 
 }
