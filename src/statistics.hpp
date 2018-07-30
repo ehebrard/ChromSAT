@@ -29,8 +29,11 @@ struct statistics {
 			
 				total_bound_1 = 0;
 				total_bound_2 = 0;
-				num_neighborhood_contractions = 0;
-				num_vertex_removals = 0;
+				
+				
+				num_vertices = size;
+				// num_neighborhood_contractions = 0;
+				// num_vertex_removals = 0;
 		}
 	
     // outputs a nice description of all statistics
@@ -58,9 +61,10 @@ struct statistics {
 
 
     // the actual statistics
-		uint64_t num_neighborhood_contractions;
-		
-		uint64_t num_vertex_removals;
+		uint64_t num_neighborhood_contractions;		
+		// uint64_t num_vertex_removals;
+		int num_vertices;
+		void notify_removals(const int n);
 			
     uint64_t total_bound_1;
 		uint64_t total_bound_2; 

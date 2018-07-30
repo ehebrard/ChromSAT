@@ -571,11 +571,11 @@ public:
         if (s.decisionLevel() == 0 && lb > bestlb) {
             bestlb = lb;
             stat.display(std::cout);
-            for (auto v : g.nodes) {
-                if (g.matrix[v].size() < static_cast<size_t>(bestlb)) {
-                    ++stat.num_vertex_removals;
-                }
-            }
+            // for (auto v : g.nodes) {
+            //     if (g.matrix[v].size() < static_cast<size_t>(bestlb)) {
+            //         ++stat.num_vertex_removals;
+            //     }
+            // }
         }
         if (cf.num_cliques == 1)
             assert(g.nodes.size() == cf.cliques[0].size());

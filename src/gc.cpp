@@ -22,8 +22,11 @@ enum class vertex_status : uint8_t {
     indset_removed,
 };
 
+
+
+template< class adjacency_struct >
 struct graph_reduction {
-    const gc::dense_graph& g;
+    const gc::graph<adjacency_struct>& g;
     const gc::statistics& statistics;
     std::vector<int> removed_vertices;
     std::vector<gc::indset_constraint> constraints;
@@ -32,7 +35,7 @@ struct graph_reduction {
     gc::bitset util_set;
 
     explicit graph_reduction(
-        const gc::dense_graph& g, const gc::statistics& statistics)
+        const gc::graph<adjacency_struct>& g, const gc::statistics& statistics)
         : g(g)
         , statistics(statistics)
         , status(g.capacity(), vertex_status::in_graph)
@@ -76,7 +79,7 @@ struct gc_model {
     const gc::options& options;
     gc::statistics& statistics;
 
-    graph_reduction reduction;
+    graph_reduction<gc::bitset> reduction;
     gc::dense_graph& g;
     minicsp::Solver s;
     gc::varmap vars;
@@ -118,18 +121,118 @@ struct gc_model {
         return vars;
     }
 
-    graph_reduction core_reduction(
-        gc::dense_graph& g, std::pair<int, int> bounds, bool myciel = false)
+
+		
+		template< class adjacency_struct >
+    graph_reduction<adjacency_struct> degeneracy_peeling(
+				gc::graph<adjacency_struct>& g, std::pair<int, int> bounds, bool myciel = false)
     {
-        graph_reduction gr(g, statistics);
+				graph_reduction<adjacency_struct> gr(g, statistics);
         if (options.preprocessing == gc::options::NO_PREPROCESSING)
             return gr;
+				
+        lb = bounds.first;
+        ub = bounds.second;
+				
+				
+        gc::clique_finder<gc::bitset> cf{g};
+        gc::mycielskan_subgraph_finder<gc::bitset> mf(g, cf, false);
+				gc::degeneracy_finder<gc::graph<adjacency_struct>> df{g};
+				
+				adjacency_struct toremove;
+				toremove.initialise(0, g.capacity(), gc::bitset::empt);
+				
+        int plb{lb-1};
+				
+				int iteration{0};
+				do {
+					
+						// gc::histogram(g);
+						// std::cout << "#iter " << (++iteration) << " " << g.size() << " nodes";
+					
+						if(lb == plb) {
+							// std::cout << " [stopping]\n";
+							break;
+						}
+						plb = lb;
+						statistics.notify_lb(lb);
+						statistics.display(std::cout);
+						if(g.size() == 0) {
+							break;
+						}
+					
+						cf.clear();
+						df.clear();
+						// mf.clear();
+					
+						int degeneracy = 0;
+						df.degeneracy_ordering();
+						std::vector<int> reverse; // TODO change that by using iterators in clique finder
+						for(auto rit=df.order.rbegin(); rit!=df.order.rend(); ++rit) {
+								if(df.degrees[*rit] > degeneracy) {
+										degeneracy = df.degrees[*rit];
+								}
+								reverse.push_back(*rit);
+						}
+						if(ub > degeneracy+1) {
+								ub = degeneracy+1;
+								statistics.notify_ub(ub);
+								statistics.display(std::cout);
+						}
+						
+					
+	          lb = cf.find_cliques(reverse);
+						if(g.size() < 1000)
+								lb = mf.improve_cliques_larger_than(lb);
+						if(lb < plb)
+								lb = plb;
+						
+						// std::cout << ", lb = " << lb << std::endl;
+						
+						
+						bool removal = false;
+						for( auto v : df.order ) {
+								if(df.degrees[v] >= lb)
+										break;
+								toremove.add(v);
+								gr.removed_vertices.push_back(v);
+								removal = true;
+						}
+	
+						if(removal) {
+								g.remove(toremove);
+								for(auto u : toremove){
+										gr.status[u] = vertex_status::low_degree_removed;
+								}
+								
+								toremove.clear();
+								statistics.notify_removals(g.size());
+								statistics.display(std::cout);
+						}
+					
+				} while(true);
+				
+				return gr;
+		}
+
+
+
+
+		template< class adjacency_struct >
+    graph_reduction<adjacency_struct> core_reduction(
+        gc::graph<adjacency_struct>& g, std::pair<int, int> bounds, bool myciel = false)
+    {
+        graph_reduction<adjacency_struct> gr(g, statistics);
+        if (options.preprocessing == gc::options::NO_PREPROCESSING)
+            return gr;
+
 
         lb = bounds.first;
         ub = bounds.second;
         int hlb{0};
         gc::clique_finder<gc::bitset> cf{g};
         gc::mycielskan_subgraph_finder<gc::bitset> mf(g, cf, false);
+				gc::degeneracy_finder<gc::graph<adjacency_struct>> df{g};
 
         gc::bitset forbidden(0, g.capacity(), gc::bitset::empt);
         gc::bitset util_set(0, g.capacity(), gc::bitset::empt);
@@ -145,10 +248,16 @@ struct gc_model {
                 for (auto v : g.matrix[u])
                     assert(sol[u] != sol[v]);
             int hub{*max_element(begin(sol), end(sol)) + 1};
+						
+						// df.degeneracy_ordering();
+						//             int hub{*max_element(
+						//                 begin(df.degrees), end(df.degrees))};				
             if (ub < 0 || (hub < ub && hub >= lb)) {
                 ub = hub;
                 statistics.notify_ub(ub);
             }
+						
+
 
             hlb = cf.find_cliques(g.nodes);
             if (myciel)
@@ -171,7 +280,7 @@ struct gc_model {
                     continue;
                 removed = true;
                 removedv.fast_add(u);
-                ++statistics.num_vertex_removals;
+                // ++statistics.num_vertex_removals;
                 toremove.push_back(u);
                 gr.removed_vertices.push_back(u);
                 gr.status[u] = vertex_status::low_degree_removed;
@@ -187,6 +296,9 @@ struct gc_model {
                 g.matrix[v].setminus_with(removedv);
                 g.origmatrix[v].setminus_with(removedv);
             }
+						statistics.notify_removals(g.size());
+						statistics.display(std::cout);
+						
         }
 
         return gr;
@@ -194,9 +306,10 @@ struct gc_model {
 
     // find an IS, drop its vertices and add the appropriate
     // constraints to the rest of the graph
-    void find_is_constraints(gc::dense_graph& g, graph_reduction& gr)
+		template< class adjacency_struct >
+    void find_is_constraints(gc::graph<adjacency_struct>& g, graph_reduction<adjacency_struct>& gr)
     {
-        gc::degeneracy_vc_solver<gc::dense_graph> vc(g);
+        gc::degeneracy_vc_solver<gc::graph<adjacency_struct>> vc(g);
         auto bs = vc.find_is();
         std::cout << "IS size = " << bs.size() << "\n";
         for (auto v : bs) {
@@ -208,13 +321,31 @@ struct gc_model {
         }
         for (auto v : g.nodes)
             g.matrix[v].intersect_with(g.nodeset);
+				
+				statistics.notify_removals(g.size());
+				statistics.display(std::cout);
     }
 
-    graph_reduction preprocess(
-        gc::dense_graph& g, std::pair<int, int> bounds, bool myciel = false)
+		template< class adjacency_struct >
+    graph_reduction<adjacency_struct> preprocess(
+        gc::graph<adjacency_struct>& g, std::pair<int, int> bounds, bool myciel = false)
     {
         auto gr{core_reduction(g, bounds, myciel)};
-        if (options.indset_constraints)
+        if (g.size() > 0 and options.indset_constraints) {
+						std::cout << "Search for indset constraints\n";
+            find_is_constraints(g, gr);
+				}
+        std::cout << "Preprocessing finished at " << minicsp::cpuTime() << "\n";
+        return gr;
+    }
+		
+		
+		template< class adjacency_struct >
+    graph_reduction<adjacency_struct> qpreprocess(
+        gc::graph<adjacency_struct>& g, std::pair<int, int> bounds, bool myciel = false)
+    {
+        auto gr{degeneracy_peeling(g, bounds, myciel)};
+        if (g.size() > 0 and options.indset_constraints)
             find_is_constraints(g, gr);
         std::cout << "Preprocessing finished at " << minicsp::cpuTime() << "\n";
         return gr;

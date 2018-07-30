@@ -51,7 +51,7 @@ int degeneracy_vc_solver<graph_type>::compl_degeneracy()
         iterators[v] = buckets[vd].begin();
         ordered[v] = false;
     }
-
+		
     while (true) {
         int i = buckets.size()-1;
         for (; i >= 0; --i)
