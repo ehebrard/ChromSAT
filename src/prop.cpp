@@ -14,6 +14,8 @@ using namespace minicsp;
 class gc_constraint : public minicsp::cons, public cons_base
 {
 private:
+    dense_graph fg;
+
     mycielskan_subgraph_finder<bitset> mf;
 
     const varmap& vars;
@@ -52,9 +54,10 @@ private:
     std::vector<int> heuristic;
 
 public:
-    gc_constraint(Solver& solver, dense_graph& g, const varmap& tvars,
-        const std::vector<indset_constraint>& isconses, const options& opt,
-        statistics& stat)
+    gc_constraint(Solver& solver, dense_graph& g,
+        std::optional<std::vector<std::pair<int, int>>> fillin,
+        const varmap& tvars, const std::vector<indset_constraint>& isconses,
+        const options& opt, statistics& stat)
         : cons_base(solver, g)
         , mf(g, cf, opt.prune)
         , vars(tvars)
@@ -103,6 +106,13 @@ public:
                 return minicsp::Solver::CCB_OK;
             };
             s.use_clause_callback(adaptive_callback);
+        }
+
+        assert((fillin && opt.fillin) || (!fillin && !opt.fillin));
+        if (fillin) {
+            fg = g;
+            for (auto e : *fillin)
+                fg.add_edge(e.first, e.second);
         }
 
         DO_OR_THROW(propagate(s));
@@ -737,11 +747,11 @@ void update_partitions(const dense_graph& g,
 }
 
 cons_base* post_gc_constraint(Solver& s, dense_graph& g,
-    const varmap& vars,
+    std::optional<std::vector<std::pair<int, int>>> fillin, const varmap& vars,
     const std::vector<indset_constraint>& isconses, const options& opt,
     statistics& stat)
 {
-    auto cons = new gc_constraint(s, g, vars, isconses, opt, stat);
+    auto cons = new gc_constraint(s, g, fillin, vars, isconses, opt, stat);
     s.addConstraint(cons);
 
     return cons;

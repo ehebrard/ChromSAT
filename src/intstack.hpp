@@ -27,7 +27,7 @@ private:
 public:
     /*!@name Constructors*/
     //@{
-    intstack(const size_t n = 0);
+    explicit intstack(const size_t n = 0);
 
     void reserve(const size_t n);
 
@@ -85,8 +85,8 @@ public:
     void add(const int elt);
 
     void safe_add(const int elt);
-		
-		int index(const int elt) const;
+
+    int index(const int elt) const;
     //@}
 
     /*!@name Miscellaneous*/
