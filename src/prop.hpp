@@ -19,12 +19,15 @@ struct statistics;
 // added during preprocessing. We place a tighter upper bound on
 // these sets of vertices
 struct indset_constraint {
-	
-		template<class adjacency_struct>
-		indset_constraint(adjacency_struct& scope, int s) : source(s) {
-				vs.copy(scope);
-		}
-	
+
+    template <class adjacency_struct>
+    indset_constraint(adjacency_struct& scope, int s)
+        : source(s)
+        , vs(scope.min(), scope.max(), bitset::empt)
+    {
+        vs.copy(scope);
+    }
+
     // the vertices in the local constraint
     bitset vs;
     // where it came from (i.e., which vertex's neighborhood is

@@ -162,8 +162,7 @@ struct gc_model {
         graph_reduction<adjacency_struct> gr(g, statistics);
         if (options.preprocessing == gc::options::NO_PREPROCESSING)
             return gr;
-				
-				
+
         // std::cout << "PEELING: " << g.size() << "(" << (int*)(&g) << ")"
         //           << std::endl;
 
@@ -197,15 +196,14 @@ struct gc_model {
 
             int degeneracy = 0;
             df.degeneracy_ordering();
-						
-						// std::cout << df.order.size() << " / " << g.size() << std::endl;
-						
-						// for(auto v : df.order) {
-						// 	std::cout << " " << df.degrees[v];
-						// }
-						// std::cout << std::endl;
-						
-						
+
+            // std::cout << df.order.size() << " / " << g.size() << std::endl;
+
+            // for(auto v : df.order) {
+            //      std::cout << " " << df.degrees[v];
+            // }
+            // std::cout << std::endl;
+
             std::vector<int>
                 reverse; // TODO change that by using iterators in clique finder
             for (auto rit = df.order.rbegin(); rit != df.order.rend(); ++rit) {
@@ -214,7 +212,7 @@ struct gc_model {
                 }
                 reverse.push_back(*rit);
             }
-						
+
             if (ub > degeneracy + 1) {
                 ub = degeneracy + 1;
                 statistics.notify_ub(ub);
@@ -394,7 +392,7 @@ struct gc_model {
         : options(options)
         , statistics(statistics)
         , reduction(preprocess(ig, bounds))
-				//, reduction(qpreprocess(ig, bounds))
+        //, reduction(qpreprocess(ig, bounds))
         , g(ig)
         , vars(create_vars())
         , cons(gc::post_gc_constraint(
@@ -682,9 +680,7 @@ int main(int argc, char* argv[])
         statistics.update_ub = false;
 
     statistics.describe(std::cout);
-		
-		
-		
+
     // std::cout << "MAIN (READ): " << g.size() << "(" << (int*)(&g) << ")"
     //           << std::endl;
 

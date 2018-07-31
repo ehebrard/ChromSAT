@@ -48,9 +48,6 @@ public:
         basic_graph>::type&
     operator=(const basic_graph<other_struct>& g)
     {
-			
-				// std::cout << "deep copy\n";
-			
         nodes.reserve(g.capacity());
         nodeset.initialise(0, g.capacity() - 1, bitset::empt);
         matrix.resize(g.capacity());

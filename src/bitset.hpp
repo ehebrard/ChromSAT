@@ -1354,7 +1354,7 @@ public:
         while (i > neg_words)
             table[--i] = empt;
     }
-		
+
     /*!
     Remove all elements [O(N/32)]
     */
@@ -1364,7 +1364,7 @@ public:
         while (i > neg_words)
             table[--i] = empt;
     }
-		
+
     /*!
     do nothing [template compatibility]
     */
