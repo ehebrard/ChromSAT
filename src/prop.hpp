@@ -6,6 +6,7 @@
 #include "options.hpp"
 #include "varmap.hpp"
 
+#include <optional>
 
 namespace gc
 {
@@ -70,8 +71,9 @@ protected:
 };
 
 cons_base* post_gc_constraint(minicsp::Solver& s, dense_graph& g,
-    const varmap& vars, const std::vector<indset_constraint>& isconses,
-    const options& opt, statistics& stat);
+    std::optional<std::vector<std::pair<int, int>>> fillin, const varmap& vars,
+    const std::vector<indset_constraint>& isconses, const options& opt,
+    statistics& stat);
 
 } // namespace gc
 

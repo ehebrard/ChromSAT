@@ -87,8 +87,8 @@ public:
     void remove_edge(int u, int v);
 
     void remove_node(int v);
-		
-		void remove(const adjacency_struct& nodes);
+
+    void remove(const adjacency_struct& nodes);
 
     void clear();
 
@@ -237,14 +237,14 @@ template <class adjacency_struct> struct clique_finder {
     std::vector<adjacency_struct> candidates;
     std::vector<int> last_clique;
     int num_cliques;
-		int limit;
+    int limit;
 
-    clique_finder(const graph<adjacency_struct>& g, const int c=0xfffffff)
+    clique_finder(const graph<adjacency_struct>& g, const int c = 0xfffffff)
         : g(g)
         , num_cliques(1)
-				, limit(c)
+        , limit(c)
     {
-			
+
 				std::cout << "CLIQUE FINDER: " << g.size() << "(" << (int*)(&g) << ")"<< std::endl;
 			
 				auto m = std::min(limit, g.capacity());
@@ -277,8 +277,9 @@ template <class adjacency_struct> struct clique_finder {
     // largest
 
     template <class ordering> int find_cliques(ordering o, const int l=0xfffffff)
-		{
-				if(l < limit) limit = l;
+    {
+        if (l < limit)
+            limit = l;
         clear();
         if (o.size() == 0)
             return 0;
@@ -347,7 +348,7 @@ template <class graph_struct> struct degeneracy_finder {
     }
 
     void degeneracy_ordering();
-		void clear();
+    void clear();
     void display_ordering();
 };
 
@@ -426,12 +427,12 @@ void basic_graph<adjacency_struct>::add_clique(const adjacency_struct& C)
 
 template <class adjacency_struct>
 void basic_graph<adjacency_struct>::remove(const adjacency_struct& toremove) {
-		for(auto v : toremove) {
-				remove_node(v);
-		}
-		for(auto v : nodes) {
-				matrix[v].setminus_with(toremove);
-		}
+    for (auto v : toremove) {
+        remove_node(v);
+    }
+    for (auto v : nodes) {
+        matrix[v].setminus_with(toremove);
+    }
 }
 
 template <class adjacency_struct>
@@ -748,14 +749,14 @@ void clique_finder<adjacency_struct>::insert_color(int v, int clq, bitset& diff)
 template <class graph_struct>
 void degeneracy_finder<graph_struct>::clear()
 {
-		order.clear();
+    order.clear();
 }
 
 // heuristically find a set of cliques and return the size of the
 // largest
 template <class graph_struct>
 void degeneracy_finder<graph_struct>::degeneracy_ordering()
-{	
+{
     for (auto v : g.nodes) {
         auto vd = g.matrix[v].size();
         if (vd >= buckets.size())

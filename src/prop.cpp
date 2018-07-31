@@ -14,6 +14,8 @@ using namespace minicsp;
 class gc_constraint : public minicsp::cons, public cons_base
 {
 private:
+    dense_graph fg;
+
     mycielskan_subgraph_finder<bitset> mf;
 
     const varmap& vars;
@@ -52,9 +54,10 @@ private:
     std::vector<int> heuristic;
 
 public:
-    gc_constraint(Solver& solver, dense_graph& g, const varmap& tvars,
-        const std::vector<indset_constraint>& isconses, const options& opt,
-        statistics& stat)
+    gc_constraint(Solver& solver, dense_graph& g,
+        std::optional<std::vector<std::pair<int, int>>> fillin,
+        const varmap& tvars, const std::vector<indset_constraint>& isconses,
+        const options& opt, statistics& stat)
         : cons_base(solver, g)
         , mf(g, cf, opt.prune)
         , vars(tvars)
@@ -103,6 +106,13 @@ public:
                 return minicsp::Solver::CCB_OK;
             };
             s.use_clause_callback(adaptive_callback);
+        }
+
+        assert((fillin && opt.fillin) || (!fillin && !opt.fillin));
+        if (fillin) {
+            fg = g;
+            for (auto e : *fillin)
+                fg.add_edge(e.first, e.second);
         }
 
         DO_OR_THROW(propagate(s));
@@ -361,21 +371,23 @@ public:
             for (auto i{culprit.size()};
                  i < mf.explanation_subgraph.nodes.size(); ++i) {
                 auto v{mf.explanation_subgraph.nodes[i]};
+                auto vr = expl_reps[v];
+                if (vr < 0) {
+                    expl_reps[v] = v;
+                    vr = v;
+                }
                 neighborhood.copy(mf.explanation_subgraph.matrix[v]);
-                neighborhood.setminus_with(g.origmatrix[v]);
-                // neighborhood.set_min(v);
                 for (auto u : neighborhood) {
+                    auto ur = expl_reps[u];
+                    if (ur < 0) {
+                        expl_reps[u] = u;
+                        ur = u;
+                    }
                     if (mf.explanation_subgraph.nodes.index(v)
                         > mf.explanation_subgraph.nodes.index(u)) {
                         assert(g.rep_of[u] == u);
                         assert(g.rep_of[v] == v);
-                        auto ur = expl_reps[u];
-                        auto vr = expl_reps[v];
-                        if (ur < 0)
-                            ur = u;
-                        if (vr < 0)
-                            vr = v;
-                        if (!g.matrix[ur].fast_contain(vr))
+                        if (!g.origmatrix[ur].fast_contain(vr))
                             reason.push(Lit(vars[ur][vr]));
                     }
                 }
@@ -735,11 +747,11 @@ void update_partitions(const dense_graph& g,
 }
 
 cons_base* post_gc_constraint(Solver& s, dense_graph& g,
-    const varmap& vars,
+    std::optional<std::vector<std::pair<int, int>>> fillin, const varmap& vars,
     const std::vector<indset_constraint>& isconses, const options& opt,
     statistics& stat)
 {
-    auto cons = new gc_constraint(s, g, vars, isconses, opt, stat);
+    auto cons = new gc_constraint(s, g, fillin, vars, isconses, opt, stat);
     s.addConstraint(cons);
 
     return cons;
