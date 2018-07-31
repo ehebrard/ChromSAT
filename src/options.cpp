@@ -88,7 +88,7 @@ options parse(int argc, char* argv[])
         "instance file", true, "data/DIMACS_cliques/brock200_1.clq", "string");
     cmd.add<SwitchArg>(opt.trace, "", "trace", "enable minicsp tracing", false);
     cmd.add<ValueArg<int>>(opt.learning, "", "learning",
-        "CDCLeaning & explanation level [0-1]", false, 1, "int");
+        "CDCLeaning & explanation level [0-1]", false, 2, "int");
     cmd.add<SwitchArg>(
         opt.xvars, "", "xvars", "add x (color) variables to the model", false);
     cmd.add<ValueArg<int>>(
@@ -101,9 +101,9 @@ options parse(int argc, char* argv[])
         "lower bound algorithm [0-3]", false, 0, "int");
     cmd.add<SwitchArg>(opt.prune, "", "prune", "enable pruning", false);
     cmd.add<SwitchArg>(opt.adaptive, "", "adaptive",
-        "Switch between CLIQUES and declared bound policy dynamically", false);
+        "Switch between CLIQUES and declared bound policy dynamically", true);
     cmd.add<ValueArg<int>>(opt.branching, "", "branching",
-        "Variable branching heuristic [0-14]", false, 0, "int");
+        "Variable branching heuristic [0-14]", false, 1, "int");
     cmd.add<SwitchArg>(opt.branching_low_degree, "", "branch-low-degree",
         "Use low degree information to improve branching", false);
     cmd.add<ValueArg<int>>(opt.cliquelimit, "", "cliquelimit",

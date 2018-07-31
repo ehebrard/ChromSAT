@@ -74,13 +74,14 @@ struct graph_reduction {
     }
 };
 
+template< class adjacency_struct >
 struct gc_model {
     int lb{0}, ub{-1};
     const gc::options& options;
     gc::statistics& statistics;
 
-    graph_reduction<gc::bitset> reduction;
-    gc::dense_graph& g;
+    graph_reduction<adjacency_struct> reduction;
+    gc::dense_graph g;
     minicsp::Solver s;
     gc::varmap vars;
     gc::cons_base* cons;
@@ -123,7 +124,7 @@ struct gc_model {
 
 
 		
-		template< class adjacency_struct >
+		// template< class adjacency_struct >
     graph_reduction<adjacency_struct> degeneracy_peeling(
 				gc::graph<adjacency_struct>& g, std::pair<int, int> bounds, bool myciel = false)
     {
@@ -144,7 +145,7 @@ struct gc_model {
 				
         int plb{lb-1};
 				
-				int iteration{0};
+				// int iteration{0};
 				do {
 					
 						// gc::histogram(g);
@@ -218,13 +219,16 @@ struct gc_model {
 
 
 
-		template< class adjacency_struct >
+		// template< class adjacency_struct >
     graph_reduction<adjacency_struct> core_reduction(
         gc::graph<adjacency_struct>& g, std::pair<int, int> bounds, bool myciel = false)
     {
         graph_reduction<adjacency_struct> gr(g, statistics);
         if (options.preprocessing == gc::options::NO_PREPROCESSING)
             return gr;
+				
+				
+				std::cout << "CORE REDUCTION: " << g.size() << "(" << (int*)(&g) << ")"<< std::endl;
 
 
         lb = bounds.first;
@@ -236,7 +240,7 @@ struct gc_model {
 
         gc::bitset forbidden(0, g.capacity(), gc::bitset::empt);
         gc::bitset util_set(0, g.capacity(), gc::bitset::empt);
-        gc::bitset removedv(0, g.capacity(), gc::bitset::empt);
+        adjacency_struct removedv(0, g.capacity(), gc::bitset::empt);
         std::vector<int> toremove;
         bool removed{false};
         int niteration{0};
@@ -306,7 +310,7 @@ struct gc_model {
 
     // find an IS, drop its vertices and add the appropriate
     // constraints to the rest of the graph
-		template< class adjacency_struct >
+		// template< class adjacency_struct >
     void find_is_constraints(gc::graph<adjacency_struct>& g, graph_reduction<adjacency_struct>& gr)
     {
         gc::degeneracy_vc_solver<gc::graph<adjacency_struct>> vc(g);
@@ -326,10 +330,14 @@ struct gc_model {
 				statistics.display(std::cout);
     }
 
-		template< class adjacency_struct >
+		// template< class adjacency_struct >
     graph_reduction<adjacency_struct> preprocess(
         gc::graph<adjacency_struct>& g, std::pair<int, int> bounds, bool myciel = false)
     {
+			
+				std::cout << "PREPROCESS: " << g.size() << "(" << (int*)(&g) << ")"<< std::endl;
+			
+			
         auto gr{core_reduction(g, bounds, myciel)};
         if (g.size() > 0 and options.indset_constraints) {
 						std::cout << "Search for indset constraints\n";
@@ -340,7 +348,7 @@ struct gc_model {
     }
 		
 		
-		template< class adjacency_struct >
+		// template< class adjacency_struct >
     graph_reduction<adjacency_struct> qpreprocess(
         gc::graph<adjacency_struct>& g, std::pair<int, int> bounds, bool myciel = false)
     {
@@ -351,12 +359,13 @@ struct gc_model {
         return gr;
     }
 
-    gc_model(gc::dense_graph& g, const gc::options& options,
+		// template< class graph_struct >
+    gc_model(gc::graph<adjacency_struct>& ig, const gc::options& options,
         gc::statistics& statistics, std::pair<int, int> bounds)
         : options(options)
         , statistics(statistics)
-        , reduction(preprocess(g, bounds))
-        , g(g)
+        , reduction(preprocess(ig, bounds))
+        , g(ig)
         , vars(create_vars())
         , cons(gc::post_gc_constraint(
               s, g, vars, reduction.constraints, options, statistics))
@@ -558,8 +567,9 @@ struct gc_model {
     }
 };
 
+template<class adjacency_struct>
 std::pair<int, int> initial_bounds(
-    const gc::dense_graph& g, gc::statistics& stat, bool myciel = false)
+    const gc::graph<adjacency_struct>& g, gc::statistics& stat, bool myciel = false)
 {
     // gc::degeneracy_finder df{g};
     // df.degeneracy_ordering();
@@ -568,8 +578,8 @@ std::pair<int, int> initial_bounds(
     // }
     // std::cout << std::endl;
 
-    gc::clique_finder<gc::bitset> cf{g};
-    gc::mycielskan_subgraph_finder<gc::bitset> mf(g, cf, false);
+    gc::clique_finder<adjacency_struct> cf{g};
+    gc::mycielskan_subgraph_finder<adjacency_struct> mf(g, cf, false);
     int lb{cf.find_cliques(g.nodes)};
 
     if (myciel)
@@ -587,14 +597,12 @@ std::pair<int, int> initial_bounds(
     return std::make_pair(lb, ub);
 }
 
-void histogram(gc::dense_graph& g)
+template<class adjacency_struct>
+void histogram(gc::graph<adjacency_struct>& g)
 {
     std::vector<int> degrees;
-    gc::bitset N(0, g.capacity() - 1, gc::bitset::empt);
     for (auto v : g.nodes) {
-        N.copy(g.matrix[v]);
-        N.intersect_with(g.nodeset);
-        degrees.push_back(N.size());
+        degrees.push_back(g.matrix[v].size());
     }
     std::sort(begin(degrees), end(degrees));
     int psize = degrees.size() / 10;
@@ -609,6 +617,12 @@ void histogram(gc::dense_graph& g)
                   << degrees[pstart] << "-" << degrees[pend] << "\n";
         pstart = pend + 1;
     }
+
+	double sum_degrees(0);
+	for(auto d: degrees){
+		sum_degrees += d;
+	}
+	std::cout << "Density : " << sum_degrees/((double)(g.size())*(double)(g.size()-1))*100 << "%" << std::endl;
 }
 
 int main(int argc, char* argv[])
@@ -616,14 +630,17 @@ int main(int argc, char* argv[])
     auto options = gc::parse(argc, argv);
     options.describe(std::cout);
 
-    gc::dense_graph g;
-    dimacs::read_graph(options.instance_file.c_str(),
-        [&](int nv, int) { g = gc::dense_graph{nv}; },
-        [&](int u, int v) {
-            if (u != v)
-                g.add_edge(u - 1, v - 1);
-        },
-        [&](int, gc::weight) {});
+		gc::graph<gc::vertices_vec> g;
+	  dimacs::read_graph(options.instance_file.c_str(),
+	      [&](int nv, int) { g = gc::graph<gc::vertices_vec>{nv}; },
+	      [&](int u, int v) {
+	          if (u != v) {
+	              g.add_edge(u - 1, v - 1);
+						}
+	      },
+	      [&](int, gc::weight) {});
+		g.canonize();		
+		
     g.describe(std::cout);
     histogram(g);
 
@@ -639,7 +656,7 @@ int main(int argc, char* argv[])
         if (options.preprocessing == gc::options::NO_PREPROCESSING)
             bounds = initial_bounds(
                 g, statistics, options.boundalg != gc::options::CLIQUES);
-        gc_model model(g, options, statistics, bounds);
+        gc_model<gc::vertices_vec> model(g, options, statistics, bounds);
         model.solve();
         model.print_stats();
         break;
@@ -652,7 +669,7 @@ int main(int argc, char* argv[])
         auto ub = bounds.second;
         for (int i = lb; i < ub; ++i) {
             gc::graph<gc::bitset> gcopy{g};
-            gc_model model(
+            gc_model<gc::bitset> model(
                 gcopy, options, statistics, std::make_pair(i, i + 1));
             auto ibounds = model.solve();
             auto ilb = ibounds.first;
@@ -680,7 +697,7 @@ int main(int argc, char* argv[])
         auto ub = bounds.second;
         for (int i = ub - 1; i >= lb; --i) {
             gc::graph<gc::bitset> gcopy{g};
-            gc_model model(
+            gc_model<gc::bitset> model(
                 gcopy, options, statistics, std::make_pair(i, i + 1));
             auto ibounds = model.solve();
             auto ilb = ibounds.first;
