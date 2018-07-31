@@ -34,7 +34,7 @@ template <class graph_struct> struct minfill_buffer {
         iterators[u] = buckets[ud].begin();
     }
 
-    minfill_buffer(const graph_struct& g)
+    explicit minfill_buffer(const graph_struct& g)
         : orig(g)
         , g(g)
         , degrees(g.capacity())
