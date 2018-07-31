@@ -46,8 +46,11 @@ public:
     template <typename other_struct>
     typename std::enable_if<!std::is_same<other_struct, adjacency_struct>{},
         basic_graph>::type&
-    operator=(basic_graph<other_struct>& g)
+    operator=(const basic_graph<other_struct>& g)
     {
+			
+				// std::cout << "deep copy\n";
+			
         nodes.reserve(g.capacity());
         nodeset.initialise(0, g.capacity() - 1, bitset::empt);
         matrix.resize(g.capacity());
@@ -65,7 +68,7 @@ public:
     template <typename other_struct,
         typename E = typename std::enable_if<
             !std::is_same<other_struct, adjacency_struct>{}>::type>
-    basic_graph(basic_graph<other_struct&> g)
+    basic_graph(const basic_graph<other_struct&> g)
     {
         this->operator=(g);
     }
@@ -170,7 +173,7 @@ public:
     template <typename other_struct>
     typename std::enable_if<!std::is_same<other_struct, adjacency_struct>{},
         graph>::type&
-    operator=(graph<other_struct>& g)
+    operator=(const graph<other_struct>& g)
     {
         this->basic_graph<adjacency_struct>::operator=(g);
         origmatrix.resize(g.capacity());
@@ -195,7 +198,7 @@ public:
     template <typename other_struct,
         typename E = typename std::enable_if<
             !std::is_same<other_struct, adjacency_struct>{}>::type>
-    graph(graph<other_struct>& g)
+    graph(const graph<other_struct>& g)
     //: basic_graph<adjacency_struct>(g)
     {
         this->operator=(g);
@@ -238,14 +241,14 @@ template <class adjacency_struct> struct clique_finder {
     int num_cliques;
     int limit;
 
-    clique_finder(const graph<adjacency_struct>& g, const int c = 0xfffffff)
-        : g(g)
+    clique_finder(const graph<adjacency_struct>& ig, const int c = 0xfffffff)
+        : g(ig)
         , num_cliques(1)
         , limit(c)
     {
 
-        std::cout << "CLIQUE FINDER: " << g.size() << "(" << (int*)(&g) << ")"
-                  << std::endl;
+        // std::cout << "CLIQUE FINDER: " << g.size() << "(" << (int*)(&g) << ")"
+        //           << std::endl;
 
         auto m = std::min(limit, g.capacity());
         last_clique.resize(g.capacity());
