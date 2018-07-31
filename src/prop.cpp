@@ -55,7 +55,7 @@ private:
 
 public:
     gc_constraint(Solver& solver, dense_graph& g,
-        std::optional<std::vector<std::pair<int, int>>> fillin,
+        boost::optional<std::vector<std::pair<int, int>>> fillin,
         const varmap& tvars, const std::vector<indset_constraint>& isconses,
         const options& opt, statistics& stat)
         : cons_base(solver, g)
@@ -747,7 +747,7 @@ void update_partitions(const dense_graph& g,
 }
 
 cons_base* post_gc_constraint(Solver& s, dense_graph& g,
-    std::optional<std::vector<std::pair<int, int>>> fillin, const varmap& vars,
+    boost::optional<std::vector<std::pair<int, int>>> fillin, const varmap& vars,
     const std::vector<indset_constraint>& isconses, const options& opt,
     statistics& stat)
 {

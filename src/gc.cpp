@@ -82,7 +82,7 @@ struct gc_model {
 
     graph_reduction<adjacency_struct> reduction;
     gc::dense_graph g;
-    std::optional<std::vector<std::pair<int, int>>> fillin;
+    boost::optional<std::vector<std::pair<int, int>>> fillin;
 
     minicsp::Solver s;
     gc::varmap vars;
@@ -175,15 +175,9 @@ struct gc_model {
 
         int plb{lb-1};
 				
-        int iteration{0};
         do {
 
-            // gc::histogram(g);
-            // std::cout << "#iter " << (++iteration) << " " << g.size() << "
-            // nodes";
-
             if (lb == plb) {
-                // std::cout << " [stopping]\n";
                 break;
             }
             plb = lb;
