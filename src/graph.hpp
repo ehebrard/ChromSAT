@@ -40,34 +40,35 @@ public:
             bs.initialise(0, nv, bitset::empt);
         }
     }
-		
-		
-		basic_graph& operator=(const basic_graph&) = default;
 
-		template <typename other_struct>
-		typename std::enable_if<!std::is_same<other_struct, adjacency_struct>{}, basic_graph>::type&
-				operator=(basic_graph<other_struct>& g)
-				{
-						nodes.reserve(g.capacity());
-						nodeset.initialise(0, g.capacity()-1, bitset::empt);
-						for (auto v : g.nodes) {
-								matrix[v].initialise(0, g.capacity()-1, bitset::empt);
-							  add_node(v);
-								for(auto u : g.matrix[v]) {
-										matrix[v].add(u);
-								}
-						}
-						return *this;
-		   }
-			 
-		basic_graph(const basic_graph&) = default;			
-		template <typename other_struct,
-	       typename std::enable_if<
-	           !std::is_same<other_struct, adjacency_struct>{}>::type>
-	   basic_graph(basic_graph<other_struct&> g)										 
-		   {
-				 this->operator=(g);
-		   }
+    basic_graph& operator=(const basic_graph&) = default;
+
+    template <typename other_struct>
+    typename std::enable_if<!std::is_same<other_struct, adjacency_struct>{},
+        basic_graph>::type&
+    operator=(basic_graph<other_struct>& g)
+    {
+        nodes.reserve(g.capacity());
+        nodeset.initialise(0, g.capacity() - 1, bitset::empt);
+        matrix.resize(g.capacity());
+        for (auto v : g.nodes) {
+            matrix[v].initialise(0, g.capacity() - 1, bitset::empt);
+            add_node(v);
+            for (auto u : g.matrix[v]) {
+                matrix[v].add(u);
+            }
+        }
+        return *this;
+    }
+
+    basic_graph(const basic_graph&) = default;
+    template <typename other_struct,
+        typename E = typename std::enable_if<
+            !std::is_same<other_struct, adjacency_struct>{}>::type>
+    basic_graph(basic_graph<other_struct&> g)
+    {
+        this->operator=(g);
+    }
     basic_graph(basic_graph&&) = default;
     basic_graph& operator=(basic_graph&&) = default;
 
@@ -164,56 +165,54 @@ public:
             partition[v].push_back(v);
         }
     }
-		
-		
-		
-		
-		graph& operator=(const graph&) = default;
-		template <typename other_struct>
-		typename std::enable_if<!std::is_same<other_struct, adjacency_struct>{}, graph>::type&
-				operator=(graph<other_struct>& g)
-				{
-						this->basic_graph<adjacency_struct>::operator=(g);
-					  origmatrix.resize(g.capacity());
-					  rep_of.resize(g.capacity());
-					  partition.resize(g.capacity());
-					  util_set.initialise(0, g.capacity() - 1, bitset::empt);
-					  diff2.initialise(0, g.capacity() - 1, bitset::empt);
-					  partu.initialise(0, g.capacity() - 1, bitset::empt);
-					  partv.initialise(0, g.capacity() - 1, bitset::empt);
-						
-			      for (auto v : nodes) {
-						origmatrix[v].initialise(0, g.capacity() - 1, bitset::empt);
-						origmatrix[v].copy(matrix[v]);
-			          rep_of[v] = v;
-			          partition[v].push_back(v);
-			      }
-						
-						return *this;
-		   }
-			 
-		graph(const graph&) = default ;
-		template <typename other_struct,
-		       typename std::enable_if<
-		           !std::is_same<other_struct, adjacency_struct>{}>::type>
-				graph(graph<other_struct&> g)
-		   {
-				 this->operator=(g);
-		   }
-		graph(graph&&) = default;
-		graph& operator=(graph&&) = default;
-		
-		
+
+    graph& operator=(const graph&) = default;
+    template <typename other_struct>
+    typename std::enable_if<!std::is_same<other_struct, adjacency_struct>{},
+        graph>::type&
+    operator=(graph<other_struct>& g)
+    {
+        this->basic_graph<adjacency_struct>::operator=(g);
+        origmatrix.resize(g.capacity());
+        rep_of.resize(g.capacity());
+        partition.resize(g.capacity());
+        util_set.initialise(0, g.capacity() - 1, bitset::empt);
+        diff2.initialise(0, g.capacity() - 1, bitset::empt);
+        partu.initialise(0, g.capacity() - 1, bitset::empt);
+        partv.initialise(0, g.capacity() - 1, bitset::empt);
+
+        for (auto v : nodes) {
+            origmatrix[v].initialise(0, g.capacity() - 1, bitset::empt);
+            origmatrix[v].copy(matrix[v]);
+            rep_of[v] = v;
+            partition[v].push_back(v);
+        }
+
+        return *this;
+    }
+
+    graph(const graph&) = default;
+    template <typename other_struct,
+        typename E = typename std::enable_if<
+            !std::is_same<other_struct, adjacency_struct>{}>::type>
+    graph(graph<other_struct>& g)
+    //: basic_graph<adjacency_struct>(g)
+    {
+        this->operator=(g);
+    }
+    graph(graph&&) = default;
+    graph& operator=(graph&&) = default;
+
     int capacity() const { return matrix.size(); }
 
     void add_edge(int u, int v);
 
-    // merge vertices and return the id of the new vertex (one of u,
-    // v)
+    // merge vertices and return the id of the new vertex (one of
+    // u, v)
     int merge(int u, int v);
 
-    // separate u and v. Just adds an edge, but it is reversible through
-    // checkpointing
+    // separate u and v. Just adds an edge, but it is reversible
+    // through checkpointing
     void separate(int u, int v);
 
     int contractPreprocess();
@@ -245,9 +244,10 @@ template <class adjacency_struct> struct clique_finder {
         , limit(c)
     {
 
-				std::cout << "CLIQUE FINDER: " << g.size() << "(" << (int*)(&g) << ")"<< std::endl;
-			
-				auto m = std::min(limit, g.capacity());
+        std::cout << "CLIQUE FINDER: " << g.size() << "(" << (int*)(&g) << ")"
+                  << std::endl;
+
+        auto m = std::min(limit, g.capacity());
         last_clique.resize(g.capacity());
         cliques.resize(m);
         clique_sz.resize(m);
