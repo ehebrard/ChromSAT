@@ -282,6 +282,12 @@ public:
         if (table) {
             table += neg_words;
             delete[] table;
+            table = nullptr;
+        }
+        if (!s.table+s.neg_words) {
+            neg_words = 0;
+            pos_words = 0;
+            return;
         }
         neg_words = s.neg_words;
         pos_words = s.pos_words;

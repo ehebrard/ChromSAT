@@ -79,6 +79,7 @@ template <class graph_struct> struct minfill_buffer {
                 util_set.copy(g.matrix[v]);
                 util_set.setminus_with(g.matrix[u]);
                 util_set.setminus_with(ordered);
+                util_set.intersect_with(g.nodeset);
                 for (auto w : util_set) {
                     if (w == u)
                         continue;
