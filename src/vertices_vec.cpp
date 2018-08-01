@@ -136,6 +136,9 @@ void vertices_vec::difference_with(vertices_vec const& v)
 // Difference with
 void vertices_vec::setminus_with(vertices_vec const& v)
 {
+    // std::cout << fast_contain(7) << std::endl;
+    // std::cout << v.fast_contain(7) << std::endl;
+
     // Put difference in the buffer
     buffer.clear();
     std::set_difference(vertices.begin(), vertices.end(), v.vertices.begin(),
@@ -143,6 +146,8 @@ void vertices_vec::setminus_with(vertices_vec const& v)
     // Copy the buffer in vertices
     // vertices.clear();
     vertices = buffer;
+
+    // std::cout << fast_contain(7) << std::endl;
 }
 
 void vertices_vec::safe_difference_with(vertices_vec & v)

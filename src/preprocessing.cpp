@@ -160,22 +160,14 @@ struct gc_preprocessor {
 	
 						if(removal) {
 							
-								// std::cout << "\nremove";
-								// for( auto v : toremove ) {
-								// 	std::cout << " " << v ;
-								// }
-								// std::cout << std::endl;
-							
 								g.remove(toremove);
 								toremove.clear();
-						}
-					
-				} while(true);
-				
-				return gr;
-		}
-		
-		
+                                                }
+
+                                } while (true);
+
+                                return gr;
+    }
 
     graph_reduction<adjacency_struct> preprocess(
         gc::graph<adjacency_struct>& g, std::pair<int, int> bounds, bool myciel = false)

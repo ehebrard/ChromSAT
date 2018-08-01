@@ -83,11 +83,9 @@ public:
         }
         assert(i == g.size());
         for (auto v : g.nodes) {
-            for (auto u : g.matrix[v])
-                if (v < u) {
-                    matrix[vmap[v]].add(vmap[u]);
-                    matrix[vmap[u]].add(vmap[v]);
-                }
+            for (auto u : g.matrix[v]) {
+                matrix[vmap[v]].add(vmap[u]);
+            }
         }
     }
     basic_graph(basic_graph&&) = default;
@@ -115,6 +113,22 @@ public:
     void clear();
 
     void canonize();
+
+    void check_consistency()
+    {
+        assert(nodes.size() == nodeset.size());
+        for (auto v : nodes) {
+            assert(!matrix[v].fast_contain(v));
+
+            assert(nodeset.fast_contain(v));
+        }
+        for (auto v : nodes) {
+            for (auto u : matrix[v]) {
+                assert(nodeset.fast_contain(u));
+                assert(matrix[u].fast_contain(v));
+            }
+        }
+    }
 };
 
 template <class adjacency_struct>
@@ -458,12 +472,16 @@ void basic_graph<adjacency_struct>::add_clique(const adjacency_struct& C)
 
 template <class adjacency_struct>
 void basic_graph<adjacency_struct>::remove(const adjacency_struct& toremove) {
+
     for (auto v : toremove) {
         remove_node(v);
     }
+
     for (auto v : nodes) {
         matrix[v].setminus_with(toremove);
     }
+
+    // check_consistency();
 }
 
 template <class adjacency_struct>

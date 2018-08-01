@@ -286,6 +286,7 @@ struct gc_model {
             }
 
             if (removal) {
+                toremove.canonize();
                 g.remove(toremove);
                 for (auto u : toremove) {
                     gr.status[u] = vertex_status::low_degree_removed;
