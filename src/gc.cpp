@@ -169,13 +169,13 @@ struct gc_model {
         if (options.preprocessing == gc::options::NO_PREPROCESSING)
             return gr;
 
-        // std::cout << "PEELING: " << g.size() << "(" << (int*)(&g) << ")"
-        //           << std::endl;
+				std::cout << "start peeling\n";	
+
 
         lb = bounds.first;
         ub = bounds.second;
 
-        gc::clique_finder<adjacency_struct> cf{g};
+        gc::clique_finder<adjacency_struct> cf{g, std::min(100, g.size())};
         gc::mycielskan_subgraph_finder<adjacency_struct> mf(g, cf, false);
         gc::degeneracy_finder<gc::graph<adjacency_struct>> df{g};
 
@@ -190,8 +190,6 @@ struct gc_model {
                 break;
             }
             plb = lb;
-            statistics.notify_lb(lb);
-            statistics.display(std::cout);
             if (g.size() == 0) {
                 break;
             }
@@ -200,6 +198,8 @@ struct gc_model {
             df.clear();
             // mf.clear();
 
+
+						std::cout << "compute degeneracy ordering\n";
             int degeneracy = 0;
             df.degeneracy_ordering();
 
@@ -225,13 +225,21 @@ struct gc_model {
                 statistics.display(std::cout);
             }
 
+
+						std::cout << "compute bound\n";
+
             lb = cf.find_cliques(reverse);
             if (false and g.size() < 1000)
                 lb = mf.improve_cliques_larger_than(lb);
             if (lb < plb)
                 lb = plb;
+            statistics.notify_lb(lb);
+            statistics.display(std::cout);
 
             // std::cout << ", lb = " << lb << std::endl;
+
+						std::cout << "remove nodes\n";
+
 
             bool removal = false;
             for (auto v : df.order) {
@@ -699,9 +707,14 @@ int main(int argc, char* argv[])
     switch (options.strategy) {
     case gc::options::BNB: {
         std::pair<int, int> bounds{0, g.capacity()};
-        if (options.preprocessing == gc::options::NO_PREPROCESSING)
+        if (options.preprocessing == gc::options::NO_PREPROCESSING) {
+					std::cout << "compute init bounds\n" ;
             bounds = initial_bounds(
                 g, statistics, options.boundalg != gc::options::CLIQUES);
+					}
+					
+				std::cout << "start building model\n";	
+					
         gc_model<gc::vertices_vec> model(g, options, statistics, bounds);
         model.solve();
         model.print_stats();
