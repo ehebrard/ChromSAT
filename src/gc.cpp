@@ -2,15 +2,16 @@
 
 #include "brancher.hpp"
 #include "dimacs.hpp"
+#include "fillin.hpp"
 #include "graph.hpp"
 #include "mycielski.hpp"
 #include "options.hpp"
 #include "prop.hpp"
 #include "rewriter.hpp"
+#include "sparse_dynamic_graph.hpp"
 #include "statistics.hpp"
 #include "utils.hpp"
 #include "vcsolver.hpp"
-#include "fillin.hpp"
 
 #include <minicsp/core/cons.hpp>
 #include <minicsp/core/solver.hpp>
@@ -430,6 +431,21 @@ struct gc_model {
         bool myciel = false)
     {
         auto gr{degeneracy_peeling(g, bounds, myciel)};
+
+        std::cout << "launch dsatur\n";
+
+        gc::dyngraph dg(g);
+        gc::coloring col;
+        col.brelaz_color(dg);
+
+        auto ncol{*std::max_element(begin(col.color), end(col.color))};
+
+        if (ub > ncol) {
+            ub = ncol;
+            statistics.notify_ub(ub);
+            statistics.display(std::cout);
+        }
+
         if (g.size() > 0 and options.indset_constraints)
             find_is_constraints(g, gr);
         std::cout << "Preprocessing finished at " << minicsp::cpuTime() << "\n";

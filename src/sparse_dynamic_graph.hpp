@@ -5,9 +5,9 @@
 #include <vector>
 
 #include "bitset.hpp"
-#include "intstack.hpp"
+#include "graph.hpp"
 #include "interval_list.hpp"
-
+#include "intstack.hpp"
 
 #ifndef __DYNGRAPH_HPP
 #define __DYNGRAPH_HPP
@@ -105,6 +105,8 @@ public:
     dyngraph() {}
     dyngraph(const int n);
     dyngraph(const dyngraph& g);
+    template <class adjacency_struct>
+    dyngraph(const gc::graph<adjacency_struct>& g);
 
     // helpers
     int size() const;
@@ -156,6 +158,22 @@ public:
 		void rem_edge(const int x, const int y, const int i);
 
 };
+
+template <class adjacency_struct>
+dyngraph::dyngraph(const gc::graph<adjacency_struct>& g)
+    : dyngraph(g.size())
+{
+    std::vector<int> vmap(g.capacity());
+
+    int i = 0;
+    for (auto v : g.nodes)
+        vmap[v] = i++;
+
+    for (auto v : g.nodes)
+        for (auto u : g.matrix[v])
+            if (vmap[u] > vmap[v])
+                add_edge(vmap[v], vmap[u]);
+}
 
 std::ostream& operator<<(std::ostream& os, const dyngraph& x);
 

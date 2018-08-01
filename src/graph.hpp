@@ -352,6 +352,41 @@ template <class adjacency_struct> struct clique_finder {
             begin(clique_sz), begin(clique_sz) + num_cliques);
     }
 
+    // template <class ordering> int find_cliques(std::vector<int>::iterator& b,
+    // std::vector<int>::iterator& e, const int l=0xfffffff)
+    // {
+    //     if (l < limit)
+    //         limit = l;
+    //     clear();
+    //     if (e == b)
+    //         return 0;
+    //
+    //     for (auto ui=b; ui!=e; ++ui) {
+    //         bool found{false};
+    // 						int u = *ui;
+    //         for (int i = 0; i != num_cliques; ++i)
+    //             if (candidates[i].fast_contain(u)) {
+    //                 found = true;
+    //                 insert(u, i);
+    //             }
+    //         if (!found && num_cliques < limit) {
+    //             new_clique();
+    //             insert(u, num_cliques - 1);
+    //         }
+    //     }
+    //
+    //     for (auto ui=b; ui!=e; ++ui) {
+    // 						int u = *ui;
+    //         for (int i = last_clique[u] + 1; i < num_cliques; ++i)
+    //             if (candidates[i].fast_contain(u)) {
+    //                 insert(u, i);
+    //             }
+    //     }
+    //
+    //     return *std::max_element(
+    //         begin(clique_sz), begin(clique_sz) + num_cliques);
+    // }
+
     template <class ordering>
     void find_clique_cover(ordering o)
     {
