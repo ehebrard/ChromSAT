@@ -118,6 +118,9 @@ struct gc_model {
                 s.setVarName(vars.vars[i][j], n);
             }
         }
+				
+				std::cout << "created " << s.nVars() << " variables\n";
+				
         return vars;
     }
 
@@ -143,6 +146,9 @@ struct gc_model {
                 }
             }
         }
+				
+				std::cout << "created " << s.nVars() << " variables\n";
+				
         return vars;
     }
 
@@ -222,7 +228,7 @@ struct gc_model {
             }
 
             lb = cf.find_cliques(reverse);
-            if (g.size() < 1000)
+            if (false and g.size() < 1000)
                 lb = mf.improve_cliques_larger_than(lb);
             if (lb < plb)
                 lb = plb;
@@ -393,8 +399,8 @@ struct gc_model {
         gc::statistics& statistics, std::pair<int, int> bounds)
         : options(options)
         , statistics(statistics)
-        , reduction(preprocess(ig, bounds))
-				//, reduction(qpreprocess(ig, bounds))
+        // , reduction(preprocess(ig, bounds))
+				, reduction(qpreprocess(ig, bounds))
         , g(ig)
         , vars(create_vars())
         , cons(gc::post_gc_constraint(
