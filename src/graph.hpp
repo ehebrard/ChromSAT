@@ -60,38 +60,6 @@ public:
         }
         return *this;
     }
-			//     template <typename other_struct>
-			//     typename std::enable_if<!std::is_same<other_struct, adjacency_struct>{},
-			//         basic_graph>::type&
-			//     operator=(const basic_graph<other_struct>& g)
-			//     {
-			//
-			// 	std::cout << "deep smart copy\n";
-			//
-			// 	if(g.size() > 0) {
-			//         nodes.reserve(g.size());
-			// 	nodes.fill();
-			//         nodeset.initialise(0, g.size() - 1, bitset::full);
-			//         matrix.resize(g.size());
-			//
-			//
-			// 	std::vector<int> vmap(g.capacity());
-			// 	int i=0;
-			// 	for (auto v : g.nodes) {
-			// 			matrix[i].initialise(0, g.size() - 1, bitset::empt);
-			// 			vmap[v] = i++;
-			// 	}
-			// 	assert( i == g.size() );
-			//
-			//         for (auto v : g.nodes) {
-			//             for (auto u : g.matrix[v]) {
-			//                 matrix[vmap[v]].add(vmap[u]);
-			//             }
-			//         }
-			// }
-			//
-			//         return *this;
-			//     }
 
     basic_graph(const basic_graph&) = default;
     template <typename other_struct,
@@ -100,6 +68,27 @@ public:
     basic_graph(const basic_graph<other_struct&> g)
     {
         this->operator=(g);
+    }
+    template <class other_struct>
+    basic_graph(const basic_graph<other_struct>& g, std::vector<int>& vmap)
+    {
+        nodes.reserve(g.size());
+        nodes.fill();
+        nodeset.initialise(0, g.size() - 1, bitset::full);
+        matrix.resize(g.size());
+        int i = 0;
+        for (auto v : g.nodes) {
+            matrix[i].initialise(0, g.size() - 1, bitset::empt);
+            vmap[v] = i++;
+        }
+        assert(i == g.size());
+        for (auto v : g.nodes) {
+            for (auto u : g.matrix[v])
+                if (v < u) {
+                    matrix[vmap[v]].add(vmap[u]);
+                    matrix[vmap[u]].add(vmap[v]);
+                }
+        }
     }
     basic_graph(basic_graph&&) = default;
     basic_graph& operator=(basic_graph&&) = default;
@@ -198,13 +187,8 @@ public:
         }
     }
 
-    graph& operator=(const graph&) = default;
-    template <typename other_struct>
-    typename std::enable_if<!std::is_same<other_struct, adjacency_struct>{},
-        graph>::type&
-    operator=(const graph<other_struct>& g)
+    void init_structures()
     {
-        this->basic_graph<adjacency_struct>::operator=(g);
         origmatrix.resize(this->capacity());
         rep_of.resize(this->capacity());
         partition.resize(this->capacity());
@@ -214,11 +198,20 @@ public:
         partv.initialise(0, this->capacity() - 1, bitset::empt);
 
         for (auto v : nodes) {
-            origmatrix[v].initialise(0, g.capacity() - 1, bitset::empt);
+            origmatrix[v].initialise(0, this->capacity() - 1, bitset::empt);
             origmatrix[v].copy(matrix[v]);
             rep_of[v] = v;
             partition[v].push_back(v);
         }
+    }
+    graph& operator=(const graph&) = default;
+    template <typename other_struct>
+    typename std::enable_if<!std::is_same<other_struct, adjacency_struct>{},
+        graph>::type&
+    operator=(const graph<other_struct>& g)
+    {
+        this->basic_graph<adjacency_struct>::operator=(g);
+        init_structures();
 
         return *this;
     }
@@ -231,6 +224,12 @@ public:
     //: basic_graph<adjacency_struct>(g)
     {
         this->operator=(g);
+    }
+    template <class other_struct>
+    graph(const graph<other_struct>& g, std::vector<int>& vmap)
+        : basic_graph<adjacency_struct>(g, vmap)
+    {
+        init_structures();
     }
     graph(graph&&) = default;
     graph& operator=(graph&&) = default;

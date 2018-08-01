@@ -141,6 +141,7 @@ public:
         // merged with u
         auto merge_3way = [&](int u, int v, int x) -> Clause* {
             Var uxvar = vars[u][x];
+
             if (s.value(uxvar) == l_True)
                 return NO_REASON;
             if (u == v)

@@ -22,7 +22,35 @@ enum class vertex_status : uint8_t {
     indset_removed,
 };
 
+template <class adjacency_struct> void histogram(gc::graph<adjacency_struct>& g)
+{
+    std::vector<int> degrees;
+    for (auto v : g.nodes) {
+        degrees.push_back(g.matrix[v].size());
+    }
+    std::sort(begin(degrees), end(degrees));
+    int psize = degrees.size() / 10;
+    int pstart{0};
+    while (static_cast<size_t>(pstart) < degrees.size()) {
+        int pend
+            = std::min(static_cast<size_t>(pstart + psize), degrees.size() - 1);
+        while (static_cast<size_t>(pend) < degrees.size() - 1
+            && degrees[pend + 1] == degrees[pend])
+            ++pend;
+        std::cout << (pend - pstart + 1) << " vertices: degree "
+                  << degrees[pstart] << "-" << degrees[pend] << "\n";
+        pstart = pend + 1;
+    }
 
+    double sum_degrees(0);
+    for (auto d : degrees) {
+        sum_degrees += d;
+    }
+    std::cout << "Density : "
+              << sum_degrees / ((double)(g.size()) * (double)(g.size() - 1))
+            * 100
+              << "%" << std::endl;
+}
 
 template< class adjacency_struct >
 struct graph_reduction {
@@ -80,8 +108,13 @@ struct gc_model {
     const gc::options& options;
     gc::statistics& statistics;
 
+    std::vector<int>
+        vertex_map; // maps vertices of the original graph to vertices of g
+
+    gc::graph<adjacency_struct>& original;
     graph_reduction<adjacency_struct> reduction;
     gc::dense_graph g;
+
     boost::optional<std::vector<std::pair<int, int>>> fillin;
 
     minicsp::Solver s;
@@ -118,9 +151,9 @@ struct gc_model {
                 s.setVarName(vars.vars[i][j], n);
             }
         }
-				
-				std::cout << "created " << s.nVars() << " variables\n";
-				
+
+        std::cout << "created " << s.nVars() << " chord variables\n";
+
         return vars;
     }
 
@@ -146,9 +179,9 @@ struct gc_model {
                 }
             }
         }
-				
-				std::cout << "created " << s.nVars() << " variables\n";
-				
+
+        std::cout << "created " << s.nVars() << " classic variables\n";
+
         return vars;
     }
 
@@ -193,6 +226,8 @@ struct gc_model {
             if (g.size() == 0) {
                 break;
             }
+
+            histogram(g);
 
             cf.clear();
             df.clear();
@@ -405,9 +440,11 @@ struct gc_model {
         gc::statistics& statistics, std::pair<int, int> bounds)
         : options(options)
         , statistics(statistics)
-				, reduction(qpreprocess(ig, bounds))
+        , vertex_map(ig.capacity())
+        , original(ig)
+        , reduction(qpreprocess(ig, bounds))
         // , reduction(preprocess(ig, bounds))
-        , g(ig)
+        , g(ig, vertex_map)
         , vars(create_vars())
         , cons(gc::post_gc_constraint(
               s, g, fillin, vars, reduction.constraints, options, statistics))
@@ -552,11 +589,11 @@ struct gc_model {
 
     std::vector<int> get_solution()
     {
-        std::vector<int> col(g.capacity());
+        std::vector<int> col(original.capacity());
         int next{0};
         for (auto u : g.nodes) {
             for (auto v : g.partition[u])
-                col[v] = next;
+                col[original.nodes[v]] = next;
             ++next;
         }
         return col;
@@ -639,37 +676,6 @@ std::pair<int, int> initial_bounds(
     return std::make_pair(lb, ub);
 }
 
-template<class adjacency_struct>
-void histogram(gc::graph<adjacency_struct>& g)
-{
-    std::vector<int> degrees;
-    for (auto v : g.nodes) {
-        degrees.push_back(g.matrix[v].size());
-    }
-    std::sort(begin(degrees), end(degrees));
-    int psize = degrees.size() / 10;
-    int pstart{0};
-    while (static_cast<size_t>(pstart) < degrees.size()) {
-        int pend
-            = std::min(static_cast<size_t>(pstart + psize), degrees.size() - 1);
-        while (static_cast<size_t>(pend) < degrees.size() - 1
-            && degrees[pend + 1] == degrees[pend])
-            ++pend;
-        std::cout << (pend - pstart + 1) << " vertices: degree "
-                  << degrees[pstart] << "-" << degrees[pend] << "\n";
-        pstart = pend + 1;
-    }
-
-    double sum_degrees(0);
-    for (auto d : degrees) {
-        sum_degrees += d;
-    }
-    std::cout << "Density : "
-              << sum_degrees / ((double)(g.size()) * (double)(g.size() - 1))
-            * 100
-              << "%" << std::endl;
-}
-
 int main(int argc, char* argv[])
 {
     auto options = gc::parse(argc, argv);
@@ -692,6 +698,13 @@ int main(int argc, char* argv[])
 
     g.describe(std::cout);
     histogram(g);
+
+    for (auto v : g.nodes) {
+        if (g.matrix[v].size() == 0) {
+            std::cout << " " << v;
+        }
+    }
+    std::cout << std::endl;
 
     gc::statistics statistics(g.capacity());
     if (options.preprocessing)
