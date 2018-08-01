@@ -666,6 +666,8 @@ int main(int argc, char* argv[])
 {
     auto options = gc::parse(argc, argv);
     options.describe(std::cout);
+		
+		std::cout << "read graph\n";
 
     gc::graph<gc::vertices_vec> g;
     dimacs::read_graph(options.instance_file.c_str(),
@@ -677,6 +679,8 @@ int main(int argc, char* argv[])
         },
         [&](int, gc::weight) {});
     g.canonize();
+		
+		std::cout << "print graph\n";
 
     g.describe(std::cout);
     histogram(g);
@@ -689,6 +693,8 @@ int main(int argc, char* argv[])
 
     // std::cout << "MAIN (READ): " << g.size() << "(" << (int*)(&g) << ")"
     //           << std::endl;
+		
+		std::cout << "start solving\n";
 
     switch (options.strategy) {
     case gc::options::BNB: {

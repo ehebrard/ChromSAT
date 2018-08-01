@@ -22,8 +22,8 @@ struct indset_constraint {
 
     template <class adjacency_struct>
     indset_constraint(adjacency_struct& scope, int s)
-        : source(s)
-        , vs(scope.min(), scope.max(), bitset::empt)
+        : vs(scope.min(), scope.max(), bitset::empt)
+				, source(s)
     {
         vs.copy(scope);
     }
