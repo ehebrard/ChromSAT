@@ -432,7 +432,7 @@ struct gc_model {
     {
         auto gr{degeneracy_peeling(g, bounds, myciel)};
 
-        if (false and g.size() > 0) {
+        if (g.size() > 0) {
             std::cout << "[preprocessing] launch dsatur\n";
 
             gc::dyngraph dg(g);
