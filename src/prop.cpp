@@ -276,6 +276,8 @@ public:
             });
         }
 
+        assert(!culprit.empty());
+
         expl_reps.clear();
         expl_reps.resize(g.capacity(), -1);
 

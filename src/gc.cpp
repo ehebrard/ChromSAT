@@ -485,6 +485,7 @@ struct gc_model {
 
             cons->bestlb = std::max(lb, cons->bestlb);
             cons->ub = std::min(ub, cons->ub);
+            cons->actualub = cons->ub;
 
             if (options.xvars) {
                 xvars = s.newCSPVarArray(g.capacity(), 0, cons->ub - 2);
