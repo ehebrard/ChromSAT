@@ -10,7 +10,7 @@ namespace gc
 struct rewriter {
     minicsp::Solver& s;
     const dense_graph& g;
-    cons_base& c;
+    cons_base* c;
     const varmap& evars;
     const std::vector<minicsp::cspvar>& xvars;
 
@@ -35,7 +35,7 @@ struct rewriter {
 
     int numruns{0};
 
-    rewriter(minicsp::Solver& s, const dense_graph& g, cons_base& c,
+    rewriter(minicsp::Solver& s, const dense_graph& g, cons_base* c,
         const varmap& evars, const std::vector<minicsp::cspvar>& xvars)
         : s(s)
         , g(g)

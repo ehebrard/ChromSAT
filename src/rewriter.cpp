@@ -23,7 +23,7 @@ minicsp::Solver::clause_callback_result_t rewriter::rewrite(
     if (s.trace)
         std::cout << "Rewriting clause #" << numruns << " = "
                   << print(s, &clause) << "\n";
-    int ncol = c.ub - 1;
+    int ncol = c->ub - 1;
     partitions_eq.resize(ncol);
     partitions_neq.resize(ncol);
     for (auto& p : partitions_eq)

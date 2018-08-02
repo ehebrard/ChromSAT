@@ -1,7 +1,9 @@
 
 
+#include <algorithm>
 #include <assert.h>
 #include <iomanip>
+#include <random>
 #include <vector>
 
 #include "bitset.hpp"
@@ -182,22 +184,21 @@ std::ostream& operator<<(std::ostream& os, const dyngraph* x);
 
 struct coloring {
 
-		std::vector<int> color;
-		std::vector<int> order;
-		std::vector<int> rank;
-		std::vector<int> first;
-		std::vector<interval_list> satur;
-		
-		void brelaz_color(dyngraph& g);
-		
-		void remove(const int y, const int d);
-		
-		void clear() {
-				first.clear();
-				for(auto v : order) 
-						satur[v].clear();
-		}
+    std::vector<int> color;
+    std::vector<int> order;
+    std::vector<int> rank;
+    std::vector<int> first;
+    std::vector<interval_list> satur;
+    std::random_device rd;
 
+    void brelaz_color(dyngraph& g, const int randomized);
+    void remove(const int y, const int d);
+    void clear()
+    {
+        first.clear();
+        for (auto v : order)
+            satur[v].clear();
+    }
 };
 
 

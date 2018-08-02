@@ -197,15 +197,19 @@ public:
         assert(!table);
         neg_words = (lb >> EXP);
         pos_words = (ub >> EXP) + 1;
-        if (pool == NULL)
-            table = new WORD_TYPE[pos_words - neg_words];
-        else
-            table = pool;
-        for (int i = 0; i < pos_words - neg_words; ++i)
-            table[i] = p;
-        table[pos_words - neg_words - 1]
-            &= (p >> (size_word_bit - 1 - (ub & CACHE)));
-        table[0] &= (p << (lb & CACHE));
+        table = NULL;
+
+        if (pos_words > neg_words) {
+            if (pool == NULL)
+                table = new WORD_TYPE[pos_words - neg_words];
+            else
+                table = pool;
+            for (int i = 0; i < pos_words - neg_words; ++i)
+                table[i] = p;
+            table[pos_words - neg_words - 1]
+                &= (p >> (size_word_bit - 1 - (ub & CACHE)));
+            table[0] &= (p << (lb & CACHE));
+        }
         table -= neg_words;
     }
 

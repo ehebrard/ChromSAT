@@ -129,20 +129,20 @@ options parse(int argc, char* argv[])
 
 void options::describe(std::ostream& os)
 {
-    os << "GC configuration\n";
-    os << "cmdline = " << cmdline << "\n";
-    os << "Instance file = " << instance_file << "\n";
-    os << "Clause learning = " << learning << "\n";
-    os << "Polarity policy = " << polarity << "\n";
-    os << "Clique ordering = " << ordering << "\n";
-    os << " ... low degree = " << ordering_low_degree << "\n";
-    os << "Color variables = " << (xvars ? "present" : "absent") << "\n";
-    os << "Bound policy    = " << boundalg << "\n";
-    os << "Adaptive bounds = " << adaptive << "\n";
-    os << "Preprocessing   = " << (preprocessing == 0 ? "none" : preprocessing == 1 ?  "dense" : "sparse") << "\n";
-    os << "IS constraints  = " << indset_constraints << "\n";
-    os << "fillin          = " << fillin << "\n";
-    os << "Branching strat = ";
+    os << "[options] GC configuration\n";
+    os << "[options] cmdline = " << cmdline << "\n";
+    os << "[options] Instance file = " << instance_file << "\n";
+    os << "[options] Clause learning = " << learning << "\n";
+    os << "[options] Polarity policy = " << polarity << "\n";
+    os << "[options] Clique ordering = " << ordering << "\n";
+    os << "[options]  ... low degree = " << ordering_low_degree << "\n";
+    os << "[options] Color variables = " << (xvars ? "present" : "absent") << "\n";
+    os << "[options] Bound policy    = " << boundalg << "\n";
+    os << "[options] Adaptive bounds = " << adaptive << "\n";
+    os << "[options] Preprocessing   = " << (preprocessing == 0 ? "none" : preprocessing == 1 ?  "dense" : "sparse") << "\n";
+    os << "[options] IS constraints  = " << indset_constraints << "\n";
+    os << "[options] fillin          = " << fillin << "\n";
+    os << "[options] Branching strat = ";
     switch (branching) {
     case gc::options::VSIDS:
         os << "VSIDS\n";
@@ -193,8 +193,8 @@ void options::describe(std::ostream& os)
         os << "VSIDS restricted to assignments to color variables\n";
         break;
     }
-    os << " ... low degree = " << branching_low_degree << "\n";
-    os << "Strategy        = ";
+    os << "[options]  ... low degree = " << branching_low_degree << "\n";
+    os << "[options] Strategy        = ";
     switch (strategy) {
     case BNB:
         os << "branch and bound";

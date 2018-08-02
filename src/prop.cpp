@@ -752,9 +752,13 @@ cons_base* post_gc_constraint(Solver& s, dense_graph& g,
     const std::vector<indset_constraint>& isconses, const options& opt,
     statistics& stat)
 {
-    auto cons = new gc_constraint(s, g, fillin, vars, isconses, opt, stat);
-    s.addConstraint(cons);
-
-    return cons;
+    // try {
+    if (g.size() > 0) {
+        auto cons = new gc_constraint(s, g, fillin, vars, isconses, opt, stat);
+        s.addConstraint(cons);
+        return cons;
+    }
+    // } catch (minicsp::unsat &u) {
+    return NULL;
 }
 } // namespace gc

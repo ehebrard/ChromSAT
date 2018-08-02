@@ -548,10 +548,10 @@ int read_graph(gc::options& options, gc::dyngraph& g)
 std::vector<int> upper_bound(gc::options& options, gc::dyngraph& g) 
 {
 	gc::coloring col;
-	col.brelaz_color(g);
-	g.undo();
-	
-	return col.color;
+        col.brelaz_color(g, false);
+        g.undo();
+
+        return col.color;
 }
 
 int lower_bound(gc::options& options, gc::dyngraph& g) 

@@ -268,7 +268,7 @@ public:
 
     int current_checkpoint() const { return cur_ckpt; }
 
-    void describe(std::ostream& os) const;
+    void describe(std::ostream& os, const int num_edges) const;
 
     // debugging
     void check_consistency() const;
@@ -718,12 +718,17 @@ void graph<adjacency_struct>::restore(int ckpt)
 }
 
 template <class adjacency_struct>
-void graph<adjacency_struct>::describe(std::ostream& os) const
+void graph<adjacency_struct>::describe(std::ostream& os, const int num_edges) const
 {
-    os << "# vertices = " << capacity() << std::endl;
-    // for( auto v : nodes ) {
-    //      os << matrix[v].size() << std::endl;
-    // }
+		// int m = num_edges;
+		// if(m < 0) {
+		// 	m = 0;
+		// 	for (auto v : nodes) m += matrix[v].size();
+		// }
+	
+    os << "#vertices = " << this->size() << "   #edges = " << num_edges << "   density = " << (double)(num_edges*2) / ((double)(this->size()) * (double)(this->size() - 1))
+            * 100
+              << "%" << std::endl;
 }
 
 template <class adjacency_struct>

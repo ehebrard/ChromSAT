@@ -46,7 +46,7 @@ double statistics::get_bound_increase() const {
 
 void statistics::describe(std::ostream& os)
 {	
-		os << ">>statistics: lb ub time conflicts delta\n";
+		os << "[statistics] lb ub time conflicts delta\n";
 }
 
 void statistics::display(std::ostream& os)
@@ -64,7 +64,7 @@ void statistics::display(std::ostream& os)
 		
 		if(changed) {
 				os.setf(std::ios_base::fixed, std::ios_base::floatfield);
-		    os << ">>data: lb = " << std::setw(4) << std::left << best_lb
+		    os << "[data] lb = " << std::setw(4) << std::left << best_lb
 					 << "| ub = " << std::setw(4) << std::left << best_ub
 					 << "| time = " << std::setw(10) << std::left << std::setprecision(4) << minicsp::cpuTime()
 					 << "| conflicts = " << std::setw(10) << std::left << (cons ? total_conflicts + cons->s.conflicts : total_conflicts)
