@@ -720,15 +720,21 @@ void graph<adjacency_struct>::restore(int ckpt)
 template <class adjacency_struct>
 void graph<adjacency_struct>::describe(std::ostream& os, const int num_edges) const
 {
-		// int m = num_edges;
-		// if(m < 0) {
-		// 	m = 0;
-		// 	for (auto v : nodes) m += matrix[v].size();
-		// }
-	
-    os << "#vertices = " << this->size() << "   #edges = " << num_edges << "   density = " << (double)(num_edges*2) / ((double)(this->size()) * (double)(this->size() - 1))
+    int m = num_edges;
+    if (m < 0) {
+        m = 0;
+        for (auto v : nodes)
+            m += matrix[v].size();
+    }
+
+    os << "#vertices = " << this->size() << "   #edges = " << m / 2
+       << "   density = "
+       << (m > 0
+                  ? (double)(m)
+                      / ((double)(this->size()) * (double)(this->size() - 1))
+                  : 1)
             * 100
-              << "%" << std::endl;
+       << "%";
 }
 
 template <class adjacency_struct>

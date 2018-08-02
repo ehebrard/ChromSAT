@@ -122,6 +122,8 @@ options parse(int argc, char* argv[])
         "compute IS-based lower bound", false);
     cmd.add<ValueArg<std::string>>(opt.format, "", "format",
         "File format", false, "dimacs", "string");
+    cmd.add<ValueArg<int>>(
+        opt.verbosity, "", "verbosity", "Verbosity level", false, 0, "int");
 
     cmd.parse(argc, argv);
     return opt;

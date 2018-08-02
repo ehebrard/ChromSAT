@@ -105,9 +105,10 @@ struct graph_reduction {
 
 template< class adjacency_struct >
 struct gc_model {
-    int lb{0}, ub{-1};
     const gc::options& options;
     gc::statistics& statistics;
+
+    int lb, ub;
 
     std::vector<int>
         vertex_map; // maps vertices of the original graph to vertices of g
@@ -115,6 +116,8 @@ struct gc_model {
     gc::graph<adjacency_struct>& original;
     graph_reduction<adjacency_struct> reduction;
     gc::dense_graph g;
+
+    // gc::dyngraph dg;
 
     boost::optional<std::vector<std::pair<int, int>>> fillin;
 
@@ -153,7 +156,8 @@ struct gc_model {
             }
         }
 
-        std::cout << "[modeling] created " << s.nVars() << " chord variables\n\n";
+        std::cout << "[modeling] created " << s.nVars()
+                  << " chord variables at " << minicsp::cpuTime() << "\n\n";
 
         return vars;
     }
@@ -189,16 +193,28 @@ struct gc_model {
 
     gc::varmap create_vars()
     {
+
+				if(g.size() > 0) {
+		        std::cout << "[modeling] launch dense dsatur\n";
+		        // we have a dense graph now, so let's compute dsatur the other way just
+		        // in case
+		        auto sol{gc::brelaz_color(g)};
+		        int ncol{*max_element(begin(sol), end(sol)) + 1};
+		        if (ub > ncol) {
+		            ub = ncol;
+		            statistics.notify_ub(ub);
+		            statistics.display(std::cout);
+		        }
+				}
+
         if (options.fillin)
             return create_chord_vars();
         else
             return create_all_vars();
     }
 
-
     graph_reduction<adjacency_struct> degeneracy_peeling(
-        gc::graph<adjacency_struct>& g, std::pair<int, int> bounds,
-        bool myciel = false)
+        gc::graph<adjacency_struct>& g)
     {
         graph_reduction<adjacency_struct> gr(g, statistics);
         if (options.preprocessing == gc::options::NO_PREPROCESSING)
@@ -206,8 +222,8 @@ struct gc_model {
 
         std::cout << "[preprocessing] start peeling\n";
 
-        lb = bounds.first;
-        ub = bounds.second;
+        // lb = bounds.first;
+        // ub = bounds.second;
 
         gc::clique_finder<adjacency_struct> cf{g, std::min(100, g.size())};
         gc::mycielskan_subgraph_finder<adjacency_struct> mf(g, cf, false);
@@ -216,19 +232,10 @@ struct gc_model {
         adjacency_struct toremove;
         toremove.initialise(0, g.capacity(), gc::bitset::empt);
 
-        int plb{lb-1};
-
         do {
-
-            if (lb == plb) {
-                break;
-            }
-            plb = lb;
             if (g.size() == 0) {
                 break;
             }
-
-            // histogram(g);
 
             cf.clear();
             df.clear();
@@ -237,13 +244,6 @@ struct gc_model {
             std::cout << "[preprocessing] compute degeneracy ordering\n";
             int degeneracy = 0;
             df.degeneracy_ordering();
-
-            // std::cout << df.order.size() << " / " << g.size() << std::endl;
-
-            // for(auto v : df.order) {
-            //      std::cout << " " << df.degrees[v];
-            // }
-            // std::cout << std::endl;
 
             std::vector<int>
                 reverse; // TODO change that by using iterators in clique finder
@@ -262,38 +262,38 @@ struct gc_model {
 
             std::cout << "[preprocessing] compute lower bound\n";
 
-            lb = cf.find_cliques(reverse);
+            auto plb = cf.find_cliques(reverse);
             if (false and g.size() < 1000)
-                lb = mf.improve_cliques_larger_than(lb);
-            if (lb < plb)
-                lb = plb;
-            statistics.notify_lb(lb);
-            statistics.display(std::cout);
+                plb = mf.improve_cliques_larger_than(plb);
+            
+						if (lb < plb) {
+								lb = plb;
+								statistics.notify_lb(lb);
+            		statistics.display(std::cout);
 
-            // std::cout << ", lb = " << lb << std::endl;
+            		std::cout << "[preprocessing] remove low degree nodes\n";
 
-            std::cout << "[preprocessing] remove low degree nodes\n";
+		            bool removal = false;
+		            for (auto v : df.order) {
+		                if (df.degrees[v] >= lb)
+		                    break;
+		                toremove.add(v);
+		                gr.removed_vertices.push_back(v);
+		                removal = true;
+		            }
 
-            bool removal = false;
-            for (auto v : df.order) {
-                if (df.degrees[v] >= lb)
-                    break;
-                toremove.add(v);
-                gr.removed_vertices.push_back(v);
-                removal = true;
-            }
+		            if (removal) {
+		                toremove.canonize();
+		                g.remove(toremove);
+		                for (auto u : toremove) {
+		                    gr.status[u] = vertex_status::low_degree_removed;
+		                }
 
-            if (removal) {
-                toremove.canonize();
-                g.remove(toremove);
-                for (auto u : toremove) {
-                    gr.status[u] = vertex_status::low_degree_removed;
-                }
-
-                toremove.clear();
-                statistics.notify_removals(g.size());
-                statistics.display(std::cout);
-            }
+		                toremove.clear();
+		                statistics.notify_removals(g.size());
+		                statistics.display(std::cout);
+		            }
+						} else break;
 
         } while (true);
 
@@ -406,65 +406,54 @@ struct gc_model {
         statistics.display(std::cout);
     }
 
-    // template< class adjacency_struct >
-    graph_reduction<adjacency_struct> preprocess(
-        gc::graph<adjacency_struct>& g, std::pair<int, int> bounds, bool myciel = false)
+    void sparse_upper_bound(gc::dyngraph& dg, const int maxiter)
     {
 
-        // std::cout << "PREPROCESS: " << g.size() << "(" << (int*)(&g) << ")"
-        //           << std::endl;
+        gc::coloring col;
 
-        auto gr{core_reduction(g, bounds, myciel)};
-        if (g.size() > 0 and options.indset_constraints) {
-            std::cout << "[preprocessing] search for indset constraints\n";
-            find_is_constraints(g, gr);
-            for (auto& c : gr.constraints) {
-                std::cout << "constraint " << c.vs << "\n";
+        int iter = 0;
+        do {
+
+            // sparse upper bound, do it always
+            col.brelaz_color(dg, 0);
+            auto ncol{*std::max_element(begin(col.color), end(col.color)) + 1};
+
+            if (ub > ncol) {
+                ub = ncol;
+                statistics.notify_ub(ub);
+                statistics.display(std::cout);
             }
-        }
-        std::cout << "[preprocessing] finished at " << minicsp::cpuTime() << "\n\n";
-        return gr;
+
+            if (++iter >= maxiter) {
+                break;
+            }
+
+            dg.undo();
+            col.clear();
+        } while (lb < ub);
     }
 
-    graph_reduction<adjacency_struct> qpreprocess(
-        gc::graph<adjacency_struct>& g, std::pair<int, int> bounds,
-        bool myciel = false)
+    graph_reduction<adjacency_struct> preprocess(gc::graph<adjacency_struct>& g)
     {
-        auto gr{degeneracy_peeling(g, bounds, myciel)};
+        auto gr{degeneracy_peeling(original)};
 
-        if (g.size() > 0) {
-            std::cout << "[preprocessing] launch dsatur\n";
+        int num_edges = 0;
+        if (g.size() > 0 and lb < ub) {
 
+            std::cout << "[preprocessing] launch sparse dsatur\n";
             gc::dyngraph dg(g);
-            // dg.sort(false);
-            gc::coloring col;
+            num_edges = dg.edges.size();
+            sparse_upper_bound(dg, 1);
 
-            int maxiter = 1, iter = 0;
-            do {
-                col.brelaz_color(dg, 0);
-
-                auto ncol{
-                    *std::max_element(begin(col.color), end(col.color)) + 1};
-
-                if (ub > ncol) {
-                    ub = ncol;
-                    statistics.notify_ub(ub);
-                    statistics.display(std::cout);
-                }
-
-                if (++iter >= maxiter) {
-                    // std::cout << "stop because of limit\n";
-                    break;
-                }
-
-                dg.undo();
-                col.clear();
-            } while (lb < ub);
-
-            if (g.size() > 0 and options.indset_constraints)
+            if (g.size() > 0 and lb < ub and options.indset_constraints)
                 find_is_constraints(g, gr);
         }
-        std::cout << "[preprocessing] finished at " << minicsp::cpuTime() << "\n";
+
+        std::cout << "[preprocessing] finished at " << minicsp::cpuTime()
+                  << "\n\n[modeling] preprocessed graph: ";
+        g.describe(std::cout, num_edges);
+        std::cout << std::endl << std::endl;
+
         return gr;
     }
 
@@ -473,11 +462,12 @@ struct gc_model {
         gc::statistics& statistics, std::pair<int, int> bounds)
         : options(options)
         , statistics(statistics)
+        , lb{bounds.first}
+        , ub{bounds.second}
         , vertex_map(ig.capacity())
         , original(ig)
-        , reduction(qpreprocess(ig, bounds))
-        // , reduction(preprocess(ig, bounds))
-        , g(ig, vertex_map)
+        , reduction{preprocess(original)}
+        , g(original, vertex_map)
         , vars(create_vars())
         , cons(gc::post_gc_constraint(
               s, g, fillin, vars, reduction.constraints, options, statistics))
@@ -486,16 +476,10 @@ struct gc_model {
         setup_signal_handlers(&s);
         s.trace = options.trace;
         s.polarity_mode = options.polarity;
+        s.verbosity = options.verbosity;
 
         if (options.learning == gc::options::NO_LEARNING)
             s.learning = false;
-
-        auto plb = bounds.first;
-        auto pub = bounds.second;
-
-        lb = std::max(lb, plb);
-        if (ub < 0 || pub < ub)
-            ub = pub;
 
         if (cons) {
 
@@ -745,6 +729,7 @@ int main(int argc, char* argv[])
     g.canonize();
 
     g.describe(std::cout, num_edges);
+    std::cout << " at " << minicsp::cpuTime() << std::endl;
     // histogram(g);
 
     gc::statistics statistics(g.capacity());
@@ -752,12 +737,13 @@ int main(int argc, char* argv[])
         statistics.update_ub = false;
 
     statistics.describe(std::cout);
+    std::cout << std::endl;
 
     // std::cout << "MAIN (READ): " << g.size() << "(" << (int*)(&g) << ")"
     //           << std::endl;
     switch (options.strategy) {
     case gc::options::BNB: {
-        std::pair<int, int> bounds{0, g.capacity()};
+        std::pair<int, int> bounds{0, g.size()};
         if (options.preprocessing == gc::options::NO_PREPROCESSING) {
             std::cout << "compute init bounds\n";
             bounds = initial_bounds(
