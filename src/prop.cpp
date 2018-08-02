@@ -13,7 +13,7 @@ using namespace minicsp;
 
 class gc_constraint : public minicsp::cons, public cons_base
 {
-private:
+public:
     dense_graph fg;
 
     mycielskan_subgraph_finder<bitset> mf;
@@ -749,15 +749,26 @@ void update_partitions(const dense_graph& g,
     }
 }
 
+void remap_constraint(
+    bitset& bs, bitset& util_set, const std::vector<int>& vertex_map)
+{
+    util_set.clear();
+    for (auto v : bs)
+        util_set.fast_add(vertex_map[v]);
+    bs.copy(util_set);
+}
+
 cons_base* post_gc_constraint(Solver& s, dense_graph& g,
-    boost::optional<std::vector<std::pair<int, int>>> fillin, const varmap& vars,
-    const std::vector<indset_constraint>& isconses, const options& opt,
-    statistics& stat)
+    boost::optional<std::vector<std::pair<int, int>>> fillin,
+    const varmap& vars, const std::vector<indset_constraint>& isconses,
+    const std::vector<int>& vertex_map, const options& opt, statistics& stat)
 {
     // try {
     if (g.size() > 0) {
         auto cons = new gc_constraint(s, g, fillin, vars, isconses, opt, stat);
         s.addConstraint(cons);
+        for (auto& c : cons->isconses)
+            remap_constraint(c.vs, cons->util_set, vertex_map);
         return cons;
     }
     // } catch (minicsp::unsat &u) {

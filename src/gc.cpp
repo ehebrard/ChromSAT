@@ -469,8 +469,8 @@ struct gc_model {
         , reduction{preprocess(original)}
         , g(original, vertex_map)
         , vars(create_vars())
-        , cons(gc::post_gc_constraint(
-              s, g, fillin, vars, reduction.constraints, options, statistics))
+        , cons(gc::post_gc_constraint(s, g, fillin, vars, reduction.constraints,
+              vertex_map, options, statistics))
         , rewriter(s, g, cons, vars, xvars)
     {
         setup_signal_handlers(&s);

@@ -76,9 +76,9 @@ protected:
 };
 
 cons_base* post_gc_constraint(minicsp::Solver& s, dense_graph& g,
-    boost::optional<std::vector<std::pair<int, int>>> fillin, const varmap& vars,
-    const std::vector<indset_constraint>& isconses, const options& opt,
-    statistics& stat);
+    boost::optional<std::vector<std::pair<int, int>>> fillin,
+    const varmap& vars, const std::vector<indset_constraint>& isconses,
+    const std::vector<int>& vertex_map, const options& opt, statistics& stat);
 
 } // namespace gc
 
