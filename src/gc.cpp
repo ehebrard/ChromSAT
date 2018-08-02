@@ -181,7 +181,8 @@ struct gc_model {
             }
         }
 
-        std::cout << "[modeling] created " << s.nVars() << " classic variables\n\n";
+        std::cout << "[modeling] created " << s.nVars()
+                  << " classic variables\n\n";
 
         return vars;
     }
@@ -203,8 +204,7 @@ struct gc_model {
         if (options.preprocessing == gc::options::NO_PREPROCESSING)
             return gr;
 
-				std::cout << "[preprocessing] start peeling\n";	
-
+        std::cout << "[preprocessing] start peeling\n";
 
         lb = bounds.first;
         ub = bounds.second;
@@ -234,8 +234,7 @@ struct gc_model {
             df.clear();
             // mf.clear();
 
-
-						std::cout << "[preprocessing] compute degeneracy ordering\n";
+            std::cout << "[preprocessing] compute degeneracy ordering\n";
             int degeneracy = 0;
             df.degeneracy_ordering();
 
@@ -261,8 +260,7 @@ struct gc_model {
                 statistics.display(std::cout);
             }
 
-
-						std::cout << "[preprocessing] compute lower bound\n";
+            std::cout << "[preprocessing] compute lower bound\n";
 
             lb = cf.find_cliques(reverse);
             if (false and g.size() < 1000)
@@ -274,8 +272,7 @@ struct gc_model {
 
             // std::cout << ", lb = " << lb << std::endl;
 
-						std::cout << "[preprocessing] remove low degree nodes\n";
-
+            std::cout << "[preprocessing] remove low degree nodes\n";
 
             bool removal = false;
             for (auto v : df.order) {
@@ -421,6 +418,9 @@ struct gc_model {
         if (g.size() > 0 and options.indset_constraints) {
             std::cout << "[preprocessing] search for indset constraints\n";
             find_is_constraints(g, gr);
+            for (auto& c : gr.constraints) {
+                std::cout << "constraint " << c.vs << "\n";
+            }
         }
         std::cout << "[preprocessing] finished at " << minicsp::cpuTime() << "\n\n";
         return gr;
@@ -639,9 +639,9 @@ struct gc_model {
         using minicsp::l_False;
         using minicsp::l_True;
         using minicsp::l_Undef;
-				
-				auto llb = lb;
-				auto lub = ub;
+
+        auto llb = lb;
+        auto lub = ub;
 
         minicsp::lbool sat{l_True};
         while (sat != l_False && lb < ub) {
@@ -656,20 +656,21 @@ struct gc_model {
                 statistics.display(std::cout);
 
                 cons->ub = solub;
+                cons->actualub = actualub;
                 if (options.xvars) {
                     for (auto v : xvars)
                         v.setmax(s, cons->ub - 2, minicsp::NO_REASON);
                 }
-								assert(lub>=cons->ub);
-								lub = cons->ub; 
+                assert(lub >= cons->ub);
+                lub = cons->ub;
             } else if (sat == l_Undef) {
                 std::cout << "*** INTERRUPTED ***\n";
                 break;
             } else {
                 cons->bestlb = cons->ub;
                 statistics.display(std::cout);
-								assert(llb<=cons->bestlb);
-								llb = cons->bestlb; 
+                assert(llb <= cons->bestlb);
+                llb = cons->bestlb;
             }
         }
         return std::make_pair(llb,lub);
@@ -677,9 +678,11 @@ struct gc_model {
 
     void print_stats()
     {
-				assert(!cons or (cons->bestlb == statistics.best_lb and cons->ub == statistics.best_ub));
-				// assert(lb == statistics.best_lb and ub == statistics.best_ub);
-			
+        assert(!cons
+            or (cons->bestlb == statistics.best_lb
+                   and cons->ub == statistics.best_ub));
+        // assert(lb == statistics.best_lb and ub == statistics.best_ub);
+
         if (statistics.best_lb >= statistics.best_ub)
             std::cout << "OPTIMUM " << statistics.best_ub << "\n";
         else
@@ -725,23 +728,21 @@ int main(int argc, char* argv[])
 {
     auto options = gc::parse(argc, argv);
     options.describe(std::cout);
-		
-		std::cout << "[reading] ";
+
+    std::cout << "[reading] ";
 
     gc::graph<gc::vertices_vec> g;
-		int num_edges = 0;
+    int num_edges = 0;
     dimacs::read_graph(options.instance_file.c_str(),
         [&](int nv, int) { g = gc::graph<gc::vertices_vec>{nv}; },
         [&](int u, int v) {
             if (u != v) {
                 g.add_edge(u - 1, v - 1);
-								++num_edges;
+                ++num_edges;
             }
         },
         [&](int, gc::weight) {});
     g.canonize();
-		
-		// std::cout << "print graph\n";
 
     g.describe(std::cout, num_edges);
     // histogram(g);
@@ -754,16 +755,15 @@ int main(int argc, char* argv[])
 
     // std::cout << "MAIN (READ): " << g.size() << "(" << (int*)(&g) << ")"
     //           << std::endl;
-		
     switch (options.strategy) {
     case gc::options::BNB: {
         std::pair<int, int> bounds{0, g.capacity()};
         if (options.preprocessing == gc::options::NO_PREPROCESSING) {
-					std::cout << "compute init bounds\n" ;
+            std::cout << "compute init bounds\n";
             bounds = initial_bounds(
                 g, statistics, options.boundalg != gc::options::CLIQUES);
-					}
-					
+        }
+
         gc_model<gc::vertices_vec> model(g, options, statistics, bounds);
         model.solve();
         model.print_stats();

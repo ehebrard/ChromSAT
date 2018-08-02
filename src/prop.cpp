@@ -604,7 +604,7 @@ public:
             DO_OR_RETURN(propagate_is());
 
         // check local constraints
-        if (lb >= ub - 1) {
+        if (lb >= actualub - 1) {
             for (int i = 0; i != cf.num_cliques; ++i) {
                 if (cf.clique_sz[i] < ub -1)
                     continue;
@@ -614,7 +614,7 @@ public:
                         util_set.fast_add(g.rep_of[v]);
                     util_set.intersect_with(cf.cliques[i]);
 
-                    if (static_cast<int>(util_set.size()) >= ub - 1) {
+                    if (static_cast<int>(util_set.size()) >= actualub - 1) {
                         reason.clear();
                         explain_positive_clique(util_set);
                         return s.addInactiveClause(reason);
