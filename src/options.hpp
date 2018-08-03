@@ -94,6 +94,8 @@ struct options {
     std::string format;
 
     int verbosity;
+
+    bool checksolution;
 };
 
 options parse(int argc, char* argv[]);

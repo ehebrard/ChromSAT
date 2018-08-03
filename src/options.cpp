@@ -109,7 +109,8 @@ options parse(int argc, char* argv[])
     cmd.add<ValueArg<int>>(opt.cliquelimit, "", "cliquelimit",
         "Maximum number of cliques in the lower bound algorithm", false, 0xfffffff, "int");
     cmd.add<ValueArg<int>>(opt.strategy, "", "strategy",
-        "Solution strategy [0=BNB-1=bottom-up-2=top-down-3=computes initial bounds and stops]", false, 0, "int");
+        "Solution strategy [0=BNB-1=bottom-up-2=top-down-3=preprocessing only]",
+        false, 0, "int");
     cmd.add<ValueArg<int>>(opt.preprocessing, "", "preprocessing",
         "Level of preprocessing [0=none-1=low-degree-2=low-degree (sparse)]", false, 1, "int");
     cmd.add<SwitchArg>(opt.dominance, "", "dominance",
@@ -124,6 +125,8 @@ options parse(int argc, char* argv[])
         "File format", false, "dimacs", "string");
     cmd.add<ValueArg<int>>(
         opt.verbosity, "", "verbosity", "Verbosity level", false, 0, "int");
+    cmd.add<SwitchArg>(
+        opt.checksolution, "", "checksolution", "checks the coloring", false);
 
     cmd.parse(argc, argv);
     return opt;
