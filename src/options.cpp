@@ -98,7 +98,7 @@ options parse(int argc, char* argv[])
     cmd.add<ValueArg<int>>(opt.ordering_low_degree, "", "ord-low-degree",
         "Use low degree information to improve clique ordering", false, 0, "int");
     cmd.add<ValueArg<int>>(opt.boundalg, "", "bound",
-        "lower bound algorithm [0-3]", false, 0, "int");
+        "lower bound algorithm [0-3]", false, 2, "int");
     cmd.add<SwitchArg>(opt.prune, "", "prune", "enable pruning", false);
     cmd.add<SwitchArg>(opt.adaptive, "", "adaptive",
         "Switch between CLIQUES and declared bound policy dynamically", true);
@@ -127,6 +127,10 @@ options parse(int argc, char* argv[])
         opt.verbosity, "", "verbosity", "Verbosity level", false, 0, "int");
     cmd.add<SwitchArg>(
         opt.checksolution, "", "checksolution", "checks the coloring", false);
+    cmd.add<ValueArg<int>>(opt.sdsaturiter, "", "sdsaturiter",
+        "# of sparse dsatur iterations", false, 1, "int");
+    cmd.add<ValueArg<int>>(opt.ddsaturiter, "", "ddsaturiter",
+        "# of dense dsatur iterations", false, 1, "int");
 
     cmd.parse(argc, argv);
     return opt;

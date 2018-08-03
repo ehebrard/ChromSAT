@@ -199,18 +199,25 @@ struct gc_model {
     gc::varmap create_vars()
     {
 
-				if(g.size() > 0) {
-		        std::cout << "[modeling] launch dense dsatur\n";
-		        // we have a dense graph now, so let's compute dsatur the other way just
-		        // in case
-		        auto sol{gc::brelaz_color(g)};
-		        int ncol{*max_element(begin(sol), end(sol)) + 1};
-		        if (ub > ncol) {
-		            ub = ncol;
-		            statistics.notify_ub(ub);
-		            statistics.display(std::cout);
-		        }
-				}
+        if (g.size() > 0 and options.ddsaturiter > 0) {
+
+            std::cout << "[modeling] launch dense dsatur ("
+                      << options.ddsaturiter << " times) at "
+                      << minicsp::cpuTime() << "\n";
+            // we have a dense graph now, so let's compute dsatur the other way
+            // just
+            // in case
+
+            for (int i = 0; i < options.ddsaturiter; ++i) {
+                auto sol{gc::brelaz_color(g, (options.ddsaturiter > 1))};
+                int ncol{*max_element(begin(sol), end(sol)) + 1};
+                if (ub > ncol) {
+                    ub = ncol;
+                    statistics.notify_ub(ub);
+                    statistics.display(std::cout);
+                }
+            }
+        }
 
         if (options.fillin)
             return create_chord_vars();
@@ -268,8 +275,8 @@ struct gc_model {
             std::cout << "[preprocessing] compute lower bound\n";
 
             auto plb = cf.find_cliques(reverse);
-            if (false and g.size() < 1000)
-                plb = mf.improve_cliques_larger_than(plb);
+            // if (g.size() < 1000)
+            //     plb = mf.improve_cliques_larger_than(plb);
             
 						if (lb < plb) {
 								lb = plb;
@@ -413,27 +420,35 @@ struct gc_model {
 
     void sparse_upper_bound(gc::dyngraph& dg, const int maxiter)
     {
-
         gc::coloring col;
+
+        // double tprev = minicsp::cpuTime(), tnow;
 
         int iter = 0;
         do {
 
             // sparse upper bound, do it always
-            col.brelaz_color(dg, 0);
+            col.brelaz_color(dg, (options.sdsaturiter > 1 ? 1 : 0));
             auto ncol{*std::max_element(begin(col.color), end(col.color)) + 1};
+
+            // std::cout << "brelaz: " << ncol << std::endl;
 
             if (ub > ncol) {
                 ub = ncol;
                 statistics.notify_ub(ub);
                 statistics.display(std::cout);
 
-                dg.nodes.fill();
-                assert(dg.size() == original.size());
-                for (int i = 0; i < dg.size(); ++i) {
+                // dg.nodes.fill();
+                // assert(dg.size() == original.size());
+                for (int i = 0; i < original.size(); ++i) {
                     solution[original.nodes[i]] = col.color[i];
                 }
+                // dg.nodes.
             }
+
+            // tnow = minicsp::cpuTime();
+            // std::cout << " --> " << (tnow - tprev) << std::endl;
+            // tprev = tnow;
 
             if (++iter >= maxiter) {
                 break;
@@ -451,10 +466,14 @@ struct gc_model {
         int num_edges = 0;
         if (g.size() > 0 and lb < ub) {
 
-            std::cout << "[preprocessing] launch sparse dsatur\n";
-            gc::dyngraph dg(g);
-            num_edges = dg.edges.size();
-            sparse_upper_bound(dg, 1);
+            if (options.sdsaturiter > 0) {
+                std::cout << "[preprocessing] launch sparse dsatur ("
+                          << options.sdsaturiter << " times) at "
+                          << minicsp::cpuTime() << "\n";
+                gc::dyngraph dg(g);
+                num_edges = dg.edges.size();
+                sparse_upper_bound(dg, options.sdsaturiter);
+            }
 
             if (g.size() > 0 and lb < ub and options.indset_constraints)
                 find_is_constraints(g, gr);

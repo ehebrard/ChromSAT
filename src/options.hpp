@@ -96,6 +96,10 @@ struct options {
     int verbosity;
 
     bool checksolution;
+
+    int sdsaturiter;
+
+    int ddsaturiter;
 };
 
 options parse(int argc, char* argv[]);

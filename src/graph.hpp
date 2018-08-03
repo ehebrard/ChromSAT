@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <list>
+#include <random>
 #include <vector>
 
 // #define _DEBUG_CLIQUE
@@ -961,7 +962,8 @@ namespace detail
 } // namespace detail
 
 template <class adjacency_struct>
-std::vector<int> brelaz_color(const graph<adjacency_struct>& g)
+std::vector<int> brelaz_color(
+    const graph<adjacency_struct>& g, const bool randomized = false)
 {
     detail::brelaz_state<adjacency_struct> state{g};
     auto& cf = state.cf;
@@ -970,8 +972,19 @@ std::vector<int> brelaz_color(const graph<adjacency_struct>& g)
     Heap<detail::saturation_gt<adjacency_struct>> sheap(
         detail::saturation_gt<adjacency_struct>{state});
 
-    for (auto v : cf.g.nodeset)
-        sheap.insert(v);
+    if (randomized) {
+        std::random_device rd;
+        std::mt19937 s(rd());
+        std::vector<int> order;
+        for (auto v : cf.g.nodes)
+            order.push_back(v);
+        std::shuffle(begin(order), end(order), s);
+        for (auto v : order)
+            sheap.insert(v);
+
+    } else
+        for (auto v : cf.g.nodes)
+            sheap.insert(v);
 
     // std::cout << std::endl << cf.num_cliques << std::endl;
 

@@ -77,9 +77,9 @@ void coloring::brelaz_color(dyngraph& g, const int randomized = 0)
         // std::cout << v << " (" << g.matrix[v].size() << ")\n";
     }
     if (randomized == 1) {
-        std::mt19937 g(rd());
-        std::shuffle(begin(order), end(order), g);
-				// std::cout << order[0] << std::endl;
+        std::mt19937 s(rd());
+        std::shuffle(begin(order), end(order), s);
+        // std::cout << order[0] << std::endl;
     }
 		
 		x = 0;
@@ -110,7 +110,8 @@ void coloring::brelaz_color(dyngraph& g, const int randomized = 0)
                 [&](const int x_, const int y_) {
                     return (g.degree(x_) < g.degree(y_));
                 });
-            x = *(maxes.back());
+            x = *(maxes[rand() % maxes.size()]);
+            maxes.clear();
         } else {
             x = *std::max_element(begin(order) + first[d],
                 (d > 0 ? begin(order) + first[d - 1] : end(order)),
@@ -143,6 +144,7 @@ void coloring::brelaz_color(dyngraph& g, const int randomized = 0)
             }
 
     } while (true);
+    // std::cout << std::endl << std::endl;
 }
 
 
