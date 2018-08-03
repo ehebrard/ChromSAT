@@ -126,13 +126,15 @@ struct gc_model {
 
     minicsp::Solver s;
     gc::varmap vars;
-    gc::cons_base* cons;
+    gc::cons_base* cons{NULL};
     std::vector<minicsp::cspvar> xvars;
-    gc::rewriter* rewriter;
+    gc::rewriter* rewriter{NULL};
 
     std::unique_ptr<gc::Brancher> brancher;
 
     // std::vector<edge> var_map;
+		
+		virtual ~gc_model() { delete rewriter; }
 
     gc::varmap create_chord_vars()
     {
@@ -627,8 +629,7 @@ struct gc_model {
                     break;
                 }
             }
-        } else
-            cons = NULL;
+        } 
     }
 
     std::vector<int> get_solution()
