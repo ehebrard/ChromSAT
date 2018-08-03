@@ -161,12 +161,13 @@ private:
     {
 
         // put all potential extra nodes into a bitset so that we can intersect
-        // with
-        // N(u)
+        // with N(u)
         neighbors_w.clear();
         for (auto v : extra) {
             neighbors_w.fast_add(v);
         }
+
+        neighbors_w.canonize();
         neighbors_w.intersect_with(g.matrix[w]);
 
         // now for every v, select any element of Sv that is also a neighbor of
@@ -323,6 +324,13 @@ int mycielskan_subgraph_finder<adjacency_struct>::extends(const adjacency_struct
     int iter = 0;
 
     subgraph.clear();
+
+    int prev = -1;
+    for (auto v : G) {
+        assert(prev < v);
+        prev = v;
+    }
+
     subgraph.add_clique(G);
 
     while (subgraph.nodes.size() < g.nodes.size()) {
@@ -412,6 +420,7 @@ int mycielskan_subgraph_finder<adjacency_struct>::improve_cliques_larger_than(
     auto lb{curlb};
     for (auto cl = 0; cl < cf.num_cliques; ++cl) {
         if (cf.clique_sz[cl] >= size) {
+
             auto niters{extends(cf.cliques[cl])};
             auto mycielski_lb = cf.clique_sz[cl] + niters;
             if (mycielski_lb > lb) {

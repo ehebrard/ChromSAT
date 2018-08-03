@@ -408,6 +408,13 @@ template <class adjacency_struct> struct clique_finder {
             }
         }
     }
+
+    void sort_cliques(const int size)
+    {
+        for (auto cl = 0; cl < num_cliques; ++cl)
+            if (clique_sz[cl] >= size)
+                cliques[cl].canonize();
+    }
 };
 
 template <class graph_struct> struct degeneracy_finder {
@@ -500,6 +507,8 @@ template <class adjacency_struct>
 void basic_graph<adjacency_struct>::add_clique(const adjacency_struct& C)
 {
     for (auto v : C) {
+        assert(!nodeset.fast_contain(v));
+
         add_node(v);
         matrix[v].union_with(C);
         matrix[v].remove(v);

@@ -275,37 +275,45 @@ struct gc_model {
             std::cout << "[preprocessing] compute lower bound\n";
 
             auto plb = cf.find_cliques(reverse);
-            // if (g.size() < 1000)
-            //     plb = mf.improve_cliques_larger_than(plb);
-            
-						if (lb < plb) {
-								lb = plb;
-								statistics.notify_lb(lb);
-            		statistics.display(std::cout);
+            if (g.size() < 1000) {
+                cf.sort_cliques(plb);
 
-            		std::cout << "[preprocessing] remove low degree nodes\n";
+                std::cout << plb << std::endl;
 
-		            bool removal = false;
-		            for (auto v : df.order) {
-		                if (df.degrees[v] >= lb)
-		                    break;
-		                toremove.add(v);
-		                gr.removed_vertices.push_back(v);
-		                removal = true;
-		            }
+                plb = mf.improve_cliques_larger_than(plb);
 
-		            if (removal) {
-		                toremove.canonize();
-		                g.remove(toremove);
-		                for (auto u : toremove) {
-		                    gr.status[u] = vertex_status::low_degree_removed;
-		                }
+                std::cout << plb << std::endl;
+            }
 
-		                toremove.clear();
-		                statistics.notify_removals(g.size());
-		                statistics.display(std::cout);
-		            }
-						} else break;
+            if (lb < plb) {
+                lb = plb;
+                statistics.notify_lb(lb);
+                statistics.display(std::cout);
+
+                std::cout << "[preprocessing] remove low degree nodes\n";
+
+                bool removal = false;
+                for (auto v : df.order) {
+                    if (df.degrees[v] >= lb)
+                        break;
+                    toremove.add(v);
+                    gr.removed_vertices.push_back(v);
+                    removal = true;
+                }
+
+                if (removal) {
+                    toremove.canonize();
+                    g.remove(toremove);
+                    for (auto u : toremove) {
+                        gr.status[u] = vertex_status::low_degree_removed;
+                    }
+
+                    toremove.clear();
+                    statistics.notify_removals(g.size());
+                    statistics.display(std::cout);
+                }
+            } else
+                break;
 
         } while (true);
 
@@ -753,18 +761,17 @@ std::pair<int, int> initial_bounds(
     return std::make_pair(lb, ub);
 }
 
-int main(int argc, char* argv[])
+template <class input_format>
+int color(gc::options& options, gc::graph<input_format>& g)
 {
-    auto options = gc::parse(argc, argv);
     options.describe(std::cout);
 
     std::cout << "[reading] ";
 
-    gc::graph<gc::vertices_vec> g;
     int num_edges = 0;
     std::vector<std::pair<int, int>> edges;
     dimacs::read_graph(options.instance_file.c_str(),
-        [&](int nv, int) { g = gc::graph<gc::vertices_vec>{nv}; },
+        [&](int nv, int) { g = gc::graph<input_format>{nv}; },
         [&](int u, int v) {
             if (u != v) {
                 g.add_edge(u - 1, v - 1);
@@ -798,7 +805,7 @@ int main(int argc, char* argv[])
                 g, statistics, options.boundalg != gc::options::CLIQUES);
         }
 
-        gc_model<gc::vertices_vec> model(g, options, statistics, bounds);
+        gc_model<input_format> model(g, options, statistics, bounds);
         model.solve();
         model.print_stats();
         break;
@@ -861,7 +868,7 @@ int main(int argc, char* argv[])
     } break;
     case gc::options::BOUNDS: {
         std::pair<int, int> bounds{0, g.size()};
-        gc_model<gc::vertices_vec> model(g, options, statistics, bounds);
+        gc_model<input_format> model(g, options, statistics, bounds);
         model.reduction.extend_solution(model.solution);
         auto ncol{
             *std::max_element(begin(model.solution), end(model.solution)) + 1};
@@ -877,4 +884,14 @@ int main(int argc, char* argv[])
         }
     } break;
     }
+
+    return 0;
+}
+
+int main(int argc, char* argv[])
+{
+    auto options = gc::parse(argc, argv);
+    gc::graph<gc::vertices_vec> g;
+    // gc::graph<gc::bitset> g;
+    return color(options, g);
 }
