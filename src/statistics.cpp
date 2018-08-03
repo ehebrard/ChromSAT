@@ -46,7 +46,7 @@ double statistics::get_bound_increase() const {
 
 void statistics::describe(std::ostream& os)
 {	
-		os << "[statistics] lb ub time conflicts delta\n";
+		os << "[statistics] lb ub time conflicts delta #vert\n";
 }
 
 void statistics::display(std::ostream& os)
