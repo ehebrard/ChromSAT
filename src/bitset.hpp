@@ -1566,7 +1566,7 @@ public:
 
         os << "{";
         if (!empty()) {
-            int last = NOVAL, cur = min(), aft;
+            long last = NOVAL, cur = min(), aft;
 
             bool flag = false;
             do {

@@ -14,6 +14,7 @@
 
 // #define _DEBUG_MYCIEL
 
+
 using namespace minicsp;
 
 namespace gc
@@ -122,6 +123,7 @@ private:
 
                 if (g.rep_of[u] != u)
                     continue; // use only representatives ?
+
 
                 if (g.matrix[u].includes(subgraph.matrix[v])) {
                     extra.push_back(u);
@@ -324,14 +326,8 @@ int mycielskan_subgraph_finder<adjacency_struct>::extends(const adjacency_struct
     int iter = 0;
 
     subgraph.clear();
-
-    int prev = -1;
-    for (auto v : G) {
-        assert(prev < v);
-        prev = v;
-    }
-
     subgraph.add_clique(G);
+		
 
     while (subgraph.nodes.size() < g.nodes.size()) {
         // new ietration, clear the struct for the extra nodes and the potential
@@ -366,6 +362,8 @@ int mycielskan_subgraph_finder<adjacency_struct>::extends(const adjacency_struct
         for (auto e : new_edges) {
             subgraph.add_edge(e.first, e.second);
         }
+				
+				subgraph.canonize();
 
         ++iter;
     }
