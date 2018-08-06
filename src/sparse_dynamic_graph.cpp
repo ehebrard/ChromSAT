@@ -1,5 +1,4 @@
 
-
 #include "sparse_dynamic_graph.hpp"
 
 
@@ -38,60 +37,114 @@ void coloring::remove(const int y, const int d) {
 	// exit(1);
 }
 
+template <class ForwardIt, class Compare>
+void max_elements(
+    ForwardIt first, ForwardIt last, std::vector<ForwardIt>& maxes, Compare lt)
+{
+    if (first == last)
+        return;
 
-void coloring::brelaz_color(dyngraph& g) {	
-		if(g.nodes.empty()) return;
-		
-		int iter = 0, c, d, x; 
-		
-		rank.resize(g.capacity);
-		color.resize(g.capacity); 
-		satur.resize(g.capacity); 
-		
-		// nodes are stored by non-increasing saturation degree
-		for(auto v : g.nodes) {
-				rank[v] = order.size();
-				order.push_back(v);
-		}
-		
-		first.clear();
-		first.push_back(0); // every node has saturation degree 0
-		
-		do {
-				if(g.nodes.empty()) break;
-			
-				// get the highest saturation degree
-				d = satur[order[iter++]].size;
-			
-				// remove the unused pointers
-				while(first.size() > d + 1) first.pop_back(); 
-	
-				// find out the vertex of highest degree among thos of maximum saturation
-				x = *std::max_element(begin(order)+first[d], (d > 0 ? begin(order)+first[d-1] : end(order)), [&](const int x_, const int y_) { return (g.degree(x_) < g.degree(y_)); });
-						
-				// remove x from the partition of nodes with saturation degree d
-				remove(x, d);
-		
-				// use the first possible color for x
-				c = satur[x].get();
-				color[x] = c;
+    // ForwardIt largest = first;
+    maxes.push_back(first);
+    ++first;
+    for (; first != last; ++first) {
+        if (!lt(*first, *(maxes.back()))) {
+            if (lt(*(maxes.back()), *first))
+                maxes.clear();
+            maxes.push_back(first);
+        }
+    }
+}
 
-				// remove x from the graph
-				g.rem_node(x);
-				
-				// update the saturation degree of x's neighbors
-				for(auto y : g.matrix[x])
-						if(satur[y].add(c)) {
-								// new highest saturation degree, new pointer 
-								if(first.size() <= satur[y].size) first.push_back(*rbegin(first));
-								
-								// move y one partition up in the saturation degree list
-								remove(y,satur[y].size-1);
-						}
-	
+void coloring::brelaz_color(dyngraph& g, const int randomized = 0)
+{
+    if (g.nodes.empty())
+        return;
 
-		} while( true );
+    int iter = 0, c, d, x;
+
+    rank.resize(g.capacity);
+    color.resize(g.capacity, -1);
+    satur.resize(g.capacity);
+
+    //
+    order.clear();
+
+    // nodes are stored by non-increasing saturation degree
+    for (auto v : g.nodes) {
+        // rank[v] = order.size();
+        order.push_back(v);
+        // std::cout << v << " (" << g.matrix[v].size() << ")\n";
+    }
+    if (randomized == 1) {
+        std::mt19937 s(rd());
+        std::shuffle(begin(order), end(order), s);
+        // std::cout << order[0] << std::endl;
+    }
 		
+		x = 0;
+		for (auto v : order) rank[v] = x++;
+		
+
+    first.clear();
+    first.push_back(0); // every node has saturation degree 0
+
+    std::vector<std::vector<int>::iterator> maxes;
+
+    do {
+        if (g.nodes.empty())
+            break;
+
+        // get the highest saturation degree
+        d = satur[order[iter++]].size;
+
+        // remove the unused pointers
+        while (first.size() > d + 1)
+            first.pop_back();
+
+        // find out the vertex of highest degree among thos of
+        // maximum saturation
+        if (randomized == 2) {
+            max_elements(begin(order) + first[d],
+                (d > 0 ? begin(order) + first[d - 1] : end(order)), maxes,
+                [&](const int x_, const int y_) {
+                    return (g.degree(x_) < g.degree(y_));
+                });
+            x = *(maxes[rand() % maxes.size()]);
+            maxes.clear();
+        } else {
+            x = *std::max_element(begin(order) + first[d],
+                (d > 0 ? begin(order) + first[d - 1] : end(order)),
+                [&](const int x_, const int y_) {
+                    return (g.degree(x_) < g.degree(y_));
+                });
+        }
+
+        // remove x from the partition of nodes with saturation
+        // degree d
+        remove(x, d);
+
+        // use the first possible color for x
+        c = satur[x].get();
+        color[x] = c;
+
+        // remove x from the graph
+        g.rem_node(x);
+
+        // update the saturation degree of x's neighbors
+        for (auto y : g.matrix[x])
+            if (satur[y].add(c)) {
+                // new highest saturation degree, new pointer
+                if (first.size() <= satur[y].size)
+                    first.push_back(*rbegin(first));
+
+                // move y one partition up in the saturation degree
+                // list
+                remove(y, satur[y].size - 1);
+            }
+
+    } while (true);
+    // std::cout << std::endl << std::endl;
 }
 
 

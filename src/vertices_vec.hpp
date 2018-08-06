@@ -115,7 +115,7 @@ public:
             vertices_vec safe_union_with(vertices_vec & v) const;
             vertices_vec union_with(int i) const;
     */
-    void display() const;
+    std::ostream& display(std::ostream& os) const;
 };
 
 class neighbors_vec: public vertices_vec
@@ -123,6 +123,10 @@ class neighbors_vec: public vertices_vec
 public:
     int degree();
 };
+
+std::ostream& operator<<(std::ostream& os, const gc::vertices_vec& x);
+
+
 
 } // namespace gc
 #endif

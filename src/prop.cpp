@@ -13,7 +13,9 @@ using namespace minicsp;
 
 class gc_constraint : public minicsp::cons, public cons_base
 {
-private:
+public:
+    dense_graph fg;
+
     mycielskan_subgraph_finder<bitset> mf;
 
     const varmap& vars;
@@ -52,9 +54,10 @@ private:
     std::vector<int> heuristic;
 
 public:
-    gc_constraint(Solver& solver, dense_graph& g, const varmap& tvars,
-        const std::vector<indset_constraint>& isconses, const options& opt,
-        statistics& stat)
+    gc_constraint(Solver& solver, dense_graph& g,
+        boost::optional<std::vector<std::pair<int, int>>> fillin,
+        const varmap& tvars, const std::vector<indset_constraint>& isconses,
+        const options& opt, statistics& stat)
         : cons_base(solver, g)
         , mf(g, cf, opt.prune)
         , vars(tvars)
@@ -105,6 +108,13 @@ public:
             s.use_clause_callback(adaptive_callback);
         }
 
+        assert((fillin && opt.fillin) || (!fillin && !opt.fillin));
+        if (fillin) {
+            fg = g;
+            for (auto e : *fillin)
+                fg.add_edge(e.first, e.second);
+        }
+
         DO_OR_THROW(propagate(s));
     }
 
@@ -131,6 +141,7 @@ public:
         // merged with u
         auto merge_3way = [&](int u, int v, int x) -> Clause* {
             Var uxvar = vars[u][x];
+
             if (s.value(uxvar) == l_True)
                 return NO_REASON;
             if (u == v)
@@ -265,6 +276,8 @@ public:
             });
         }
 
+        assert(!culprit.empty());
+
         expl_reps.clear();
         expl_reps.resize(g.capacity(), -1);
 
@@ -361,21 +374,23 @@ public:
             for (auto i{culprit.size()};
                  i < mf.explanation_subgraph.nodes.size(); ++i) {
                 auto v{mf.explanation_subgraph.nodes[i]};
+                auto vr = expl_reps[v];
+                if (vr < 0) {
+                    expl_reps[v] = v;
+                    vr = v;
+                }
                 neighborhood.copy(mf.explanation_subgraph.matrix[v]);
-                neighborhood.setminus_with(g.origmatrix[v]);
-                // neighborhood.set_min(v);
                 for (auto u : neighborhood) {
+                    auto ur = expl_reps[u];
+                    if (ur < 0) {
+                        expl_reps[u] = u;
+                        ur = u;
+                    }
                     if (mf.explanation_subgraph.nodes.index(v)
                         > mf.explanation_subgraph.nodes.index(u)) {
                         assert(g.rep_of[u] == u);
                         assert(g.rep_of[v] == v);
-                        auto ur = expl_reps[u];
-                        auto vr = expl_reps[v];
-                        if (ur < 0)
-                            ur = u;
-                        if (vr < 0)
-                            vr = v;
-                        if (!g.matrix[ur].fast_contain(vr))
+                        if (!g.origmatrix[ur].fast_contain(vr))
                             reason.push(Lit(vars[ur][vr]));
                     }
                 }
@@ -571,11 +586,11 @@ public:
         if (s.decisionLevel() == 0 && lb > bestlb) {
             bestlb = lb;
             stat.display(std::cout);
-            for (auto v : g.nodes) {
-                if (g.matrix[v].size() < static_cast<size_t>(bestlb)) {
-                    ++stat.num_vertex_removals;
-                }
-            }
+            // for (auto v : g.nodes) {
+            //     if (g.matrix[v].size() < static_cast<size_t>(bestlb)) {
+            //         ++stat.num_vertex_removals;
+            //     }
+            // }
         }
         if (cf.num_cliques == 1)
             assert(g.nodes.size() == cf.cliques[0].size());
@@ -591,7 +606,7 @@ public:
             DO_OR_RETURN(propagate_is());
 
         // check local constraints
-        if (lb >= ub - 1) {
+        if (lb >= actualub - 1) {
             for (int i = 0; i != cf.num_cliques; ++i) {
                 if (cf.clique_sz[i] < ub -1)
                     continue;
@@ -601,7 +616,7 @@ public:
                         util_set.fast_add(g.rep_of[v]);
                     util_set.intersect_with(cf.cliques[i]);
 
-                    if (static_cast<int>(util_set.size()) >= ub - 1) {
+                    if (static_cast<int>(util_set.size()) >= actualub - 1) {
                         reason.clear();
                         explain_positive_clique(util_set);
                         return s.addInactiveClause(reason);
@@ -734,14 +749,29 @@ void update_partitions(const dense_graph& g,
     }
 }
 
-cons_base* post_gc_constraint(Solver& s, dense_graph& g,
-    const varmap& vars,
-    const std::vector<indset_constraint>& isconses, const options& opt,
-    statistics& stat)
+void remap_constraint(
+    bitset& bs, bitset& util_set, const std::vector<int>& vertex_map)
 {
-    auto cons = new gc_constraint(s, g, vars, isconses, opt, stat);
-    s.addConstraint(cons);
+    util_set.clear();
+    for (auto v : bs)
+        util_set.fast_add(vertex_map[v]);
+    bs.copy(util_set);
+}
 
-    return cons;
+cons_base* post_gc_constraint(Solver& s, dense_graph& g,
+    boost::optional<std::vector<std::pair<int, int>>> fillin,
+    const varmap& vars, const std::vector<indset_constraint>& isconses,
+    const std::vector<int>& vertex_map, const options& opt, statistics& stat)
+{
+    // try {
+    if (g.size() > 0) {
+        auto cons = new gc_constraint(s, g, fillin, vars, isconses, opt, stat);
+        s.addConstraint(cons);
+        for (auto& c : cons->isconses)
+            remap_constraint(c.vs, cons->util_set, vertex_map);
+        return cons;
+    }
+    // } catch (minicsp::unsat &u) {
+    return NULL;
 }
 } // namespace gc

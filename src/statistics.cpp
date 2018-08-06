@@ -30,6 +30,14 @@ void statistics::notify_ub(const int u)
 		}
 }
 
+void statistics::notify_removals(const int n)
+{
+		if(num_vertices > n) {
+				num_vertices = n;
+				changed = true;
+		}
+}
+
 double statistics::get_bound_increase() const {
 		if(total_bound_1)
 				return (double)total_bound_2/(double)total_bound_1;
@@ -38,7 +46,7 @@ double statistics::get_bound_increase() const {
 
 void statistics::describe(std::ostream& os)
 {	
-		os << ">>statistics: lb ub time conflicts delta #dom #rem\n";
+		os << "[statistics] lb ub time conflicts delta #vert\n";
 }
 
 void statistics::display(std::ostream& os)
@@ -56,13 +64,13 @@ void statistics::display(std::ostream& os)
 		
 		if(changed) {
 				os.setf(std::ios_base::fixed, std::ios_base::floatfield);
-		    os << ">>data: lb = " << std::setw(4) << std::left << best_lb
+		    os << "[data] lb = " << std::setw(4) << std::left << best_lb
 					 << "| ub = " << std::setw(4) << std::left << best_ub
 					 << "| time = " << std::setw(10) << std::left << std::setprecision(4) << minicsp::cpuTime()
 					 << "| conflicts = " << std::setw(10) << std::left << (cons ? total_conflicts + cons->s.conflicts : total_conflicts)
 					 << "| delta = " << std::setw(8) << std::left << std::setprecision(4) << get_bound_increase() 
-					 << "| #dom = " << std::setw(10) << std::left << num_neighborhood_contractions
-					 << "| #rem = " << std::setw(10) << std::left << num_vertex_removals
+					 // << "| #dom = " << std::setw(10) << std::left << num_neighborhood_contractions
+					 << "| #vert = " << std::setw(10) << std::left << num_vertices
 		    	 << std::endl;
 		}
 		

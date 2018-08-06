@@ -14,6 +14,7 @@
 
 // #define _DEBUG_MYCIEL
 
+
 using namespace minicsp;
 
 namespace gc
@@ -123,6 +124,7 @@ private:
                 if (g.rep_of[u] != u)
                     continue; // use only representatives ?
 
+
                 if (g.matrix[u].includes(subgraph.matrix[v])) {
                     extra.push_back(u);
                     neighbors_Sv.union_with(g.matrix[u]);
@@ -161,12 +163,13 @@ private:
     {
 
         // put all potential extra nodes into a bitset so that we can intersect
-        // with
-        // N(u)
+        // with N(u)
         neighbors_w.clear();
         for (auto v : extra) {
             neighbors_w.fast_add(v);
         }
+
+        neighbors_w.canonize();
         neighbors_w.intersect_with(g.matrix[w]);
 
         // now for every v, select any element of Sv that is also a neighbor of
@@ -324,6 +327,7 @@ int mycielskan_subgraph_finder<adjacency_struct>::extends(const adjacency_struct
 
     subgraph.clear();
     subgraph.add_clique(G);
+		
 
     while (subgraph.nodes.size() < g.nodes.size()) {
         // new ietration, clear the struct for the extra nodes and the potential
@@ -358,6 +362,8 @@ int mycielskan_subgraph_finder<adjacency_struct>::extends(const adjacency_struct
         for (auto e : new_edges) {
             subgraph.add_edge(e.first, e.second);
         }
+				
+				subgraph.canonize();
 
         ++iter;
     }
@@ -412,6 +418,7 @@ int mycielskan_subgraph_finder<adjacency_struct>::improve_cliques_larger_than(
     auto lb{curlb};
     for (auto cl = 0; cl < cf.num_cliques; ++cl) {
         if (cf.clique_sz[cl] >= size) {
+
             auto niters{extends(cf.cliques[cl])};
             auto mycielski_lb = cf.clique_sz[cl] + niters;
             if (mycielski_lb > lb) {

@@ -1,13 +1,15 @@
 
 
+#include <algorithm>
 #include <assert.h>
 #include <iomanip>
+#include <random>
 #include <vector>
 
 #include "bitset.hpp"
-#include "intstack.hpp"
+#include "graph.hpp"
 #include "interval_list.hpp"
-
+#include "intstack.hpp"
 
 #ifndef __DYNGRAPH_HPP
 #define __DYNGRAPH_HPP
@@ -105,6 +107,8 @@ public:
     dyngraph() {}
     dyngraph(const int n);
     dyngraph(const dyngraph& g);
+    template <class adjacency_struct>
+    dyngraph(const gc::graph<adjacency_struct>& g);
 
     // helpers
     int size() const;
@@ -157,6 +161,22 @@ public:
 
 };
 
+template <class adjacency_struct>
+dyngraph::dyngraph(const gc::graph<adjacency_struct>& g)
+    : dyngraph(g.size())
+{
+    std::vector<int> vmap(g.capacity());
+
+    int i = 0;
+    for (auto v : g.nodes)
+        vmap[v] = i++;
+
+    for (auto v : g.nodes)
+        for (auto u : g.matrix[v])
+            if (vmap[u] > vmap[v])
+                add_edge(vmap[v], vmap[u]);
+}
+
 std::ostream& operator<<(std::ostream& os, const dyngraph& x);
 
 std::ostream& operator<<(std::ostream& os, const dyngraph* x);
@@ -164,22 +184,21 @@ std::ostream& operator<<(std::ostream& os, const dyngraph* x);
 
 struct coloring {
 
-		std::vector<int> color;
-		std::vector<int> order;
-		std::vector<int> rank;
-		std::vector<int> first;
-		std::vector<interval_list> satur;
-		
-		void brelaz_color(dyngraph& g);
-		
-		void remove(const int y, const int d);
-		
-		void clear() {
-				first.clear();
-				for(auto v : order) 
-						satur[v].clear();
-		}
+    std::vector<int> color;
+    std::vector<int> order;
+    std::vector<int> rank;
+    std::vector<int> first;
+    std::vector<interval_list> satur;
+    std::random_device rd;
 
+    void brelaz_color(dyngraph& g, const int randomized);
+    void remove(const int y, const int d);
+    void clear()
+    {
+        first.clear();
+        for (auto v : order)
+            satur[v].clear();
+    }
 };
 
 

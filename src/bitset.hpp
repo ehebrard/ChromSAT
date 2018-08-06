@@ -197,15 +197,19 @@ public:
         assert(!table);
         neg_words = (lb >> EXP);
         pos_words = (ub >> EXP) + 1;
-        if (pool == NULL)
-            table = new WORD_TYPE[pos_words - neg_words];
-        else
-            table = pool;
-        for (int i = 0; i < pos_words - neg_words; ++i)
-            table[i] = p;
-        table[pos_words - neg_words - 1]
-            &= (p >> (size_word_bit - 1 - (ub & CACHE)));
-        table[0] &= (p << (lb & CACHE));
+        table = NULL;
+
+        if (pos_words > neg_words) {
+            if (pool == NULL)
+                table = new WORD_TYPE[pos_words - neg_words];
+            else
+                table = pool;
+            for (int i = 0; i < pos_words - neg_words; ++i)
+                table[i] = p;
+            table[pos_words - neg_words - 1]
+                &= (p >> (size_word_bit - 1 - (ub & CACHE)));
+            table[0] &= (p << (lb & CACHE));
+        }
         table -= neg_words;
     }
 
@@ -282,6 +286,12 @@ public:
         if (table) {
             table += neg_words;
             delete[] table;
+            table = nullptr;
+        }
+        if (!s.table+s.neg_words) {
+            neg_words = 0;
+            pos_words = 0;
+            return;
         }
         neg_words = s.neg_words;
         pos_words = s.pos_words;
@@ -1354,7 +1364,7 @@ public:
         while (i > neg_words)
             table[--i] = empt;
     }
-		
+
     /*!
     Remove all elements [O(N/32)]
     */
@@ -1364,7 +1374,7 @@ public:
         while (i > neg_words)
             table[--i] = empt;
     }
-		
+
     /*!
     do nothing [template compatibility]
     */
@@ -1556,7 +1566,7 @@ public:
 
         os << "{";
         if (!empty()) {
-            int last = NOVAL, cur = min(), aft;
+            long last = NOVAL, cur = min(), aft;
 
             bool flag = false;
             do {

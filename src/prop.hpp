@@ -6,6 +6,7 @@
 #include "options.hpp"
 #include "varmap.hpp"
 
+#include <boost/optional.hpp>
 
 namespace gc
 {
@@ -18,6 +19,15 @@ struct statistics;
 // added during preprocessing. We place a tighter upper bound on
 // these sets of vertices
 struct indset_constraint {
+
+    template <class adjacency_struct>
+    indset_constraint(adjacency_struct& scope, int s)
+        : vs(0, scope.max(), bitset::empt)
+        , source(s)
+    {
+        vs.copy(scope);
+    }
+
     // the vertices in the local constraint
     bitset vs;
     // where it came from (i.e., which vertex's neighborhood is
@@ -28,7 +38,9 @@ struct indset_constraint {
 struct cons_base {
     minicsp::Solver& s;
     dense_graph& g;
-    int ub;
+    int ub; // ub of the reduced graph
+    int actualub; // ub of the original graph. indset_constraints work with
+                  // respect to this bound
     int bestlb{0};
     clique_finder<bitset> cf; // for cliques
     clique_finder<bitset> ccf; // for clique covers
@@ -64,8 +76,9 @@ protected:
 };
 
 cons_base* post_gc_constraint(minicsp::Solver& s, dense_graph& g,
+    boost::optional<std::vector<std::pair<int, int>>> fillin,
     const varmap& vars, const std::vector<indset_constraint>& isconses,
-    const options& opt, statistics& stat);
+    const std::vector<int>& vertex_map, const options& opt, statistics& stat);
 
 } // namespace gc
 

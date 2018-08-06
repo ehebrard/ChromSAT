@@ -136,6 +136,9 @@ void vertices_vec::difference_with(vertices_vec const& v)
 // Difference with
 void vertices_vec::setminus_with(vertices_vec const& v)
 {
+    // std::cout << fast_contain(7) << std::endl;
+    // std::cout << v.fast_contain(7) << std::endl;
+
     // Put difference in the buffer
     buffer.clear();
     std::set_difference(vertices.begin(), vertices.end(), v.vertices.begin(),
@@ -143,6 +146,8 @@ void vertices_vec::setminus_with(vertices_vec const& v)
     // Copy the buffer in vertices
     // vertices.clear();
     vertices = buffer;
+
+    // std::cout << fast_contain(7) << std::endl;
 }
 
 void vertices_vec::safe_difference_with(vertices_vec & v)
@@ -184,13 +189,14 @@ void vertices_vec::add_interval(const int l, const int u) {
     }
 }
 
-void vertices_vec::display() const {
-    std::cout << "{ ";
+std::ostream& vertices_vec::display(std::ostream& os) const {
+    os << "{ ";
     for (std::vector<int>::const_iterator it = vertices.begin();
          it != vertices.end(); ++it) {
-        std::cout << *it << " ";
+        os << *it << " ";
     }
-    std::cout << "}" << std::endl;
+    os << "}";
+		return os;
 }
 
 void vertices_vec::remove(const int e) { vertices.erase(find(e)); }
@@ -223,5 +229,11 @@ int vertices_vec::max() const { return *crbegin(); }
 
 int neighbors_vec::degree() { return vertices.size(); }
 } // namespace gc
+
+
+std::ostream& gc::operator<<(std::ostream& os, const gc::vertices_vec& x)
+{
+    return x.display(os);
+}
 
 

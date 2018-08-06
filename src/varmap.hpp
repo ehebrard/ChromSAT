@@ -27,8 +27,9 @@ struct varmap {
 
     proxy operator[](int v) const {
         auto i = vars.find(v);
-        if (i == vars.end())
+        if (i == vars.end()) {
             return proxy{nullptr};
+        }
         return proxy{&(i->second)};
     }
 

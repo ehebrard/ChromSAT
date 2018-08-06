@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <list>
+#include <random>
 #include <vector>
 
 // #define _DEBUG_CLIQUE
@@ -40,19 +41,55 @@ public:
             bs.initialise(0, nv, bitset::empt);
         }
     }
-    basic_graph(const basic_graph&) = default;
-    basic_graph(basic_graph&&) = default;
-    basic_graph& operator=(const basic_graph& g)
+
+    basic_graph& operator=(const basic_graph&) = default;
+
+    template <typename other_struct>
+    typename std::enable_if<!std::is_same<other_struct, adjacency_struct>{},
+        basic_graph>::type&
+    operator=(const basic_graph<other_struct>& g)
     {
-        nodes.clear();
-        nodeset.clear();
+        nodes.reserve(g.capacity());
+        nodeset.initialise(0, g.capacity() - 1, bitset::empt);
+        matrix.resize(g.capacity());
         for (auto v : g.nodes) {
+            matrix[v].initialise(0, g.capacity() - 1, bitset::empt);
             add_node(v);
-            matrix[v].copy(g.matrix[v]);
+            for (auto u : g.matrix[v]) {
+                matrix[v].add(u);
+            }
         }
         return *this;
     }
 
+    basic_graph(const basic_graph&) = default;
+    template <typename other_struct,
+        typename E = typename std::enable_if<
+            !std::is_same<other_struct, adjacency_struct>{}>::type>
+    basic_graph(const basic_graph<other_struct&> g)
+    {
+        this->operator=(g);
+    }
+    template <class other_struct>
+    basic_graph(const basic_graph<other_struct>& g, std::vector<int>& vmap)
+    {
+        nodes.reserve(g.size());
+        nodes.fill();
+        nodeset.initialise(0, g.size() - 1, bitset::full);
+        matrix.resize(g.size());
+        int i = 0;
+        for (auto v : g.nodes) {
+            matrix[i].initialise(0, g.size() - 1, bitset::empt);
+            vmap[v] = i++;
+        }
+        assert(i == g.size());
+        for (auto v : g.nodes) {
+            for (auto u : g.matrix[v]) {
+                matrix[vmap[v]].add(vmap[u]);
+            }
+        }
+    }
+    basic_graph(basic_graph&&) = default;
     basic_graph& operator=(basic_graph&&) = default;
 
     // Method to initialize a non-const basic graph from a const basic_graph
@@ -71,12 +108,28 @@ public:
     void remove_edge(int u, int v);
 
     void remove_node(int v);
-		
-		void remove(const adjacency_struct& nodes);
+
+    void remove(const adjacency_struct& nodes);
 
     void clear();
 
     void canonize();
+
+    void check_consistency()
+    {
+        assert(nodes.size() == nodeset.size());
+        for (auto v : nodes) {
+            assert(!matrix[v].fast_contain(v));
+
+            assert(nodeset.fast_contain(v));
+        }
+        for (auto v : nodes) {
+            for (auto u : matrix[v]) {
+                assert(nodeset.fast_contain(u));
+                assert(matrix[u].fast_contain(v));
+            }
+        }
+    }
 };
 
 template <class adjacency_struct>
@@ -148,21 +201,64 @@ public:
             partition[v].push_back(v);
         }
     }
-    graph(const graph&) = default;
-    graph(graph&&) = default;
+
+    void init_structures()
+    {
+        origmatrix.resize(this->capacity());
+        rep_of.resize(this->capacity());
+        partition.resize(this->capacity());
+        util_set.initialise(0, this->capacity() - 1, bitset::empt);
+        diff2.initialise(0, this->capacity() - 1, bitset::empt);
+        partu.initialise(0, this->capacity() - 1, bitset::empt);
+        partv.initialise(0, this->capacity() - 1, bitset::empt);
+
+        for (auto v : nodes) {
+            origmatrix[v].initialise(0, this->capacity() - 1, bitset::empt);
+            origmatrix[v].copy(matrix[v]);
+            rep_of[v] = v;
+            partition[v].push_back(v);
+        }
+    }
     graph& operator=(const graph&) = default;
+    template <typename other_struct>
+    typename std::enable_if<!std::is_same<other_struct, adjacency_struct>{},
+        graph>::type&
+    operator=(const graph<other_struct>& g)
+    {
+        this->basic_graph<adjacency_struct>::operator=(g);
+        init_structures();
+
+        return *this;
+    }
+
+    graph(const graph&) = default;
+    template <typename other_struct,
+        typename E = typename std::enable_if<
+            !std::is_same<other_struct, adjacency_struct>{}>::type>
+    graph(const graph<other_struct>& g)
+    //: basic_graph<adjacency_struct>(g)
+    {
+        this->operator=(g);
+    }
+    template <class other_struct>
+    graph(const graph<other_struct>& g, std::vector<int>& vmap)
+        : basic_graph<adjacency_struct>(g, vmap)
+    {
+        init_structures();
+    }
+    graph(graph&&) = default;
     graph& operator=(graph&&) = default;
 
     int capacity() const { return matrix.size(); }
 
     void add_edge(int u, int v);
 
-    // merge vertices and return the id of the new vertex (one of u,
-    // v)
+    // merge vertices and return the id of the new vertex (one of
+    // u, v)
     int merge(int u, int v);
 
-    // separate u and v. Just adds an edge, but it is reversible through
-    // checkpointing
+    // separate u and v. Just adds an edge, but it is reversible
+    // through checkpointing
     void separate(int u, int v);
 
     int contractPreprocess();
@@ -173,7 +269,7 @@ public:
 
     int current_checkpoint() const { return cur_ckpt; }
 
-    void describe(std::ostream& os) const;
+    void describe(std::ostream& os, const int num_edges) const;
 
     // debugging
     void check_consistency() const;
@@ -186,15 +282,18 @@ template <class adjacency_struct> struct clique_finder {
     std::vector<adjacency_struct> candidates;
     std::vector<int> last_clique;
     int num_cliques;
-		int limit;
+    int limit;
 
-    clique_finder(const graph<adjacency_struct>& g, const int c=0xfffffff)
-        : g(g)
+    clique_finder(const graph<adjacency_struct>& ig, const int c = 0xfffffff)
+        : g(ig)
         , num_cliques(1)
-				, limit(c)
+        , limit(c)
     {
-			
-				auto m = std::min(limit, g.capacity());
+
+        // std::cout << "CLIQUE FINDER: " << g.size() << "(" << (int*)(&g) << ")"
+        //           << std::endl;
+
+        auto m = std::min(limit, g.capacity());
         last_clique.resize(g.capacity());
         cliques.resize(m);
         clique_sz.resize(m);
@@ -224,8 +323,9 @@ template <class adjacency_struct> struct clique_finder {
     // largest
 
     template <class ordering> int find_cliques(ordering o, const int l=0xfffffff)
-		{
-				if(l < limit) limit = l;
+    {
+        if (l < limit)
+            limit = l;
         clear();
         if (o.size() == 0)
             return 0;
@@ -253,6 +353,41 @@ template <class adjacency_struct> struct clique_finder {
             begin(clique_sz), begin(clique_sz) + num_cliques);
     }
 
+    // template <class ordering> int find_cliques(std::vector<int>::iterator& b,
+    // std::vector<int>::iterator& e, const int l=0xfffffff)
+    // {
+    //     if (l < limit)
+    //         limit = l;
+    //     clear();
+    //     if (e == b)
+    //         return 0;
+    //
+    //     for (auto ui=b; ui!=e; ++ui) {
+    //         bool found{false};
+    // 						int u = *ui;
+    //         for (int i = 0; i != num_cliques; ++i)
+    //             if (candidates[i].fast_contain(u)) {
+    //                 found = true;
+    //                 insert(u, i);
+    //             }
+    //         if (!found && num_cliques < limit) {
+    //             new_clique();
+    //             insert(u, num_cliques - 1);
+    //         }
+    //     }
+    //
+    //     for (auto ui=b; ui!=e; ++ui) {
+    // 						int u = *ui;
+    //         for (int i = last_clique[u] + 1; i < num_cliques; ++i)
+    //             if (candidates[i].fast_contain(u)) {
+    //                 insert(u, i);
+    //             }
+    //     }
+    //
+    //     return *std::max_element(
+    //         begin(clique_sz), begin(clique_sz) + num_cliques);
+    // }
+
     template <class ordering>
     void find_clique_cover(ordering o)
     {
@@ -272,6 +407,13 @@ template <class adjacency_struct> struct clique_finder {
                 insert(u, num_cliques - 1);
             }
         }
+    }
+
+    void sort_cliques(const int size)
+    {
+        for (auto cl = 0; cl < num_cliques; ++cl)
+            if (clique_sz[cl] >= size)
+                cliques[cl].canonize();
     }
 };
 
@@ -294,7 +436,7 @@ template <class graph_struct> struct degeneracy_finder {
     }
 
     void degeneracy_ordering(); // Matula & Beck
-		void clear();
+	void clear();
     void display_ordering();
 };
 
@@ -365,6 +507,8 @@ template <class adjacency_struct>
 void basic_graph<adjacency_struct>::add_clique(const adjacency_struct& C)
 {
     for (auto v : C) {
+        assert(!nodeset.fast_contain(v));
+
         add_node(v);
         matrix[v].union_with(C);
         matrix[v].remove(v);
@@ -373,12 +517,16 @@ void basic_graph<adjacency_struct>::add_clique(const adjacency_struct& C)
 
 template <class adjacency_struct>
 void basic_graph<adjacency_struct>::remove(const adjacency_struct& toremove) {
-		for(auto v : toremove) {
-				remove_node(v);
-		}
-		for(auto v : nodes) {
-				matrix[v].setminus_with(toremove);
-		}
+
+    for (auto v : toremove) {
+        remove_node(v);
+    }
+
+    for (auto v : nodes) {
+        matrix[v].setminus_with(toremove);
+    }
+
+    // check_consistency();
 }
 
 template <class adjacency_struct>
@@ -580,12 +728,23 @@ void graph<adjacency_struct>::restore(int ckpt)
 }
 
 template <class adjacency_struct>
-void graph<adjacency_struct>::describe(std::ostream& os) const
+void graph<adjacency_struct>::describe(std::ostream& os, const int num_edges) const
 {
-    os << "# vertices = " << capacity() << std::endl;
-    // for( auto v : nodes ) {
-    //      os << matrix[v].size() << std::endl;
-    // }
+    int m = num_edges;
+    if (m < 0) {
+        m = 0;
+        for (auto v : nodes)
+            m += matrix[v].size();
+    }
+
+    os << "#vertices = " << this->size() << "   #edges = " << m / 2
+       << "   density = "
+       << (m > 0
+                  ? (double)(m)
+                      / ((double)(this->size()) * (double)(this->size() - 1))
+                  : 1)
+            * 100
+       << "%";
 }
 
 template <class adjacency_struct>
@@ -695,14 +854,14 @@ void clique_finder<adjacency_struct>::insert_color(int v, int clq, bitset& diff)
 template <class graph_struct>
 void degeneracy_finder<graph_struct>::clear()
 {
-		order.clear();
+    order.clear();
 }
 
 // heuristically find a set of cliques and return the size of the
 // largest
 template <class graph_struct>
 void degeneracy_finder<graph_struct>::degeneracy_ordering()
-{	
+{
     for (auto v : g.nodes) {
         auto vd = g.matrix[v].size();
         if (vd >= buckets.size())
@@ -812,7 +971,8 @@ namespace detail
 } // namespace detail
 
 template <class adjacency_struct>
-std::vector<int> brelaz_color(const graph<adjacency_struct>& g)
+std::vector<int> brelaz_color(
+    const graph<adjacency_struct>& g, const bool randomized = false)
 {
     detail::brelaz_state<adjacency_struct> state{g};
     auto& cf = state.cf;
@@ -821,8 +981,19 @@ std::vector<int> brelaz_color(const graph<adjacency_struct>& g)
     Heap<detail::saturation_gt<adjacency_struct>> sheap(
         detail::saturation_gt<adjacency_struct>{state});
 
-    for (auto v : cf.g.nodeset)
-        sheap.insert(v);
+    if (randomized) {
+        std::random_device rd;
+        std::mt19937 s(rd());
+        std::vector<int> order;
+        for (auto v : cf.g.nodes)
+            order.push_back(v);
+        std::shuffle(begin(order), end(order), s);
+        for (auto v : order)
+            sheap.insert(v);
+
+    } else
+        for (auto v : cf.g.nodes)
+            sheap.insert(v);
 
     // std::cout << std::endl << cf.num_cliques << std::endl;
 

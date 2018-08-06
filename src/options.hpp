@@ -92,6 +92,16 @@ struct options {
     bool indset_lb;
 
     std::string format;
+
+    int verbosity;
+
+    bool checksolution;
+
+    int sdsaturiter;
+
+    int ddsaturiter;
+
+    std::string convert;
 };
 
 options parse(int argc, char* argv[]);

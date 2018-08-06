@@ -67,6 +67,7 @@ void gc::interval_list::clear() {
 	next.resize(2);
 	next[0] = 1;
 	size = 0;
+        freed.clear();
 }
 
 /*!@name Printing*/

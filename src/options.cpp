@@ -88,7 +88,7 @@ options parse(int argc, char* argv[])
         "instance file", true, "data/DIMACS_cliques/brock200_1.clq", "string");
     cmd.add<SwitchArg>(opt.trace, "", "trace", "enable minicsp tracing", false);
     cmd.add<ValueArg<int>>(opt.learning, "", "learning",
-        "CDCLeaning & explanation level [0-1]", false, 1, "int");
+        "CDCLeaning & explanation level [0-1]", false, 2, "int");
     cmd.add<SwitchArg>(
         opt.xvars, "", "xvars", "add x (color) variables to the model", false);
     cmd.add<ValueArg<int>>(
@@ -98,18 +98,19 @@ options parse(int argc, char* argv[])
     cmd.add<ValueArg<int>>(opt.ordering_low_degree, "", "ord-low-degree",
         "Use low degree information to improve clique ordering", false, 0, "int");
     cmd.add<ValueArg<int>>(opt.boundalg, "", "bound",
-        "lower bound algorithm [0-3]", false, 0, "int");
+        "lower bound algorithm [0-3]", false, 2, "int");
     cmd.add<SwitchArg>(opt.prune, "", "prune", "enable pruning", false);
     cmd.add<SwitchArg>(opt.adaptive, "", "adaptive",
-        "Switch between CLIQUES and declared bound policy dynamically", false);
+        "Switch between CLIQUES and declared bound policy dynamically", true);
     cmd.add<ValueArg<int>>(opt.branching, "", "branching",
-        "Variable branching heuristic [0-14]", false, 0, "int");
+        "Variable branching heuristic [0-14]", false, 1, "int");
     cmd.add<SwitchArg>(opt.branching_low_degree, "", "branch-low-degree",
         "Use low degree information to improve branching", false);
     cmd.add<ValueArg<int>>(opt.cliquelimit, "", "cliquelimit",
         "Maximum number of cliques in the lower bound algorithm", false, 0xfffffff, "int");
     cmd.add<ValueArg<int>>(opt.strategy, "", "strategy",
-        "Solution strategy [0=BNB-1=bottom-up-2=top-down-3=computes initial bounds and stops]", false, 0, "int");
+        "Solution strategy [0=BNB-1=bottom-up-2=top-down-3=preprocessing only]",
+        false, 0, "int");
     cmd.add<ValueArg<int>>(opt.preprocessing, "", "preprocessing",
         "Level of preprocessing [0=none-1=low-degree-2=low-degree (sparse)]", false, 1, "int");
     cmd.add<SwitchArg>(opt.dominance, "", "dominance",
@@ -122,6 +123,16 @@ options parse(int argc, char* argv[])
         "compute IS-based lower bound", false);
     cmd.add<ValueArg<std::string>>(opt.format, "", "format",
         "File format", false, "dimacs", "string");
+    cmd.add<ValueArg<int>>(
+        opt.verbosity, "", "verbosity", "Verbosity level", false, 0, "int");
+    cmd.add<SwitchArg>(
+        opt.checksolution, "", "checksolution", "checks the coloring", false);
+    cmd.add<ValueArg<int>>(opt.sdsaturiter, "", "sdsaturiter",
+        "# of sparse dsatur iterations", false, 1, "int");
+    cmd.add<ValueArg<int>>(opt.ddsaturiter, "", "ddsaturiter",
+        "# of dense dsatur iterations", false, 1, "int");
+    cmd.add<ValueArg<std::string>>(opt.convert, "", "convert",
+        "output in <file> using dimacs format", false, "", "string");
 
     cmd.parse(argc, argv);
     return opt;
@@ -129,20 +140,20 @@ options parse(int argc, char* argv[])
 
 void options::describe(std::ostream& os)
 {
-    os << "GC configuration\n";
-    os << "cmdline = " << cmdline << "\n";
-    os << "Instance file = " << instance_file << "\n";
-    os << "Clause learning = " << learning << "\n";
-    os << "Polarity policy = " << polarity << "\n";
-    os << "Clique ordering = " << ordering << "\n";
-    os << " ... low degree = " << ordering_low_degree << "\n";
-    os << "Color variables = " << (xvars ? "present" : "absent") << "\n";
-    os << "Bound policy    = " << boundalg << "\n";
-    os << "Adaptive bounds = " << adaptive << "\n";
-    os << "Preprocessing   = " << (preprocessing == 0 ? "none" : preprocessing == 1 ?  "dense" : "sparse") << "\n";
-    os << "IS constraints  = " << indset_constraints << "\n";
-    os << "fillin          = " << fillin << "\n";
-    os << "Branching strat = ";
+    os << "[options] GC configuration\n";
+    os << "[options] cmdline = " << cmdline << "\n";
+    os << "[options] Instance file = " << instance_file << "\n";
+    os << "[options] Clause learning = " << learning << "\n";
+    os << "[options] Polarity policy = " << polarity << "\n";
+    os << "[options] Clique ordering = " << ordering << "\n";
+    os << "[options]  ... low degree = " << ordering_low_degree << "\n";
+    os << "[options] Color variables = " << (xvars ? "present" : "absent") << "\n";
+    os << "[options] Bound policy    = " << boundalg << "\n";
+    os << "[options] Adaptive bounds = " << adaptive << "\n";
+    os << "[options] Preprocessing   = " << (preprocessing == 0 ? "none" : preprocessing == 1 ?  "dense" : "sparse") << "\n";
+    os << "[options] IS constraints  = " << indset_constraints << "\n";
+    os << "[options] fillin          = " << fillin << "\n";
+    os << "[options] Branching strat = ";
     switch (branching) {
     case gc::options::VSIDS:
         os << "VSIDS\n";
@@ -193,8 +204,8 @@ void options::describe(std::ostream& os)
         os << "VSIDS restricted to assignments to color variables\n";
         break;
     }
-    os << " ... low degree = " << branching_low_degree << "\n";
-    os << "Strategy        = ";
+    os << "[options]  ... low degree = " << branching_low_degree << "\n";
+    os << "[options] Strategy        = ";
     switch (strategy) {
     case BNB:
         os << "branch and bound";

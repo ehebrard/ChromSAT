@@ -151,7 +151,7 @@ struct gc_preprocessor {
 						
 						bool removal = false;
 						for( auto v : df.order ) {
-								if(df.degrees[v] >= lb-1)
+								if(df.degrees[v] >= lb)
 										break;
 								toremove.add(v);
 								gr.removed_vertices.push_back(v);
@@ -160,22 +160,14 @@ struct gc_preprocessor {
 	
 						if(removal) {
 							
-								// std::cout << "\nremove";
-								// for( auto v : toremove ) {
-								// 	std::cout << " " << v ;
-								// }
-								// std::cout << std::endl;
-							
 								g.remove(toremove);
 								toremove.clear();
-						}
-					
-				} while(true);
-				
-				return gr;
-		}
-		
-		
+                                                }
+
+                                } while (true);
+
+                                return gr;
+    }
 
     graph_reduction<adjacency_struct> preprocess(
         gc::graph<adjacency_struct>& g, std::pair<int, int> bounds, bool myciel = false)
@@ -238,7 +230,7 @@ struct gc_preprocessor {
 								// v 
                 removed = true;
                 removedv.fast_add(u);
-                ++statistics.num_vertex_removals;
+                // ++statistics.num_vertex_removals;
                 toremove.push_back(u);
                 gr.removed_vertices.push_back(u);
                 forbidden.union_with(g.matrix[u]);
@@ -252,6 +244,9 @@ struct gc_preprocessor {
 		                g.origmatrix[v].remove(u);
 		            }
             }
+						
+						statistics.notify_removals(g.size());
+						
         } while (removed);
         return gr;
     }
@@ -553,10 +548,10 @@ int read_graph(gc::options& options, gc::dyngraph& g)
 std::vector<int> upper_bound(gc::options& options, gc::dyngraph& g) 
 {
 	gc::coloring col;
-	col.brelaz_color(g);
-	g.undo();
-	
-	return col.color;
+        col.brelaz_color(g, false);
+        g.undo();
+
+        return col.color;
 }
 
 int lower_bound(gc::options& options, gc::dyngraph& g) 
