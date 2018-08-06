@@ -639,7 +639,7 @@ int main(int argc, char* argv[])
 				gc::statistics stat(g.size());
 				std::pair<int,int> bounds{0,g.size()};
 				
-				gc_preprocessor pp(g, options, stat, bounds, 100);
+				gc_preprocessor<gc::vertices_vec> pp(g, options, stat, bounds, 100);
 
 		} else if(options.preprocessing == gc::options::LOW_DEGREE) {
 				gc::graph<gc::bitset> g;	
@@ -650,7 +650,7 @@ int main(int argc, char* argv[])
 				gc::statistics stat(g.size());
 				std::pair<int,int> bounds{0,g.size()};
 				
-				gc_preprocessor pp(g, options, stat, bounds, 100);
+				gc_preprocessor<gc::bitset> pp(g, options, stat, bounds, 100);
 
 		} else {
 				std::cout << "\nsparse graph\n";
