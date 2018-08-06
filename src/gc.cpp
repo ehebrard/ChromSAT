@@ -8,6 +8,7 @@
 #include "options.hpp"
 #include "prop.hpp"
 #include "rewriter.hpp"
+#include "snap.hpp"
 #include "sparse_dynamic_graph.hpp"
 #include "statistics.hpp"
 #include "utils.hpp"
@@ -275,14 +276,9 @@ struct gc_model {
             std::cout << "[preprocessing] compute lower bound\n";
 
             auto plb = cf.find_cliques(reverse);
-            if (g.size() < 1000) {
+            if (options.boundalg != gc::options::CLIQUES) {
                 cf.sort_cliques(plb);
-
-                std::cout << plb << std::endl;
-
                 plb = mf.improve_cliques_larger_than(plb);
-
-                std::cout << plb << std::endl;
             }
 
             if (lb < plb) {
@@ -411,7 +407,8 @@ struct gc_model {
     {
         gc::degeneracy_vc_solver<gc::graph<adjacency_struct>> vc(g);
         auto bs = vc.find_is();
-        std::cout << "IS size = " << bs.size() << "\n";
+        std::cout << "[preprocessing] extract IS constraint size = "
+                  << bs.size() << "\n";
         for (auto v : bs) {
             gr.removed_vertices.push_back(v);
             gr.status[v] = vertex_status::indset_removed;
@@ -430,8 +427,6 @@ struct gc_model {
     {
         gc::coloring col;
 
-        // double tprev = minicsp::cpuTime(), tnow;
-
         int iter = 0;
         do {
 
@@ -439,28 +434,17 @@ struct gc_model {
             col.brelaz_color(dg, (options.sdsaturiter > 1 ? 1 : 0));
             auto ncol{*std::max_element(begin(col.color), end(col.color)) + 1};
 
-            // std::cout << "brelaz: " << ncol << std::endl;
-
             if (ub > ncol) {
                 ub = ncol;
                 statistics.notify_ub(ub);
                 statistics.display(std::cout);
-
-                // dg.nodes.fill();
-                // assert(dg.size() == original.size());
                 for (int i = 0; i < original.size(); ++i) {
                     solution[original.nodes[i]] = col.color[i];
                 }
-                // dg.nodes.
             }
 
-            // tnow = minicsp::cpuTime();
-            // std::cout << " --> " << (tnow - tprev) << std::endl;
-            // tprev = tnow;
-
-            if (++iter >= maxiter) {
+            if (++iter >= maxiter)
                 break;
-            }
 
             dg.undo();
             col.clear();
@@ -770,17 +754,37 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
     int num_edges = 0;
     std::vector<std::pair<int, int>> edges;
-    dimacs::read_graph(options.instance_file.c_str(),
-        [&](int nv, int) { g = gc::graph<input_format>{nv}; },
-        [&](int u, int v) {
-            if (u != v) {
-                g.add_edge(u - 1, v - 1);
-                ++num_edges;
-                if (options.checksolution)
-                    edges.push_back(std::pair<int, int>{u - 1, v - 1});
-            }
-        },
-        [&](int, gc::weight) {});
+    if (options.format == "snap")
+        snap::read_graph(options.instance_file.c_str(),
+            [&](int nv, int) { g = gc::graph<input_format>{nv}; },
+            [&](int u, int v) {
+                if (u != v) {
+                    num_edges += 1 - g.matrix[u].fast_contain(v);
+                    g.add_edge(u, v);
+                    // ++num_edges;
+                }
+            },
+            [&](int, gc::weight) {});
+    else
+        dimacs::read_graph(options.instance_file.c_str(),
+            [&](int nv, int) { g = gc::graph<input_format>{nv}; },
+            [&](int u, int v) {
+                if (u != v) {
+                    g.add_edge(u - 1, v - 1);
+                    ++num_edges;
+                    if (options.checksolution)
+                        edges.push_back(std::pair<int, int>{u - 1, v - 1});
+                }
+            },
+            [&](int, gc::weight) {});
+
+    if (options.convert != "") {
+        std::ofstream dimacsfile(options.convert.c_str(), std::ios_base::out);
+        gc::dyngraph dg(g);
+        dg.print_dimacs(dimacsfile);
+        return 1;
+    }
+
     g.canonize();
 
     g.describe(std::cout, num_edges);

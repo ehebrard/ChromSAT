@@ -100,6 +100,8 @@ struct options {
     int sdsaturiter;
 
     int ddsaturiter;
+
+    std::string convert;
 };
 
 options parse(int argc, char* argv[]);

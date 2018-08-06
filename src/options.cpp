@@ -131,6 +131,8 @@ options parse(int argc, char* argv[])
         "# of sparse dsatur iterations", false, 1, "int");
     cmd.add<ValueArg<int>>(opt.ddsaturiter, "", "ddsaturiter",
         "# of dense dsatur iterations", false, 1, "int");
+    cmd.add<ValueArg<std::string>>(opt.convert, "", "convert",
+        "output in <file> using dimacs format", false, "", "string");
 
     cmd.parse(argc, argv);
     return opt;
