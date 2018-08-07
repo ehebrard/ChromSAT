@@ -897,5 +897,7 @@ int main(int argc, char* argv[])
     auto options = gc::parse(argc, argv);
     gc::graph<gc::vertices_vec> g;
     // gc::graph<gc::bitset> g;
-    return color(options, g);
+    auto result = color(options, g);
+		
+		return result;
 }

@@ -71,6 +71,7 @@ void statistics::display(std::ostream& os)
 					 << "| delta = " << std::setw(8) << std::left << std::setprecision(4) << get_bound_increase() 
 					 // << "| #dom = " << std::setw(10) << std::left << num_neighborhood_contractions
 					 << "| #vert = " << std::setw(10) << std::left << num_vertices
+					 << "| memory = " << std::setw(8) << minicsp::memUsed()
 		    	 << std::endl;
 		}
 		

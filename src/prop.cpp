@@ -114,6 +114,17 @@ public:
             for (auto e : *fillin)
                 fg.add_edge(e.first, e.second);
         }
+				
+				
+				// // TODO
+				// std::cout << "UB = " << ub << std::endl;
+				// int k = ub-1;
+				// int a = g.capacity() / k;
+				// int mineq = a * (g.capacity() - k * (a + 1) / 2);
+				// 			  mineq_constraint = new cons_pbvar(s, vbool, c, rhs);
+				// 			  s.addConstraint(mineq_constraint);
+				
+				
 
         DO_OR_THROW(propagate(s));
     }
