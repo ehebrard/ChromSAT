@@ -99,7 +99,7 @@ double statistics::get_bound_increase() const {
 
 void statistics::describe(std::ostream& os)
 {	
-		os << "[statistics] lb ub time conflicts delta #vert\n";
+		os << "[statistics] lb ub time conflicts delta #vert memory virtual\n";
 }
 
 void statistics::display(std::ostream& os)
@@ -128,7 +128,6 @@ void statistics::display(std::ostream& os)
 					 << "| time = " << std::setw(10) << std::left << std::setprecision(4) << minicsp::cpuTime()
 					 << "| conflicts = " << std::setw(10) << std::left << (cons ? total_conflicts + cons->s.conflicts : total_conflicts)
 					 << "| delta = " << std::setw(8) << std::left << std::setprecision(4) << get_bound_increase() 
-					 // << "| #dom = " << std::setw(10) << std::left << num_neighborhood_contractions
 					 << "| #vert = " << std::setw(10) << std::left << num_vertices
 					 << "| memory = " << std::setw(8) << std::left << (long)resident_set 
 					 << "| virtual = " << std::setw(8) << std::left << (long)vm_usage 
