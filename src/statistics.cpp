@@ -1,4 +1,9 @@
 
+// #include <unistd.h>
+// #include <ios>
+// #include <iostream>
+#include <fstream>
+// #include <string>
 #include <iomanip>
 
 #include "statistics.hpp"
@@ -7,6 +12,54 @@
 
 namespace gc
 {
+	
+	
+	//////////////////////////////////////////////////////////////////////////////
+	//
+	// process_mem_usage(double &, double &) - takes two doubles by reference,
+	// attempts to read the system-dependent data for a process' virtual memory
+	// size and resident set size, and return the results in KB.
+	//
+	// On failure, returns 0.0, 0.0
+
+	void process_mem_usage(double& vm_usage, double& resident_set)
+	{
+	   using std::ios_base;
+	   using std::ifstream;
+	   using std::string;
+
+	   vm_usage     = 0.0;
+	   resident_set = 0.0;
+
+	   // 'file' stat seems to give the most reliable results
+	   //
+	   std::ifstream stat_stream("/proc/self/stat",std::ios_base::in);
+
+	   // dummy vars for leading entries in stat that we don't care about
+	   //
+	   std::string pid, comm, state, ppid, pgrp, session, tty_nr;
+	   std::string tpgid, flags, minflt, cminflt, majflt, cmajflt;
+	   std::string utime, stime, cutime, cstime, priority, nice;
+	   std::string O, itrealvalue, starttime;
+
+	   // the two fields we want
+	   //
+	   unsigned long vsize;
+	   long rss;
+
+	   stat_stream >> pid >> comm >> state >> ppid >> pgrp >> session >> tty_nr
+	               >> tpgid >> flags >> minflt >> cminflt >> majflt >> cmajflt
+	               >> utime >> stime >> cutime >> cstime >> priority >> nice
+	               >> O >> itrealvalue >> starttime >> vsize >> rss; // don't care about the rest
+
+	   stat_stream.close();
+
+	   long page_size_kb = sysconf(_SC_PAGE_SIZE) / 1024; // in case x86-64 is configured to use 2MB pages
+	   vm_usage     = vsize / 1024.0;
+	   resident_set = rss * page_size_kb;
+	}
+
+	
 		
 void statistics::notify_bound_delta(const int b1, const int b2)
 {
@@ -46,7 +99,7 @@ double statistics::get_bound_increase() const {
 
 void statistics::describe(std::ostream& os)
 {	
-		os << "[statistics] lb ub time conflicts delta #vert\n";
+		os << "[statistics] lb ub time conflicts delta #vert memory virtual\n";
 }
 
 void statistics::display(std::ostream& os)
@@ -63,14 +116,21 @@ void statistics::display(std::ostream& os)
 		
 		
 		if(changed) {
+			
+			double vm_usage;
+			double resident_set;
+			
+			process_mem_usage(vm_usage, resident_set);
+			
 				os.setf(std::ios_base::fixed, std::ios_base::floatfield);
 		    os << "[data] lb = " << std::setw(4) << std::left << best_lb
 					 << "| ub = " << std::setw(4) << std::left << best_ub
 					 << "| time = " << std::setw(10) << std::left << std::setprecision(4) << minicsp::cpuTime()
 					 << "| conflicts = " << std::setw(10) << std::left << (cons ? total_conflicts + cons->s.conflicts : total_conflicts)
 					 << "| delta = " << std::setw(8) << std::left << std::setprecision(4) << get_bound_increase() 
-					 // << "| #dom = " << std::setw(10) << std::left << num_neighborhood_contractions
 					 << "| #vert = " << std::setw(10) << std::left << num_vertices
+					 << "| memory = " << std::setw(8) << std::left << (long)resident_set 
+					 << "| virtual = " << std::setw(8) << std::left << (long)vm_usage 
 		    	 << std::endl;
 		}
 		

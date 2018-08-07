@@ -142,7 +142,7 @@ public:
 
     // we keep a copy of the original matrix because we modify matrix
     // when we do merge/separate
-    std::vector<bitset> origmatrix;
+    std::vector<adjacency_struct> origmatrix;
 
     // checkpointing
     int cur_ckpt{0};
@@ -737,8 +737,8 @@ void graph<adjacency_struct>::describe(std::ostream& os, const int num_edges) co
             m += matrix[v].size();
     }
 
-    os << "#vertices = " << this->size() << "   #edges = " << m / 2
-       << "   density = "
+    os << "#vertices = " << this->size() << ",  #edges = " << m / 2
+       << ",  density = "
        << (m > 0
                   ? (double)(m)
                       / ((double)(this->size()) * (double)(this->size() - 1))
