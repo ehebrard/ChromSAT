@@ -142,7 +142,7 @@ public:
 
     // we keep a copy of the original matrix because we modify matrix
     // when we do merge/separate
-    std::vector<bitset> origmatrix;
+    std::vector<adjacency_struct> origmatrix;
 
     // checkpointing
     int cur_ckpt{0};
