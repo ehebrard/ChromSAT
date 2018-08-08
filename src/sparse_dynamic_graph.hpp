@@ -108,7 +108,7 @@ public:
     dyngraph(const int n);
     dyngraph(const dyngraph& g);
     template <class adjacency_struct>
-    dyngraph(const gc::graph<adjacency_struct>& g);
+    dyngraph(const gc::basic_graph<adjacency_struct>& g);
 
     // helpers
     int size() const;
@@ -162,7 +162,7 @@ public:
 };
 
 template <class adjacency_struct>
-dyngraph::dyngraph(const gc::graph<adjacency_struct>& g)
+dyngraph::dyngraph(const gc::basic_graph<adjacency_struct>& g)
     : dyngraph(g.size())
 {
     std::vector<int> vmap(g.capacity());
