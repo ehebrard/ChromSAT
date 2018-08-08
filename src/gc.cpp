@@ -74,6 +74,11 @@ struct graph_reduction {
     {
     }
 
+    //     int extend_solution(std::vector<int>& col)
+    //     {
+    //
+    // }
+
     int extend_solution(std::vector<int>& col)
     {
         int maxc{0};
@@ -200,23 +205,35 @@ struct gc_model {
     gc::varmap create_vars()
     {
 
-        if (g.size() > 0 and options.ddsaturiter > 0) {
+        if (g.size() > 0 and options.ddsaturiter > 0 and lb < ub) {
 
             std::cout << "[modeling] launch dense dsatur ("
                       << options.ddsaturiter << " times) at "
                       << minicsp::cpuTime() << "\n";
+						
             // we have a dense graph now, so let's compute dsatur the other way
-            // just
-            // in case
-
+            // just in case
             for (int i = 0; i < options.ddsaturiter; ++i) {
                 auto sol{gc::brelaz_color(g, (options.ddsaturiter > 1))};
                 int ncol{*max_element(begin(sol), end(sol)) + 1};
-                if (ub > ncol) {
-                    ub = ncol;
-                    statistics.notify_ub(ub);
-                    statistics.display(std::cout);
-                }
+								
+								
+								
+		            if (ub > ncol) {
+										assert(g.size() == original.size());
+		                for (int i = 0; i < original.size(); ++i) {
+		                    solution[original.nodes[i]] = sol[i];
+		                }
+
+		                auto actualncol = reduction.extend_solution(solution);
+		                // std::cout << " ====> " << actualncol << std::endl;
+
+		                if (ub > actualncol) {
+		                    ub = actualncol;
+		                    statistics.notify_ub(ub);
+		                    statistics.display(std::cout);
+		                }
+		            }
             }
         }
 
@@ -449,12 +466,26 @@ struct gc_model {
             col.brelaz_color(dg, (options.sdsaturiter > 1 ? 1 : 0));
             auto ncol{*std::max_element(begin(col.color), end(col.color)) + 1};
 
+            // // [TODO: WHEN GIVING A "FAKE" LB, WE CAN FIND A SMALLER
+            // COLORING,
+            // // 1/ WE SHOULD CHECK WHAT IS THE ACTUAL SIZE OF THAT COLORING 2/
+            // // OTHERWISE WE CAN ONLY GUARANTEE LB]
+            // if (ncol < lb) {
+            //     ncol = lb;
+            // } [DONE]
+
             if (ub > ncol) {
-                ub = ncol;
-                statistics.notify_ub(ub);
-                statistics.display(std::cout);
                 for (int i = 0; i < original.size(); ++i) {
                     solution[original.nodes[i]] = col.color[i];
+                }
+
+                auto actualncol = reduction.extend_solution(solution);
+                // std::cout << " ====> " << actualncol << std::endl;
+
+                if (ub > actualncol) {
+                    ub = actualncol;
+                    statistics.notify_ub(ub);
+                    statistics.display(std::cout);
                 }
             }
 
@@ -520,7 +551,7 @@ struct gc_model {
     // , rewriter(s, g, cons, vars, xvars)
     {
 
-        if (options.strategy != gc::options::BOUNDS) {
+        if (options.strategy != gc::options::BOUNDS and original.size() > 0 and lb < ub) {
             g = gc::dense_graph(original, vertex_map);
             vars = gc::varmap(create_vars());
             cons = gc::post_gc_constraint(s, g, fillin, vars,
@@ -894,6 +925,8 @@ int color(gc::options& options, gc::graph<input_format>& g)
             auto ibounds = tmp_model.solve();
             auto ilb = ibounds.first;
             auto iub = ibounds.second;
+
+            // return 1;
 
             if (ilb == i + 1) {
                 statistics.notify_lb(ilb);
