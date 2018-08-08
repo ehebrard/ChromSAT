@@ -242,7 +242,8 @@ struct gc_model {
 
         // auto lb = std::max(lb, given_lb);
 
-        gc::clique_finder<adjacency_struct> cf{g, std::min(100, g.size())};
+        gc::clique_finder<adjacency_struct> cf{
+            g, std::min(options.cliquelimit, g.size())};
         gc::mycielskan_subgraph_finder<adjacency_struct> mf(g, cf, false);
         gc::degeneracy_finder<gc::graph<adjacency_struct>> df{g};
 

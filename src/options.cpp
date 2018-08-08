@@ -107,7 +107,9 @@ options parse(int argc, char* argv[])
     cmd.add<SwitchArg>(opt.branching_low_degree, "", "branch-low-degree",
         "Use low degree information to improve branching", false);
     cmd.add<ValueArg<int>>(opt.cliquelimit, "", "cliquelimit",
-        "Maximum number of cliques in the lower bound algorithm", false, 0xfffffff, "int");
+        "Maximum number of cliques in the lower bound algorithm during "
+        "preprocessing",
+        false, 1000, "int");
     cmd.add<ValueArg<int>>(opt.strategy, "", "strategy",
         "Solution strategy [0=BNB-1=bottom-up-2=top-down-3=preprocessing only]",
         false, 0, "int");
