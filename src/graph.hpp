@@ -287,7 +287,8 @@ template <class adjacency_struct> struct clique_finder {
     const basic_graph<adjacency_struct>& g;
     std::vector<adjacency_struct> cliques;
     std::vector<int> clique_sz;
-    std::vector<adjacency_struct> candidates;
+    // std::vector<adjacency_struct> candidates;
+    std::vector<gc::bitset> candidates;
     std::vector<int> last_clique;
     int num_cliques;
     int limit;

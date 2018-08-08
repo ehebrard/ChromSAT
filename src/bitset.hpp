@@ -723,6 +723,21 @@ public:
             table[k] = empt;
     }
 
+    inline void intersect_with(const vertices_vec& s)
+    {
+        if (s.size() == 0)
+            clear();
+        set_min(s.min());
+        set_max(s.max());
+
+        int a, b;
+        for (int i = 1; i < s.size(); ++i) {
+            a = s.vertices[i - 1];
+            b = s.vertices[i];
+            remove_interval(a + 1, b - 1);
+        }
+    }
+
     inline void intersect_with(const Bitset<WORD_TYPE, FLOAT_TYPE>& s,
         Bitset<WORD_TYPE, FLOAT_TYPE>& delta)
     {
