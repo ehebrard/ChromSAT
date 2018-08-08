@@ -88,6 +88,7 @@ public:
                 matrix[vmap[v]].add(vmap[u]);
             }
         }
+        canonize();
     }
     basic_graph(basic_graph&&) = default;
     basic_graph& operator=(basic_graph&&) = default;

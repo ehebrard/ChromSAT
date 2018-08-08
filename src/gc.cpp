@@ -317,26 +317,22 @@ struct gc_model {
                 std::cout << "[preprocessing] remove low degree nodes (" << lb
                           << ")\n";
 
-                bool removal = false;
                 for (auto v : df.order) {
                     if (df.degrees[v] >= lb)
                         break;
                     toremove.add(v);
                     gr.removed_vertices.push_back(v);
-                    removal = true;
                 }
 
-                if (removal) {
-                    toremove.canonize();
-                    g.remove(toremove);
-                    for (auto u : toremove) {
-                        gr.status[u] = vertex_status::low_degree_removed;
-                    }
-
-                    toremove.clear();
-                    statistics.notify_removals(g.size());
-                    statistics.display(std::cout);
+                toremove.canonize();
+                g.remove(toremove);
+                for (auto u : toremove) {
+                    gr.status[u] = vertex_status::low_degree_removed;
                 }
+
+                toremove.clear();
+                statistics.notify_removals(g.size());
+                statistics.display(std::cout);
                 changes = true;
             }
 
