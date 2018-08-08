@@ -142,7 +142,8 @@ void statistics::binds( gc::cons_base* c ) {
 }
 
 void statistics::unbinds() {
-		total_conflicts += cons->s.conflicts;
+		if(cons)
+				total_conflicts += cons->s.conflicts;
 		cons = NULL;
 }
 
