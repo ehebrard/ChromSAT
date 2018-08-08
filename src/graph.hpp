@@ -116,6 +116,10 @@ public:
 
     void canonize();
 
+    int representative_of(const int v) const { return v; } // for compatibility
+		
+		void describe(std::ostream& os, const int num_edges) const;
+
     void check_consistency()
     {
         assert(nodes.size() == nodeset.size());
@@ -224,7 +228,7 @@ public:
     template <typename other_struct>
     typename std::enable_if<!std::is_same<other_struct, adjacency_struct>{},
         graph>::type&
-    operator=(const graph<other_struct>& g)
+    operator=(const basic_graph<other_struct>& g)
     {
         this->basic_graph<adjacency_struct>::operator=(g);
         init_structures();
@@ -236,13 +240,13 @@ public:
     template <typename other_struct,
         typename E = typename std::enable_if<
             !std::is_same<other_struct, adjacency_struct>{}>::type>
-    graph(const graph<other_struct>& g)
+    graph(const basic_graph<other_struct>& g)
     //: basic_graph<adjacency_struct>(g)
     {
         this->operator=(g);
     }
     template <class other_struct>
-    graph(const graph<other_struct>& g, std::vector<int>& vmap)
+    graph(const basic_graph<other_struct>& g, std::vector<int>& vmap)
         : basic_graph<adjacency_struct>(g, vmap)
     {
         init_structures();
@@ -270,22 +274,27 @@ public:
 
     int current_checkpoint() const { return cur_ckpt; }
 
-    void describe(std::ostream& os, const int num_edges) const;
-
     // debugging
     void check_consistency() const;
+
+    int representative_of(const int v) const
+    {
+        return rep_of[v];
+    } // for compatibility
 };
 
 template <class adjacency_struct> struct clique_finder {
-    const graph<adjacency_struct>& g;
+    const basic_graph<adjacency_struct>& g;
     std::vector<adjacency_struct> cliques;
     std::vector<int> clique_sz;
-    std::vector<adjacency_struct> candidates;
+    // std::vector<adjacency_struct> candidates;
+    std::vector<gc::bitset> candidates;
     std::vector<int> last_clique;
     int num_cliques;
     int limit;
 
-    clique_finder(const graph<adjacency_struct>& ig, const int c = 0xfffffff)
+    clique_finder(
+        const basic_graph<adjacency_struct>& ig, const int c = 0xfffffff)
         : g(ig)
         , num_cliques(1)
         , limit(c)
@@ -729,7 +738,7 @@ void graph<adjacency_struct>::restore(int ckpt)
 }
 
 template <class adjacency_struct>
-void graph<adjacency_struct>::describe(std::ostream& os, const int num_edges) const
+void basic_graph<adjacency_struct>::describe(std::ostream& os, const int num_edges) const
 {
     int m = num_edges;
     if (m < 0) {
@@ -945,7 +954,7 @@ namespace detail
             return degrees[v];
         }
 
-        brelaz_state(const graph<adjacency_struct>& g)
+        brelaz_state(const basic_graph<adjacency_struct>& g)
             : cf(g)
             , degrees(cf.g.capacity(), 0)
             , dirty(0, cf.g.capacity(), bitset::full)
@@ -973,7 +982,7 @@ namespace detail
 
 template <class adjacency_struct>
 std::vector<int> brelaz_color(
-    const graph<adjacency_struct>& g, const bool randomized = false)
+    const basic_graph<adjacency_struct>& g, const bool randomized = false)
 {
     detail::brelaz_state<adjacency_struct> state{g};
     auto& cf = state.cf;
