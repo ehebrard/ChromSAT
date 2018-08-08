@@ -226,17 +226,21 @@ struct gc_model {
             return create_all_vars();
     }
 
-    graph_reduction<adjacency_struct> degeneracy_peeling(
-        gc::graph<adjacency_struct>& g)
+    void degeneracy_peeling(
+        gc::graph<adjacency_struct>& g, graph_reduction<adjacency_struct>& gr)
     {
-        graph_reduction<adjacency_struct> gr(g, statistics);
-        if (options.preprocessing == gc::options::NO_PREPROCESSING)
-            return gr;
+        // graph_reduction<adjacency_struct> gr(g, statistics);
+        // if (options.preprocessing == gc::options::NO_PREPROCESSING)
+        //     return gr;
 
         std::cout << "[preprocessing] start peeling\n";
 
+        // histogram(g);
+
         // lb = bounds.first;
         // ub = bounds.second;
+
+        // auto lb = std::max(lb, given_lb);
 
         gc::clique_finder<adjacency_struct> cf{g, std::min(100, g.size())};
         gc::mycielskan_subgraph_finder<adjacency_struct> mf(g, cf, false);
@@ -250,6 +254,7 @@ struct gc_model {
                 break;
             }
 
+            // if(active_lb == lb) { // otherwise
             cf.clear();
             df.clear();
             // mf.clear();
@@ -274,6 +279,7 @@ struct gc_model {
             }
 
             std::cout << "[preprocessing] compute lower bound\n";
+            // }
 
             auto plb = cf.find_cliques(reverse);
             if (options.boundalg != gc::options::CLIQUES) {
@@ -281,12 +287,17 @@ struct gc_model {
                 plb = mf.improve_cliques_larger_than(plb);
             }
 
+            bool changes = false;
             if (lb < plb) {
                 lb = plb;
                 statistics.notify_lb(lb);
                 statistics.display(std::cout);
+                changes = true;
+            }
 
-                std::cout << "[preprocessing] remove low degree nodes\n";
+            if (df.degrees[df.order[0]] < lb) {
+                std::cout << "[preprocessing] remove low degree nodes (" << lb
+                          << ")\n";
 
                 bool removal = false;
                 for (auto v : df.order) {
@@ -308,12 +319,15 @@ struct gc_model {
                     statistics.notify_removals(g.size());
                     statistics.display(std::cout);
                 }
-            } else
+                changes = true;
+            }
+
+            if (!changes)
                 break;
 
         } while (true);
 
-        return gr;
+        // return gr;
     }
 
 
@@ -453,7 +467,13 @@ struct gc_model {
 
     graph_reduction<adjacency_struct> preprocess(gc::graph<adjacency_struct>& g)
     {
-        auto gr{degeneracy_peeling(original)};
+        // auto gr{degeneracy_peeling(original)};
+
+        graph_reduction<adjacency_struct> gr(g, statistics);
+        if (options.preprocessing == gc::options::NO_PREPROCESSING)
+            return gr;
+
+        degeneracy_peeling(original, gr);
 
         int num_edges = 0;
         if (g.size() > 0 and lb < ub) {
@@ -466,6 +486,9 @@ struct gc_model {
                 num_edges = dg.edges.size();
                 sparse_upper_bound(dg, options.sdsaturiter);
             }
+
+            // if (options.strategy == gc::options::TOPDOWN) {
+            // 		degeneracy_peeling(original, gr, ub-1);
 
             if (g.size() > 0 and lb < ub and options.indset_constraints)
                 find_is_constraints(g, gr);
@@ -675,7 +698,6 @@ struct gc_model {
                 int actualub = reduction.extend_solution(col_r);
                 statistics.notify_ub(actualub);
                 statistics.display(std::cout);
-
                 cons->ub = solub;
                 cons->actualub = actualub;
                 if (options.xvars) {
@@ -683,14 +705,18 @@ struct gc_model {
                         v.setmax(s, cons->ub - 2, minicsp::NO_REASON);
                 }
                 assert(lub >= cons->ub);
-                lub = cons->ub;
+                lub = cons->actualub; // changed from ub to actualub, since we
+                                      // have removed vertices of degree ub-2
+                                      // and we can potentially find colorings
+                                      // with ub - 2 colors
             } else if (sat == l_Undef) {
                 std::cout << "*** INTERRUPTED ***\n";
                 break;
             } else {
                 cons->bestlb = cons->ub;
                 statistics.display(std::cout);
-                assert(llb <= cons->bestlb);
+                // assert(llb <= cons->bestlb); [IN TOP-DOWN WE MAY FIND A
+                // SOLUTION WITH FEWER THAN LB COLORS]
                 llb = cons->bestlb;
             }
         }
@@ -815,6 +841,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
         break;
     }
     case gc::options::BOTTOMUP: {
+
         statistics.update_ub = false;
         auto bounds = initial_bounds(
             g, statistics, options.boundalg != gc::options::CLIQUES);
@@ -843,18 +870,30 @@ int color(gc::options& options, gc::graph<input_format>& g)
         }
     } break;
     case gc::options::TOPDOWN: {
+
+        std::vector<int> vmap(g.capacity());
+        options.strategy = gc::options::BOUNDS; // so that we don't create the
+                                                // dense graph yet
+        gc_model<gc::vertices_vec> init_model(
+            g, options, statistics, std::make_pair(0, g.size()));
+
+        options.strategy = gc::options::TOPDOWN;
         statistics.update_lb = false;
-        auto bounds = initial_bounds(
-            g, statistics, options.boundalg != gc::options::CLIQUES);
-        auto lb = bounds.first;
-        auto ub = bounds.second;
+        auto lb = init_model.lb;
+        auto ub = init_model.ub;
+
         for (int i = ub - 1; i >= lb; --i) {
-            gc::graph<gc::bitset> gcopy{g};
-            gc_model<gc::bitset> model(
+
+            std::cout << "[search] solve a tmp model with bounds [" << i << ".."
+                      << (i + 1) << "]\n";
+
+            gc::graph<gc::vertices_vec> gcopy(g, vmap);
+            gc_model<gc::vertices_vec> tmp_model(
                 gcopy, options, statistics, std::make_pair(i, i + 1));
-            auto ibounds = model.solve();
+            auto ibounds = tmp_model.solve();
             auto ilb = ibounds.first;
             auto iub = ibounds.second;
+
             if (ilb == i + 1) {
                 statistics.notify_lb(ilb);
                 statistics.display(std::cout);
@@ -868,6 +907,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
                 statistics.display(std::cout);
             }
             statistics.unbinds();
+            vmap.clear();
         }
     } break;
     case gc::options::BOUNDS: {
