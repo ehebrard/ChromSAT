@@ -25,13 +25,13 @@ template <class adjacency_struct> struct mycielskan_subgraph_finder {
 public:
     bool prune;
 
-    const basic_graph<adjacency_struct>& g;
+    const graph<adjacency_struct>& g;
     const clique_finder<adjacency_struct>& cf;
 
     basic_graph<adjacency_struct> explanation_subgraph;
     int explanation_clique;
 
-    mycielskan_subgraph_finder(const basic_graph<adjacency_struct>& g,
+    mycielskan_subgraph_finder(const graph<adjacency_struct>& g,
         const clique_finder<adjacency_struct>& cf, const bool prune)
         : prune(prune)
         , g(g)
@@ -127,9 +127,7 @@ private:
                 if (u == v)
                     continue;
 
-                // if (g.rep_of[u] != u)
-                //     continue; // use only representatives ?
-                if (g.representative_of(u) != u)
+                if (g.rep_of[u] != u)
                     continue; // use only representatives ?
 
 
@@ -336,6 +334,115 @@ private:
         }
     }
 
+
+    // here we assume that the current upper bound is k+1 and we just failed
+    // extending the current subgraph to order k+1
+    // ith_node is the node after which the subgraph at which candidates would
+    // become empty, we then go through the nodes from ith_node to the last
+    Clause* do_prune(Solver& s, const varmap& vars)
+    {
+        pruning.copy(candidates);
+        candidates.add_interval(0,g.capacity());
+
+        if (another_myciel_layer(ith_node)
+            == static_cast<int>(subgraph.nodes.size())) {
+            // first compute the potential pruning
+            new_pruning.clear();
+            for (auto u : pruning) {
+                real_pruning.copy(candidates);
+                real_pruning.setminus_with(g.origmatrix[u]);
+                for (auto v : real_pruning) {
+                    if (s.value(Lit(vars[u][v])) == l_Undef)
+                        new_pruning.push_back(edge{u, v});
+                }
+            }
+
+#ifdef _DEBUG_MYCIEL
+            std::cout << " prune " << pruning << " x " << candidates << " ("
+                      << new_pruning.size() << ")\n";
+#endif
+
+            if (new_pruning.size() > 0) {
+                // base graph same for every pruning
+                reason.clear();
+                for (auto u : subgraph.nodes) {
+                    for (auto v : subgraph.matrix[u]) {
+                        if (!g.origmatrix[u].fast_contain(v)) {
+                            reason.push(Lit(vars[u][v]));
+                        }
+                    }
+                }
+                auto size_reason = reason.size();
+
+                for (auto e : new_pruning) {
+                    // the edge gives us w1 and w2
+                    auto w1{e.first};
+                    auto w2{e.second};
+
+                    new_edges.clear();
+                    u_layer.clear();
+
+#ifdef _DEBUG_MYCIEL
+                    std::cout << " select U layer for " << w1 << " in [" << 0
+                              << ".." << ith_node << "]\n";
+                    int j = 0;
+                    for (int i = 0; i < ith_node; ++i) {
+                        std::cout << " | " << subgraph.nodes[i] << ":";
+                        while (j < endS[i]) {
+                            std::cout << " " << extra[j++];
+                        }
+                    }
+                    std::cout << std::endl;
+#endif
+
+                    select_middle_layer(w1, 0, ith_node, u_layer, new_edges);
+
+                    for (auto ee : new_edges) {
+                        if (!g.origmatrix[ee.first].fast_contain(ee.second)) {
+                            reason.push(Lit(vars[ee.first][ee.second]));
+                        }
+                    }
+
+#ifdef _DEBUG_MYCIEL
+                    std::cout << " select U layer for " << w2 << " in ["
+                              << ith_node << ".." << subgraph.nodes.size()
+                              << "]\n";
+                    for (int i = ith_node; i < subgraph.nodes.size(); ++i) {
+                        std::cout << "| " << subgraph.nodes[i] << ":";
+                        while (j < endS[i]) {
+                            std::cout << " " << extra[j++];
+                        }
+                    }
+                    std::cout << std::endl;
+#endif
+
+                    new_edges.clear();
+                    select_middle_layer(w2, ith_node, subgraph.nodes.size(),
+                        u_layer, new_edges);
+
+                    for (auto ee : new_edges) {
+                        if (!g.origmatrix[ee.first].fast_contain(ee.second)) {
+                            reason.push(Lit(vars[ee.first][ee.second]));
+                        }
+                    }
+
+                    DO_OR_RETURN(s.enqueueFill(~Lit(vars[w1][w2]), reason));
+
+                    // std::cout << "shrink from " <<
+                    // reason.size() << " to " <<
+                    // size_reason << std::endl;
+                    reason.shrink_(reason.size() - size_reason);
+                }
+            }
+        }
+#ifdef _DEBUG_MYCIEL
+        else
+            std::cout << "\n";
+#endif
+
+        return NO_REASON;
+    }
+
 };
 
 template <class adjacency_struct>
@@ -366,8 +473,7 @@ int mycielskan_subgraph_finder<adjacency_struct>::extends(const adjacency_struct
             return iter;
 
         // select any (?) w
-        // auto w = g.rep_of[candidates.min()];
-				auto w = g.representative_of(candidates.min());
+        auto w = g.rep_of[candidates.min()];
 
         new_edges.clear();
         u_layer.clear();
@@ -517,9 +623,9 @@ int mycielskan_subgraph_finder<adjacency_struct>::full_myciel(
             explanation_subgraph = subgraph;
             explanation_clique = cl;
 
-            // if (prune && ub - lb == 1) {
-            //     do_prune(s, vars);
-            // }
+            if (prune && ub - lb == 1) {
+                do_prune(s, vars);
+            }
         }
     }
     return lb;
@@ -562,9 +668,9 @@ int mycielskan_subgraph_finder<adjacency_struct>::improve_cliques_larger_than(
                 explanation_subgraph = subgraph;
                 explanation_clique = cl;
 
-                // if (prune && ub - lb == 1) {
-                //     do_prune(s, vars);
-                // }
+                if (prune && ub - lb == 1) {
+                    do_prune(s, vars);
+                }
             }
         }
     }
@@ -590,9 +696,9 @@ int mycielskan_subgraph_finder<adjacency_struct>::improve_greedy(const int size,
                 explanation_subgraph = subgraph;
                 explanation_clique = cl;
 
-                // if (prune && ub - lb == 1) {
-                //     do_prune(s, vars);
-                // }
+                if (prune && ub - lb == 1) {
+                    do_prune(s, vars);
+                }
             }
         }
     }
