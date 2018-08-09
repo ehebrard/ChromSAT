@@ -561,6 +561,7 @@ public:
         bound_source = options::CLIQUES;
 
         create_ordering();
+				
         lb = cf.find_cliques(heuristic, opt.cliquelimit);
 
         if (lb < ub

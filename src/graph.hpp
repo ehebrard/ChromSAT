@@ -72,7 +72,8 @@ public:
     }
     template <class other_struct>
     basic_graph(const basic_graph<other_struct>& g, std::vector<int>& vmap)
-    {
+    {		
+			if(g.size() > 0) {
         nodes.reserve(g.size());
         nodes.fill();
         nodeset.initialise(0, g.size() - 1, bitset::full);
@@ -80,6 +81,13 @@ public:
         int i = 0;
         for (auto v : g.nodes) {
             matrix[i].initialise(0, g.size() - 1, bitset::empt);
+						
+						if(vmap.size() <= v) {
+							std::cout << v << " / " << vmap.size() << "(" << g.size() << ")" << std::endl;
+							
+						}
+						assert(vmap.size() > v);
+						
             vmap[v] = i++;
         }
         assert(i == g.size());
@@ -89,6 +97,7 @@ public:
             }
         }
         canonize();
+			}
     }
     basic_graph(basic_graph&&) = default;
     basic_graph& operator=(basic_graph&&) = default;
@@ -119,19 +128,47 @@ public:
     int representative_of(const int v) const { return v; } // for compatibility
 		
 		void describe(std::ostream& os, const int num_edges) const;
+		
+		void tell_class() const {
+			std::cout << "BASIC\n";
+		}
 
-    void check_consistency()
+    void check_consistency() const
     {
+			std::cout << "checking basic-graph consistency" << std::endl;
+			
+			
+			std::cout << "1> "
+				<< nodeset << std::endl;
+			
         assert(nodes.size() == nodeset.size());
         for (auto v : nodes) {
-            assert(!matrix[v].fast_contain(v));
+            assert(!(matrix[v].fast_contain(v)));
 
             assert(nodeset.fast_contain(v));
         }
+				
+				std::cout << "2> "
+					<< nodeset << std::endl;
+				
         for (auto v : nodes) {
             for (auto u : matrix[v]) {
-                assert(nodeset.fast_contain(u));
+							
+							
+							if(!matrix[u].fast_contain(v)) {
+								std::cout << v << " has a non-symmetric neighbor (" << u << ")\n"
+									<< "N(" << v << ") = " << matrix[v]
+										<< "\nN(" << u << ") = " << matrix[u]
+											<< "\n";
+							}
+							
+							if(!nodeset.fast_contain(u)) {
+								std::cout << v << " has a neighbor that is not in the nodeset (" << u << ")\n"
+									<< nodeset << std::endl;
+							}
+							
                 assert(matrix[u].fast_contain(v));
+								assert(nodeset.fast_contain(u));
             }
         }
     }
@@ -249,7 +286,11 @@ public:
     graph(const basic_graph<other_struct>& g, std::vector<int>& vmap)
         : basic_graph<adjacency_struct>(g, vmap)
     {
+			std::cout << "copy of dense graph\n";
+			
+			
         init_structures();
+				
     }
     graph(graph&&) = default;
     graph& operator=(graph&&) = default;
@@ -275,6 +316,10 @@ public:
     int current_checkpoint() const { return cur_ckpt; }
 
     // debugging
+		void tell_class() const {
+			std::cout << "GRAPH\n";
+		}
+		
     void check_consistency() const;
 
     int representative_of(const int v) const
@@ -761,6 +806,13 @@ template <class adjacency_struct>
 void graph<adjacency_struct>::check_consistency() const
 {
     std::cout << "checking graph consistency" << std::endl;
+		
+		// basic_graph<adjacency_struct>::check_consistency();
+		
+		
+		for (int i = 0; i != capacity(); ++i)
+			assert((!nodes.contain(i) or nodeset.contain(i)) and (!nodeset.contain(i) or nodes.contain(i)));
+		
     for (int i = 0; i != capacity(); ++i)
         assert((!nodes.contain(i) || rep_of[i] == i)
             && (rep_of[i] != i || nodes.contain(i)));

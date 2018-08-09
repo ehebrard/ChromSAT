@@ -200,6 +200,7 @@ struct gc_model {
         std::cout << "[modeling] created " << s.nVars()
                   << " classic variables\n\n";
 
+
         return vars;
     }
 
@@ -217,8 +218,6 @@ struct gc_model {
             for (int i = 0; i < options.ddsaturiter; ++i) {
                 auto sol{gc::brelaz_color(g, (options.ddsaturiter > 1))};
                 int ncol{*max_element(begin(sol), end(sol)) + 1};
-								
-								
 								
 		            if (ub > ncol) {
 										assert(g.size() == original.size());
@@ -242,6 +241,7 @@ struct gc_model {
             return create_chord_vars();
         else
             return create_all_vars();
+				
     }
 
     void degeneracy_peeling(
@@ -288,6 +288,8 @@ struct gc_model {
             std::cout << "[preprocessing] compute lower bound\n";
 
             auto plb = cf.find_cliques(reverse);
+						
+						
             if (options.boundalg != gc::options::CLIQUES) {
                 cf.sort_cliques(plb);
                 plb = mf.improve_cliques_larger_than(plb);
@@ -451,9 +453,19 @@ struct gc_model {
 
         if (options.strategy != gc::options::BOUNDS and original.size() > 0 and lb < ub) {
             g = gc::dense_graph(original, vertex_map);
+						
+
+						
+						
             vars = gc::varmap(create_vars());
             cons = gc::post_gc_constraint(s, g, fillin, vars,
                 reduction.constraints, vertex_map, options, statistics);
+								
+						// g.tell_class();
+						// cons->g.tell_class();
+						// cons->cf.g.tell_class();
+						//							
+								
             rewriter = new gc::rewriter(s, g, cons, vars, xvars);
 
             setup_signal_handlers(&s);
@@ -592,7 +604,7 @@ struct gc_model {
                     brancher->use();
                     break;
                 }
-            }
+            }		
         } 
     }
 
@@ -742,6 +754,7 @@ int color(gc::options& options, gc::basic_graph<input_format>& g)
     }
 
     g.canonize();
+	
 
     g.describe(std::cout, num_edges);
     std::cout << " at " << minicsp::cpuTime() << std::endl;
@@ -800,7 +813,7 @@ int color(gc::options& options, gc::basic_graph<input_format>& g)
         }
     } break;
     case gc::options::TOPDOWN: {
-
+			
         std::vector<int> vmap(g.capacity());
         options.strategy = gc::options::BOUNDS; // so that we don't create the
                                                 // dense graph yet
@@ -817,14 +830,16 @@ int color(gc::options& options, gc::basic_graph<input_format>& g)
             std::cout << "[search] solve a tmp model with bounds [" << i << ".."
                       << (i + 1) << "]\n";
 
+						vmap.resize(g.capacity());
             gc::basic_graph<gc::vertices_vec> gcopy(g, vmap);
+						
             gc_model<gc::vertices_vec> tmp_model(
-                gcopy, options, statistics, std::make_pair(i, i + 1));
+                gcopy, options, statistics, std::make_pair(i, i + 1));	
+						
             auto ibounds = tmp_model.solve();
+						
             auto ilb = ibounds.first;
             auto iub = ibounds.second;
-
-            // return 1;
 
             if (ilb == i + 1) {
                 statistics.notify_lb(ilb);
