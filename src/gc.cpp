@@ -24,8 +24,7 @@ enum class vertex_status : uint8_t {
     indset_removed,
 };
 
-template <class adjacency_struct>
-void histogram(gc::basic_graph<adjacency_struct>& g)
+template <class adjacency_struct> void histogram(gc::graph<adjacency_struct>& g)
 {
     std::vector<int> degrees;
     for (auto v : g.nodes) {
@@ -57,7 +56,7 @@ void histogram(gc::basic_graph<adjacency_struct>& g)
 
 template< class adjacency_struct >
 struct graph_reduction {
-    const gc::basic_graph<adjacency_struct>& g;
+    const gc::graph<adjacency_struct>& g;
     const gc::statistics& statistics;
     std::vector<int> removed_vertices;
     std::vector<gc::indset_constraint> constraints;
@@ -65,8 +64,8 @@ struct graph_reduction {
     gc::bitset nodeset;
     gc::bitset util_set;
 
-    explicit graph_reduction(const gc::basic_graph<adjacency_struct>& g,
-        const gc::statistics& statistics)
+    explicit graph_reduction(
+        const gc::graph<adjacency_struct>& g, const gc::statistics& statistics)
         : g(g)
         , statistics(statistics)
         , status(g.capacity(), vertex_status::in_graph)
@@ -123,7 +122,7 @@ struct gc_model {
     // maps vertices of the original graph to vertices of g
     std::vector<int> vertex_map;
 
-    gc::basic_graph<adjacency_struct>& original;
+    gc::graph<adjacency_struct>& original;
     graph_reduction<adjacency_struct> reduction;
     gc::dense_graph g;
 
@@ -200,6 +199,7 @@ struct gc_model {
         std::cout << "[modeling] created " << s.nVars()
                   << " classic variables\n\n";
 
+
         return vars;
     }
 
@@ -217,8 +217,6 @@ struct gc_model {
             for (int i = 0; i < options.ddsaturiter; ++i) {
                 auto sol{gc::brelaz_color(g, (options.ddsaturiter > 1))};
                 int ncol{*max_element(begin(sol), end(sol)) + 1};
-								
-								
 								
 		            if (ub > ncol) {
 										assert(g.size() == original.size());
@@ -242,17 +240,29 @@ struct gc_model {
             return create_chord_vars();
         else
             return create_all_vars();
+				
     }
 
     void degeneracy_peeling(
-        gc::basic_graph<adjacency_struct>& g, graph_reduction<adjacency_struct>& gr)
+        gc::graph<adjacency_struct>& g, graph_reduction<adjacency_struct>& gr)
     {
+        // graph_reduction<adjacency_struct> gr(g, statistics);
+        // if (options.preprocessing == gc::options::NO_PREPROCESSING)
+        //     return gr;
+
         std::cout << "[preprocessing] start peeling\n";
+
+        // histogram(g);
+
+        // lb = bounds.first;
+        // ub = bounds.second;
+
+        // auto lb = std::max(lb, given_lb);
 
         gc::clique_finder<adjacency_struct> cf{
             g, std::min(options.cliquelimit, g.size())};
         gc::mycielskan_subgraph_finder<adjacency_struct> mf(g, cf, false);
-        gc::degeneracy_finder<gc::basic_graph<adjacency_struct>> df{g};
+        gc::degeneracy_finder<gc::graph<adjacency_struct>> df{g};
 
         adjacency_struct toremove;
         toremove.initialise(0, g.capacity(), gc::bitset::empt);
@@ -262,6 +272,7 @@ struct gc_model {
                 break;
             }
 
+            // if(active_lb == lb) { // otherwise
             cf.clear();
             df.clear();
             // mf.clear();
@@ -286,8 +297,11 @@ struct gc_model {
             }
 
             std::cout << "[preprocessing] compute lower bound\n";
+            // }
 
             auto plb = cf.find_cliques(reverse);
+						
+						
             if (options.boundalg != gc::options::CLIQUES) {
                 cf.sort_cliques(plb);
                 plb = mf.improve_cliques_larger_than(plb);
@@ -329,13 +343,99 @@ struct gc_model {
 
         } while (true);
 
+        // return gr;
     }
 
 
-    // template< class adjacency_struct >
-    void find_is_constraints(gc::basic_graph<adjacency_struct>& g, graph_reduction<adjacency_struct>& gr)
+    graph_reduction<adjacency_struct> core_reduction(
+        gc::graph<adjacency_struct>& g, std::pair<int, int> bounds,
+        bool myciel = false)
     {
-        gc::degeneracy_vc_solver<gc::basic_graph<adjacency_struct>> vc(g);
+        graph_reduction<adjacency_struct> gr(g, statistics);
+        if (options.preprocessing == gc::options::NO_PREPROCESSING)
+            return gr;
+
+        // std::cout << "CORE REDUCTION: " << g.size() << "(" << (int*)(&g) << ")"
+        //           << std::endl;
+
+        lb = bounds.first;
+        ub = bounds.second;
+        int hlb{0};
+        gc::clique_finder<adjacency_struct> cf(g);
+        gc::mycielskan_subgraph_finder<adjacency_struct> mf(g, cf, false);
+        gc::degeneracy_finder<gc::graph<adjacency_struct>> df{g};
+
+        gc::bitset forbidden(0, g.capacity(), gc::bitset::empt);
+        gc::bitset util_set(0, g.capacity(), gc::bitset::empt);
+        adjacency_struct removedv(0, g.capacity(), gc::bitset::empt);
+        std::vector<int> toremove;
+        bool removed{false};
+        int niteration{0};
+        do {
+            ++niteration;
+            removed = false;
+            auto sol{gc::brelaz_color(g)};
+            for (auto u : g.nodes)
+                for (auto v : g.matrix[u])
+                    assert(sol[u] != sol[v]);
+            int hub{*max_element(begin(sol), end(sol)) + 1};
+
+            // df.degeneracy_ordering();
+            //             int hub{*max_element(
+            //                 begin(df.degrees), end(df.degrees))};
+            if (ub < 0 || (hub < ub && hub >= lb)) {
+                ub = hub;
+                statistics.notify_ub(ub);
+            }
+
+            hlb = cf.find_cliques(g.nodes);
+            if (myciel)
+                hlb = mf.improve_cliques_larger_than(lb);
+
+            if (hlb > lb) {
+                lb = hlb;
+                statistics.notify_lb(lb);
+            }
+            statistics.display(std::cout);
+
+            forbidden.clear();
+            toremove.clear();
+            for (auto u : g.nodes) {
+                if (forbidden.fast_contain(u))
+                    continue;
+                util_set.copy(g.matrix[u]);
+                util_set.intersect_with(g.nodeset);
+                if (util_set.size() >= static_cast<size_t>(lb))
+                    continue;
+                removed = true;
+                removedv.fast_add(u);
+                // ++statistics.num_vertex_removals;
+                toremove.push_back(u);
+                gr.removed_vertices.push_back(u);
+                gr.status[u] = vertex_status::low_degree_removed;
+                forbidden.union_with(g.matrix[u]);
+            }
+            for (auto u : toremove) {
+                g.nodes.remove(u);
+                g.nodeset.remove(u);
+            }
+        } while (removed);
+        if (removedv.size() > 0) {
+            for (auto v : g.nodes) {
+                g.matrix[v].setminus_with(removedv);
+                g.origmatrix[v].setminus_with(removedv);
+            }
+            statistics.notify_removals(g.size());
+            statistics.display(std::cout);
+        }
+
+        return gr;
+    }
+
+    // template< class adjacency_struct >
+    void find_is_constraints(gc::graph<adjacency_struct>& g, graph_reduction<adjacency_struct>& gr)
+    {
+        gc::degeneracy_vc_solver<gc::graph<adjacency_struct>> vc(g);
         auto bs = vc.find_is();
         std::cout << "[preprocessing] extract IS constraint size = "
                   << bs.size() << "\n";
@@ -395,7 +495,7 @@ struct gc_model {
         } while (lb < ub);
     }
 
-    graph_reduction<adjacency_struct> preprocess(gc::basic_graph<adjacency_struct>& g)
+    graph_reduction<adjacency_struct> preprocess(gc::graph<adjacency_struct>& g)
     {
         // auto gr{degeneracy_peeling(original)};
 
@@ -432,7 +532,7 @@ struct gc_model {
         return gr;
     }
 
-    gc_model(gc::basic_graph<adjacency_struct>& ig, const gc::options& options,
+    gc_model(gc::graph<adjacency_struct>& ig, const gc::options& options,
         gc::statistics& statistics, std::pair<int, int> bounds)
         : options(options)
         , statistics(statistics)
@@ -451,9 +551,19 @@ struct gc_model {
 
         if (options.strategy != gc::options::BOUNDS and original.size() > 0 and lb < ub) {
             g = gc::dense_graph(original, vertex_map);
+						
+
+						
+						
             vars = gc::varmap(create_vars());
             cons = gc::post_gc_constraint(s, g, fillin, vars,
                 reduction.constraints, vertex_map, options, statistics);
+								
+						// g.tell_class();
+						// cons->g.tell_class();
+						// cons->cf.g.tell_class();
+						//							
+								
             rewriter = new gc::rewriter(s, g, cons, vars, xvars);
 
             setup_signal_handlers(&s);
@@ -592,7 +702,7 @@ struct gc_model {
                     brancher->use();
                     break;
                 }
-            }
+            }		
         } 
     }
 
@@ -673,7 +783,7 @@ struct gc_model {
 
 template<class adjacency_struct>
 std::pair<int, int> initial_bounds(
-    const gc::basic_graph<adjacency_struct>& g, gc::statistics& stat, bool myciel = false)
+    const gc::graph<adjacency_struct>& g, gc::statistics& stat, bool myciel = false)
 {
     // gc::degeneracy_finder df{g};
     // df.degeneracy_ordering();
@@ -702,7 +812,7 @@ std::pair<int, int> initial_bounds(
 }
 
 template <class input_format>
-int color(gc::options& options, gc::basic_graph<input_format>& g)
+int color(gc::options& options, gc::graph<input_format>& g)
 {
     options.describe(std::cout);
 
@@ -712,7 +822,7 @@ int color(gc::options& options, gc::basic_graph<input_format>& g)
     std::vector<std::pair<int, int>> edges;
     if (options.format == "snap")
         snap::read_graph(options.instance_file.c_str(),
-            [&](int nv, int) { g = gc::basic_graph<input_format>{nv}; },
+            [&](int nv, int) { g = gc::graph<input_format>{nv}; },
             [&](int u, int v) {
                 if (u != v) {
                     num_edges += 1 - g.matrix[u].fast_contain(v);
@@ -723,7 +833,7 @@ int color(gc::options& options, gc::basic_graph<input_format>& g)
             [&](int, gc::weight) {});
     else
         dimacs::read_graph(options.instance_file.c_str(),
-            [&](int nv, int) { g = gc::basic_graph<input_format>{nv}; },
+            [&](int nv, int) { g = gc::graph<input_format>{nv}; },
             [&](int u, int v) {
                 if (u != v) {
                     g.add_edge(u - 1, v - 1);
@@ -742,6 +852,7 @@ int color(gc::options& options, gc::basic_graph<input_format>& g)
     }
 
     g.canonize();
+	
 
     g.describe(std::cout, num_edges);
     std::cout << " at " << minicsp::cpuTime() << std::endl;
@@ -778,8 +889,8 @@ int color(gc::options& options, gc::basic_graph<input_format>& g)
         auto lb = bounds.first;
         auto ub = bounds.second;
         for (int i = lb; i < ub; ++i) {
-            gc::basic_graph<gc::vertices_vec> gcopy{g};
-            gc_model<gc::vertices_vec> model(
+            gc::graph<gc::bitset> gcopy{g};
+            gc_model<gc::bitset> model(
                 gcopy, options, statistics, std::make_pair(i, i + 1));
             auto ibounds = model.solve();
             auto ilb = ibounds.first;
@@ -800,7 +911,7 @@ int color(gc::options& options, gc::basic_graph<input_format>& g)
         }
     } break;
     case gc::options::TOPDOWN: {
-
+			
         std::vector<int> vmap(g.capacity());
         options.strategy = gc::options::BOUNDS; // so that we don't create the
                                                 // dense graph yet
@@ -817,14 +928,16 @@ int color(gc::options& options, gc::basic_graph<input_format>& g)
             std::cout << "[search] solve a tmp model with bounds [" << i << ".."
                       << (i + 1) << "]\n";
 
-            gc::basic_graph<gc::vertices_vec> gcopy(g, vmap);
+						vmap.resize(g.capacity());
+            gc::graph<gc::vertices_vec> gcopy(g, vmap);
+
             gc_model<gc::vertices_vec> tmp_model(
-                gcopy, options, statistics, std::make_pair(i, i + 1));
+                gcopy, options, statistics, std::make_pair(i, i + 1));	
+						
             auto ibounds = tmp_model.solve();
+						
             auto ilb = ibounds.first;
             auto iub = ibounds.second;
-
-            // return 1;
 
             if (ilb == i + 1) {
                 statistics.notify_lb(ilb);
@@ -867,7 +980,7 @@ int color(gc::options& options, gc::basic_graph<input_format>& g)
 int main(int argc, char* argv[])
 {
     auto options = gc::parse(argc, argv);
-    gc::basic_graph<gc::vertices_vec> g;
+    gc::graph<gc::vertices_vec> g;
     // gc::graph<gc::bitset> g;
     auto result = color(options, g);
 		
