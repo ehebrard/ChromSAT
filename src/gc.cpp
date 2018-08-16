@@ -1040,6 +1040,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
             statistics.unbinds();
             vmap.clear();
 						
+						lb = ilb;
 						i = std::min(i - 1, iub - 1);
         }
     } break;
