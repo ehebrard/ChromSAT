@@ -769,7 +769,7 @@ struct gc_model {
                 cons->ub = solub;
 				        if (options.equalities) {
 										auto m{mineq(g.capacity(), cons->ub - 1)};
-				            mineq_constraint->set_lb(m);
+				            // mineq_constraint->set_lb(m);
 				            std::cout << "[modeling] update implied constraint #eq >= " << m
 				                      << " / " << (g.capacity() * (g.capacity() - 1) / 2) << "\n\n";
 				        }
