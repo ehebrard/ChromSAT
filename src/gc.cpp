@@ -14,7 +14,7 @@
 #include "utils.hpp"
 #include "vcsolver.hpp"
 
-#include <minicsp/core/cons.hpp>
+#include <minicsp/core/cons.cpp>
 #include <minicsp/core/solver.hpp>
 #include <minicsp/core/utils.hpp>
 
@@ -23,6 +23,12 @@ enum class vertex_status : uint8_t {
     low_degree_removed,
     indset_removed,
 };
+
+int mineq(const int N, const int k)
+{
+    int a = N / k;
+    return a * (N - k * (a + 1) / 2);
+}
 
 template <class adjacency_struct> void histogram(gc::graph<adjacency_struct>& g)
 {
@@ -138,6 +144,8 @@ struct gc_model {
 
     std::unique_ptr<gc::Brancher> brancher;
 
+    minicsp::cons_pb* mineq_constraint{NULL};
+
     // std::vector<edge> var_map;
 		
 		virtual ~gc_model() { delete rewriter; }
@@ -177,6 +185,9 @@ struct gc_model {
     {
         using std::begin;
         using std::end;
+
+        std::vector<minicsp::Var> all_vars;
+
         gc::varmap vars(begin(g.nodes), end(g.nodes));
         vars.vars.resize(g.size());
         for (auto i : g.nodes) {
@@ -187,6 +198,8 @@ struct gc_model {
                     continue;
                 vars.vars[i][j] = s.newVar();
                 vars.vars[j][i] = vars.vars[i][j];
+                if (options.equalities)
+                    all_vars.push_back(vars.vars[i][j]);
                 if (options.trace) {
                     using namespace std::string_literals;
                     using std::to_string;
@@ -199,6 +212,21 @@ struct gc_model {
         std::cout << "[modeling] created " << s.nVars()
                   << " classic variables\n\n";
 
+        if (options.equalities) {
+
+            // std::cout << "UB = " << ub << std::endl;
+            // int k = ub-1;
+            // int a = g.capacity() / k;
+            // int mineq = a * (g.capacity() - k * (a + 1) / 2);
+
+            std::vector<int> w;
+            w.resize(all_vars.size(), 1);
+						auto m{mineq(g.capacity(), ub - 1)};
+            mineq_constraint
+                = new cons_pb(s, all_vars, w, m);
+            std::cout << "[modeling] create implied constraint #eq >= " << m
+                      << " / " << all_vars.size() << "\n\n";
+        }
 
         return vars;
     }
@@ -739,6 +767,13 @@ struct gc_model {
                 statistics.notify_ub(actualub);
                 statistics.display(std::cout);
                 cons->ub = solub;
+				        if (options.equalities) {
+										auto m{mineq(g.capacity(), cons->ub - 1)};
+				            mineq_constraint->set_lb(m);
+				            std::cout << "[modeling] update implied constraint #eq >= " << m
+				                      << " / " << (g.capacity() * (g.capacity() - 1) / 2) << "\n\n";
+				        }
+								
                 cons->actualub = actualub;
                 if (options.xvars) {
                     for (auto v : xvars)

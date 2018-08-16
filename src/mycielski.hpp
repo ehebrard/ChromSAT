@@ -515,30 +515,6 @@ int mycielskan_subgraph_finder<adjacency_struct>::debug_extends(const adjacency_
         endS.clear(); // where do the Sv's en in the vector extra
         candidates.add_interval(0,g.capacity()); // potential candidates for w
 
-
-				//         std::cout << "\nextends " << subgraph.nodeset << std::endl;
-				// g.check_consistency();
-				//
-				// std::cout << g.nodeset << std::endl;
-				// for(auto v : g.nodeset) {
-				//
-				// 	// assert(g.nodes.)
-				// 	// std::cout << g.matrix[v] << std::endl;
-				//
-				// 	if(G.fast_contain(v) and !g.matrix[v].fast_contain(20))
-				// 		std::cout << "NOT " << v << std::endl;
-				//
-				// 	int prev = -1;
-				// 	for(auto u : g.matrix[v]) {
-				// 		assert(u > prev);
-				//
-				// 		assert(g.matrix[u].fast_contain(v));
-				// 		prev = u;
-				// 	}
-				// }
-
-
-
         ith_node = debug_another_myciel_layer(0);
 
         assert(static_cast<size_t>(ith_node) == endS.size());
@@ -581,23 +557,6 @@ int mycielskan_subgraph_finder<adjacency_struct>::improve_cliques_larger_than(
     for (auto cl = 0; cl < cf.num_cliques; ++cl) {
         if (cf.clique_sz[cl] >= size) {
 
-					            // std::cout << "try to extend clq[" << cl << "] of size " <<
-					            // cf.clique_sz[cl];
-					            // for(auto v : cf.cliques[cl]) {
-					            // 	std::cout << " " << v;
-					            // }
-					            // std::cout << std::endl;
-					//
-					// // std::cout << "-th myciel layer iteration\n";
-					// int prev;
-					// for (auto v : g.nodes) {
-					// 	prev = -1;
-					// 	for (auto u : g.matrix[v]) {
-					// 		assert(u > prev);
-					// 		prev = u;
-					// 	}
-					// }
-
             auto mycielski_lb = cf.clique_sz[cl] + extends(cf.cliques[cl]);
             if (mycielski_lb > lb) {
                 lb = mycielski_lb;
@@ -611,9 +570,6 @@ template <class adjacency_struct>
 int mycielskan_subgraph_finder<adjacency_struct>::full_myciel(
     const int curlb, const int ub, Solver& s, const varmap& vars)
 {
-	
-	// std::cout << "HERE (1)\n";
-	
     explanation_clique = -1;
     auto lb{curlb};
     for (auto cl = 0; cl < cf.num_cliques; ++cl) {
@@ -636,32 +592,13 @@ int mycielskan_subgraph_finder<adjacency_struct>::improve_cliques_larger_than(
     const int size, const int curlb, const int ub, Solver& s,
     const varmap& vars)
 {
-	
-	// std::cout << "HERE (2)\n";
-	
-	
     explanation_clique = -1;
     auto lb{curlb};
     for (auto cl = 0; cl < cf.num_cliques; ++cl) {
         if (cf.clique_sz[cl] >= size) {
-					
-          // std::cout << "try to extend clq[" << cl << "] of size " <<
-          // cf.clique_sz[cl];
-          // for(auto v : cf.cliques[cl]) {
-          // 	std::cout << " " << v;
-          // }
-          // std::cout << std::endl;
 
-            int niters;
-						if(cl == 492 and cf.clique_sz[cl] == 19 and cf.cliques[cl].fast_contain(1073) and cf.cliques[cl].fast_contain(42) and !cf.cliques[cl].fast_contain(20))
-							niters = debug_extends(cf.cliques[cl]);
-						else niters = extends(cf.cliques[cl]);
-							
-						
-						// auto niters{extends(cf.cliques[cl])};
-						
-						// std::cout << "OK\n";
-						
+            auto niters{extends(cf.cliques[cl])};
+
             auto mycielski_lb = cf.clique_sz[cl] + niters;
             if (mycielski_lb > lb) {
                 lb = mycielski_lb;
@@ -683,9 +620,6 @@ int mycielskan_subgraph_finder<adjacency_struct>::improve_greedy(const int size,
     const int curlb, const int ub, Solver& s,
     const varmap& vars)
 {
-	
-	// std::cout << "HERE (3)\n";
-	
     explanation_clique = -1;
     auto lb{curlb};
     for (auto cl = 0; cl < cf.num_cliques; ++cl) {

@@ -102,6 +102,8 @@ struct options {
     int ddsaturiter;
 
     std::string convert;
+
+    bool equalities;
 };
 
 options parse(int argc, char* argv[]);

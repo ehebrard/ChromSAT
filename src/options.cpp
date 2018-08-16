@@ -135,6 +135,8 @@ options parse(int argc, char* argv[])
         "# of dense dsatur iterations", false, 1, "int");
     cmd.add<ValueArg<std::string>>(opt.convert, "", "convert",
         "output in <file> using dimacs format", false, "", "string");
+    cmd.add<SwitchArg>(opt.equalities, "", "equalities",
+        "add implied number of equalitiy constraints", false);
 
     cmd.parse(argc, argv);
     return opt;
