@@ -273,11 +273,7 @@ public:
     graph(const graph<other_struct>& g, std::vector<int>& vmap)
         : basic_graph<adjacency_struct>(g, vmap)
     {
-			std::cout << "copy of dense graph\n";
-			
-			
-        init_structures();
-				
+        init_structures();		
     }
     graph(graph&&) = default;
     graph& operator=(graph&&) = default;
