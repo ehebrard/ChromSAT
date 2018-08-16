@@ -271,8 +271,8 @@ struct gc_model {
 				
     }
 
-    void degeneracy_peeling(
-        gc::graph<adjacency_struct>& g, graph_reduction<adjacency_struct>& gr)
+    void degeneracy_peeling(gc::graph<adjacency_struct>& g,
+        graph_reduction<adjacency_struct>& gr, const int k_core_threshold)
     {
         // graph_reduction<adjacency_struct> gr(g, statistics);
         // if (options.preprocessing == gc::options::NO_PREPROCESSING)
@@ -287,6 +287,8 @@ struct gc_model {
 
         // auto lb = std::max(lb, given_lb);
 
+        bool lb_safe = true;
+        auto threshold = lb;
         gc::clique_finder<adjacency_struct> cf{
             g, std::min(options.cliquelimit, g.size())};
         gc::mycielskan_subgraph_finder<adjacency_struct> mf(g, cf, false);
@@ -300,7 +302,6 @@ struct gc_model {
                 break;
             }
 
-            // if(active_lb == lb) { // otherwise
             cf.clear();
             df.clear();
             // mf.clear();
@@ -337,18 +338,25 @@ struct gc_model {
 
             bool changes = false;
             if (lb < plb) {
-                lb = plb;
-                statistics.notify_lb(lb);
-                statistics.display(std::cout);
+                if (lb_safe) {
+                    lb = plb;
+                    statistics.notify_lb(lb);
+                    statistics.display(std::cout);
+                } else
+                    plb = threshold;
                 changes = true;
             }
 
-            if (df.degrees[df.order[0]] < lb) {
-                std::cout << "[preprocessing] remove low degree nodes (" << lb
-                          << ")\n";
+            if (k_core_threshold > threshold) {
+                threshold = k_core_threshold;
+                lb_safe = false;
+            }
+            if (df.degrees[df.order[0]] < threshold) {
+                std::cout << "[preprocessing] remove low degree nodes ("
+                          << threshold << ")\n";
 
                 for (auto v : df.order) {
-                    if (df.degrees[v] >= lb)
+                    if (df.degrees[v] >= threshold)
                         break;
                     toremove.add(v);
                     gr.removed_vertices.push_back(v);
@@ -523,7 +531,8 @@ struct gc_model {
         } while (lb < ub);
     }
 
-    graph_reduction<adjacency_struct> preprocess(gc::graph<adjacency_struct>& g)
+    graph_reduction<adjacency_struct> preprocess(
+        gc::graph<adjacency_struct>& g, const int k_core_threshold)
     {
         // auto gr{degeneracy_peeling(original)};
 
@@ -531,7 +540,7 @@ struct gc_model {
         if (options.preprocessing == gc::options::NO_PREPROCESSING)
             return gr;
 
-        degeneracy_peeling(original, gr);
+        degeneracy_peeling(original, gr, k_core_threshold);
 
         int num_edges = 0;
         if (g.size() > 0 and lb < ub) {
@@ -561,7 +570,8 @@ struct gc_model {
     }
 
     gc_model(gc::graph<adjacency_struct>& ig, const gc::options& options,
-        gc::statistics& statistics, std::pair<int, int> bounds)
+        gc::statistics& statistics, std::pair<int, int> bounds,
+        const int k_core_threshold = -1)
         : options(options)
         , statistics(statistics)
         , lb{bounds.first}
@@ -569,7 +579,7 @@ struct gc_model {
         , solution(ig.capacity())
         , vertex_map(ig.capacity())
         , original(ig)
-        , reduction{preprocess(original)}
+        , reduction{preprocess(original, k_core_threshold)}
     // , g(original, vertex_map)
     // , vars(create_vars())
     // , cons(gc::post_gc_constraint(s, g, fillin, vars, reduction.constraints,
@@ -914,8 +924,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
         gc_model<input_format> model(g, options, statistics, bounds);
         model.solve();
         model.print_stats();
-        break;
-    }
+    } break;
     case gc::options::BOTTOMUP: {
 
         statistics.update_ub = false;
@@ -988,6 +997,50 @@ int color(gc::options& options, gc::graph<input_format>& g)
             }
             statistics.unbinds();
             vmap.clear();
+        }
+    } break;
+    case gc::options::CLEVER: {
+
+        std::vector<int> vmap(g.capacity());
+        options.strategy = gc::options::BOUNDS; // so that we don't create the
+        // dense graph yet
+        gc_model<gc::vertices_vec> init_model(
+            g, options, statistics, std::make_pair(0, g.size()));
+
+        options.strategy = gc::options::CLEVER;
+        statistics.update_lb = false;
+        auto lb = init_model.lb;
+        auto ub = init_model.ub;
+
+        for (int i = ub - 1; i >= lb;) {
+
+            std::cout << "[search] solve a tmp model with bounds [" << lb
+                      << ".." << (i + 1) << "] focusing on the " << i
+                      << "-core\n";
+
+            vmap.resize(g.capacity());
+            gc::graph<gc::vertices_vec> gcopy(g, vmap);
+
+            gc_model<gc::vertices_vec> tmp_model(
+                gcopy, options, statistics, std::make_pair(lb, i + 1), i);
+
+            auto ibounds = tmp_model.solve();
+
+            auto ilb = ibounds.first;
+            auto iub = ibounds.second;
+
+            // iub may not be equal to ilb even if the solver wasn't stopped:
+            // coloring the removed vertices might have required extra colors
+            // either way, [ilb, iub] are correct bounds
+            statistics.notify_ub(iub);
+            statistics.notify_lb(ilb);
+            statistics.display(std::cout);
+						
+
+            statistics.unbinds();
+            vmap.clear();
+						
+						i = std::min(i - 1, iub - 1);
         }
     } break;
     case gc::options::BOUNDS: {
