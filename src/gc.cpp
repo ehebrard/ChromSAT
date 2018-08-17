@@ -766,7 +766,7 @@ struct gc_model {
         auto lub = ub;
 
         minicsp::lbool sat{l_True};
-        while (sat != l_False && lb < ub) {
+        while (sat != l_False && llb < lub) {
             sat = s.solveBudget();
             if (sat == l_True) {
                 auto col_r = get_solution();
@@ -798,21 +798,31 @@ struct gc_model {
                 std::cout << "*** INTERRUPTED ***\n";
                 break;
             } else {
-                cons->bestlb = cons->ub;
+							
+								// std::cout << "UNSAT: " << cons->bestlb << ".." << cons->ub
+							
+							
+                cons->bestlb = cons->actualub;
+								statistics.notify_lb(cons->bestlb);
                 statistics.display(std::cout);
                 // assert(llb <= cons->bestlb); [IN TOP-DOWN WE MAY FIND A
                 // SOLUTION WITH FEWER THAN LB COLORS]
                 llb = cons->bestlb;
             }
         }
+        // if (sat == l_False and llb < lub)
+        //     llb = lub;
+
         return std::make_pair(llb,lub);
     }
 
     void print_stats()
     {
-        assert(!cons
-            or (cons->bestlb == statistics.best_lb
-                   and cons->ub == statistics.best_ub));
+
+        // std::cout << cons->bestlb << ".." << cons->ub << std::endl;
+
+        assert(!cons or (cons->bestlb == statistics.best_lb
+                            and cons->actualub == statistics.best_ub));
         // assert(lb == statistics.best_lb and ub == statistics.best_ub);
 
         if (statistics.best_lb >= statistics.best_ub)
