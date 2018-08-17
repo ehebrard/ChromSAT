@@ -280,7 +280,7 @@ struct gc_model {
 
         std::cout << "[preprocessing] start peeling\n";
 
-        // histogram(g);
+        histogram(g);
 
         // lb = bounds.first;
         // ub = bounds.second;
@@ -590,6 +590,15 @@ struct gc_model {
         if (options.strategy != gc::options::BOUNDS and original.size() > 0 and lb < ub) {
             g = gc::dense_graph(original, vertex_map);
 						
+						// // g.check_consistency();
+						// for(int i=0; i<g.size(); ++i) {
+						// 	std::cout << original.matrix[i] << " / " << g.matrix[i] << std::endl;
+						// }
+						// std::cout << std::endl;
+						// original.describe(std::cout);
+						// std::cout << std::endl;
+						// g.describe(std::cout);
+						// std::cout << std::endl;
 
 						
 						
@@ -746,11 +755,15 @@ struct gc_model {
 
     std::vector<int> get_solution()
     {
-        std::vector<int> col(original.capacity());
+        std::vector<int> col(original.capacity(), -1);
         int next{0};
+												
         for (auto u : g.nodes) {
-            for (auto v : g.partition[u])
+            for (auto v : g.partition[u]) {
                 col[original.nodes[v]] = next;
+								// assert(v == original.nodes[v]);
+								// std::cout << v << " -> " << original.nodes[v] << std::endl;
+						}
             ++next;
         }
         return col;
@@ -794,12 +807,16 @@ struct gc_model {
                                       // have removed vertices of degree ub-2
                                       // and we can potentially find colorings
                                       // with ub - 2 colors
+								
+								
+								std::cout << "SAT: " << cons->bestlb << ".." << cons->ub << ".." << cons->actualub << std::endl;
+								
             } else if (sat == l_Undef) {
                 std::cout << "*** INTERRUPTED ***\n";
                 break;
             } else {
 							
-								// std::cout << "UNSAT: " << cons->bestlb << ".." << cons->ub
+								std::cout << "UNSAT: " << cons->bestlb << ".." << cons->ub << ".." << cons->actualub << std::endl;
 							
 							
                 cons->bestlb = cons->actualub;
