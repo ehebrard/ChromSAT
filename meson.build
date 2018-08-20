@@ -32,11 +32,6 @@ executable('preprocessing', ['src/preprocessing.cpp',
 			     'src/interval_list.cpp'],
 	   dependencies: [minicsp_dep, basic_dep, prop_dep])
 
-executable('local_test', ['src/local_tests.cpp',
-			     'src/sparse_dynamic_graph.cpp',
-			     'src/interval_list.cpp',
-				 'src/lex_BFS.hpp'],
-	   dependencies: [minicsp_dep, basic_dep, prop_dep])
 
 use_gecode = get_option('use_gecode')
 if use_gecode
