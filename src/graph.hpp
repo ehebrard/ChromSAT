@@ -125,7 +125,7 @@ public:
 
     void canonize();
 
-		void describe(std::ostream& os, const int num_edges) const;
+		void describe(std::ostream& os, const int num_edges=-1) const;
 		
     void check_consistency() const
     {
@@ -273,11 +273,7 @@ public:
     graph(const graph<other_struct>& g, std::vector<int>& vmap)
         : basic_graph<adjacency_struct>(g, vmap)
     {
-			std::cout << "copy of dense graph\n";
-			
-			
-        init_structures();
-				
+        init_structures();		
     }
     graph(graph&&) = default;
     graph& operator=(graph&&) = default;
@@ -301,8 +297,6 @@ public:
     void restore(int ckpt);
 
     int current_checkpoint() const { return cur_ckpt; }
-
-    void describe(std::ostream& os, const int num_edges) const;
 
 		int representative_of(const int v) const { return rep_of[v]; }
 
@@ -768,19 +762,20 @@ void graph<adjacency_struct>::restore(int ckpt)
 }
 
 template <class adjacency_struct>
-void graph<adjacency_struct>::describe(std::ostream& os, const int num_edges) const
+void basic_graph<adjacency_struct>::describe(std::ostream& os, const int num_edges) const
 {
     int m = num_edges;
     if (m < 0) {
         m = 0;
         for (auto v : nodes)
             m += matrix[v].size();
+				m /= 2;
     }
 
-    os << "#vertices = " << this->size() << ",  #edges = " << m / 2
+    os << "#vertices = " << this->size() << ",  #edges = " << m
        << ",  density = "
        << (m > 0
-                  ? (double)(m)
+                  ? (double)(2 * m)
                       / ((double)(this->size()) * (double)(this->size() - 1))
                   : 1)
             * 100

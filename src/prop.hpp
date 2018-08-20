@@ -37,7 +37,10 @@ struct indset_constraint {
 
 struct cons_base {
     minicsp::Solver& s;
+    const options& opt;
     dense_graph& g;
+    dense_graph fg;
+
     int ub; // ub of the reduced graph
     int actualub; // ub of the original graph. indset_constraints work with
                   // respect to this bound
@@ -46,9 +49,15 @@ struct cons_base {
     clique_finder<bitset> ccf; // for clique covers
     minicsp::backtrackable<int> lastlb;
 
-    explicit cons_base(minicsp::Solver& s, dense_graph& g)
+    dense_graph create_filled_graph(
+        boost::optional<std::vector<std::pair<int, int>>> fillin);
+
+    explicit cons_base(minicsp::Solver& s, const options& opt, dense_graph& g,
+        boost::optional<std::vector<std::pair<int, int>>> fillin)
         : s(s)
+        , opt(opt)
         , g(g)
+        , fg(create_filled_graph(fillin))
         , cf(g)
         , ccf(g)
         , lastlb(s)
