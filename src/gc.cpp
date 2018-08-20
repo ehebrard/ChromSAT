@@ -288,7 +288,7 @@ struct gc_model {
         // if (options.preprocessing == gc::options::NO_PREPROCESSING)
         //     return gr;
 
-        std::cout << "[preprocessing] start peeling\n";
+        std::cout << "[preprocessing] start peeling (" << k_core_threshold << ")\n";
 
         histogram(g);
 
@@ -307,6 +307,8 @@ struct gc_model {
         adjacency_struct toremove;
         toremove.initialise(0, g.capacity(), gc::bitset::empt);
 
+
+				int stop = 10;
         do {
             if (g.size() == 0) {
                 break;
@@ -341,20 +343,31 @@ struct gc_model {
             auto plb = cf.find_cliques(reverse);
 						
 						
+						std::cout << plb << std::endl;
+						
             if (options.boundalg != gc::options::CLIQUES) {
                 cf.sort_cliques(plb);
                 plb = mf.improve_cliques_larger_than(plb);
             }
+						
+						std::cout << plb << std::endl;
 
             bool changes = false;
             if (lb < plb) {
+							
+								std::cout << "improved lower bound (" << lb_safe << ")" << std::endl;
+							
                 if (lb_safe) {
                     lb = plb;
                     statistics.notify_lb(lb);
                     statistics.display(std::cout);
-                } else
-                    plb = threshold;
-                changes = true;
+										changes = true;
+                } 
+								// else
+								//                     plb = threshold;
+								//                 // changes = true;
+								
+								
             }
 
             if (k_core_threshold > threshold) {
@@ -387,7 +400,7 @@ struct gc_model {
             if (!changes)
                 break;
 
-        } while (true);
+        } while (stop-- > 0);
 
         // return gr;
     }
