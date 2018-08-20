@@ -108,7 +108,7 @@ struct graph_reduction {
             for (int q = 0; q != g.capacity(); ++q) {
                 if (util_set.fast_contain(q))
                     continue;
-                assert(q < statistics.best_ub);
+                assert(q <= statistics.best_ub);
                 maxc = std::max(maxc, q);
                 col[v] = q;
                 break;
@@ -247,30 +247,31 @@ struct gc_model {
             std::cout << "[modeling] launch dense dsatur ("
                       << options.ddsaturiter << " times) at "
                       << minicsp::cpuTime() << "\n";
-						
+
             // we have a dense graph now, so let's compute dsatur the other way
             // just in case
             for (int i = 0; i < options.ddsaturiter; ++i) {
                 auto sol{gc::brelaz_color(g, (options.ddsaturiter > 1))};
                 int ncol{*max_element(begin(sol), end(sol)) + 1};
-								
-		            if (ub > ncol) {
-										assert(g.size() == original.size());
-		                for (int i = 0; i < original.size(); ++i) {
-		                    solution[original.nodes[i]] = sol[i];
-		                }
 
-                                int is_ub{0};
-                                auto actualncol = reduction.extend_solution(
-                                    solution, is_ub);
-                                // std::cout << " ====> " << actualncol << std::endl;
+                if (ub > ncol) {
+                    assert(g.size() == original.size());
+                    for (int i = 0; i < original.size(); ++i) {
+                        solution[original.nodes[i]] = sol[i];
+                    }
 
-		                if (ub > actualncol) {
-		                    ub = actualncol;
-		                    statistics.notify_ub(ub);
-		                    statistics.display(std::cout);
-		                }
-		            }
+                    int is_ub{0};
+                    auto actualncol
+                        = reduction.extend_solution(solution, is_ub);
+
+                    // std::cout << " ====> " << actualncol << std::endl;
+
+                    if (ub > actualncol) {
+                        ub = actualncol;
+                        statistics.notify_ub(ub);
+                        statistics.display(std::cout);
+                    }
+                }
             }
         }
 
@@ -290,7 +291,7 @@ struct gc_model {
 
         std::cout << "[preprocessing] start peeling (" << k_core_threshold << ")\n";
 
-        histogram(g);
+        // histogram(g);
 
         // lb = bounds.first;
         // ub = bounds.second;
@@ -809,6 +810,9 @@ struct gc_model {
 
         minicsp::lbool sat{l_True};
         while (sat != l_False && llb < lub) {
+
+            // std::cout << "["<< llb << ".." << lub <<  "]\n";
+
             sat = s.solveBudget();
             if (sat == l_True) {
                 auto col_r = get_solution();
@@ -817,6 +821,10 @@ struct gc_model {
                 cons->sync_graph();
                 int is_ub{0};
                 int actualub = reduction.extend_solution(col_r, is_ub);
+
+                std::cout << "[trace] SAT: " << cons->bestlb << ".." << solub
+                          << ".." << actualub << std::endl;
+
                 statistics.notify_ub(actualub);
                 statistics.display(std::cout);
                 cons->ub = solub;
@@ -830,27 +838,24 @@ struct gc_model {
                 cons->actualub = actualub;
                 if (options.xvars) {
                     for (auto v : xvars)
-                        v.setmax(s, cons->ub - 2, minicsp::NO_REASON);
+                        v.setmax(s, cons->actualub - 2, minicsp::NO_REASON);
                 }
                 assert(lub >= cons->ub);
                 lub = cons->actualub; // changed from ub to actualub, since we
                                       // have removed vertices of degree ub-2
                                       // and we can potentially find colorings
                                       // with ub - 2 colors
-								
-								
-								std::cout << "SAT: " << cons->bestlb << ".." << cons->ub << ".." << cons->actualub << std::endl;
-								
+
             } else if (sat == l_Undef) {
-                std::cout << "*** INTERRUPTED ***\n";
+                std::cout << "trace] *** INTERRUPTED ***\n";
                 break;
             } else {
-							
-								std::cout << "UNSAT: " << cons->bestlb << ".." << cons->ub << ".." << cons->actualub << std::endl;
-							
-							
-                cons->bestlb = cons->actualub;
-								statistics.notify_lb(cons->bestlb);
+
+                std::cout << "trace] UNSAT: " << cons->bestlb << ".."
+                          << cons->ub << ".." << cons->actualub << std::endl;
+
+                cons->bestlb = cons->ub;
+                statistics.notify_lb(cons->bestlb);
                 statistics.display(std::cout);
                 // assert(llb <= cons->bestlb); [IN TOP-DOWN WE MAY FIND A
                 // SOLUTION WITH FEWER THAN LB COLORS]
@@ -1100,6 +1105,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
 						lb = ilb;
 						i = std::min(i - 1, iub - 1);
         }
+        // init_model.print_stats();
     } break;
     case gc::options::BOUNDS: {
         std::pair<int, int> bounds{0, g.size()};
