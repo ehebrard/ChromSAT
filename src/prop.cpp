@@ -13,13 +13,12 @@ namespace gc
 
 using namespace minicsp;
 
-dense_graph cons_base::create_filled_graph(
-    boost::optional<std::vector<std::pair<int, int>>> fillin)
+dense_graph cons_base::create_filled_graph(boost::optional<fillin_info> fillin)
 {
     assert((fillin && opt.fillin) || (!fillin && !opt.fillin));
     if (opt.fillin) {
         dense_graph filled{g};
-        for (auto e : *fillin)
+        for (auto e : fillin->edges)
             filled.add_edge(e.first, e.second);
         return filled;
     } else {
@@ -69,9 +68,9 @@ public:
 
 public:
     gc_constraint(Solver& solver, dense_graph& g,
-        boost::optional<std::vector<std::pair<int, int>>> fillin,
-        const varmap& tvars, const std::vector<indset_constraint>& isconses,
-        const options& opt, statistics& stat)
+        boost::optional<fillin_info> fillin, const varmap& tvars,
+        const std::vector<indset_constraint>& isconses, const options& opt,
+        statistics& stat)
         : cons_base(solver, opt, g, fillin)
         , mf(g, cf, opt.prune)
         , vars(tvars)
@@ -839,8 +838,8 @@ void remap_constraint(
 }
 
 cons_base* post_gc_constraint(Solver& s, dense_graph& g,
-    boost::optional<std::vector<std::pair<int, int>>> fillin,
-    const varmap& vars, const std::vector<indset_constraint>& isconses,
+    boost::optional<fillin_info> fillin, const varmap& vars,
+    const std::vector<indset_constraint>& isconses,
     const std::vector<int>& vertex_map, const options& opt, statistics& stat)
 {
     // try {

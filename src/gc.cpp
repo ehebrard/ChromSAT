@@ -138,21 +138,19 @@ struct gc_model {
 
     // gc::dyngraph dg;
 
-    boost::optional<std::vector<std::pair<int, int>>> fillin;
+    boost::optional<gc::fillin_info> fillin;
 
     minicsp::Solver s;
     gc::varmap vars;
     gc::cons_base* cons{NULL};
     std::vector<minicsp::cspvar> xvars;
-    gc::rewriter* rewriter{NULL};
+    std::unique_ptr<gc::rewriter> rewriter;
 
     std::unique_ptr<gc::Brancher> brancher;
 
     minicsp::cons_pb* mineq_constraint{NULL};
 
     // std::vector<edge> var_map;
-		
-		virtual ~gc_model() { delete rewriter; }
 
     gc::varmap create_chord_vars()
     {
@@ -161,13 +159,13 @@ struct gc_model {
         std::cout << "[modeling] "<< mb.fillin.size()
                   << " edges in minfill, width = " << mb.width << "\n";
 
-        fillin = std::move(mb.fillin);
+        fillin = gc::fillin_info{std::move(mb.fillin), std::move(mb.order)};
 
         using std::begin;
         using std::end;
         gc::varmap vars(begin(g.nodes), end(g.nodes));
         vars.vars.resize(g.size());
-        for (auto e : *fillin) {
+        for (auto e : fillin->edges) {
             int i = e.first, j = e.second;
             Var v = s.newVar();
             vars.vars[i][j] = v;
@@ -230,7 +228,7 @@ struct gc_model {
 
             std::vector<int> w;
             w.resize(all_vars.size(), 1);
-						auto m{mineq(g.capacity(), ub - 1)};
+            auto m{mineq(g.capacity(), ub - 1)};
             mineq_constraint
                 = new cons_pb(s, all_vars, w, m);
             std::cout << "[modeling] create implied constraint #eq >= " << m
@@ -265,8 +263,6 @@ struct gc_model {
                     auto actualncol
                         = reduction.extend_solution(solution, is_ub);
 
-                    // std::cout << " ====> " << actualncol << std::endl;
-
                     if (ub > actualncol) {
                         ub = actualncol;
                         statistics.notify_ub(ub);
@@ -280,7 +276,6 @@ struct gc_model {
             return create_chord_vars();
         else
             return create_all_vars();
-				
     }
 
     void degeneracy_peeling(gc::graph<adjacency_struct>& g,
@@ -309,8 +304,7 @@ struct gc_model {
         adjacency_struct toremove;
         toremove.initialise(0, g.capacity(), gc::bitset::empt);
 
-
-				int stop = 10;
+        int stop = 10;
         do {
             if (g.size() == 0) {
                 break;
@@ -343,33 +337,28 @@ struct gc_model {
             // }
 
             auto plb = cf.find_cliques(reverse);
-						
-						
-						// std::cout << plb << std::endl;
-						
             if (options.boundalg != gc::options::CLIQUES) {
                 cf.sort_cliques(plb);
                 plb = mf.improve_cliques_larger_than(plb);
             }
-						
-						// std::cout << plb << std::endl;
+
+            // std::cout << plb << std::endl;
 
             bool changes = false;
             if (lb < plb) {
-							
-								// std::cout << "improved lower bound (" << lb_safe << ")" << std::endl;
-							
+
+                // std::cout << "improved lower bound (" << lb_safe << ")" <<
+                // std::endl;
+
                 if (lb_safe) {
                     lb = plb;
                     statistics.notify_lb(lb);
                     statistics.display(std::cout);
-										changes = true;
-                } 
-								// else
-								//                     plb = threshold;
-								//                 // changes = true;
-								
-								
+                    changes = true;
+                }
+                // else
+                //                     plb = threshold;
+                //                 // changes = true;
             }
 
             if (k_core_threshold > threshold) {
@@ -582,7 +571,7 @@ struct gc_model {
             }
 
             // if (options.strategy == gc::options::TOPDOWN) {
-            // 		degeneracy_peeling(original, gr, ub-1);
+            //          degeneracy_peeling(original, gr, ub-1);
 
             if (g.size() > 0 and lb < ub and options.indset_constraints)
                 find_is_constraints(g, gr);
@@ -607,38 +596,33 @@ struct gc_model {
         , vertex_map(ig.capacity())
         , original(ig)
         , reduction{preprocess(original, k_core_threshold)}
-    // , g(original, vertex_map)
-    // , vars(create_vars())
-    // , cons(gc::post_gc_constraint(s, g, fillin, vars, reduction.constraints,
-    //       vertex_map, options, statistics))
-    // , rewriter(s, g, cons, vars, xvars)
     {
 
-        if (options.strategy != gc::options::BOUNDS and original.size() > 0 and lb < ub) {
+        if (options.strategy != gc::options::BOUNDS and original.size() > 0
+            and lb < ub) {
             g = gc::dense_graph(original, vertex_map);
-						
-						// // g.check_consistency();
-						// for(int i=0; i<g.size(); ++i) {
-						// 	std::cout << original.matrix[i] << " / " << g.matrix[i] << std::endl;
-						// }
-						// std::cout << std::endl;
-						// original.describe(std::cout);
-						// std::cout << std::endl;
-						// g.describe(std::cout);
-						// std::cout << std::endl;
 
-						
-						
+            // // g.check_consistency();
+            // for(int i=0; i<g.size(); ++i) {
+            //      std::cout << original.matrix[i] << " / " << g.matrix[i] <<
+            //      std::endl;
+            // }
+            // std::cout << std::endl;
+            // original.describe(std::cout);
+            // std::cout << std::endl;
+            // g.describe(std::cout);
+            // std::cout << std::endl;
+
             vars = gc::varmap(create_vars());
             cons = gc::post_gc_constraint(s, g, fillin, vars,
                 reduction.constraints, vertex_map, options, statistics);
-								
-						// g.tell_class();
-						// cons->g.tell_class();
-						// cons->cf.g.tell_class();
-						//							
-								
-            rewriter = new gc::rewriter(s, g, cons, vars, xvars);
+
+            // g.tell_class();
+            // cons->g.tell_class();
+            // cons->cf.g.tell_class();
+            //
+
+            rewriter = std::make_unique<gc::rewriter>(s, g, cons, vars, xvars);
 
             setup_signal_handlers(&s);
             s.trace = options.trace;
@@ -776,15 +760,15 @@ struct gc_model {
                     brancher->use();
                     break;
                 }
-            }		
-        } 
+            }
+        }
     }
 
     std::vector<int> get_solution()
     {
         std::vector<int> col(original.capacity(), -1);
         int next{0};
-												
+
         for (auto u : g.nodes) {
             for (auto v : g.partition[u]) {
                 col[original.nodes[v]] = next;
@@ -829,13 +813,15 @@ struct gc_model {
                 statistics.notify_ub(actualub);
                 statistics.display(std::cout);
                 cons->ub = solub;
-				        if (options.equalities) {
-										auto m{mineq(g.capacity(), cons->ub - 1)};
-				            // mineq_constraint->set_lb(m);
-				            std::cout << "[modeling] update implied constraint #eq >= " << m
-				                      << " / " << (g.capacity() * (g.capacity() - 1) / 2) << "\n\n";
-				        }
-								
+                if (options.equalities) {
+                    auto m{mineq(g.capacity(), cons->ub - 1)};
+                    // mineq_constraint->set_lb(m);
+                    std::cout
+                        << "[modeling] update implied constraint #eq >= " << m
+                        << " / " << (g.capacity() * (g.capacity() - 1) / 2)
+                        << "\n\n";
+                }
+
                 cons->actualub = actualub;
                 if (options.xvars) {
                     for (auto v : xvars)
@@ -960,7 +946,6 @@ int color(gc::options& options, gc::graph<input_format>& g)
     }
 
     g.canonize();
-	
 
     g.describe(std::cout, num_edges);
     std::cout << " at " << minicsp::cpuTime() << std::endl;
@@ -1018,7 +1003,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
         }
     } break;
     case gc::options::TOPDOWN: {
-			
+
         std::vector<int> vmap(g.capacity());
         options.strategy = gc::options::BOUNDS; // so that we don't create the
                                                 // dense graph yet
@@ -1035,14 +1020,14 @@ int color(gc::options& options, gc::graph<input_format>& g)
             std::cout << "[search] solve a tmp model with bounds [" << i << ".."
                       << (i + 1) << "]\n";
 
-						vmap.resize(g.capacity());
+            vmap.resize(g.capacity());
             gc::graph<gc::vertices_vec> gcopy(g, vmap);
 
             gc_model<gc::vertices_vec> tmp_model(
-                gcopy, options, statistics, std::make_pair(i, i + 1));	
-						
+                gcopy, options, statistics, std::make_pair(i, i + 1));
+
             auto ibounds = tmp_model.solve();
-						
+
             auto ilb = ibounds.first;
             auto iub = ibounds.second;
 
@@ -1098,13 +1083,12 @@ int color(gc::options& options, gc::graph<input_format>& g)
             statistics.notify_ub(iub);
             statistics.notify_lb(ilb);
             statistics.display(std::cout);
-						
 
             statistics.unbinds();
             vmap.clear();
-						
-						lb = ilb;
-						i = std::min(i - 1, iub - 1);
+
+            lb = ilb;
+            i = std::min(i - 1, iub - 1);
         }
         // init_model.print_stats();
     } break;
@@ -1137,6 +1121,6 @@ int main(int argc, char* argv[])
     gc::graph<gc::vertices_vec> g;
     // gc::graph<gc::bitset> g;
     auto result = color(options, g);
-		
-		return result;
+
+    return result;
 }
