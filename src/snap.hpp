@@ -29,8 +29,8 @@ void read_graph(const char* fn, setsize ss, add_edge ae, add_node an)
             // edge
             int x, y;
             iss >> x >> y;
-
-            if (x == y)
+			
+            if (x == y || line[0] == '%')
                 continue;
 						
 						
