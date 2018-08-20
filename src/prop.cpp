@@ -11,17 +11,29 @@ namespace gc
 
 using namespace minicsp;
 
+dense_graph cons_base::create_filled_graph(
+    boost::optional<std::vector<std::pair<int, int>>> fillin)
+{
+    assert((fillin && opt.fillin) || (!fillin && !opt.fillin));
+    if (opt.fillin) {
+        dense_graph filled{g};
+        for (auto e : *fillin)
+            filled.add_edge(e.first, e.second);
+        return filled;
+    } else {
+        dense_graph g;
+        return g;
+    }
+}
+
 class gc_constraint : public minicsp::cons, public cons_base
 {
 public:
-    dense_graph fg;
-
     mycielskan_subgraph_finder<bitset> mf;
 
     const varmap& vars;
     std::vector<indset_constraint> isconses;
 
-    const options& opt;
     statistics& stat;
 
     struct varinfo_t {
@@ -58,11 +70,10 @@ public:
         boost::optional<std::vector<std::pair<int, int>>> fillin,
         const varmap& tvars, const std::vector<indset_constraint>& isconses,
         const options& opt, statistics& stat)
-        : cons_base(solver, g)
+        : cons_base(solver, opt, g, fillin)
         , mf(g, cf, opt.prune)
         , vars(tvars)
         , isconses(isconses)
-        , opt(opt)
         , stat(stat)
         , util_set(0, g.capacity() - 1, bitset::empt)
         , neighborhood(0, g.capacity() - 1, bitset::empt)
@@ -108,13 +119,6 @@ public:
             s.use_clause_callback(adaptive_callback);
         }
 
-        assert((fillin && opt.fillin) || (!fillin && !opt.fillin));
-        if (fillin) {
-            fg = g;
-            for (auto e : *fillin)
-                fg.add_edge(e.first, e.second);
-        }
-
         // TODO
         // std::cout << "UB = " << ub << std::endl;
         // int k = ub-1;
@@ -122,17 +126,17 @@ public:
         //
         //
         //
-        // 			  mineq_constraint = new cons_pb(s, vars,
+        //                        mineq_constraint = new cons_pb(s, vars,
         // weights,
         // lb);
-        // 			  s.addConstraint(c);
+        //                        s.addConstraint(c);
         //
         // post_pb(Solver& s, std::vector<Var> const& vars,
         //               std::vector<int> const& weights, int lb);
         // int mineq = a * (g.capacity() - k * (a + 1) / 2);
-        // 			  mineq_constraint = new cons_pbvar(s, vbool, c,
+        //                        mineq_constraint = new cons_pbvar(s, vbool, c,
         // rhs);
-        // 			  s.addConstraint(mineq_constraint);
+        //                        s.addConstraint(mineq_constraint);
 
         DO_OR_THROW(propagate(s));
     }
@@ -160,7 +164,8 @@ public:
         // merged with u
         auto merge_3way = [&](int u, int v, int x) -> Clause* {
             Var uxvar = vars[u][x];
-
+            // if (opt.fillin && uxvar == var_Undef)
+            //     return NO_REASON;
             if (s.value(uxvar) == l_True)
                 return NO_REASON;
             if (u == v)
@@ -186,7 +191,10 @@ public:
         // helper: u is merged with v and v has an edge with x, so
         // u has an edge with x
         auto separate = [&](int u, int v, int x) -> Clause* {
-            if (g.origmatrix[u].contain(x))
+            Var uxvar = vars[u][x];
+            if (opt.fillin && uxvar == var_Undef)
+                return NO_REASON;
+            if (g.origmatrix[u].fast_contain(x))
                 return NO_REASON;
             if (u == v)
                 return NO_REASON;
@@ -201,10 +209,9 @@ public:
             assert(u != x && v != x);
             reason.clear();
             reason.push(~Lit(vars[u][v]));
-            if (!g.origmatrix[v].fast_contain(x))
+            if (!g.origmatrix[v].fast_contain(x)) {
                 reason.push(Lit(vars[v][x]));
-            if (g.origmatrix[u].fast_contain(x))
-                return s.addInactiveClause(reason);
+            }
             DO_OR_RETURN(s.enqueueFill(~Lit(vars[u][x]), reason));
             return NO_REASON;
         };
@@ -227,35 +234,35 @@ public:
             diffvu.copy(g.matrix[v]);
             diffvu.setminus_with(g.matrix[u]);
 
-            // first, make sure u and v are merged
-            DO_OR_RETURN(merge_3way(info.u, info.v, v));
-            DO_OR_RETURN(merge_3way(v, info.u, u));
-
             // merge each partition with the other partition's
             // representative
             for (auto vp : g.partition[v]) {
-                if (vp == v)
+                if (vp == info.v)
                     continue;
-                DO_OR_RETURN(merge_3way(u, v, vp));
+
+                if (opt.fillin && !fg.matrix[vp].fast_contain(info.u))
+                    continue;
+                DO_OR_RETURN(merge_3way(info.u, info.v, vp));
             }
 
             for (auto up : g.partition[u]) {
-                if (up == u)
+                if (up == info.u)
                     continue;
-                DO_OR_RETURN(merge_3way(v, u, up));
+                if (opt.fillin && !fg.matrix[up].fast_contain(info.v))
+                    continue;
+                DO_OR_RETURN(merge_3way(info.v, info.u, up));
             }
 
             // then merge all the rest, using the fact that each is
             // merged with the representative
             for (auto vp : g.partition[v]) {
-                if (vp == v)
+                if (vp == info.v)
                     continue;
 
                 for (auto up : g.partition[u]) {
-                    if (up == u)
+                    if (up == info.u)
                         continue;
-
-                    DO_OR_RETURN(merge_3way(vp, u, up));
+                    DO_OR_RETURN(merge_3way(vp, info.u, up));
                 }
             }
 
@@ -268,12 +275,26 @@ public:
             // much work (linear, even if it's mediated by a bitset)
 
             for (auto vp : g.partition[v]) {
-                for (auto n : diffuv)
-                    DO_OR_RETURN(separate(vp, u, n));
+                if (opt.fillin) {
+                    util_set.copy(diffuv);
+                    util_set.intersect_with(fg.matrix[vp]);
+                    for (auto n : util_set)
+                        DO_OR_RETURN(separate(vp, info.u, n));
+                } else {
+                    for (auto n : diffuv)
+                        DO_OR_RETURN(separate(vp, info.u, n));
+                }
             }
             for (auto up : g.partition[u]) {
-                for (auto n : diffvu)
-                    DO_OR_RETURN(separate(up, v, n));
+                if (opt.fillin) {
+                    util_set.copy(diffvu);
+                    util_set.intersect_with(fg.matrix[up]);
+                    for (auto n : util_set)
+                        DO_OR_RETURN(separate(up, info.v, n));
+                } else {
+                    for (auto n : diffvu)
+                        DO_OR_RETURN(separate(up, info.v, n));
+                }
             }
 
             g.merge(u, v);
@@ -286,21 +307,17 @@ public:
             if (g.matrix[u].fast_contain(v))
                 return NO_REASON;
 
-            // separate u and v first
-            DO_OR_RETURN(separate(u, info.u, info.v));
-            DO_OR_RETURN(separate(v, info.v, u));
-
             // separate each vertex in each partition from the
             // representative of the other partition
             for (auto up : g.partition[u])
-                DO_OR_RETURN(separate(up, u, v));
+                DO_OR_RETURN(separate(up, info.u, info.v));
             for (auto vp : g.partition[v])
-                DO_OR_RETURN(separate(vp, v, u));
+                DO_OR_RETURN(separate(vp, info.v, info.u));
 
             // and now all-to-all
             for (auto up : g.partition[u])
                 for (auto vp : g.partition[v])
-                    DO_OR_RETURN(separate(up, u, vp));
+                    DO_OR_RETURN(separate(up, info.u, vp));
 
             g.separate(u, v);
         }
@@ -595,7 +612,7 @@ public:
         bound_source = options::CLIQUES;
 
         create_ordering();
-				
+
         lb = cf.find_cliques(heuristic, opt.cliquelimit);
 
         if (lb < ub

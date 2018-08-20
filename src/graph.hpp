@@ -469,7 +469,7 @@ template <class graph_struct> struct degeneracy_finder {
     {
     }
 
-    void degeneracy_ordering();
+    void degeneracy_ordering(); // Matula & Beck
     void clear();
     void display_ordering();
 };

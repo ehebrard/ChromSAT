@@ -65,9 +65,9 @@ template <class graph_struct> struct minfill_buffer {
                     break;
             if (i == buckets.size())
                 break;
-
+            // Here i is the first non-empty buckets = the lowest degree
             width = std::max(width, static_cast<int>(i));
-
+            // So is width
             auto v = buckets[i].back();
             order.push_back(v);
             buckets[i].pop_back();
@@ -85,7 +85,7 @@ template <class graph_struct> struct minfill_buffer {
                         continue;
                     assert(!g.matrix[w].fast_contain(u));
                     g.add_edge(u, w);
-                    fillin.push_back(std::pair<int,int>{u, w});
+                    fillin.push_back(std::pair<int, int>{u, w});
                     change_degree(u, 1);
                     change_degree(w, 1);
                 }

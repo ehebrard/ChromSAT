@@ -316,7 +316,7 @@ struct BrelazBrancher : public Brancher {
     bitset clique_bs;
 
     // temp
-    bitset util_set;
+    bitset util_set, util_set2;
 
     // vertices that are ignored because they have low degree
     std::vector<int> low_degree;
@@ -327,6 +327,7 @@ struct BrelazBrancher : public Brancher {
         : Brancher(s, g, evars, xvars, constraint, opt)
         , clique_bs(0, g.capacity() - 1, bitset::empt)
         , util_set(0, g.capacity() - 1, bitset::empt)
+        , util_set2(0, g.capacity() - 1, bitset::empt)
     {
         auto& cf = constraint.cf;
         auto maxidx = std::distance(begin(cf.clique_sz),
@@ -457,7 +458,24 @@ struct BrelazBrancher : public Brancher {
         util_set.copy(clique_bs);
         util_set.setminus_with(g.matrix[maxv]);
         int u = util_set.min();
-        minicsp::Var evar = evars[u][maxv];
+        minicsp::Var evar{minicsp::var_Undef};
+        if (opt.fillin) {
+            util_set.clear();
+            for (auto up : g.partition[u])
+                util_set.fast_add(up);
+            // find an actual var that can merge u and maxv
+            for (auto vp : g.partition[maxv]) {
+                util_set2.copy(util_set);
+                util_set2.intersect_with(constraint.fg.matrix[vp]);
+                if (!util_set2.empty()) {
+                    evar = evars[vp][util_set2.min()];
+                    break;
+                }
+            }
+            assert(evar != minicsp::var_Undef);
+        } else {
+            evar = evars[u][maxv];
+        }
         assert(evar != minicsp::var_Undef);
         cand.push_back(minicsp::Lit(evar));
     }
