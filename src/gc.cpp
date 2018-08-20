@@ -343,19 +343,19 @@ struct gc_model {
             auto plb = cf.find_cliques(reverse);
 						
 						
-						std::cout << plb << std::endl;
+						// std::cout << plb << std::endl;
 						
             if (options.boundalg != gc::options::CLIQUES) {
                 cf.sort_cliques(plb);
                 plb = mf.improve_cliques_larger_than(plb);
             }
 						
-						std::cout << plb << std::endl;
+						// std::cout << plb << std::endl;
 
             bool changes = false;
             if (lb < plb) {
 							
-								std::cout << "improved lower bound (" << lb_safe << ")" << std::endl;
+								// std::cout << "improved lower bound (" << lb_safe << ")" << std::endl;
 							
                 if (lb_safe) {
                     lb = plb;
