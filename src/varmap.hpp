@@ -25,6 +25,15 @@ struct varmap {
         }
     };
 
+    bool contain(int v, int u) const
+    {
+        auto i = vars.find(v);
+        if (i == vars.end()) {
+            return false;
+        }
+        return i->second.find(u) != i->second.end();
+    }
+
     proxy operator[](int v) const {
         auto i = vars.find(v);
         if (i == vars.end()) {

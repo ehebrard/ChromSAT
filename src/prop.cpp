@@ -165,6 +165,14 @@ public:
                 return NO_REASON;
             if (u == v)
                 return NO_REASON;
+            if (!vars.contain(u, x))
+                return NO_REASON;
+
+#ifdef NICE_TRACE
+            std::cout << " -> merge " << u << " with "
+                      << " " << x << std::endl;
+#endif
+
             reason.clear();
             reason.push(~Lit(vars[u][v]));
             reason.push(~Lit(vars[v][x]));
@@ -182,6 +190,14 @@ public:
                 return NO_REASON;
             if (u == v)
                 return NO_REASON;
+            if (!vars.contain(u, x))
+                return NO_REASON;
+
+#ifdef NICE_TRACE
+            std::cout << " -> separate " << u << " from "
+                      << " " << x << std::endl;
+#endif
+
             assert(u != x && v != x);
             reason.clear();
             reason.push(~Lit(vars[u][v]));
@@ -195,6 +211,10 @@ public:
 
         if (!sign(l)) {
             // merging u and v
+
+#ifdef NICE_TRACE
+            std::cout << "-merge " << u << " and " << v << std::endl;
+#endif
 
             if (u == v) {
                 // already merged
@@ -234,6 +254,7 @@ public:
                 for (auto up : g.partition[u]) {
                     if (up == u)
                         continue;
+
                     DO_OR_RETURN(merge_3way(vp, u, up));
                 }
             }
@@ -257,6 +278,11 @@ public:
 
             g.merge(u, v);
         } else {
+
+#ifdef NICE_TRACE
+            std::cout << "-separate " << u << " and " << v << std::endl;
+#endif
+
             if (g.matrix[u].fast_contain(v))
                 return NO_REASON;
 
@@ -626,15 +652,42 @@ public:
             DO_OR_RETURN(propagate_is());
 
         // check local constraints
-        if (lb >= actualub - 1) {
+
+#ifdef DEBUG_IS
+        std::cout << "propag: " << lb << " " << actualub << std::endl;
+#endif
+
+#ifdef DEBUG_IS
+        for (const auto& c : isconses) {
+            std::cout << " cons " << c.vs << std::endl;
+        }
+#endif
+
+        if (lb >= actualub - 1 and lb >= ub - 1) {
             for (int i = 0; i != cf.num_cliques; ++i) {
+
+#ifdef DEBUG_IS
+                std::cout << "clique " << cf.cliques[i] << " in " << g.nodeset
+                          << std::endl;
+#endif
+
                 if (cf.clique_sz[i] < ub -1)
                     continue;
+
                 for (const auto& c : isconses) {
+
+#ifdef DEBUG_IS
+                    std::cout << " cons " << c.vs << std::endl;
+#endif
+
                     util_set.clear();
                     for (auto v : c.vs)
                         util_set.fast_add(g.rep_of[v]);
                     util_set.intersect_with(cf.cliques[i]);
+
+#ifdef DEBUG_IS
+                    std::cout << " inter = " << util_set << std::endl;
+#endif
 
                     if (static_cast<int>(util_set.size()) >= actualub - 1) {
                         reason.clear();

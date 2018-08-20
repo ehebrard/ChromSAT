@@ -85,7 +85,7 @@ struct graph_reduction {
     //
     // }
 
-    int extend_solution(std::vector<int>& col)
+    int extend_solution(std::vector<int>& col, int& is_ub)
     {
         int maxc{0};
         nodeset.copy(g.nodeset);
@@ -94,6 +94,10 @@ struct graph_reduction {
         for (auto i = removed_vertices.rbegin(), iend = removed_vertices.rend();
              i != iend; ++i) {
             auto v = *i;
+
+            if (status[v] == vertex_status::low_degree_removed)
+                is_ub = maxc;
+
             assert(status[v] != vertex_status::in_graph);
             util_set.clear();
             for (auto u : g.matrix[v]) {
@@ -156,6 +160,7 @@ struct gc_model {
         mb.minfill();
         std::cout << "[modeling] "<< mb.fillin.size()
                   << " edges in minfill, width = " << mb.width << "\n";
+
         fillin = std::move(mb.fillin);
 
         using std::begin;
@@ -171,6 +176,9 @@ struct gc_model {
                 using namespace std::string_literals;
                 using std::to_string;
                 auto n = "e"s + to_string(i) + "-"s + to_string(j);
+
+                std::cout << n << std::endl;
+
                 s.setVarName(vars.vars[i][j], n);
             }
         }
@@ -252,8 +260,10 @@ struct gc_model {
 		                    solution[original.nodes[i]] = sol[i];
 		                }
 
-		                auto actualncol = reduction.extend_solution(solution);
-		                // std::cout << " ====> " << actualncol << std::endl;
+                                int is_ub{0};
+                                auto actualncol = reduction.extend_solution(
+                                    solution, is_ub);
+                                // std::cout << " ====> " << actualncol << std::endl;
 
 		                if (ub > actualncol) {
 		                    ub = actualncol;
@@ -475,6 +485,7 @@ struct gc_model {
         auto bs = vc.find_is();
         std::cout << "[preprocessing] extract IS constraint size = "
                   << bs.size() << "\n";
+        std::cout << bs << std::endl;
         for (auto v : bs) {
             gr.removed_vertices.push_back(v);
             gr.status[v] = vertex_status::indset_removed;
@@ -513,7 +524,8 @@ struct gc_model {
                     solution[original.nodes[i]] = col.color[i];
                 }
 
-                auto actualncol = reduction.extend_solution(solution);
+                int is_ub{0};
+                auto actualncol = reduction.extend_solution(solution, is_ub);
                 // std::cout << " ====> " << actualncol << std::endl;
 
                 if (ub > actualncol) {
@@ -761,9 +773,13 @@ struct gc_model {
         for (auto u : g.nodes) {
             for (auto v : g.partition[u]) {
                 col[original.nodes[v]] = next;
-								// assert(v == original.nodes[v]);
-								// std::cout << v << " -> " << original.nodes[v] << std::endl;
-						}
+
+#ifdef DEBUG_IS
+                std::cout << original.nodes[v] << " <- " << next << std::endl;
+// assert(v == original.nodes[v]);
+// std::cout << v << " -> " << original.nodes[v] << std::endl;
+#endif
+            }
             ++next;
         }
         return col;
@@ -786,7 +802,8 @@ struct gc_model {
                 int solub = g.nodes.size();
                 assert(solub < cons->ub);
                 cons->sync_graph();
-                int actualub = reduction.extend_solution(col_r);
+                int is_ub{0};
+                int actualub = reduction.extend_solution(col_r, is_ub);
                 statistics.notify_ub(actualub);
                 statistics.display(std::cout);
                 cons->ub = solub;
@@ -1074,7 +1091,8 @@ int color(gc::options& options, gc::graph<input_format>& g)
     case gc::options::BOUNDS: {
         std::pair<int, int> bounds{0, g.size()};
         gc_model<input_format> model(g, options, statistics, bounds);
-        model.reduction.extend_solution(model.solution);
+        int is_ub{0};
+        model.reduction.extend_solution(model.solution, is_ub);
         auto ncol{
             *std::max_element(begin(model.solution), end(model.solution)) + 1};
         std::cout << "[solution] " << ncol << "-coloring computed at "

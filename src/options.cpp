@@ -88,7 +88,7 @@ options parse(int argc, char* argv[])
         "instance file", true, "data/DIMACS_cliques/brock200_1.clq", "string");
     cmd.add<SwitchArg>(opt.trace, "", "trace", "enable minicsp tracing", false);
     cmd.add<ValueArg<int>>(opt.learning, "", "learning",
-        "CDCLeaning & explanation level [0-1]", false, 2, "int");
+        "CDCLeaning & explanation level [0-2]", false, 2, "int");
     cmd.add<SwitchArg>(
         opt.xvars, "", "xvars", "add x (color) variables to the model", false);
     cmd.add<ValueArg<int>>(
