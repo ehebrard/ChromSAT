@@ -108,7 +108,7 @@ struct graph_reduction {
             for (int q = 0; q != g.capacity(); ++q) {
                 if (util_set.fast_contain(q))
                     continue;
-                assert(q <= statistics.best_ub);
+                // assert(q <= statistics.best_ub);
                 maxc = std::max(maxc, q);
                 col[v] = q;
                 break;
