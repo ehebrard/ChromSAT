@@ -6,12 +6,15 @@
 #include "prop.hpp"
 #include "utils.hpp"
 
+#include <iomanip>
+
 namespace gc
 {
 
 struct Brancher {
     minicsp::Solver& s;
     dense_graph& g;
+		dense_graph& fg;
     const varmap& evars;
     const std::vector<minicsp::cspvar>& xvars;
     cons_base& constraint;
@@ -19,11 +22,12 @@ struct Brancher {
 
     int64_t numdecisions{0}, numchoices{0};
 
-    Brancher(minicsp::Solver& s, dense_graph& g, const varmap& evars,
+    Brancher(minicsp::Solver& s, dense_graph& g, dense_graph& fg, const varmap& evars,
         const std::vector<minicsp::cspvar>& xvars, cons_base& constraint,
         const options& opt)
         : s(s)
         , g(g)
+				, fg(fg)
         , evars(evars)
         , xvars(xvars)
         , constraint(constraint)
@@ -56,10 +60,10 @@ struct VSIDSBrancher : public Brancher {
     std::vector<evarinfo_t> evarinfo;
     std::vector<minicsp::Var> removed;
 
-    VSIDSBrancher(minicsp::Solver& s, dense_graph& g, const varmap& evars,
+    VSIDSBrancher(minicsp::Solver& s, dense_graph& g, dense_graph& fg, const varmap& evars,
         const std::vector<minicsp::cspvar>& xvars, cons_base& constraint,
         const options& opt)
-        : Brancher(s, g, evars, xvars, constraint, opt)
+        : Brancher(s, g, fg, evars, xvars, constraint, opt)
         , util_set(0, g.capacity() - 1, bitset::empt)
         , low_degree(0, g.capacity() - 1, bitset::empt)
     {
@@ -156,11 +160,11 @@ struct VSIDSPhaseBrancher : public Brancher {
 
     int D{1}, N{1};
 
-    VSIDSPhaseBrancher(minicsp::Solver& s, dense_graph& g, const varmap& evars,
+    VSIDSPhaseBrancher(minicsp::Solver& s, dense_graph& g, dense_graph& fg, const varmap& evars,
         const std::vector<minicsp::cspvar>& xvars, cons_base& constraint,
         const options& opt, int D, int N)
-        : Brancher(s, g, evars, xvars, constraint, opt)
-        , vsids(s, g, evars, xvars, constraint, opt)
+        : Brancher(s, g, fg, evars, xvars, constraint, opt)
+        , vsids(s, g, fg, evars, xvars, constraint, opt)
         , D(D)
         , N(N)
     {
@@ -209,11 +213,11 @@ struct VSIDSPhaseBrancher : public Brancher {
 struct VSIDSCliqueBrancher : public Brancher {
     VSIDSBrancher vsids;
 
-    VSIDSCliqueBrancher(minicsp::Solver& s, dense_graph& g, const varmap& evars,
+    VSIDSCliqueBrancher(minicsp::Solver& s, dense_graph& g, dense_graph& fg, const varmap& evars,
         const std::vector<minicsp::cspvar>& xvars, cons_base& constraint,
         const options& opt)
-        : Brancher(s, g, evars, xvars, constraint, opt)
-        , vsids(s, g, evars, xvars, constraint, opt)
+        : Brancher(s, g, fg, evars, xvars, constraint, opt)
+        , vsids(s, g, fg, evars, xvars, constraint, opt)
     {
     }
 
@@ -263,10 +267,10 @@ struct VSIDSCliqueBrancher : public Brancher {
 };
 
 struct VSIDSColorBrancher : public Brancher {
-    VSIDSColorBrancher(minicsp::Solver& s, dense_graph& g, const varmap& evars,
+    VSIDSColorBrancher(minicsp::Solver& s, dense_graph& g, dense_graph& fg, const varmap& evars,
         const std::vector<minicsp::cspvar>& xvars, cons_base& constraint,
         const options& opt)
-        : Brancher(s, g, evars, xvars, constraint, opt)
+        : Brancher(s, g, fg, evars, xvars, constraint, opt)
     {
         for (auto& uv : evars.vars)
             for (auto ep : uv.second) {
@@ -321,10 +325,10 @@ struct BrelazBrancher : public Brancher {
     // vertices that are ignored because they have low degree
     std::vector<int> low_degree;
 
-    BrelazBrancher(minicsp::Solver& s, dense_graph& g, const varmap& evars,
+    BrelazBrancher(minicsp::Solver& s, dense_graph& g, dense_graph& fg, const varmap& evars,
         const std::vector<minicsp::cspvar>& xvars, cons_base& constraint,
         const options& opt)
-        : Brancher(s, g, evars, xvars, constraint, opt)
+        : Brancher(s, g, fg, evars, xvars, constraint, opt)
         , clique_bs(0, g.capacity() - 1, bitset::empt)
         , util_set(0, g.capacity() - 1, bitset::empt)
         , util_set2(0, g.capacity() - 1, bitset::empt)
@@ -429,6 +433,10 @@ struct BrelazBrancher : public Brancher {
         for (auto v : g.nodes) {
             if (clique_bs.fast_contain(v))
                 continue;
+						
+						// if(opt.fillin)
+						// 		std::cout << std::setw(3) << v << ": " << g.matrix[v] << "\n    " << fg.matrix[v] << std::endl;
+						
 
             // number of neighboring colors == intersection of
             // neighborhood with clique
@@ -498,10 +506,10 @@ template <int N, int D> struct EdgeBrancher : public Brancher {
     bitset counter;
     int max_tied;
 
-    EdgeBrancher(minicsp::Solver& s, dense_graph& g, const varmap& evars,
+    EdgeBrancher(minicsp::Solver& s, dense_graph& g, dense_graph& fg, const varmap& evars,
         const std::vector<minicsp::cspvar>& xvars, cons_base& constraint,
         const options& opt)
-        : Brancher(s, g, evars, xvars, constraint, opt)
+        : Brancher(s, g, fg, evars, xvars, constraint, opt)
         , neighbors_u(0, g.capacity() - 1, bitset::empt)
         , neighbors_v(0, g.capacity() - 1, bitset::empt)
         , counter(0, g.capacity() - 1, bitset::empt)
@@ -546,10 +554,10 @@ template <int N, int D, typename Op>
 struct PartitionBrancher : public EdgeBrancher<N, D> {
     Op op;
 
-    PartitionBrancher(minicsp::Solver& s, dense_graph& g, const varmap& evars,
+    PartitionBrancher(minicsp::Solver& s, dense_graph& g, dense_graph& fg, const varmap& evars,
         const std::vector<minicsp::cspvar>& xvars, cons_base& constraint,
         const options& opt, Op op)
-        : EdgeBrancher<N, D>(s, g, evars, xvars, constraint, opt)
+        : EdgeBrancher<N, D>(s, g, fg, evars, xvars, constraint, opt)
         , op(op)
     {
     }
@@ -588,22 +596,22 @@ struct PartitionBrancher : public EdgeBrancher<N, D> {
 
 template <int N, int D, typename Op>
 std::unique_ptr<PartitionBrancher<N, D, Op>> make_partition_brancher(
-    minicsp::Solver& s, dense_graph& g, const varmap& evars,
+    minicsp::Solver& s, dense_graph& g, dense_graph& fg, const varmap& evars,
     const std::vector<minicsp::cspvar>& xvars, cons_base& constraint,
     const options& opt, Op op)
 {
     return std::make_unique<PartitionBrancher<N, D, Op>>(
-        s, g, evars, xvars, constraint, opt, op);
+        s, g, fg, evars, xvars, constraint, opt, op);
 }
 
 template <int N, int D, typename Op>
 struct DegreeBrancher : public EdgeBrancher<N, D> {
     Op op;
 
-    DegreeBrancher(minicsp::Solver& s, dense_graph& g, const varmap& evars,
+    DegreeBrancher(minicsp::Solver& s, dense_graph& g, dense_graph& fg, const varmap& evars,
         const std::vector<minicsp::cspvar>& xvars, cons_base& constraint,
         const options& opt, Op op)
-        : EdgeBrancher<N, D>(s, g, evars, xvars, constraint, opt)
+        : EdgeBrancher<N, D>(s, g, fg, evars, xvars, constraint, opt)
         , op(op)
     {
     }
@@ -647,21 +655,21 @@ struct DegreeBrancher : public EdgeBrancher<N, D> {
 
 template <int N, int D, typename Op>
 std::unique_ptr<DegreeBrancher<N, D, Op>> make_degree_brancher(
-    minicsp::Solver& s, dense_graph& g, const varmap& evars,
+    minicsp::Solver& s, dense_graph& g, dense_graph& fg, const varmap& evars,
     const std::vector<minicsp::cspvar>& xvars, cons_base& constraint,
     const options& opt, Op op)
 {
     return std::make_unique<DegreeBrancher<N, D, Op>>(
-        s, g, evars, xvars, constraint, opt, op);
+        s, g, fg, evars, xvars, constraint, opt, op);
 }
 
 template <int N, int D> struct DegreeUnionBrancher : public EdgeBrancher<N, D> {
     // using EdgeBrancher::EdgeBrancher;
 
-    DegreeUnionBrancher(minicsp::Solver& s, dense_graph& g, const varmap& evars,
+    DegreeUnionBrancher(minicsp::Solver& s, dense_graph& g, dense_graph& fg, const varmap& evars,
         const std::vector<minicsp::cspvar>& xvars, cons_base& constraint,
         const options& opt)
-        : EdgeBrancher<N, D>(s, g, evars, xvars, constraint, opt)
+        : EdgeBrancher<N, D>(s, g, fg, evars, xvars, constraint, opt)
     {
     }
 

@@ -619,26 +619,6 @@ void graph<adjacency_struct>::add_edge(int u, int v)
 template <class adjacency_struct>
 int graph<adjacency_struct>::merge(int u, int v)
 {
-    // if( v < u ) {
-    //      auto w = u;
-    //      u = v;
-    //      v = w;
-    // }
-
-    //   util_set.copy(matrix[v]);
-    // util_set.intersect_with(nodeset);
-    //
-    //   diff2.copy(matrix[u]);
-    // diff2.intersect_with(nodeset);
-    //
-    //      if( diff2.size() > util_set.size() ) {
-    //              auto w = u;
-    //              u = v;
-    //              v = w;
-    //      }
-
-    // std::cout << "contracting " << u << " and " << v << std::endl;
-
     // util_set.clear();
     util_set.copy(matrix[v]);
     util_set.setminus_with(matrix[u]);

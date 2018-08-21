@@ -75,6 +75,17 @@ struct cons_base {
             g.checkpoint();
             *lastdlvl = g.current_checkpoint();
         }
+
+        if (opt.fillin) {
+            if (*lastdlvl < fg.current_checkpoint()) {
+                fg.restore(*lastdlvl);
+                assert(*lastdlvl == fg.current_checkpoint());
+            }
+            while (s.decisionLevel() > fg.current_checkpoint()) {
+                fg.checkpoint();
+                assert(*lastdlvl = fg.current_checkpoint());
+            }
+        }
     }
 
 protected:

@@ -683,7 +683,7 @@ struct gc_model {
                 case gc::options::VSIDS:
                     if (options.branching_low_degree) {
                         brancher = std::make_unique<gc::VSIDSBrancher>(
-                            s, g, vars, xvars, *cons, options);
+                            s, g, cons->fg, vars,xvars, *cons, options);
                         brancher->use();
                     } else
                         s.varbranch = minicsp::VAR_VSIDS;
@@ -691,7 +691,7 @@ struct gc_model {
                 case gc::options::VSIDS_GUIDED:
                     if (options.branching_low_degree) {
                         brancher = std::make_unique<gc::VSIDSBrancher>(
-                            s, g, vars, xvars, *cons, options);
+                            s, g, cons->fg, vars,xvars, *cons, options);
                         brancher->use();
                     } else
                         s.varbranch = minicsp::VAR_VSIDS;
@@ -700,12 +700,12 @@ struct gc_model {
                     break;
                 case gc::options::VSIDS_PHASED:
                     brancher = std::make_unique<gc::VSIDSPhaseBrancher>(
-                        s, g, vars, xvars, *cons, options, -1, -1);
+                        s, g, cons->fg, vars,xvars, *cons, options, -1, -1);
                     brancher->use();
                     break;
                 case gc::options::VSIDS_CLIQUE:
                     brancher = std::make_unique<gc::VSIDSCliqueBrancher>(
-                        s, g, vars, xvars, *cons, options);
+                        s, g, cons->fg, vars,xvars, *cons, options);
                     break;
                 case gc::options::VSIDS_COLORS_POSITIVE:
                     if (!options.xvars) {
@@ -715,63 +715,63 @@ struct gc_model {
                         exit(1);
                     }
                     brancher = std::make_unique<gc::VSIDSColorBrancher>(
-                        s, g, vars, xvars, *cons, options);
+                        s, g, cons->fg, vars,xvars, *cons, options);
                     brancher->use();
                     break;
                 case gc::options::BRELAZ:
                     brancher = std::make_unique<gc::BrelazBrancher>(
-                        s, g, vars, xvars, *cons, options);
+                        s, g, cons->fg, vars,xvars, *cons, options);
                     brancher->use();
                     break;
                 case gc::options::PARTITION_SUM:
                     brancher = gc::make_partition_brancher<-1, -1>(
-                        s, g, vars, xvars, *cons, options, sum);
+                        s, g, cons->fg, vars,xvars, *cons, options, sum);
                     brancher->use();
                     break;
                 case gc::options::PARTITION_PRODUCT:
                     brancher = gc::make_partition_brancher<-1, -1>(
-                        s, g, vars, xvars, *cons, options, prod);
+                        s, g, cons->fg, vars,xvars, *cons, options, prod);
                     brancher->use();
                     break;
                 case gc::options::DEGREE_SUM:
                     brancher = gc::make_degree_brancher<-1, -1>(
-                        s, g, vars, xvars, *cons, options, sum);
+                        s, g, cons->fg, vars,xvars, *cons, options, sum);
                     brancher->use();
                     break;
                 case gc::options::DEGREE_PRODUCT:
                     brancher = gc::make_degree_brancher<-1, -1>(
-                        s, g, vars, xvars, *cons, options, prod);
+                        s, g, cons->fg, vars,xvars, *cons, options, prod);
                     brancher->use();
                     break;
                 case gc::options::DEGREE_UNION:
                     brancher
                         = std::make_unique<gc::DegreeUnionBrancher<-1, -1>>(
-                            s, g, vars, xvars, *cons, options);
+                            s, g, cons->fg, vars,xvars, *cons, options);
                     brancher->use();
                     break;
                 case gc::options::PARTITION_SUM_DYN:
                     brancher = gc::make_partition_brancher<2, 3>(
-                        s, g, vars, xvars, *cons, options, sum);
+                        s, g, cons->fg, vars,xvars, *cons, options, sum);
                     brancher->use();
                     break;
                 case gc::options::PARTITION_PRODUCT_DYN:
                     brancher = gc::make_partition_brancher<2, 3>(
-                        s, g, vars, xvars, *cons, options, prod);
+                        s, g, cons->fg, vars,xvars, *cons, options, prod);
                     brancher->use();
                     break;
                 case gc::options::DEGREE_SUM_DYN:
                     brancher = gc::make_degree_brancher<2, 3>(
-                        s, g, vars, xvars, *cons, options, sum);
+                        s, g, cons->fg, vars,xvars, *cons, options, sum);
                     brancher->use();
                     break;
                 case gc::options::DEGREE_PRODUCT_DYN:
                     brancher = gc::make_degree_brancher<2, 3>(
-                        s, g, vars, xvars, *cons, options, prod);
+                        s, g, cons->fg, vars,xvars, *cons, options, prod);
                     brancher->use();
                     break;
                 case gc::options::DEGREE_UNION_DYN:
                     brancher = std::make_unique<gc::DegreeUnionBrancher<2, 3>>(
-                        s, g, vars, xvars, *cons, options);
+                        s, g, cons->fg, vars,xvars, *cons, options);
                     brancher->use();
                     break;
                 }

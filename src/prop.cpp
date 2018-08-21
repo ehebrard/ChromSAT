@@ -6,7 +6,7 @@
 
 #include <cmath>
 
-#define NICE_TRACE
+// #define NICE_TRACE
 
 namespace gc
 {
@@ -300,6 +300,7 @@ public:
             }
 
             g.merge(u, v);
+						if(opt.fillin) fg.merge(u,v);
         } else {
 
 #ifdef NICE_TRACE
@@ -322,6 +323,7 @@ public:
                     DO_OR_RETURN(separate(up, info.u, vp));
 
             g.separate(u, v);
+						if(opt.fillin) fg.separate(u,v);
         }
 
         return NO_REASON;
