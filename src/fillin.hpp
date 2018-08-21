@@ -75,7 +75,6 @@ template <class graph_struct> struct minfill_buffer {
             for (auto u : g.matrix[v]) {
                 if (ordered.fast_contain(u) || !g.nodeset.fast_contain(u))
                     continue;
-
                 util_set.copy(g.matrix[v]);
                 util_set.setminus_with(g.matrix[u]);
                 util_set.setminus_with(ordered);

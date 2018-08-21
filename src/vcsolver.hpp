@@ -91,6 +91,7 @@ bitset degeneracy_vc_solver<graph_type>::find_is()
 {
     int idx = compl_degeneracy();
     bitset bs(0, g.capacity(), bitset::empt);
+
     for (int i = idx, iend = static_cast<int>(order.size()); i != iend; ++i)
         bs.fast_add(order[i]);
     return bs;

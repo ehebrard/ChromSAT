@@ -299,13 +299,11 @@ public:
                 }
             }
 
-            g.merge(u, v);
+            g.merge(u, v);			
+#ifdef UPDATE_FG
 						if(opt.fillin) fg.merge(u,v);
-        } else {
-
-#ifdef NICE_TRACE
-            std::cout << "-separate " << u << " and " << v << std::endl;
 #endif
+        } else {
 
             if (g.matrix[u].fast_contain(v))
                 return NO_REASON;
@@ -323,7 +321,9 @@ public:
                     DO_OR_RETURN(separate(up, info.u, vp));
 
             g.separate(u, v);
+#ifdef UPDATE_FG
 						if(opt.fillin) fg.separate(u,v);
+#endif
         }
 
         return NO_REASON;

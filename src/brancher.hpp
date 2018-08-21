@@ -319,6 +319,8 @@ struct BrelazBrancher : public Brancher {
     std::vector<int> clique;
     bitset clique_bs;
 
+    std::vector<int> clqorder;
+
     // temp
     bitset util_set, util_set2;
 
@@ -429,20 +431,21 @@ struct BrelazBrancher : public Brancher {
         util_set.intersect_with(g.nodeset);
         int clqsize = util_set.size();
 
+        assert(util_set.size() == clique_bs.size());
+
         int maxc{-1}, maxd{-1}, maxv{-1};
         for (auto v : g.nodes) {
             if (clique_bs.fast_contain(v))
                 continue;
-						
-						// if(opt.fillin)
-						// 		std::cout << std::setw(3) << v << ": " << g.matrix[v] << "\n    " << fg.matrix[v] << std::endl;
-						
 
             // number of neighboring colors == intersection of
             // neighborhood with clique
             util_set.copy(g.matrix[v]);
             util_set.intersect_with(clique_bs);
             int vc = util_set.size();
+						
+						assert(vc < clqsize);
+						
             if (vc < maxc || vc == clqsize)
                 continue;
 
@@ -452,6 +455,8 @@ struct BrelazBrancher : public Brancher {
             util_set.setminus_with(clique_bs);
             util_set.intersect_with(g.nodeset);
             int vd = util_set.size();
+
+						
 
             // max neighboring colors, tie breaking by degree
             if ((vc > maxc && vc < clqsize) || (vc == maxc && vd > maxd)) {
@@ -488,10 +493,111 @@ struct BrelazBrancher : public Brancher {
         cand.push_back(minicsp::Lit(evar));
     }
 
+
+
+    void select_candidates_cvars(std::vector<minicsp::Lit>& cand)
+    {
+        auto& cf = constraint.cf;
+
+        clqorder.clear();
+        for (int i = 0; i < cf.num_cliques; ++i)
+            clqorder.push_back(i);
+        std::sort(begin(clqorder), end(clqorder),
+            [&](int a, int b) { return cf.clique_sz[a] > cf.clique_sz[b]; });
+
+
+        auto maxidx{0};
+        bitset& clq{cf.cliques[0]};
+
+        // explore the cliques by decreasing size until we find one with a
+        // missing chord
+        while (maxidx < clqorder.size()) {
+
+            clq = cf.cliques[clqorder[maxidx]];
+            clique_bs.copy(clq);
+            clique_bs.intersect_with(g.nodeset);
+            bool missing_chord = false;
+
+            // try to find a vertex v of the clique s.t. (Chord(v) & V) \ N(v)
+            // is non-empty
+            for (auto v : clique_bs) {
+                util_set.copy(fg.origmatrix[v]);
+                util_set.intersect_with(g.nodeset);
+
+                if (!g.matrix[v].includes(util_set)) {
+                    missing_chord = true; // ok we have found one
+                    break;
+                }
+            }
+            if (missing_chord)
+                break;
+            else {
+                // move to the next clique
+                ++maxidx;
+            }
+        }
+
+        if (maxidx >= clqorder.size())
+            return;
+
+        clique_bs.copy(clq);
+        clique_bs.intersect_with(g.nodeset);
+        util_set2.clear(); // we are going to store all the potential chords in
+        // util_set2
+
+        for (auto v : clique_bs) {
+            util_set.copy(fg.origmatrix[v]);
+            util_set.intersect_with(g.nodeset);
+            util_set.setminus_with(g.matrix[v]);
+            util_set2.union_with(util_set);
+        }
+
+        // now pick the node with highest saturation (w.r.t. this clique)
+        int maxc{-1}, maxd{-1}, maxv{-1};
+        for (auto v : util_set2) {
+            assert(!clique_bs.fast_contain(v));
+
+            // number of neighboring colors == intersection of
+            // neighborhood with clique
+            util_set.copy(g.matrix[v]);
+            util_set.intersect_with(clique_bs);
+            int vc = util_set.size();
+            if (vc < maxc) continue;
+
+            // degree == neighborhood setminus clique (restricted to
+            // current graph)
+            util_set.copy(g.matrix[v]);
+            util_set.setminus_with(clique_bs);
+            util_set.intersect_with(g.nodeset);
+            int vd = util_set.size();
+
+            // max neighboring colors, tie breaking by degree
+            if (vc > maxc || (vc == maxc && vd > maxd)) {
+                maxv = v;
+                maxc = vc;
+                maxd = vd;
+            }
+        }
+
+        assert(maxv >= 0);
+
+        util_set.copy(clique_bs);
+        util_set.intersect_with(fg.origmatrix[maxv]);
+        util_set.setminus_with(g.matrix[maxv]);
+
+        int u = util_set.min();
+        minicsp::Var evar{minicsp::var_Undef};
+        evar = evars[u][maxv];
+        assert(evar != minicsp::var_Undef);
+        cand.push_back(minicsp::Lit(evar));
+    }
+
     void select_candidates(std::vector<minicsp::Lit>& cand)
     {
         if (opt.xvars)
             select_candidates_xvars(cand);
+				else if (opt.fillin)
+						select_candidates_cvars(cand);
         else
             select_candidates_evars(cand);
     }

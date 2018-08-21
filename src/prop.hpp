@@ -75,7 +75,7 @@ struct cons_base {
             g.checkpoint();
             *lastdlvl = g.current_checkpoint();
         }
-
+#ifdef UPDATE_FG
         if (opt.fillin) {
             if (*lastdlvl < fg.current_checkpoint()) {
                 fg.restore(*lastdlvl);
@@ -86,6 +86,7 @@ struct cons_base {
                 assert(*lastdlvl = fg.current_checkpoint());
             }
         }
+#endif
     }
 
 protected:

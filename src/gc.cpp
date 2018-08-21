@@ -177,7 +177,8 @@ struct gc_model {
                 using std::to_string;
                 auto n = "e"s + to_string(i) + "-"s + to_string(j);
 
-                std::cout << n << std::endl;
+                std::cout << std::setw(7) << n << " (" << i << "." << j << ")"
+                          << std::endl;
 
                 s.setVarName(vars.vars[i][j], n);
             }
