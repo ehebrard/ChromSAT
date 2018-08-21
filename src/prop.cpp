@@ -6,6 +6,8 @@
 
 #include <cmath>
 
+#define NICE_TRACE
+
 namespace gc
 {
 
