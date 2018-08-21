@@ -175,11 +175,6 @@ public:
             if (!vars.contain(u, x))
                 return NO_REASON;
 
-#ifdef NICE_TRACE
-            std::cout << " -> merge " << u << " with "
-                      << " " << x << std::endl;
-#endif
-
             reason.clear();
             reason.push(~Lit(vars[u][v]));
             reason.push(~Lit(vars[v][x]));
@@ -203,11 +198,6 @@ public:
             if (!vars.contain(u, x))
                 return NO_REASON;
 
-#ifdef NICE_TRACE
-            std::cout << " -> separate " << u << " from "
-                      << " " << x << std::endl;
-#endif
-
             assert(u != x && v != x);
             reason.clear();
             reason.push(~Lit(vars[u][v]));
@@ -220,10 +210,6 @@ public:
 
         if (!sign(l)) {
             // merging u and v
-
-#ifdef NICE_TRACE
-            std::cout << "-merge " << u << " and " << v << std::endl;
-#endif
 
             if (u == v) {
                 // already merged
