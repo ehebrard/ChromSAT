@@ -377,12 +377,7 @@ struct gc_model {
                     gr.removed_vertices.push_back(v);
                 }
 
-                std::cout << "sort ";
-                std::cout.flush();
-
                 toremove.canonize();
-
-                std::cout << minicsp::cpuTime() << "\n";
 
                 g.remove(toremove);
                 for (auto u : toremove) {
@@ -613,6 +608,10 @@ struct gc_model {
 
         if (options.strategy != gc::options::BOUNDS and original.size() > 0
             and lb < ub) {
+							
+			      std::cout << "[modeling] create dense graph with "<< original.size()
+			                << " nodes\n";
+							
             g = gc::dense_graph(original, vertex_map);
 
             // // g.check_consistency();

@@ -104,6 +104,8 @@ struct options {
     std::string convert;
 
     bool equalities;
+		
+		int memlimit;
 };
 
 options parse(int argc, char* argv[]);
