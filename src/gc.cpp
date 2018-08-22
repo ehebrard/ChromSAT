@@ -270,6 +270,9 @@ struct gc_model {
                     }
                 }
             }
+
+            std::cout << "[preprocessing] finished at " << minicsp::cpuTime()
+                      << "\n";
         }
 
         if (options.fillin)
@@ -374,7 +377,13 @@ struct gc_model {
                     gr.removed_vertices.push_back(v);
                 }
 
+                std::cout << "sort ";
+                std::cout.flush();
+
                 toremove.canonize();
+
+                std::cout << minicsp::cpuTime() << "\n";
+
                 g.remove(toremove);
                 for (auto u : toremove) {
                     gr.status[u] = vertex_status::low_degree_removed;

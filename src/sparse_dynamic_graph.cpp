@@ -210,7 +210,7 @@ double dyngraph::get_density() const
 
 void dyngraph::sort(bool non_decreasing)
 {
-    verify("before sort");
+    // verify("before sort");
 
     std::vector<int> sorted;
     for (int i = 0; i < size(); ++i) {
@@ -239,7 +239,7 @@ void dyngraph::sort(bool non_decreasing)
         add_edge(srank[p[0]], srank[p[1]]);
     }
 
-    verify("after sort");
+    // verify("after sort");
 }
 
 
@@ -524,6 +524,8 @@ void dyngraph::print_dimacs(std::ostream& os) const
 
 void dyngraph::verify(const char* msg)
 {
+    std::cout << "check dyngraph consistency\n";
+
     for (unsigned i = 0; i < edges.size(); ++i) {
         Edge e = edges[i];
         int x = e[0];

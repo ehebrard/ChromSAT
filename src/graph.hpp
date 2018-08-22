@@ -5,6 +5,7 @@
 #include "intstack.hpp"
 #include "utils.hpp"
 
+#include <minicsp/core/utils.hpp>
 #include <minicsp/mtl/Heap.h>
 
 #include <algorithm>
@@ -552,13 +553,25 @@ void basic_graph<adjacency_struct>::add_clique(const adjacency_struct& C)
 template <class adjacency_struct>
 void basic_graph<adjacency_struct>::remove(const adjacency_struct& toremove) {
 
+    // std::cout << "rm from nodes (" << nodes.size() << ") ";
+    // std::cout.flush();
+
     for (auto v : toremove) {
         remove_node(v);
     }
 
-    for (auto v : nodes) {
-        matrix[v].setminus_with(toremove);
-    }
+    // std::cout << minicsp::cpuTime() << "\n";
+    // std::cout << "rm from neighborhoods (" << nodes.size() << ") ";
+    // std::cout.flush();
+
+    if (nodeset.size() < toremove.size())
+        for (auto v : nodes)
+            matrix[v].intersect_with(nodeset);
+    else
+        for (auto v : nodes)
+            matrix[v].setminus_with(toremove);
+
+    // std::cout << minicsp::cpuTime() << "\n";
 
     // check_consistency();
 }
