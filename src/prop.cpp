@@ -13,13 +13,12 @@ namespace gc
 
 using namespace minicsp;
 
-dense_graph cons_base::create_filled_graph(
-    boost::optional<std::vector<std::pair<int, int>>> fillin)
+dense_graph cons_base::create_filled_graph(boost::optional<fillin_info> fillin)
 {
     assert((fillin && opt.fillin) || (!fillin && !opt.fillin));
     if (opt.fillin) {
         dense_graph filled{g};
-        for (auto e : *fillin)
+        for (auto e : fillin->edges)
             filled.add_edge(e.first, e.second);
         return filled;
     } else {
@@ -28,10 +27,118 @@ dense_graph cons_base::create_filled_graph(
     }
 }
 
+struct bfs_state {
+    Solver& s;
+    dense_graph& g;
+    bitset upart, vpart, allpart;
+    bitset util_set;
+    enum vertex_color { WHITE, GREY, BLACK };
+    std::vector<vertex_color> col;
+    std::vector<int> uparent, vparent;
+    int rootu, rootv;
+
+    std::list<int> Q;
+
+    template<typename F>
+    auto visit(int w, F f) -> decltype(f(w))
+    {
+        if (w != rootu && w != rootv) {
+            assert(vparent[w] != -1);
+            assert(uparent[w] != -1);
+            assert(g.origmatrix[w].fast_contain(vparent[w]));
+            assert(g.origmatrix[w].fast_contain(uparent[w]));
+            assert(g.origmatrix[vparent[w]].fast_contain(uparent[w]));
+        }
+        return f(w);
+    }
+
+    template<typename F>
+    auto do_bfs(int w, F f) -> decltype(f(w))
+    {
+        auto rv = visit(w, f);
+        if (rv)
+            return rv;
+        util_set.copy(g.origmatrix[w]);
+        util_set.intersect_with(allpart);
+        bool inv = upart.fast_contain(w);
+        for (auto x : util_set) {
+            if (col[x] != WHITE)
+                continue;
+            Q.push_back(x);
+            col[x] = GREY;
+            if (inv) {
+                vparent[x] = w;
+                uparent[x] = uparent[w];
+            } else {
+                vparent[x] = vparent[w];
+                uparent[x] = w;
+            }
+        }
+        col[w] = BLACK;
+        return rv;
+    }
+
+    template<typename F>
+    auto do_bfs(F f) -> decltype(f(0))
+    {
+        while(!Q.empty()) {
+            int v = Q.front();
+            Q.pop_front();
+            auto rv = do_bfs(v, f);
+            if (rv || Q.empty())
+                return rv;
+        }
+        // unreachable
+    }
+
+    template<typename F>
+    auto bfs(int u, int v, F f) -> decltype(f(v))
+    {
+        upart.clear();
+        for (auto up : g.partition[u]) {
+            col[up] = WHITE;
+            upart.fast_add(up);
+            uparent[up] = -1;
+            vparent[up] = -1;
+        }
+        vpart.clear();
+        for (auto vp : g.partition[v]) {
+            col[vp] = WHITE;
+            vpart.fast_add(vp);
+            uparent[vp] = -1;
+            vparent[vp] = -1;
+        }
+        allpart.copy(upart);
+        allpart.union_with(vpart);
+        Q.clear();
+        Q.push_back(v);
+        uparent[v] = u;
+        col[u] = BLACK;
+        rootu = u;
+        rootv = v;
+        return do_bfs(f);
+    }
+
+    bfs_state(Solver& s, dense_graph& g)
+        : s(s)
+        , g(g)
+        , upart(0, g.capacity() - 1, bitset::empt)
+        , vpart(0, g.capacity() - 1, bitset::empt)
+        , util_set(0, g.capacity() - 1, bitset::empt)
+        , col(g.capacity())
+        , uparent(g.capacity())
+        , vparent(g.capacity())
+    {
+    }
+};
+
 class gc_constraint : public minicsp::cons, public cons_base
 {
 public:
     mycielskan_subgraph_finder<bitset> mf;
+
+    // used in wake() when using fillin
+    bfs_state bfs;
 
     const varmap& vars;
     std::vector<indset_constraint> isconses;
@@ -69,11 +176,12 @@ public:
 
 public:
     gc_constraint(Solver& solver, dense_graph& g,
-        boost::optional<std::vector<std::pair<int, int>>> fillin,
-        const varmap& tvars, const std::vector<indset_constraint>& isconses,
-        const options& opt, statistics& stat)
+        boost::optional<fillin_info> fillin, const varmap& tvars,
+        const std::vector<indset_constraint>& isconses, const options& opt,
+        statistics& stat)
         : cons_base(solver, opt, g, fillin)
         , mf(g, cf, opt.prune)
+        , bfs(s, fg)
         , vars(tvars)
         , isconses(isconses)
         , stat(stat)
@@ -155,58 +263,97 @@ public:
         return os;
     }
 
+    // helper: because u merged with v and v merged with x, x
+    // merged with u
+    auto merge_3way(int u, int v, int x) -> Clause* {
+        Var uxvar = vars[u][x];
+        // if (opt.fillin && uxvar == var_Undef)
+        //     return NO_REASON;
+        if (s.value(uxvar) == l_True)
+            return NO_REASON;
+        if (u == v)
+            return NO_REASON;
+        if (!vars.contain(u, x))
+            return NO_REASON;
+
+        reason.clear();
+        reason.push(~Lit(vars[u][v]));
+        reason.push(~Lit(vars[v][x]));
+        if (g.origmatrix[x].fast_contain(u)) {
+            return s.addInactiveClause(reason);
+        }
+        DO_OR_RETURN(s.enqueueFill(Lit(uxvar), reason));
+        return NO_REASON;
+    };
+
+    // helper: u is merged with v and v has an edge with x, so
+    // u has an edge with x
+    auto separate(int u, int v, int x) -> Clause* {
+        Var uxvar = vars[u][x];
+        if (opt.fillin && uxvar == var_Undef)
+            return NO_REASON;
+        if (g.origmatrix[u].fast_contain(x))
+            return NO_REASON;
+        if (u == v)
+            return NO_REASON;
+        if (!vars.contain(u, x))
+            return NO_REASON;
+
+        assert(u != x && v != x);
+        reason.clear();
+        reason.push(~Lit(vars[u][v]));
+        if (!g.origmatrix[v].fast_contain(x)) {
+            reason.push(Lit(vars[v][x]));
+        }
+        DO_OR_RETURN(s.enqueueFill(~Lit(vars[u][x]), reason));
+        return NO_REASON;
+    };
+
+    Clause *merge_fillin(Lit l)
+    {
+        auto info = varinfo[var(l)];
+        bfs.bfs(info.u, info.v, [&](int x) -> Clause* {
+            if (x == info.u || x == info.v)
+                return NO_REASON;
+            if (bfs.vpart.fast_contain(x))
+                DO_OR_RETURN(merge_3way(bfs.uparent[x], bfs.vparent[x], x));
+            else
+                DO_OR_RETURN(merge_3way(bfs.vparent[x], bfs.uparent[x], x));
+            return NO_REASON;
+        });
+        return NO_REASON;
+    }
+
+    Clause *separate_fillin(Lit l)
+    {
+        auto info = varinfo[var(l)];
+        bfs.bfs(info.u, info.v, [&](int x) -> Clause * {
+            if (bfs.vpart.fast_contain(x))
+                DO_OR_RETURN(separate(bfs.uparent[x], bfs.vparent[x], x));
+            else
+                DO_OR_RETURN(separate(bfs.vparent[x], bfs.uparent[x], x));
+            return NO_REASON;
+        });
+        return NO_REASON;
+    }
+
+    Clause *wake_fillin(Lit l)
+    {
+        if (!sign(l))
+            return merge_fillin(l);
+        else
+            return separate_fillin(l);
+    }
+
     Clause* wake(Solver& s, Lit l)
     {
         sync_graph();
 
+        if (opt.fillin)
+            return wake_fillin(l);
+
         auto info = varinfo[var(l)];
         auto u{g.rep_of[info.u]}, v{g.rep_of[info.v]};
-
-        // helper: because u merged with v and v merged with x, x
-        // merged with u
-        auto merge_3way = [&](int u, int v, int x) -> Clause* {
-            Var uxvar = vars[u][x];
-            // if (opt.fillin && uxvar == var_Undef)
-            //     return NO_REASON;
-            if (s.value(uxvar) == l_True)
-                return NO_REASON;
-            if (u == v)
-                return NO_REASON;
-            if (!vars.contain(u, x))
-                return NO_REASON;
-
-            reason.clear();
-            reason.push(~Lit(vars[u][v]));
-            reason.push(~Lit(vars[v][x]));
-            if (g.origmatrix[x].fast_contain(u)) {
-                return s.addInactiveClause(reason);
-            }
-            DO_OR_RETURN(s.enqueueFill(Lit(uxvar), reason));
-            return NO_REASON;
-        };
-
-        // helper: u is merged with v and v has an edge with x, so
-        // u has an edge with x
-        auto separate = [&](int u, int v, int x) -> Clause* {
-            Var uxvar = vars[u][x];
-            if (opt.fillin && uxvar == var_Undef)
-                return NO_REASON;
-            if (g.origmatrix[u].fast_contain(x))
-                return NO_REASON;
-            if (u == v)
-                return NO_REASON;
-            if (!vars.contain(u, x))
-                return NO_REASON;
-
-            assert(u != x && v != x);
-            reason.clear();
-            reason.push(~Lit(vars[u][v]));
-            if (!g.origmatrix[v].fast_contain(x)) {
-                reason.push(Lit(vars[v][x]));
-            }
-            DO_OR_RETURN(s.enqueueFill(~Lit(vars[u][x]), reason));
-            return NO_REASON;
-        };
 
         if (!sign(l)) {
             // merging u and v
@@ -285,9 +432,10 @@ public:
                 }
             }
 
-            g.merge(u, v);			
+            g.merge(u, v);
 #ifdef UPDATE_FG
-						if(opt.fillin) fg.merge(u,v);
+            if (opt.fillin)
+                fg.merge(u, v);
 #endif
         } else {
 
@@ -308,7 +456,8 @@ public:
 
             g.separate(u, v);
 #ifdef UPDATE_FG
-						if(opt.fillin) fg.separate(u,v);
+            if (opt.fillin)
+                fg.separate(u, v);
 #endif
         }
 
@@ -839,8 +988,8 @@ void remap_constraint(
 }
 
 cons_base* post_gc_constraint(Solver& s, dense_graph& g,
-    boost::optional<std::vector<std::pair<int, int>>> fillin,
-    const varmap& vars, const std::vector<indset_constraint>& isconses,
+    boost::optional<fillin_info> fillin, const varmap& vars,
+    const std::vector<indset_constraint>& isconses,
     const std::vector<int>& vertex_map, const options& opt, statistics& stat)
 {
     // try {

@@ -35,6 +35,29 @@ struct indset_constraint {
     int source;
 };
 
+struct fillin_info {
+    std::vector<std::pair<int, int>> edges;
+    // vertices, in order
+    std::vector<int> order;
+    // reverse lookup for order: order of each vertex
+    std::vector<int> revorder;
+
+    fillin_info() = default;
+    fillin_info(
+        std::vector<std::pair<int, int>>&& edges, std::vector<int>&& order)
+        : edges(edges)
+        , order(order)
+    {
+        revorder.resize(order.size());
+        for (size_t i = 0, iend = order.size(); i != iend; ++i)
+            revorder[order[i]] = i;
+    }
+    fillin_info(const fillin_info&) = default;
+    fillin_info(fillin_info&&) = default;
+    fillin_info& operator=(const fillin_info&) = default;
+    fillin_info& operator=(fillin_info&&) = default;
+};
+
 struct cons_base {
     minicsp::Solver& s;
     const options& opt;
@@ -49,11 +72,10 @@ struct cons_base {
     clique_finder<bitset> ccf; // for clique covers
     minicsp::backtrackable<int> lastlb;
 
-    dense_graph create_filled_graph(
-        boost::optional<std::vector<std::pair<int, int>>> fillin);
+    dense_graph create_filled_graph(boost::optional<fillin_info> fillin);
 
     explicit cons_base(minicsp::Solver& s, const options& opt, dense_graph& g,
-        boost::optional<std::vector<std::pair<int, int>>> fillin)
+        boost::optional<fillin_info> fillin)
         : s(s)
         , opt(opt)
         , g(g)
@@ -97,8 +119,8 @@ protected:
 };
 
 cons_base* post_gc_constraint(minicsp::Solver& s, dense_graph& g,
-    boost::optional<std::vector<std::pair<int, int>>> fillin,
-    const varmap& vars, const std::vector<indset_constraint>& isconses,
+    boost::optional<fillin_info> fillin, const varmap& vars,
+    const std::vector<indset_constraint>& isconses,
     const std::vector<int>& vertex_map, const options& opt, statistics& stat);
 
 } // namespace gc
