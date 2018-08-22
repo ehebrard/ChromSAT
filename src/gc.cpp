@@ -340,42 +340,34 @@ struct gc_model {
             }
 
             std::cout << "[preprocessing] compute lower bound\n";
-            // }
 
             auto plb = cf.find_cliques(reverse);
 						
-						
-						// std::cout << plb << std::endl;
 						
             if (options.boundalg != gc::options::CLIQUES) {
                 cf.sort_cliques(plb);
                 plb = mf.improve_cliques_larger_than(plb);
             }
-						
-						// std::cout << plb << std::endl;
 
             bool changes = false;
-            if (lb < plb) {
-							
-								// std::cout << "improved lower bound (" << lb_safe << ")" << std::endl;
-							
+            if (lb < plb) {							
                 if (lb_safe) {
                     lb = plb;
                     statistics.notify_lb(lb);
                     statistics.display(std::cout);
 										changes = true;
-                } 
-								// else
-								//                     plb = threshold;
-								//                 // changes = true;
-								
-								
+                } 								
             }
 
             if (k_core_threshold > threshold) {
                 threshold = k_core_threshold;
                 lb_safe = false;
             }
+
+            if (lb > threshold) {
+                threshold = lb;
+            }
+
             if (df.degrees[df.order[0]] < threshold) {
                 std::cout << "[preprocessing] remove low degree nodes ("
                           << threshold << ")\n";
@@ -397,7 +389,13 @@ struct gc_model {
                 statistics.notify_removals(g.size());
                 statistics.display(std::cout);
                 changes = true;
-            }
+            } 
+						// else {
+						//
+						//                 std::cout << "lowest degree node " << df.order[0] << " ("
+						//                           << df.degrees[df.order[0]] << ") is >= " << threshold
+						//                           << std::endl;
+						//             }
 
             if (!changes)
                 break;
