@@ -623,6 +623,18 @@ void graph<adjacency_struct>::add_dirty_edge(int u, int v)
 template <class adjacency_struct>
 void graph<adjacency_struct>::add_edge(int u, int v)
 {
+
+    if (matrix.size() <= v) {
+        std::cout << "try to add edge " << u << "-" << v << " / "
+                  << nodes.size() << " " << nodeset.size() << " "
+                  << matrix.size() << std::endl;
+    }
+
+    assert(matrix.size() > v);
+    assert(matrix.size() > u);
+    assert(origmatrix.size() > v);
+    assert(origmatrix.size() > u);
+
     matrix[u].add(v);
     matrix[v].add(u);
     origmatrix[u].add(v);

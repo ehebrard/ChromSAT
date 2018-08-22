@@ -608,10 +608,11 @@ struct gc_model {
 
         if (options.strategy != gc::options::BOUNDS and original.size() > 0
             and lb < ub) {
-							
-			      std::cout << "[modeling] create dense graph with "<< original.size()
-			                << " nodes\n";
-							
+
+            // std::cout << "[modeling] create dense graph with "<<
+            // original.size()
+            //           << " nodes\n";
+
             g = gc::dense_graph(original, vertex_map);
 
             // // g.check_consistency();
@@ -628,6 +629,14 @@ struct gc_model {
             vars = gc::varmap(create_vars());
             cons = gc::post_gc_constraint(s, g, fillin, vars,
                 reduction.constraints, vertex_map, options, statistics);
+
+            double vm_usage;
+            double resident_set;
+            gc::process_mem_usage(vm_usage, resident_set);
+
+            std::cout << "[modeling] created coloring constraint #nodes = "
+                      << original.size() << ", #vars = " << s.nVars()
+                      << ", memory = " << (long)resident_set << " \n";
 
             // g.tell_class();
             // cons->g.tell_class();

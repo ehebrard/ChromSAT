@@ -11,6 +11,9 @@ using namespace minicsp;
 
 namespace gc
 {
+
+void process_mem_usage(double& vm_usage, double& resident_set);
+
 struct statistics {
 	
 		statistics(const int size) {

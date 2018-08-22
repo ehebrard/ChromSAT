@@ -73,6 +73,14 @@ void read_graph(
                              << " edges present at line " << ln << "\n";
                         exit(1);
                     }
+										
+										//
+										// if(v1<1 or v2<1 or v1>nv or v2>nv)
+										// {
+										// 	std::cout << "edge " << v1 << "." << v2 << " at line " << ln << std::endl;
+										// 	exit(1);
+										// }
+										
                     ae(v1, v2);
                 }
             }
