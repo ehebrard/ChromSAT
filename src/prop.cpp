@@ -312,12 +312,6 @@ public:
     Clause *merge_fillin(Lit l)
     {
         auto info = varinfo[var(l)];
-        std::cout << " -> merge " << info.u << " with "
-                  << " " << info.v << std::endl;
-        std::cout << " partition[" << info.u
-                  << "] = " << print_container{g.partition[info.u]} << "\n";
-        std::cout << " partition[" << info.v
-                  << "] = " << print_container{g.partition[info.v]} << "\n";
         bfs.bfs(info.u, info.v, [&](int x) -> Clause* {
             if (x == info.u || x == info.v)
                 return NO_REASON;
