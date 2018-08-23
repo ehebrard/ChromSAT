@@ -215,14 +215,16 @@ void DSATUR_::DSATUR_preprocessing(){
 }
 
 int DSATUR_::DSATUR_algo(C_Graphe &G_param, double time_param, int regle_input, int LB_input, int UB_input){
-#ifdef DEBUG
-	cout<<"Paramètres :\n";
-	cout<<"time limit="<<time_param<<"\n";
-	cout<<"borne="<<borne_input<<"\n";
-	cout<<"regle="<<regle_input<<"\n";
-	cout<<"profondeur=["<<borne_inf_prof_input<<","<<borne_sup_prof_input<<"]\n";
-	cout<<"gap=["<<borne_inf_gap_input<<","<<borne_sup_gap_input<<"]\n";
-#endif
+// #ifdef DEBUG
+	cout<<"[options] Paramètres :\n";
+	cout<<"[options] time limit="<<time_param<<"\n";
+	// cout<<"[options] borne="<<borne_input<<"\n";
+	// cout<<"[options] regle="<<regle_input<<"\n";
+	// cout<<"[options] profondeur=["<<borne_inf_prof_input<<","<<borne_sup_prof_input<<"]\n";
+	// cout<<"[options] gap=["<<borne_inf_gap_input<<","<<borne_sup_gap_input<<"]\n";
+// #endif
+
+	cout << "[statistics] lb ub time conflicts\n";
 	
 	start = clock();
 
@@ -231,6 +233,8 @@ int DSATUR_::DSATUR_algo(C_Graphe &G_param, double time_param, int regle_input, 
 	LB = max(LB_input,2);
 	UB = min(UB_input,G.nb_sommets);
 
+	cout << "[trace] preprocessing at " << (double)(clock() - start)/CLOCKS_PER_SEC << "\n";
+	
 	//Initialisation
 	DSATUR_preprocessing();
 
@@ -239,6 +243,8 @@ int DSATUR_::DSATUR_algo(C_Graphe &G_param, double time_param, int regle_input, 
 
 	quit = -1;
 	nombre_noeuds = 1;
+	
+	cout << "[trace] alloc at " << (double)(clock() - start)/CLOCKS_PER_SEC << "\n";
 
 	//Initialisation tableaux
 	meilleure_coloration = (int *)malloc(sizeof(int)*G.nb_sommets);
@@ -269,9 +275,20 @@ int DSATUR_::DSATUR_algo(C_Graphe &G_param, double time_param, int regle_input, 
 		}
 	}
 
-	#ifdef activate_heur
+	cout << "[trace] upper bound at " << (double)(clock() - start)/CLOCKS_PER_SEC << "\n";
+
+	// #ifdef activate_heur
 	UB = min(UB,DSATUR_h(G));
-	#endif
+
+  std::cout << "[data] lb = " << std::setw(4) << std::left << LB
+			 			<< "| ub = " << std::setw(4) << std::left << UB
+		 				<< "| time = " << std::setw(10) << std::left << std::setprecision(4) << (double)(clock() - start)/CLOCKS_PER_SEC
+		 				<< "| conflicts = " << std::setw(10) << std::left << nombre_noeuds
+  	 				<< std::endl;
+	// #endif
+	
+	cout << "[trace] lower bound at " << (double)(clock() - start)/CLOCKS_PER_SEC << "\n";
+	
 
 	//Calcul de la borne inf
 	int *solution = (int *)malloc(sizeof(int)*G.nb_sommets);
@@ -315,6 +332,10 @@ int DSATUR_::DSATUR_algo(C_Graphe &G_param, double time_param, int regle_input, 
 #ifdef DEBUG
 	cout<<"LB="<<LB<<" "<<"UB="<<UB<<"\n";
 #endif
+	
+	cout << "[trace] search at " << (double)(clock() - start)/CLOCKS_PER_SEC << "\n";
+	
+	
 	profondeur_glob = 0;
 	DSATUR_algo_rec(solution_courante);
 	time_spent = (double)(clock() - start)/CLOCKS_PER_SEC;
