@@ -785,14 +785,12 @@ public:
             use_global_bound = true;
         }
 
-        if (s.decisionLevel() == 0 && lb > bestlb) {
-            bestlb = lb;
-            stat.display(std::cout);
-            // for (auto v : g.nodes) {
-            //     if (g.matrix[v].size() < static_cast<size_t>(bestlb)) {
-            //         ++stat.num_vertex_removals;
-            //     }
-            // }
+        if (s.decisionLevel() == 0 and lb > bestlb) {
+            if (lb <= ub) {
+                // this may not be the case when the instance is UNSAT
+                bestlb = lb;
+                stat.display(std::cout);
+            }
         }
         if (cf.num_cliques == 1)
             assert(g.nodes.size() == cf.cliques[0].size());

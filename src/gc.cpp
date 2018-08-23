@@ -855,14 +855,18 @@ struct gc_model {
                                       // with ub - 2 colors
 
             } else if (sat == l_Undef) {
-                std::cout << "trace] *** INTERRUPTED ***\n";
+                std::cout << "[trace] *** INTERRUPTED ***\n";
                 break;
             } else {
 
-                std::cout << "trace] UNSAT: " << cons->bestlb << ".."
-                          << cons->ub << ".." << cons->actualub << std::endl;
+                // std::cout << "[trace] UNSAT: " << cons->bestlb << ".."
+                //           << cons->ub << ".." << cons->actualub << std::endl;
 
                 cons->bestlb = cons->ub;
+
+                std::cout << "[trace] UNSAT: " << cons->bestlb << ".."
+                          << cons->ub << ".." << cons->actualub << std::endl;
+
                 statistics.notify_lb(cons->bestlb);
                 statistics.display(std::cout);
                 // assert(llb <= cons->bestlb); [IN TOP-DOWN WE MAY FIND A
