@@ -2,6 +2,7 @@
 
 #include "brancher.hpp"
 #include "dimacs.hpp"
+#include "edgeformat.hpp"
 #include "fillin.hpp"
 #include "graph.hpp"
 #include "mycielski.hpp"
@@ -937,40 +938,67 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
     std::cout << "[reading] ";
 
-    int num_edges = 0;
     std::vector<std::pair<int, int>> edges;
     if (options.format == "snap")
         snap::read_graph(options.instance_file.c_str(),
             [&](int nv, int) { g = gc::graph<input_format>{nv}; },
             [&](int u, int v) {
                 if (u != v) {
-                    num_edges += 1 - g.matrix[u].fast_contain(v);
+                    // num_edges += 1 - g.matrix[u].fast_contain(v);
                     g.add_edge(u, v);
                     // ++num_edges;
                 }
             },
             [&](int, gc::weight) {});
+    else if (options.format == "edg")
+        edgeformat::read_graph(options.instance_file.c_str(),
+            [&](int nv, int ne) {
+                g = gc::graph<input_format>{nv};
+                // num_edges = ne;
+            },
+            [&](int u, int v) { g.add_edge(u, v); }, [&](int, gc::weight) {});
     else
         dimacs::read_graph(options.instance_file.c_str(),
             [&](int nv, int) { g = gc::graph<input_format>{nv}; },
             [&](int u, int v) {
                 if (u != v) {
                     g.add_edge(u - 1, v - 1);
-                    ++num_edges;
+                    // ++num_edges;
                     if (options.checksolution)
                         edges.push_back(std::pair<int, int>{u - 1, v - 1});
                 }
             },
             [&](int, gc::weight) {});
 
+    // if (options.format != "edg")
+    g.canonize();
+    long num_edges{0};
+    for (auto v : g.nodes) {
+        num_edges += g.matrix[v].size();
+    }
+    num_edges /= 2;
+
     if (options.convert != "") {
-        std::ofstream dimacsfile(options.convert.c_str(), std::ios_base::out);
-        gc::dyngraph dg(g);
-        dg.print_dimacs(dimacsfile);
+        std::ofstream outfile(options.convert.c_str(), std::ios_base::out);
+
+        // std::cout << options.convert.substr(options.convert.size()-3, 3) <<
+        // std::endl;
+        // exit(1);
+
+        if (options.convert.substr(options.convert.size() - 3, 3) == "edg") {
+            outfile << g.size() << " " << num_edges << "\n";
+            for (auto u : g.nodes) {
+                for (auto v : g.matrix[u]) {
+                    if (u < v)
+                        outfile << u << " " << v << "\n";
+                }
+            }
+        } else {
+            gc::dyngraph dg(g);
+            dg.print_dimacs(outfile);
+        }
         return 1;
     }
-
-    g.canonize();
 
     g.describe(std::cout, num_edges);
     std::cout << " at " << minicsp::cpuTime() << std::endl;
