@@ -1,6 +1,8 @@
 #include "dsatur_algo.h"
 //#define DEBUG
 
+#include <iomanip>
+
 #define NOEUDS 1000000
 
 #define activate_time
@@ -26,6 +28,7 @@ bool *adj;
 int size_candidats;
 
 int profondeur_glob;
+
 
 /*************************************************************************************************************************/
 
@@ -220,6 +223,8 @@ int DSATUR_::DSATUR_algo(C_Graphe &G_param, double time_param, int regle_input, 
 	cout<<"profondeur=["<<borne_inf_prof_input<<","<<borne_sup_prof_input<<"]\n";
 	cout<<"gap=["<<borne_inf_gap_input<<","<<borne_sup_gap_input<<"]\n";
 #endif
+	
+	start = clock();
 
 	//Initialisation parametres
 	G = G_param;
@@ -272,6 +277,14 @@ int DSATUR_::DSATUR_algo(C_Graphe &G_param, double time_param, int regle_input, 
 	int *solution = (int *)malloc(sizeof(int)*G.nb_sommets);
 	int size_solution=0;
 	LB = clique_cliquer_init(G,0,solution,&size_solution);
+	
+  std::cout << "[data] lb = " << std::setw(4) << std::left << LB
+			 			<< "| ub = " << std::setw(4) << std::left << UB
+		 				<< "| time = " << std::setw(10) << std::left << std::setprecision(4) << (double)(clock() - start)/CLOCKS_PER_SEC
+		 				<< "| conflicts = " << std::setw(10) << std::left << nombre_noeuds
+  	 				<< std::endl;
+
+	
 	for(int i=0 ; i<size_solution ; i++){
 		int tmp = reorder[i];
 		reorder[i] = reorder[solution[i]];
@@ -297,7 +310,7 @@ int DSATUR_::DSATUR_algo(C_Graphe &G_param, double time_param, int regle_input, 
 	}
 	free(solution);
 
-	start = clock();
+	
 
 #ifdef DEBUG
 	cout<<"LB="<<LB<<" "<<"UB="<<UB<<"\n";
@@ -353,6 +366,8 @@ void DSATUR_::DSATUR_algo_rec(int profondeur){
 	}
 	if(profondeur == G.nb_sommets){//Feuille
 		nombre_noeuds++;
+
+		
 		#ifdef DEBUG
 		cout<<"FEUILLE\n";
 		afficher_solution_courante(profondeur);
@@ -371,6 +386,12 @@ void DSATUR_::DSATUR_algo_rec(int profondeur){
 			UB = solution_courante;
 //			for(int i=0 ; i<G.nb_sommets ; i++){
 //				meilleure_coloration[i] = coloration_courante[i];
+			
+		  std::cout << "[data] lb = " << std::setw(4) << std::left << LB
+					 			<< "| ub = " << std::setw(4) << std::left << UB
+				 				<< "| time = " << std::setw(10) << std::left << std::setprecision(4) << (double)(clock() - start)/CLOCKS_PER_SEC
+								<< "| conflicts = " << std::setw(10) << std::left << nombre_noeuds
+		  	 				<< std::endl;
 		}
 //			}
 		#ifdef DEBUG
