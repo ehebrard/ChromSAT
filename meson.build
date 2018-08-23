@@ -106,3 +106,5 @@ executable('dsatur',
 
 executable('color6',
 	   ['sota/color6/color6.c'])
+		 
+
