@@ -54,6 +54,12 @@ void C_Graphe::lecture(istream & fic){
 			fic>>v;
 			u = u-1;
 			v = v-1;
+			
+			if(!fic) {
+				nb_aretes = i;
+				break;
+			}
+			
 			if(matrice_adjacence[u][v] == 0 ){
 				nb_a++;
 				matrice_adjacence[u][v] = 1;
