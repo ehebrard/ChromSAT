@@ -489,6 +489,10 @@ public:
             if (opt.learning != options::CHOOSE_POSITIVE) {
                 expl_reps[u] = g.rep_of[u];
                 expl_reps[v] = g.rep_of[v];
+                if (g.origmatrix[u].fast_contain(v))
+                    maxvar = var_Undef;
+                else
+                    maxvar = vars[u][v];
                 return true;
             }
             int bestu{-1}, bestv{-1};
@@ -548,6 +552,11 @@ public:
                     auto vr = expl_reps[v];
                     maxvar = vars[ur][vr];
                     assert(maxvar == var_Undef || s.value(maxvar) == l_False);
+                }
+                if (maxvar == var_Undef) {
+                    if (!g.origmatrix[u].fast_contain(v) && !opt.fillin) {
+                        std::cout << "var_Undef, but no edge in the matrix\n";
+                    }
                 }
                 if (maxvar != var_Undef) {
                     assert(s.value(maxvar) == l_False);
