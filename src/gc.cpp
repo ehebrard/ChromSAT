@@ -86,7 +86,41 @@ struct graph_reduction {
     //
     // }
 
-    int extend_solution(std::vector<int>& col, int& is_ub)
+    // int extend_solution(std::vector<int>& col, int& is_ub)
+    // {
+    //     int maxc{0};
+    //     nodeset.copy(g.nodeset);
+    //     for (auto v : g.nodes)
+    //         maxc = std::max(maxc, col[v]);
+    //     for (auto i = removed_vertices.rbegin(), iend =
+    //     removed_vertices.rend();
+    //          i != iend; ++i) {
+    //         auto v = *i;
+    //
+    //         if (status[v] == vertex_status::low_degree_removed)
+    //             is_ub = maxc;
+    //
+    //         assert(status[v] != vertex_status::in_graph);
+    //         util_set.clear();
+    //         for (auto u : g.matrix[v]) {
+    //             if (!nodeset.fast_contain(u))
+    //                 continue;
+    //             util_set.fast_add(col[u]);
+    //         }
+    //         for (int q = 0; q != g.capacity(); ++q) {
+    //             if (util_set.fast_contain(q))
+    //                 continue;
+    //             // assert(q <= statistics.best_ub);
+    //             maxc = std::max(maxc, q);
+    //             col[v] = q;
+    //             break;
+    //         }
+    //         nodeset.fast_add(v);
+    //     }
+    //     return maxc + 1;
+    // }
+
+    int extend_solution(std::vector<int>& col, const bool full = false)
     {
         int maxc{0};
         nodeset.copy(g.nodeset);
@@ -96,8 +130,8 @@ struct graph_reduction {
              i != iend; ++i) {
             auto v = *i;
 
-            if (status[v] == vertex_status::low_degree_removed)
-                is_ub = maxc;
+            if (!full and status[v] == vertex_status::low_degree_removed)
+                break;
 
             assert(status[v] != vertex_status::in_graph);
             util_set.clear();
@@ -582,7 +616,9 @@ struct gc_model {
             // if (options.strategy == gc::options::TOPDOWN) {
             //          degeneracy_peeling(original, gr, ub-1);
 
-            if (g.size() > 0 and lb < ub and options.indset_constraints)
+            if (g.size() > 0 and lb < ub and options.indset_constraints
+                and (k_core_threshold >= 0
+                        or options.strategy != gc::options::CLEVER))
                 find_is_constraints(g, gr);
         }
 
@@ -658,7 +694,6 @@ struct gc_model {
 
                 cons->bestlb = std::max(lb, cons->bestlb);
                 cons->ub = std::min(ub, cons->ub);
-                cons->actualub = cons->ub;
 
                 if (options.xvars) {
                     xvars = s.newCSPVarArray(g.capacity(), 0, cons->ub - 2);
@@ -786,9 +821,9 @@ struct gc_model {
         }
     }
 
-    std::vector<int> get_solution()
+    void get_solution(std::vector<int>& col)
     {
-        std::vector<int> col(original.capacity(), -1);
+        // std::vector<int> col(original.capacity(), -1);
         int next{0};
 
         for (auto u : g.nodes) {
@@ -803,38 +838,44 @@ struct gc_model {
             }
             ++next;
         }
-        return col;
+        // return col;
     }
 
-    std::pair<int, int> solve()
+    // color the residual graph
+    // model:lb and model:ub store the lower and upper bounds of the RESIDUAL
+    // graph
+    //
+    // store the solution in model::solution and extends it w.r.t. the IS only
+    void solve()
     {
         using minicsp::l_False;
         using minicsp::l_True;
         using minicsp::l_Undef;
 
-        auto llb = lb;
-        auto lub = ub;
-
         minicsp::lbool sat{l_True};
-        while (sat != l_False && llb < lub) {
+        while (sat != l_False && lb < ub) {
 
-            // std::cout << "["<< llb << ".." << lub <<  "]\n";
+            std::cout << " solve in [" << cons->bestlb << ".." << cons->ub
+                      << "]\n";
 
             sat = s.solveBudget();
             if (sat == l_True) {
-                auto col_r = get_solution();
+                get_solution(solution);
+
                 int solub = g.nodes.size();
                 assert(solub < cons->ub);
                 cons->sync_graph();
-                int is_ub{0};
-                int actualub = reduction.extend_solution(col_r, is_ub);
+
+                // extends to the IS
+                int actualub = reduction.extend_solution(solution, false);
+                assert(actualub <= ub + 1);
 
                 std::cout << "[trace] SAT: " << cons->bestlb << ".." << solub
                           << ".." << actualub << std::endl;
 
                 statistics.notify_ub(actualub);
                 statistics.display(std::cout);
-                cons->ub = solub;
+                cons->ub = actualub;
                 if (options.equalities) {
                     auto m{mineq(g.capacity(), cons->ub - 1)};
                     // mineq_constraint->set_lb(m);
@@ -844,51 +885,29 @@ struct gc_model {
                         << "\n\n";
                 }
 
-                cons->actualub = actualub;
                 if (options.xvars) {
                     for (auto v : xvars)
-                        v.setmax(s, cons->actualub - 2, minicsp::NO_REASON);
+                        v.setmax(s, cons->ub - 2, minicsp::NO_REASON);
                 }
-                assert(lub >= cons->ub);
-                lub = cons->actualub; // changed from ub to actualub, since we
-                                      // have removed vertices of degree ub-2
-                                      // and we can potentially find colorings
-                                      // with ub - 2 colors
 
             } else if (sat == l_Undef) {
                 std::cout << "[trace] *** INTERRUPTED ***\n";
                 break;
             } else {
-
-                // std::cout << "[trace] UNSAT: " << cons->bestlb << ".."
-                //           << cons->ub << ".." << cons->actualub << std::endl;
-
                 cons->bestlb = cons->ub;
 
                 std::cout << "[trace] UNSAT: " << cons->bestlb << ".."
-                          << cons->ub << ".." << cons->actualub << std::endl;
+                          << cons->ub << std::endl;
 
                 statistics.notify_lb(cons->bestlb);
                 statistics.display(std::cout);
-                // assert(llb <= cons->bestlb); [IN TOP-DOWN WE MAY FIND A
-                // SOLUTION WITH FEWER THAN LB COLORS]
-                llb = cons->bestlb;
+                lb = cons->bestlb;
             }
         }
-        // if (sat == l_False and llb < lub)
-        //     llb = lub;
-
-        return std::make_pair(llb,lub);
     }
 
     void print_stats()
     {
-
-        // std::cout << cons->bestlb << ".." << cons->ub << std::endl;
-
-        assert(!cons or (cons->bestlb == statistics.best_lb
-                            and cons->actualub == statistics.best_ub));
-        // assert(lb == statistics.best_lb and ub == statistics.best_ub);
 
         if (statistics.best_lb >= statistics.best_ub)
             std::cout << "OPTIMUM " << statistics.best_ub << "\n";
@@ -1028,77 +1047,83 @@ int color(gc::options& options, gc::graph<input_format>& g)
     } break;
     case gc::options::BOTTOMUP: {
 
-        statistics.update_ub = false;
-        auto bounds = initial_bounds(
-            g, statistics, options.boundalg != gc::options::CLIQUES);
-        auto lb = bounds.first;
-        auto ub = bounds.second;
-        for (int i = lb; i < ub; ++i) {
-            gc::graph<gc::bitset> gcopy{g};
-            gc_model<gc::bitset> model(
-                gcopy, options, statistics, std::make_pair(i, i + 1));
-            auto ibounds = model.solve();
-            auto ilb = ibounds.first;
-            auto iub = ibounds.second;
-            if (iub == i) {
-                statistics.notify_ub(iub);
-                statistics.display(std::cout);
-                break;
-            } else if (ilb != iub) {
-                statistics.notify_lb(ilb);
-                statistics.display(std::cout);
-                std::cout << "INTERRUPTED\n";
-            } else {
-                statistics.notify_lb(ilb);
-                statistics.display(std::cout);
-            }
-            statistics.unbinds();
-        }
+        std::cout << "NOT IMPLEMENTED!\n";
+
+        // statistics.update_ub = false;
+        // auto bounds = initial_bounds(
+        //     g, statistics, options.boundalg != gc::options::CLIQUES);
+        // auto lb = bounds.first;
+        // auto ub = bounds.second;
+        // for (int i = lb; i < ub; ++i) {
+        //     gc::graph<gc::bitset> gcopy{g};
+        //     gc_model<gc::bitset> model(
+        //         gcopy, options, statistics, std::make_pair(i, i + 1));
+        //     auto ibounds = model.solve();
+        //     auto ilb = ibounds.first;
+        //     auto iub = ibounds.second;
+        //     if (iub == i) {
+        //         statistics.notify_ub(iub);
+        //         statistics.display(std::cout);
+        //         break;
+        //     } else if (ilb != iub) {
+        //         statistics.notify_lb(ilb);
+        //         statistics.display(std::cout);
+        //         std::cout << "INTERRUPTED\n";
+        //     } else {
+        //         statistics.notify_lb(ilb);
+        //         statistics.display(std::cout);
+        //     }
+        //     statistics.unbinds();
+        // }
     } break;
     case gc::options::TOPDOWN: {
 
-        std::vector<int> vmap(g.capacity());
-        options.strategy = gc::options::BOUNDS; // so that we don't create the
-                                                // dense graph yet
-        gc_model<gc::vertices_vec> init_model(
-            g, options, statistics, std::make_pair(0, g.size()));
+        std::cout << "NOT IMPLEMENTED!\n";
 
-        options.strategy = gc::options::TOPDOWN;
-        statistics.update_lb = false;
-        auto lb = init_model.lb;
-        auto ub = init_model.ub;
-
-        for (int i = ub - 1; i >= lb; --i) {
-
-            std::cout << "[search] solve a tmp model with bounds [" << i << ".."
-                      << (i + 1) << "]\n";
-
-            vmap.resize(g.capacity());
-            gc::graph<gc::vertices_vec> gcopy(g, vmap);
-
-            gc_model<gc::vertices_vec> tmp_model(
-                gcopy, options, statistics, std::make_pair(i, i + 1));
-
-            auto ibounds = tmp_model.solve();
-
-            auto ilb = ibounds.first;
-            auto iub = ibounds.second;
-
-            if (ilb == i + 1) {
-                statistics.notify_lb(ilb);
-                statistics.display(std::cout);
-                break;
-            } else if (ilb != iub) {
-                statistics.notify_ub(iub);
-                statistics.display(std::cout);
-                std::cout << "INTERRUPTED\n";
-            } else {
-                statistics.notify_ub(iub);
-                statistics.display(std::cout);
-            }
-            statistics.unbinds();
-            vmap.clear();
-        }
+        // std::vector<int> vmap(g.capacity());
+        // options.strategy = gc::options::BOUNDS; // so that we don't create
+        // the
+        //                                         // dense graph yet
+        // gc_model<gc::vertices_vec> init_model(
+        //     g, options, statistics, std::make_pair(0, g.size()));
+        //
+        // options.strategy = gc::options::TOPDOWN;
+        // statistics.update_lb = false;
+        // auto lb = init_model.lb;
+        // auto ub = init_model.ub;
+        //
+        // for (int i = ub - 1; i >= lb; --i) {
+        //
+        //     std::cout << "[search] solve a tmp model with bounds [" << i <<
+        //     ".."
+        //               << (i + 1) << "]\n";
+        //
+        //     vmap.resize(g.capacity());
+        //     gc::graph<gc::vertices_vec> gcopy(g, vmap);
+        //
+        //     gc_model<gc::vertices_vec> tmp_model(
+        //         gcopy, options, statistics, std::make_pair(i, i + 1));
+        //
+        //     auto ibounds = tmp_model.solve();
+        //
+        //     auto ilb = ibounds.first;
+        //     auto iub = ibounds.second;
+        //
+        //     if (ilb == i + 1) {
+        //         statistics.notify_lb(ilb);
+        //         statistics.display(std::cout);
+        //         break;
+        //     } else if (ilb != iub) {
+        //         statistics.notify_ub(iub);
+        //         statistics.display(std::cout);
+        //         std::cout << "INTERRUPTED\n";
+        //     } else {
+        //         statistics.notify_ub(iub);
+        //         statistics.display(std::cout);
+        //     }
+        //     statistics.unbinds();
+        //     vmap.clear();
+        // }
     } break;
     case gc::options::CLEVER: {
 
@@ -1110,40 +1135,43 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
         options.strategy = gc::options::CLEVER;
         statistics.update_lb = false;
-        auto lb = init_model.lb;
-        auto ub = init_model.ub;
 
-        for (int i = ub - 1; i >= lb;) {
+        while (init_model.lb < init_model.ub) {
 
-            std::cout << "[search] solve a tmp model with bounds [" << lb
-                      << ".." << (i + 1) << "] focusing on the " << i
-                      << "-core\n";
+            std::cout << "[search] solve a tmp model with bounds [" << init_model.lb
+                      << ".." << init_model.ub << "] focusing on the "
+                      << (init_model.ub - 1) << "-core\n";
 
             vmap.resize(g.capacity());
             gc::graph<gc::vertices_vec> gcopy(g, vmap);
 
-            gc_model<gc::vertices_vec> tmp_model(
-                gcopy, options, statistics, std::make_pair(lb, i + 1), i);
+            gc_model<gc::vertices_vec> tmp_model(gcopy, options, statistics,
+                std::make_pair(init_model.lb, init_model.ub),
+                (init_model.ub - 1));
 
-            auto ibounds = tmp_model.solve();
-
-            auto ilb = ibounds.first;
-            auto iub = ibounds.second;
+            tmp_model.solve();
+						
+            std::cout << "[search] tmp: [" << tmp_model.lb
+                      << ".." << tmp_model.ub << "..";
+						
+            init_model.ub
+                = tmp_model.reduction.extend_solution(tmp_model.solution);
+						
+            std::cout << init_model.ub << "]\n";
+						
+            init_model.lb = tmp_model.lb;
 
             // iub may not be equal to ilb even if the solver wasn't stopped:
             // coloring the removed vertices might have required extra colors
             // either way, [ilb, iub] are correct bounds
-            statistics.notify_ub(iub);
-            statistics.notify_lb(ilb);
+            statistics.notify_ub(init_model.ub);
+            statistics.notify_lb(init_model.lb);
             statistics.display(std::cout);
 
             statistics.unbinds();
             vmap.clear();
-
-            lb = ilb;
-            i = std::min(i - 1, iub - 1);
         }
-        // init_model.print_stats();
+
     } break;
     case gc::options::BOUNDS: {
         std::pair<int, int> bounds{0, g.size()};

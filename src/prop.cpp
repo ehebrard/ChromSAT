@@ -808,7 +808,7 @@ public:
         // check local constraints
 
 #ifdef DEBUG_IS
-        std::cout << "propag: " << lb << " " << actualub << std::endl;
+        std::cout << "propag: " << lb << " " << ub << std::endl;
 #endif
 
 #ifdef DEBUG_IS
@@ -817,7 +817,7 @@ public:
         }
 #endif
 
-        if (lb >= actualub - 1 and lb >= ub - 1) {
+        if (lb >= ub - 1 and lb >= ub - 1) {
             for (int i = 0; i != cf.num_cliques; ++i) {
 
 #ifdef DEBUG_IS
@@ -843,7 +843,7 @@ public:
                     std::cout << " inter = " << util_set << std::endl;
 #endif
 
-                    if (static_cast<int>(util_set.size()) >= actualub - 1) {
+                    if (static_cast<int>(util_set.size()) >= ub - 1) {
                         reason.clear();
                         explain_positive_clique(util_set);
                         return s.addInactiveClause(reason);

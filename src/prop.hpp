@@ -64,9 +64,7 @@ struct cons_base {
     dense_graph& g;
     dense_graph fg;
 
-    int ub; // ub of the reduced graph
-    int actualub; // ub of the original graph. indset_constraints work with
-                  // respect to this bound
+    int ub; // ub of the original graph. [i.e., counting the vertices of the IS]
     int bestlb{0};
     clique_finder<bitset> cf; // for cliques
     clique_finder<bitset> ccf; // for clique covers
