@@ -882,8 +882,8 @@ struct gc_model {
         minicsp::lbool sat{l_True};
         while (sat != l_False && lb < ub) {
 
-            std::cout << " solve* in [" << cons->bestlb << ".." << cons->ub
-                      << "]\n";
+            // std::cout << " solve* in [" << cons->bestlb << ".." << cons->ub
+            //           << "[\n";
 
             std::ofstream outfile("debug.col", std::ios_base::out);
 

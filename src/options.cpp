@@ -90,7 +90,7 @@ options parse(int argc, char* argv[])
         opt.solution_file, "solfile", "solution file", false, "", "string");
     cmd.add<SwitchArg>(opt.trace, "", "trace", "enable minicsp tracing", false);
     cmd.add<ValueArg<int>>(opt.learning, "", "learning",
-        "CDCLeaning & explanation level [0-2]", false, 1, "int");
+        "CDCLeaning & explanation level [0-1]", false, 1, "int");
     cmd.add<SwitchArg>(
         opt.xvars, "", "xvars", "add x (color) variables to the model", false);
     cmd.add<ValueArg<int>>(
