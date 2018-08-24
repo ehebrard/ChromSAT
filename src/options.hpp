@@ -13,6 +13,7 @@ struct options {
     // the actual options
     std::string cmdline; // for reference
     std::string instance_file;
+    std::string solution_file;
 
     // minicsp options
     bool trace{false};
@@ -96,7 +97,7 @@ struct options {
     int verbosity;
 
     bool checksolution;
-		bool printsolution;
+    bool printsolution;
 
     int sdsaturiter;
 
@@ -105,8 +106,8 @@ struct options {
     std::string convert;
 
     bool equalities;
-		
-		int memlimit;
+
+    int memlimit;
 };
 
 options parse(int argc, char* argv[]);

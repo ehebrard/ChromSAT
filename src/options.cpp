@@ -86,6 +86,8 @@ options parse(int argc, char* argv[])
 
     cmd.add<UnlabeledValueArg<std::string>>(opt.instance_file, "file",
         "instance file", true, "data/DIMACS_cliques/brock200_1.clq", "string");
+    cmd.add<UnlabeledValueArg<std::string>>(
+        opt.solution_file, "solfile", "solution file", false, "", "string");
     cmd.add<SwitchArg>(opt.trace, "", "trace", "enable minicsp tracing", false);
     cmd.add<ValueArg<int>>(opt.learning, "", "learning",
         "CDCLeaning & explanation level [0-2]", false, 2, "int");

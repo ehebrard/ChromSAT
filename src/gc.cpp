@@ -161,6 +161,8 @@ struct gc_model {
 
     int lb, ub;
 
+    std::vector<int> debug_sol;
+
     // stores the coloring
     std::vector<int> solution;
 
@@ -387,9 +389,8 @@ struct gc_model {
                     lb = plb;
                     statistics.notify_lb(lb);
                     statistics.display(std::cout);
-										changes = true;
-                } 								
-
+                    changes = true;
+                }
             }
 
             if (k_core_threshold > threshold) {
@@ -423,13 +424,15 @@ struct gc_model {
                 statistics.notify_removals(g.size());
                 statistics.display(std::cout);
                 changes = true;
-            } 
-						// else {
-						//
-						//                 std::cout << "lowest degree node " << df.order[0] << " ("
-						//                           << df.degrees[df.order[0]] << ") is >= " << threshold
-						//                           << std::endl;
-						//             }
+            }
+            // else {
+            //
+            //                 std::cout << "lowest degree node " << df.order[0]
+            //                 << " ("
+            //                           << df.degrees[df.order[0]] << ") is >=
+            //                           " << threshold
+            //                           << std::endl;
+            //             }
 
             if (!changes)
                 break;
@@ -630,15 +633,36 @@ struct gc_model {
         return gr;
     }
 
+    void post_eqvar_debug_sol(Solver& s, const std::vector<int>& coloring)
+    {
+        std::vector<int> vertex_revmap(g.capacity());
+        for (size_t i = 0; i != vertex_map.size(); ++i)
+            if (vertex_map[i] >= 0)
+                vertex_revmap[vertex_map[i]] = i;
+        std::vector<int> sol(s.nVars());
+        for (int i = 0; i != g.capacity(); ++i)
+            for (int j = i + 1; j < g.capacity(); ++j)
+                if (vars[i][j] != var_Undef) {
+                    int ci = coloring[vertex_revmap[i]];
+                    int cj = coloring[vertex_revmap[j]];
+                    if (ci == cj)
+                        sol[vars[i][j]] = 1;
+                    else
+                        sol[vars[i][j]] = 0;
+                }
+        s.debug_solution = sol;
+    }
+
     gc_model(gc::graph<adjacency_struct>& ig, const gc::options& options,
         gc::statistics& statistics, std::pair<int, int> bounds,
-        const int k_core_threshold = -1)
+        const std::vector<int>& debug_sol, const int k_core_threshold = -1)
         : options(options)
         , statistics(statistics)
         , lb{bounds.first}
         , ub{bounds.second}
+        , debug_sol(debug_sol)
         , solution(ig.capacity())
-        , vertex_map(ig.capacity())
+        , vertex_map(ig.capacity(), -1)
         , original(ig)
         , reduction{preprocess(original, k_core_threshold)}
     {
@@ -666,6 +690,9 @@ struct gc_model {
             vars = gc::varmap(create_vars());
             cons = gc::post_gc_constraint(s, g, fillin, vars,
                 reduction.constraints, vertex_map, options, statistics);
+
+            if (!debug_sol.empty())
+                post_eqvar_debug_sol(s, debug_sol);
 
             double vm_usage;
             double resident_set;
@@ -1032,6 +1059,18 @@ int color(gc::options& options, gc::graph<input_format>& g)
         return 1;
     }
 
+    std::vector<int> sol;
+    if (!options.solution_file.empty()) {
+        std::cout << "[reading] Reading solution file\n";
+        std::ifstream sifs(options.solution_file.c_str());
+        int c{0};
+        while (sifs) {
+            sifs >> c;
+            if (sifs)
+                sol.push_back(c);
+        }
+    }
+
     g.describe(std::cout, num_edges);
     std::cout << " at " << minicsp::cpuTime() << std::endl;
     // histogram(g);
@@ -1054,7 +1093,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
                 g, statistics, options.boundalg != gc::options::CLIQUES);
         }
 
-        gc_model<input_format> model(g, options, statistics, bounds);
+        gc_model<input_format> model(g, options, statistics, bounds, sol);
         model.solve();
 
         model.reduction.extend_solution(model.solution, true);
@@ -1166,7 +1205,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
         options.strategy = gc::options::BOUNDS; // so that we don't create the
         // dense graph yet
         gc_model<gc::vertices_vec> init_model(
-            g, options, statistics, std::make_pair(0, g.size()));
+            g, options, statistics, std::make_pair(0, g.size()), sol);
 
         options.strategy = gc::options::CLEVER;
         statistics.update_lb = false;
@@ -1190,19 +1229,19 @@ int color(gc::options& options, gc::graph<input_format>& g)
             }
 
             gc_model<gc::vertices_vec> tmp_model(gcopy, options, statistics,
-                std::make_pair(init_model.lb, init_model.ub),
+                std::make_pair(init_model.lb, init_model.ub), sol,
                 (init_model.ub - 1));
 
             tmp_model.solve();
-						
+
             std::cout << "[search] tmp: [" << tmp_model.lb
                       << ".." << tmp_model.ub << "..";
-						
+
             init_model.ub
                 = tmp_model.reduction.extend_solution(tmp_model.solution);
-						
+
             std::cout << init_model.ub << "]\n";
-						
+
             init_model.lb = tmp_model.lb;
 
             // iub may not be equal to ilb even if the solver wasn't stopped:
@@ -1219,7 +1258,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
     } break;
     case gc::options::BOUNDS: {
         std::pair<int, int> bounds{0, g.size()};
-        gc_model<input_format> model(g, options, statistics, bounds);
+        gc_model<input_format> model(g, options, statistics, bounds, sol);
         // int is_ub{0};
         model.reduction.extend_solution(model.solution, true);
         auto ncol{
