@@ -107,6 +107,8 @@ public:
 
     int capacity() const { return matrix.size(); }
     int size() const { return nodes.size(); }
+    long count_edges() const;
+    bool has_edge(const int u, const int v) const;
 
     void add_edge(const int u, const int v);
 
@@ -515,6 +517,24 @@ template <class adjacency_struct> struct minimal_triangulator {
 /** IMPLEMENTATION **/
 
 template <class adjacency_struct>
+long basic_graph<adjacency_struct>::count_edges() const
+{
+    long m{0};
+    for (auto v : nodes)
+        m += matrix[v].size();
+    return m / 2;
+}
+
+template <class adjacency_struct>
+bool basic_graph<adjacency_struct>::has_edge(const int u, const int v) const
+{
+    bool he{matrix[u].fast_contain(v)};
+    if (he)
+        assert(matrix[v].fast_contain(u));
+    return he;
+}
+
+template <class adjacency_struct>
 void basic_graph<adjacency_struct>::add_edge(const int u, const int v)
 {
     matrix[u].add(v);
@@ -771,10 +791,7 @@ void basic_graph<adjacency_struct>::describe(std::ostream& os, const int num_edg
 {
     int m = num_edges;
     if (m < 0) {
-        m = 0;
-        for (auto v : nodes)
-            m += matrix[v].size();
-				m /= 2;
+        m = count_edges();
     }
 
     os << "#vertices = " << this->size() << ",  #edges = " << m

@@ -96,6 +96,7 @@ struct options {
     int verbosity;
 
     bool checksolution;
+		bool printsolution;
 
     int sdsaturiter;
 

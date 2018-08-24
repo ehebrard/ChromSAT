@@ -855,8 +855,21 @@ struct gc_model {
         minicsp::lbool sat{l_True};
         while (sat != l_False && lb < ub) {
 
-            std::cout << " solve in [" << cons->bestlb << ".." << cons->ub
+            std::cout << " solve* in [" << cons->bestlb << ".." << cons->ub
                       << "]\n";
+
+            std::ofstream outfile("debug.col", std::ios_base::out);
+
+            outfile << "p edge " << g.size() << " " << g.count_edges()
+                    << std::endl;
+            for (auto u : g.nodes) {
+                for (auto v : g.matrix[u]) {
+                    if (u < v)
+                        outfile << "e " << (u + 1) << " " << (v + 1)
+                                << std::endl;
+                }
+            }
+            outfile.close();
 
             sat = s.solveBudget();
             if (sat == l_True) {
@@ -991,11 +1004,11 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
     // if (options.format != "edg")
     g.canonize();
-    long num_edges{0};
-    for (auto v : g.nodes) {
-        num_edges += g.matrix[v].size();
-    }
-    num_edges /= 2;
+    long num_edges{g.count_edges()};
+    // for (auto v : g.nodes) {
+    //     num_edges += g.matrix[v].size();
+    // }
+    // num_edges /= 2;
 
     if (options.convert != "") {
         std::ofstream outfile(options.convert.c_str(), std::ios_base::out);
@@ -1043,6 +1056,28 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
         gc_model<input_format> model(g, options, statistics, bounds);
         model.solve();
+
+        model.reduction.extend_solution(model.solution, true);
+        auto ncol{
+            *std::max_element(begin(model.solution), end(model.solution)) + 1};
+        std::cout << "[solution] " << ncol << "-coloring computed at "
+                  << minicsp::cpuTime() << std::endl
+                  << std::endl;
+
+        if (options.printsolution) {
+            for (int v = 0; v < model.original.capacity(); ++v)
+                std::cout << " " << model.solution[v];
+            std::cout << std::endl;
+        }
+
+        if (options.checksolution) {
+            for (auto e : edges) {
+                if (model.solution[e.first] == model.solution[e.second]) {
+                    std::cout << "WRONG SOLUTION!!\n";
+                }
+            }
+        }
+
         model.print_stats();
     } break;
     case gc::options::BOTTOMUP: {
@@ -1145,6 +1180,15 @@ int color(gc::options& options, gc::graph<input_format>& g)
             vmap.resize(g.capacity());
             gc::graph<gc::vertices_vec> gcopy(g, vmap);
 
+            for (auto u : gcopy.nodes) {
+                for (auto v : gcopy.matrix[u]) {
+                    if (!g.has_edge(g.nodes[u], g.nodes[v])) {
+                        std::cout << "here's the bug!\n";
+                        exit(1);
+                    }
+                }
+            }
+
             gc_model<gc::vertices_vec> tmp_model(gcopy, options, statistics,
                 std::make_pair(init_model.lb, init_model.ub),
                 (init_model.ub - 1));
@@ -1176,8 +1220,8 @@ int color(gc::options& options, gc::graph<input_format>& g)
     case gc::options::BOUNDS: {
         std::pair<int, int> bounds{0, g.size()};
         gc_model<input_format> model(g, options, statistics, bounds);
-        int is_ub{0};
-        model.reduction.extend_solution(model.solution, is_ub);
+        // int is_ub{0};
+        model.reduction.extend_solution(model.solution, true);
         auto ncol{
             *std::max_element(begin(model.solution), end(model.solution)) + 1};
         std::cout << "[solution] " << ncol << "-coloring computed at "

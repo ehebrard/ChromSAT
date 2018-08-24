@@ -130,6 +130,8 @@ options parse(int argc, char* argv[])
         opt.verbosity, "", "verbosity", "Verbosity level", false, 0, "int");
     cmd.add<SwitchArg>(
         opt.checksolution, "", "checksolution", "checks the coloring", false);
+    cmd.add<SwitchArg>(
+        opt.printsolution, "", "printsolution", "prints the coloring", false);
     cmd.add<ValueArg<int>>(opt.sdsaturiter, "", "sdsaturiter",
         "# of sparse dsatur iterations", false, 1, "int");
     cmd.add<ValueArg<int>>(opt.ddsaturiter, "", "ddsaturiter",
