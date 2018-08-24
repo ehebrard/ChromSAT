@@ -159,6 +159,10 @@ struct gc_model {
     const gc::options& options;
     gc::statistics& statistics;
 
+    bool degeneracy_sol;
+    bool dsatur_sol;
+    bool search_sol;
+
     int lb, ub;
 
     std::vector<int> debug_sol;
@@ -295,10 +299,9 @@ struct gc_model {
                     for (int i = 0; i < original.size(); ++i) {
                         solution[original.nodes[i]] = sol[i];
                     }
+                    dsatur_sol = true;
 
-                    int is_ub{0};
-                    auto actualncol
-                        = reduction.extend_solution(solution, is_ub);
+                    auto actualncol = reduction.extend_solution(solution, true);
 
                     if (ub > actualncol) {
                         ub = actualncol;
@@ -361,16 +364,29 @@ struct gc_model {
             std::vector<int>
                 reverse; // TODO change that by using iterators in clique finder
             for (auto rit = df.order.rbegin(); rit != df.order.rend(); ++rit) {
-                if (df.degrees[*rit] > degeneracy) {
-                    degeneracy = df.degrees[*rit];
+                auto v{*rit};
+                if (df.degrees[v] > degeneracy) {
+                    degeneracy = df.degrees[v];
                 }
-                reverse.push_back(*rit);
+                reverse.push_back(v);
+                // gr.status[v] = vertex_status::low_degree_removed;
             }
 
             if (ub > degeneracy + 1) {
                 ub = degeneracy + 1;
                 statistics.notify_ub(ub);
                 statistics.display(std::cout);
+
+                if (!degeneracy_sol) {
+                    for (auto v : df.order) {
+                        gr.removed_vertices.push_back(v);
+                        gr.status[v] = vertex_status::low_degree_removed;
+                    }
+                    gr.extend_solution(solution, true);
+                    gr.removed_vertices.clear();
+                    gr.status.resize(g.capacity(), vertex_status::in_graph);
+                    degeneracy_sol = true;
+                }
             }
 
             std::cout << "[preprocessing] compute lower bound\n";
@@ -573,9 +589,9 @@ struct gc_model {
                 for (int i = 0; i < original.size(); ++i) {
                     solution[original.nodes[i]] = col.color[i];
                 }
+                dsatur_sol = true;
 
-                int is_ub{0};
-                auto actualncol = reduction.extend_solution(solution, is_ub);
+                auto actualncol = reduction.extend_solution(solution, true);
                 // std::cout << " ====> " << actualncol << std::endl;
 
                 if (ub > actualncol) {
@@ -658,6 +674,9 @@ struct gc_model {
         const std::vector<int>& debug_sol, const int k_core_threshold = -1)
         : options(options)
         , statistics(statistics)
+        , degeneracy_sol{false}
+        , dsatur_sol{false}
+        , search_sol{false}
         , lb{bounds.first}
         , ub{bounds.second}
         , debug_sol(debug_sol)
@@ -900,6 +919,7 @@ struct gc_model {
 
             sat = s.solveBudget();
             if (sat == l_True) {
+                search_sol = true;
                 get_solution(solution);
 
                 int solub = g.nodes.size();
@@ -1243,16 +1263,17 @@ int color(gc::options& options, gc::graph<input_format>& g)
             if (tmp_model.ub < init_model.ub)
                 std::cout << tmp_model.ub << "..";
 
-            init_model.ub
-                = tmp_model.reduction.extend_solution(tmp_model.solution, true);
+            assert(tmp_model.solution.size() == tmp_model.original.capacity());
 
-						assert(tmp_model.solution.size() == tmp_model.original.capacity());
+            if (tmp_model.degeneracy_sol or tmp_model.dsatur_sol or tmp_model.search_sol) {
+                init_model.ub = tmp_model.reduction.extend_solution(
+                    tmp_model.solution, true);
+                // copy the tmp model solution into the init model
+                for (int v = 0; v < tmp_model.original.capacity(); ++v)
+                    init_model.solution[init_model.original.nodes[v]]
+                        = tmp_model.solution[v];
+            }
 
-            // copy the tmp model solution into the init model					
-            for (int v = 0; v < tmp_model.original.capacity(); ++v)
-                init_model.solution[init_model.original.nodes[v]]
-                    = tmp_model.solution[v];
-						
             std::cout << init_model.ub << "]\n";
 
             init_model.lb = tmp_model.lb;
