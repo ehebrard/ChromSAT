@@ -946,6 +946,31 @@ struct gc_model {
         }
     }
 
+    void finalize_solution(std::vector<pair<int, int>>& edges)
+    {
+        reduction.extend_solution(solution, true);
+        auto ncol{*std::max_element(begin(solution), end(solution)) + 1};
+        std::cout << "[solution] " << ncol << "-coloring computed at "
+                  << minicsp::cpuTime() << std::endl
+                  << std::endl;
+
+        if (options.printsolution) {
+            for (int v = 0; v < original.capacity(); ++v)
+                std::cout << " " << std::setw(2) << solution[v];
+            std::cout << std::endl;
+        }
+
+        if (options.checksolution) {
+            for (auto e : edges) {
+                if (solution[e.first] == solution[e.second]) {
+                    std::cout << "WRONG SOLUTION: " << e.first << " and "
+                              << e.second << " <- " << solution[e.first]
+                              << "\n";
+                }
+            }
+        }
+    }
+
     void print_stats()
     {
 
@@ -1096,26 +1121,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
         gc_model<input_format> model(g, options, statistics, bounds, sol);
         model.solve();
 
-        model.reduction.extend_solution(model.solution, true);
-        auto ncol{
-            *std::max_element(begin(model.solution), end(model.solution)) + 1};
-        std::cout << "[solution] " << ncol << "-coloring computed at "
-                  << minicsp::cpuTime() << std::endl
-                  << std::endl;
-
-        if (options.printsolution) {
-            for (int v = 0; v < model.original.capacity(); ++v)
-                std::cout << " " << model.solution[v];
-            std::cout << std::endl;
-        }
-
-        if (options.checksolution) {
-            for (auto e : edges) {
-                if (model.solution[e.first] == model.solution[e.second]) {
-                    std::cout << "WRONG SOLUTION!!\n";
-                }
-            }
-        }
+        model.finalize_solution(edges);
 
         model.print_stats();
     } break;
@@ -1201,7 +1207,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
     } break;
     case gc::options::CLEVER: {
 
-        std::vector<int> vmap(g.capacity());
+        std::vector<int> vmap(g.capacity(), -1);
         options.strategy = gc::options::BOUNDS; // so that we don't create the
         // dense graph yet
         gc_model<gc::vertices_vec> init_model(
@@ -1210,23 +1216,22 @@ int color(gc::options& options, gc::graph<input_format>& g)
         options.strategy = gc::options::CLEVER;
         statistics.update_lb = false;
 
+        std::vector<std::pair<int, int>> tmp_edges;
+        for (auto u : init_model.g.nodes)
+            for (auto v : init_model.g.matrix[u])
+                if (u < v)
+                    tmp_edges.push_back(std::pair<int, int>{u, v});
+
         while (init_model.lb < init_model.ub) {
 
             std::cout << "[search] solve a tmp model with bounds [" << init_model.lb
                       << ".." << init_model.ub << "] focusing on the "
                       << (init_model.ub - 1) << "-core\n";
 
-            vmap.resize(g.capacity());
-            gc::graph<gc::vertices_vec> gcopy(g, vmap);
+            vmap.clear();
+            vmap.resize(g.capacity(), -1);
 
-            for (auto u : gcopy.nodes) {
-                for (auto v : gcopy.matrix[u]) {
-                    if (!g.has_edge(g.nodes[u], g.nodes[v])) {
-                        std::cout << "here's the bug!\n";
-                        exit(1);
-                    }
-                }
-            }
+            gc::graph<gc::vertices_vec> gcopy(g, vmap);
 
             gc_model<gc::vertices_vec> tmp_model(gcopy, options, statistics,
                 std::make_pair(init_model.lb, init_model.ub), sol,
@@ -1234,12 +1239,20 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
             tmp_model.solve();
 
-            std::cout << "[search] tmp: [" << tmp_model.lb
-                      << ".." << tmp_model.ub << "..";
+            std::cout << "[search] tmp: [" << tmp_model.lb << "..";
+            if (tmp_model.ub < init_model.ub)
+                std::cout << tmp_model.ub << "..";
 
             init_model.ub
-                = tmp_model.reduction.extend_solution(tmp_model.solution);
+                = tmp_model.reduction.extend_solution(tmp_model.solution, true);
 
+						assert(tmp_model.solution.size() == tmp_model.original.capacity());
+
+            // copy the tmp model solution into the init model					
+            for (int v = 0; v < tmp_model.original.capacity(); ++v)
+                init_model.solution[init_model.original.nodes[v]]
+                    = tmp_model.solution[v];
+						
             std::cout << init_model.ub << "]\n";
 
             init_model.lb = tmp_model.lb;
@@ -1254,6 +1267,8 @@ int color(gc::options& options, gc::graph<input_format>& g)
             statistics.unbinds();
             vmap.clear();
         }
+
+        init_model.finalize_solution(edges);
 
     } break;
     case gc::options::BOUNDS: {
