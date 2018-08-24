@@ -482,7 +482,7 @@ public:
         expl_reps.clear();
         expl_reps.resize(g.capacity(), -1);
 
-        double maxactivity{0.0};
+        double maxactivity{-1.0};
         Var maxvar = var_Undef;
         // returns true to stop
         auto bestmatch = [&](auto u, auto v, auto& ubag, auto& vbag, auto up) {
@@ -530,7 +530,7 @@ public:
                 assert(g.matrix[v].fast_contain(u));
                 auto ubag = &g.partition[u];
                 auto vbag = &g.partition[v];
-                maxactivity = 0.0;
+                maxactivity = -1.0;
                 maxvar = var_Undef;
                 if (expl_reps[v] >= 0 && expl_reps[u] < 0) {
                     using std::swap;
@@ -553,11 +553,9 @@ public:
                     maxvar = vars[ur][vr];
                     assert(maxvar == var_Undef || s.value(maxvar) == l_False);
                 }
-                if (maxvar == var_Undef) {
-                    if (!g.origmatrix[u].fast_contain(v) && !opt.fillin) {
-                        std::cout << "var_Undef, but no edge in the matrix\n";
-                    }
-                }
+                assert(maxvar != var_Undef
+                    || g.origmatrix[expl_reps[u]].fast_contain(expl_reps[v])
+                    || opt.fillin);
                 if (maxvar != var_Undef) {
                     assert(s.value(maxvar) == l_False);
                     reason.push(Lit(maxvar));
