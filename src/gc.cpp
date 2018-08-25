@@ -927,15 +927,19 @@ struct gc_model {
                 cons->sync_graph();
 
                 // extends to the IS
-                int actualub = reduction.extend_solution(solution, false);
-                assert(actualub <= ub + 1);
+                int ISub = reduction.extend_solution(solution, false);
+                assert(ISub <= ub + 1);
 
                 std::cout << "[trace] SAT: " << cons->bestlb << ".." << solub
-                          << ".." << actualub << std::endl;
+                          << ".." << ISub ;
 
+								int actualub = reduction.extend_solution(solution, true);
+								
+								std::cout << ".." << actualub << std::endl;
+								
                 statistics.notify_ub(actualub);
                 statistics.display(std::cout);
-                cons->ub = actualub;
+                cons->ub = ISub;
                 if (options.equalities) {
                     auto m{mineq(g.capacity(), cons->ub - 1)};
                     // mineq_constraint->set_lb(m);
@@ -1245,7 +1249,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
         while (init_model.lb < init_model.ub) {
 
             std::cout << "[search] solve a tmp model with bounds [" << init_model.lb
-                      << ".." << init_model.ub << "] focusing on the "
+                      << ".." << init_model.ub << "[ focusing on the "
                       << (init_model.ub - 1) << "-core\n";
 
             vmap.clear();
