@@ -551,7 +551,7 @@ struct gc_model {
         auto bs = vc.find_is();
         std::cout << "[preprocessing] extract IS constraint size = "
                   << bs.size() << "\n";
-        std::cout << bs << std::endl;
+        // std::cout << bs << std::endl;
         for (auto v : bs) {
             gr.removed_vertices.push_back(v);
             gr.status[v] = vertex_status::indset_removed;
@@ -632,12 +632,16 @@ struct gc_model {
                 sparse_upper_bound(dg, options.sdsaturiter);
             }
 
-            // if (options.strategy == gc::options::TOPDOWN) {
-            //          degeneracy_peeling(original, gr, ub-1);
+						//             // if (options.strategy == gc::options::TOPDOWN) {
+						//             //          degeneracy_peeling(original, gr, ub-1);
+						//
+						// std::cout << "k_core_threshold=" << k_core_threshold << " / "
+						// 	<< options.strategy << " =? "<< gc::options::CLEVER << std::endl;
 
             if (g.size() > 0 and lb < ub and options.indset_constraints
-                and (k_core_threshold >= 0
-                        or options.strategy != gc::options::CLEVER))
+                and (
+									//k_core_threshold >= 0 or 
+													options.strategy != gc::options::BOUNDS))
                 find_is_constraints(g, gr);
         }
 
