@@ -649,10 +649,10 @@ void graph<adjacency_struct>::add_edge(int u, int v)
                   << matrix.size() << std::endl;
     }
 
-    assert(matrix.size() > v);
-    assert(matrix.size() > u);
-    assert(origmatrix.size() > v);
-    assert(origmatrix.size() > u);
+    assert(matrix.size() > static_cast<size_t>(v));
+    assert(matrix.size() > static_cast<size_t>(u));
+    assert(origmatrix.size() > static_cast<size_t>(v));
+    assert(origmatrix.size() > static_cast<size_t>(u));
 
     matrix[u].add(v);
     matrix[v].add(u);
