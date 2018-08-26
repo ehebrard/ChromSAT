@@ -563,11 +563,11 @@ struct gc_model {
     {
         gc::degeneracy_vc_solver<gc::graph<adjacency_struct>> vc(g);
 				
-				
-				std::cout << "PRINT GRAPH\n";
-				vector<int> vmap(g.capacity(), -1);
-				gc::graph<adjacency_struct> pcopy(g, vmap);
-				print(pcopy);
+				//
+				// std::cout << "PRINT GRAPH\n";
+				// vector<int> vmap(g.capacity(), -1);
+				// gc::graph<adjacency_struct> pcopy(g, vmap);
+				// print(pcopy);
 				
 				
 				
