@@ -557,7 +557,7 @@ public:
 
     // fills in reason with explanation for clq. Also generates
     // this->culprit and fills in this->expl_reps
-    void explain_positive_clique(const bitset& clq)
+    void explain_positive_clique(const bitset& clq, bool chosen_reps)
     {
         culprit.clear();
         std::copy(begin(clq), end(clq), back_inserter(culprit));
@@ -570,8 +570,10 @@ public:
 
         assert(!culprit.empty());
 
-        expl_reps.clear();
-        expl_reps.resize(g.capacity(), -1);
+        if (!chosen_reps) {
+            expl_reps.clear();
+            expl_reps.resize(g.capacity(), -1);
+        }
 
         double maxactivity{-1.0};
         Var maxvar = var_Undef;
@@ -666,7 +668,7 @@ public:
 
         // explain the base clique
         reason.clear();
-        explain_positive_clique(cf.cliques[maxidx]);
+        explain_positive_clique(cf.cliques[maxidx], false);
 
         if (bound_source != options::CLIQUES && mf.explanation_clique != -1) {
             // for (auto v : mf.explanation_subgraph.nodes) {
@@ -763,7 +765,7 @@ public:
                       << "\n";
             reason.clear();
             for (int i = 0; i != ccf.num_cliques; ++i)
-                explain_positive_clique(ccf.cliques[i]);
+                explain_positive_clique(ccf.cliques[i], false);
             return s.addInactiveClause(reason);
         }
         return NO_REASON;
@@ -911,7 +913,8 @@ public:
         // check local constraints
 
 #ifdef DEBUG_IS
-        std::cout << "\npropag: " << lb << " " << ub << std::endl;
+        std::cout << "\npropag: " << lb << " " << ub
+                  << " dlvl = " << s.decisionLevel() << std::endl;
 #endif
 
         if (opt.indset_constraints and lb >= ub - 1 and lb >= ub - 1) {
@@ -927,6 +930,9 @@ public:
 
                 for (const auto& c : isconses) {
 
+#ifdef DEBUG_IS
+                    std::cout << " cons orig " << c.vs << std::endl;
+#endif
 
                     util_set.clear();
                     for (auto v : c.vs)
@@ -945,11 +951,22 @@ public:
                     if (static_cast<int>(util_set.size()) >= ub - 1) {
 
 #ifdef DEBUG_IS
-                        std::cout << " fail " << std::endl;
+                        std::cout << " IS fail " << std::endl;
 #endif
 
+                        // we need to choose the vertices of the
+                        // constraint as representatives of the
+                        // partitions participating in the clique
+                        expl_reps.clear();
+                        expl_reps.resize(g.capacity(), -1);
+                        for (auto v : c.vs) {
+                            if (!util_set.fast_contain(g.rep_of[v]))
+                                continue;
+                            expl_reps[g.rep_of[v]] = v;
+                        }
+
                         reason.clear();
-                        explain_positive_clique(util_set);
+                        explain_positive_clique(util_set, true);
                         return s.addInactiveClause(reason);
                     }
                 }
