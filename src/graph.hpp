@@ -645,7 +645,7 @@ void graph<adjacency_struct>::add_edge(int u, int v)
 {
 
     if (matrix.size() <= v) {
-        std::cout << "try to add edge " << u << "-" << v << " / "
+        std::cout << "ERROR: try to add edge " << u << "-" << v << " / "
                   << nodes.size() << " " << nodeset.size() << " "
                   << matrix.size() << std::endl;
     }
