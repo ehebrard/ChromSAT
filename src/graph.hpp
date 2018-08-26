@@ -73,32 +73,32 @@ public:
     }
     template <class other_struct>
     basic_graph(const basic_graph<other_struct>& g, std::vector<int>& vmap)
-    {		
-			if(g.size() > 0) {
-        nodes.reserve(g.size());
-        nodes.fill();
-        nodeset.initialise(0, g.size() - 1, bitset::full);
-        matrix.resize(g.size());
-        int i = 0;
-        for (auto v : g.nodes) {
-            matrix[i].initialise(0, g.size() - 1, bitset::empt);
-						
-						if(vmap.size() <= v) {
-							std::cout << v << " / " << vmap.size() << "(" << g.size() << ")" << std::endl;
-							
-						}
-						assert(vmap.size() > v);
-						
-            vmap[v] = i++;
-        }
-        assert(i == g.size());
-        for (auto v : g.nodes) {
-            for (auto u : g.matrix[v]) {
-                matrix[vmap[v]].add(vmap[u]);
+    {
+        if (g.size() > 0) {
+            nodes.reserve(g.size());
+            nodes.fill();
+            nodeset.initialise(0, g.size() - 1, bitset::full);
+            matrix.resize(g.size());
+            int i = 0;
+            for (auto v : g.nodes) {
+                matrix[i].initialise(0, g.size() - 1, bitset::empt);
+
+                if (vmap.size() <= v) {
+                    std::cout << v << " / " << vmap.size() << "(" << g.size()
+                              << ")" << std::endl;
+                }
+                assert(vmap.size() > v);
+
+                vmap[v] = i++;
             }
+            assert(i == g.size());
+            for (auto v : g.nodes) {
+                for (auto u : g.matrix[v]) {
+                    matrix[vmap[v]].add(vmap[u]);
+                }
+            }
+            canonize();
         }
-        canonize();
-			}
     }
     basic_graph(basic_graph&&) = default;
     basic_graph& operator=(basic_graph&&) = default;
@@ -128,11 +128,11 @@ public:
 
     void canonize();
 
-		void describe(std::ostream& os, const int num_edges=-1) const;
-		
+    void describe(std::ostream& os, const int num_edges = -1) const;
+
     void check_consistency() const
     {
-				std::cout << "checking basic-graph consistency" << std::endl;
+        std::cout << "checking basic-graph consistency" << std::endl;
 
         assert(nodes.size() == nodeset.size());
         for (auto v : nodes) {
@@ -143,22 +143,23 @@ public:
 
         for (auto v : nodes) {
             for (auto u : matrix[v]) {
-							
-							
-							if(!matrix[u].fast_contain(v)) {
-								std::cout << v << " has a non-symmetric neighbor (" << u << ")\n"
-									<< "N(" << v << ") = " << matrix[v]
-										<< "\nN(" << u << ") = " << matrix[u]
-											<< "\n";
-							}
-							
-							if(!nodeset.fast_contain(u)) {
-								std::cout << v << " has a neighbor that is not in the nodeset (" << u << ")\n"
-									<< nodeset << std::endl;
-							}
-							
+
+                if (!matrix[u].fast_contain(v)) {
+                    std::cout << v << " has a non-symmetric neighbor (" << u
+                              << ")\n"
+                              << "N(" << v << ") = " << matrix[v] << "\nN(" << u
+                              << ") = " << matrix[u] << "\n";
+                }
+
+                if (!nodeset.fast_contain(u)) {
+                    std::cout << v
+                              << " has a neighbor that is not in the nodeset ("
+                              << u << ")\n"
+                              << nodeset << std::endl;
+                }
+
                 assert(matrix[u].fast_contain(v));
-								assert(nodeset.fast_contain(u));
+                assert(nodeset.fast_contain(u));
             }
         }
     }
@@ -276,7 +277,7 @@ public:
     graph(const graph<other_struct>& g, std::vector<int>& vmap)
         : basic_graph<adjacency_struct>(g, vmap)
     {
-        init_structures();		
+        init_structures();
     }
     graph(graph&&) = default;
     graph& operator=(graph&&) = default;
@@ -301,13 +302,11 @@ public:
 
     int current_checkpoint() const { return cur_ckpt; }
 
-		int representative_of(const int v) const { return rep_of[v]; }
+    int representative_of(const int v) const { return rep_of[v]; }
 
     // debugging
-		void tell_class() const {
-			std::cout << "GRAPH\n";
-		}
-		
+    void tell_class() const { std::cout << "GRAPH\n"; }
+
     void check_consistency() const;
 };
 
@@ -401,7 +400,7 @@ template <class adjacency_struct> struct clique_finder {
     //
     //     for (auto ui=b; ui!=e; ++ui) {
     //         bool found{false};
-    // 						int u = *ui;
+    //                                          int u = *ui;
     //         for (int i = 0; i != num_cliques; ++i)
     //             if (candidates[i].fast_contain(u)) {
     //                 found = true;
@@ -414,7 +413,7 @@ template <class adjacency_struct> struct clique_finder {
     //     }
     //
     //     for (auto ui=b; ui!=e; ++ui) {
-    // 						int u = *ui;
+    //                                          int u = *ui;
     //         for (int i = last_clique[u] + 1; i < num_cliques; ++i)
     //             if (candidates[i].fast_contain(u)) {
     //                 insert(u, i);
@@ -650,10 +649,10 @@ void graph<adjacency_struct>::add_edge(int u, int v)
                   << matrix.size() << std::endl;
     }
 
-    assert(matrix.size() > v);
-    assert(matrix.size() > u);
-    assert(origmatrix.size() > v);
-    assert(origmatrix.size() > u);
+    assert(matrix.size() > static_cast<size_t>(v));
+    assert(matrix.size() > static_cast<size_t>(u));
+    assert(origmatrix.size() > static_cast<size_t>(v));
+    assert(origmatrix.size() > static_cast<size_t>(u));
 
     matrix[u].add(v);
     matrix[v].add(u);
@@ -808,13 +807,13 @@ template <class adjacency_struct>
 void graph<adjacency_struct>::check_consistency() const
 {
     std::cout << "checking graph consistency" << std::endl;
-		
-		// basic_graph<adjacency_struct>::check_consistency();
-		
-		
-		for (int i = 0; i != capacity(); ++i)
-			assert((!nodes.contain(i) or nodeset.contain(i)) and (!nodeset.contain(i) or nodes.contain(i)));
-		
+
+    // basic_graph<adjacency_struct>::check_consistency();
+
+    for (int i = 0; i != capacity(); ++i)
+        assert((!nodes.contain(i) or nodeset.contain(i))
+            and (!nodeset.contain(i) or nodes.contain(i)));
+
     for (int i = 0; i != capacity(); ++i)
         assert((!nodes.contain(i) || rep_of[i] == i)
             && (rep_of[i] != i || nodes.contain(i)));
@@ -844,9 +843,12 @@ void graph<adjacency_struct>::check_consistency() const
 
     for (auto v : nodes) {
         for (auto u : nodes) {
-            if (u < v)
+            if (u == v)
                 continue;
+            // if (u < v)
+            //     continue;
             if (matrix[v].fast_contain(u)) {
+                assert(matrix[u].fast_contain(v));
                 for (auto vp : partition[v])
                     if (!matrix[u].fast_contain(vp)) {
                         std::cout << "u = " << u << " v = " << v
