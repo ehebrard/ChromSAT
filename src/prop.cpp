@@ -30,7 +30,8 @@ dense_graph cons_base::create_filled_graph(boost::optional<fillin_info> fillin)
 
 struct bfs_state {
     Solver& s;
-    dense_graph& g;
+    const dense_graph& g;
+    const dense_graph& fg;
     bitset upart, vpart, allpart;
     bitset util_set;
     enum vertex_color { WHITE, GREY, BLACK };
@@ -40,30 +41,45 @@ struct bfs_state {
 
     std::list<int> Q;
 
-    template<typename F>
-    auto visit(int w, F f) -> decltype(f(w))
+    template <typename F> auto visit(int w, F f)
     {
         if (w != rootu && w != rootv) {
             assert(vparent[w] != -1);
             assert(uparent[w] != -1);
-            assert(g.origmatrix[w].fast_contain(vparent[w]));
-            assert(g.origmatrix[w].fast_contain(uparent[w]));
-            assert(g.origmatrix[vparent[w]].fast_contain(uparent[w]));
+            assert(fg.origmatrix[w].fast_contain(vparent[w]));
+            assert(fg.origmatrix[w].fast_contain(uparent[w]));
+            assert(fg.origmatrix[vparent[w]].fast_contain(uparent[w]));
         }
         return f(w);
     }
 
-    template<typename F>
-    auto do_bfs(int w, F f) -> decltype(f(w))
+    template <typename F>
+    auto visit_edge(int w, int x, F f) -> decltype(f(w, x))
     {
-        auto rv = visit(w, f);
-        if (rv)
-            return rv;
-        util_set.copy(g.origmatrix[w]);
+        if (x != rootu && x != rootv) {
+            assert(vparent[x] != -1);
+            assert(uparent[x] != -1);
+            assert(fg.origmatrix[x].fast_contain(vparent[x]));
+            assert(fg.origmatrix[x].fast_contain(uparent[x]));
+            assert(fg.origmatrix[vparent[x]].fast_contain(uparent[x]));
+        }
+        return f(w, x);
+    }
+
+    template <typename F> auto do_bfs(int w, F f) -> decltype(f(0, 0))
+    {
+        typedef decltype(f(0, 0)) rettype;
+        rettype rv{};
+        util_set.copy(fg.origmatrix[w]);
         util_set.intersect_with(allpart);
-        bool inv = upart.fast_contain(w);
+        bool inv = vpart.fast_contain(w);
         for (auto x : util_set) {
-            if (col[x] != WHITE)
+            if (col[x] == BLACK)
+                continue;
+            rv = visit_edge(w, x, f);
+            if (rv)
+                return rv;
+            if (col[x] == GREY)
                 continue;
             Q.push_back(x);
             col[x] = GREY;
@@ -79,31 +95,31 @@ struct bfs_state {
         return rv;
     }
 
-    template<typename F>
-    auto do_bfs(F f) -> decltype(f(0))
+    template <typename F> auto do_bfs(F f) -> decltype(f(0, 0))
     {
+        typedef decltype(f(0, 0)) rettype;
+        rettype rv{};
         while(!Q.empty()) {
             int v = Q.front();
             Q.pop_front();
-            auto rv = do_bfs(v, f);
+            rv = do_bfs(v, f);
             if (rv || Q.empty())
                 return rv;
         }
-        // unreachable
+        return rv;
     }
 
-    template<typename F>
-    auto bfs(int u, int v, F f) -> decltype(f(v))
+    template <typename F> auto bfs(int u, int v, F f) -> decltype(f(0, 0))
     {
         upart.clear();
-        for (auto up : g.partition[u]) {
+        for (auto up : g.partition[g.rep_of[u]]) {
             col[up] = WHITE;
             upart.fast_add(up);
             uparent[up] = -1;
             vparent[up] = -1;
         }
         vpart.clear();
-        for (auto vp : g.partition[v]) {
+        for (auto vp : g.partition[g.rep_of[v]]) {
             col[vp] = WHITE;
             vpart.fast_add(vp);
             uparent[vp] = -1;
@@ -120,11 +136,13 @@ struct bfs_state {
         return do_bfs(f);
     }
 
-    bfs_state(Solver& s, dense_graph& g)
+    bfs_state(Solver& s, const dense_graph& g, const dense_graph& fg)
         : s(s)
         , g(g)
+        , fg(g)
         , upart(0, g.capacity() - 1, bitset::empt)
         , vpart(0, g.capacity() - 1, bitset::empt)
+        , allpart(0, g.capacity() - 1, bitset::empt)
         , util_set(0, g.capacity() - 1, bitset::empt)
         , col(g.capacity())
         , uparent(g.capacity())
@@ -140,6 +158,13 @@ public:
 
     // used in wake() when using fillin
     bfs_state bfs;
+    // used in merge_fillin to add edges by transition in its second
+    // phase
+    std::vector<std::pair<int, int>> bfsroots;
+    bitset needbfs;
+
+    // a buffer for merge_fillin
+    bitset vpartcopy;
 
     const varmap& vars;
     std::vector<indset_constraint> isconses;
@@ -164,7 +189,7 @@ public:
     std::vector<int> culprit;
     bitset diffuv, diffvu;
 
-    bitset util_set;
+    bitset util_set, util_set2;
     bitset neighborhood;
     bitset ordering_tmp, ordering_forbidden, ordering_removed_bs;
 
@@ -182,11 +207,15 @@ public:
         statistics& stat)
         : cons_base(solver, opt, g, fillin)
         , mf(g, cf, opt.prune)
-        , bfs(s, fg)
+        , bfs(s, g, fg)
+        , bfsroots(g.capacity())
+        , needbfs(0, g.capacity() - 1, bitset::empt)
+        , vpartcopy(0, g.capacity() - 1, bitset::empt)
         , vars(tvars)
         , isconses(isconses)
         , stat(stat)
         , util_set(0, g.capacity() - 1, bitset::empt)
+        , util_set2(0, g.capacity() - 1, bitset::empt)
         , neighborhood(0, g.capacity() - 1, bitset::empt)
         , ordering_tmp(0, g.capacity() - 1, bitset::empt)
         , ordering_forbidden(0, g.capacity() - 1, bitset::empt)
@@ -310,31 +339,119 @@ public:
         return NO_REASON;
     };
 
+    Clause* transitive_separate(
+        int u, int v, const bitset& diffvu, const bitset& vpart)
+    {
+        needbfs.clear();
+        // for each partition to which we must add edges, first find
+        // at least one edge that can be fixed immediately, which will
+        // serve as the root of the BFS. This will actually set all
+        // such edges and keep one of them as the root
+        for (auto up : g.partition[u]) {
+            util_set.copy(diffvu);
+            util_set.intersect_with(fg.origmatrix[up]);
+            for (auto n : util_set) {
+                if (fg.origmatrix[up].fast_contain(v)
+                    && fg.origmatrix[n].fast_contain(v))
+                    DO_OR_RETURN(separate(up, v, n));
+                else {
+                    util_set2.copy(vpart);
+                    util_set2.intersect_with(fg.origmatrix[up]);
+                    util_set2.intersect_with(fg.origmatrix[n]);
+                    if (util_set2.empty()) {
+                        needbfs.fast_add(g.rep_of[n]);
+                        bfsroots[n] = {up, n};
+                        continue;
+                    }
+                    int via = util_set2.min();
+                    DO_OR_RETURN(separate(up, via, n));
+                }
+            }
+        }
+
+        for (auto v : needbfs) {
+            auto e = bfsroots[v];
+            bfs.bfs(e.first, e.second, [&](int x, int w) -> Clause* {
+                bool xinv = bfs.vpart.fast_contain(x);
+                bool winv = bfs.vpart.fast_contain(w);
+                if (xinv == winv)
+                    return NO_REASON;
+                if (xinv)
+                    DO_OR_RETURN(separate(x, bfs.vparent[w], w));
+                else
+                    DO_OR_RETURN(separate(x, bfs.uparent[w], w));
+                return NO_REASON;
+            });
+        }
+
+        return NO_REASON;
+    }
+
     Clause *merge_fillin(Lit l)
     {
         auto info = varinfo[var(l)];
-        bfs.bfs(info.u, info.v, [&](int x) -> Clause* {
+        auto u{g.rep_of[info.u]}, v{g.rep_of[info.v]};
+        if (u == v)
+            return NO_REASON;
+
+        // same as in plain version of wake()
+        diffuv.copy(g.matrix[u]);
+        diffuv.setminus_with(g.matrix[v]);
+        diffvu.copy(g.matrix[v]);
+        diffvu.setminus_with(g.matrix[u]);
+
+        // set to true all the variables between the two partitions
+        bfs.bfs(info.u, info.v, [&](int x, int w) -> Clause* {
             if (x == info.u || x == info.v)
                 return NO_REASON;
-            if (bfs.vpart.fast_contain(x))
-                DO_OR_RETURN(merge_3way(bfs.uparent[x], bfs.vparent[x], x));
+            bool xinv = bfs.vpart.fast_contain(x);
+            bool winv = bfs.vpart.fast_contain(w);
+            if (xinv == winv)
+                return NO_REASON;
+            if (xinv)
+                DO_OR_RETURN(merge_3way(w, bfs.vparent[w], x));
             else
-                DO_OR_RETURN(merge_3way(bfs.vparent[x], bfs.uparent[x], x));
+                DO_OR_RETURN(merge_3way(w, bfs.uparent[w], x));
             return NO_REASON;
         });
+
+        // now use the neighborhood differences to separate each
+        // vertex from new neighbors.
+        vpartcopy.copy(bfs.vpart); // this will be destroyed by the
+                                   // bfs calls in transitive_separate()
+        DO_OR_RETURN(transitive_separate(v, info.u, diffuv, bfs.upart));
+        DO_OR_RETURN(transitive_separate(u, info.v, diffvu, bfs.vpart));
+
+        g.merge(u, v);
+#ifdef UPDATE_FG
+        fg.merge(u, v);
+#endif
         return NO_REASON;
     }
 
     Clause *separate_fillin(Lit l)
     {
         auto info = varinfo[var(l)];
-        bfs.bfs(info.u, info.v, [&](int x) -> Clause * {
-            if (bfs.vpart.fast_contain(x))
-                DO_OR_RETURN(separate(bfs.uparent[x], bfs.vparent[x], x));
+        auto u{g.rep_of[info.u]}, v{g.rep_of[info.v]};
+        if (g.matrix[u].fast_contain(v))
+            return NO_REASON;
+        bfs.bfs(info.u, info.v, [&](int x, int w) -> Clause* {
+            if (x == info.u || x == info.v)
+                return NO_REASON;
+            bool xinv = bfs.vpart.fast_contain(x);
+            bool winv = bfs.vpart.fast_contain(w);
+            if (xinv == winv)
+                return NO_REASON;
+            if (xinv)
+                DO_OR_RETURN(separate(x, bfs.vparent[w], w));
             else
-                DO_OR_RETURN(separate(bfs.vparent[x], bfs.uparent[x], x));
+                DO_OR_RETURN(separate(x, bfs.uparent[w], w));
             return NO_REASON;
         });
+        g.separate(u, v);
+#ifdef UPDATE_FG
+        fg.separate(u, v);
+#endif
         return NO_REASON;
     }
 
@@ -375,16 +492,11 @@ public:
             for (auto vp : g.partition[v]) {
                 if (vp == info.v)
                     continue;
-
-                if (opt.fillin && !fg.matrix[vp].fast_contain(info.u))
-                    continue;
                 DO_OR_RETURN(merge_3way(info.u, info.v, vp));
             }
 
             for (auto up : g.partition[u]) {
                 if (up == info.u)
-                    continue;
-                if (opt.fillin && !fg.matrix[up].fast_contain(info.v))
                     continue;
                 DO_OR_RETURN(merge_3way(info.v, info.u, up));
             }
@@ -411,33 +523,15 @@ public:
             // much work (linear, even if it's mediated by a bitset)
 
             for (auto vp : g.partition[v]) {
-                if (opt.fillin) {
-                    util_set.copy(diffuv);
-                    util_set.intersect_with(fg.matrix[vp]);
-                    for (auto n : util_set)
-                        DO_OR_RETURN(separate(vp, info.u, n));
-                } else {
-                    for (auto n : diffuv)
-                        DO_OR_RETURN(separate(vp, info.u, n));
-                }
+                for (auto n : diffuv)
+                    DO_OR_RETURN(separate(vp, info.u, n));
             }
             for (auto up : g.partition[u]) {
-                if (opt.fillin) {
-                    util_set.copy(diffvu);
-                    util_set.intersect_with(fg.matrix[up]);
-                    for (auto n : util_set)
-                        DO_OR_RETURN(separate(up, info.v, n));
-                } else {
-                    for (auto n : diffvu)
-                        DO_OR_RETURN(separate(up, info.v, n));
-                }
+                for (auto n : diffvu)
+                    DO_OR_RETURN(separate(up, info.v, n));
             }
 
             g.merge(u, v);
-#ifdef UPDATE_FG
-            if (opt.fillin)
-                fg.merge(u, v);
-#endif
         } else {
 
             if (g.matrix[u].fast_contain(v))
@@ -456,10 +550,6 @@ public:
                     DO_OR_RETURN(separate(up, info.u, vp));
 
             g.separate(u, v);
-#ifdef UPDATE_FG
-            if (opt.fillin)
-                fg.separate(u, v);
-#endif
         }
 
         return NO_REASON;
