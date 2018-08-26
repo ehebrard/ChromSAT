@@ -25,6 +25,20 @@ enum class vertex_status : uint8_t {
     indset_removed,
 };
 
+template <class graph_struct> void print(graph_struct& g)
+{
+    std::ofstream outfile("debug.col", std::ios_base::out);
+
+    outfile << "p edge " << g.size() << " " << g.count_edges() << std::endl;
+    for (auto u : g.nodes) {
+        for (auto v : g.matrix[u]) {
+            if (u < v)
+                outfile << "e " << (u + 1) << " " << (v + 1) << std::endl;
+        }
+    }
+    outfile.close();
+}
+
 int mineq(const int N, const int k)
 {
     int a = N / k;
@@ -548,6 +562,15 @@ struct gc_model {
     void find_is_constraints(gc::graph<adjacency_struct>& g, graph_reduction<adjacency_struct>& gr)
     {
         gc::degeneracy_vc_solver<gc::graph<adjacency_struct>> vc(g);
+				
+				
+				std::cout << "PRINT GRAPH\n";
+				vector<int> vmap(g.capacity(), -1);
+				gc::graph<adjacency_struct> pcopy(g, vmap);
+				print(pcopy);
+				
+				
+				
         auto bs = vc.find_is();
         std::cout << "[preprocessing] extract IS constraint size = "
                   << bs.size() << "\n";
@@ -742,6 +765,9 @@ struct gc_model {
 
             if (cons) {
 
+                // std::cout << "HERE: " << lb << " / " << cons->bestlb
+                //           << std::endl;
+
                 cons->bestlb = std::max(lb, cons->bestlb);
                 cons->ub = std::min(ub, cons->ub);
 
@@ -905,21 +931,8 @@ struct gc_model {
         minicsp::lbool sat{l_True};
         while (sat != l_False && lb < ub) {
 
-            // std::cout << " solve* in [" << cons->bestlb << ".." << cons->ub
-            //           << "[\n";
-
-            std::ofstream outfile("debug.col", std::ios_base::out);
-
-            outfile << "p edge " << g.size() << " " << g.count_edges()
-                    << std::endl;
-            for (auto u : g.nodes) {
-                for (auto v : g.matrix[u]) {
-                    if (u < v)
-                        outfile << "e " << (u + 1) << " " << (v + 1)
-                                << std::endl;
-                }
-            }
-            outfile.close();
+            std::cout << "[trace] solve* in [" << cons->bestlb << ".."
+                      << cons->ub << "[\n";
 
             sat = s.solveBudget();
             if (sat == l_True) {
@@ -1260,6 +1273,8 @@ int color(gc::options& options, gc::graph<input_format>& g)
             vmap.resize(g.capacity(), -1);
 
             gc::graph<gc::vertices_vec> gcopy(g, vmap);
+						
+						// print(gcopy);
 
             gc_model<gc::vertices_vec> tmp_model(gcopy, options, statistics,
                 std::make_pair(init_model.lb, init_model.ub), sol,

@@ -7,6 +7,7 @@
 #include <cmath>
 
 // #define NICE_TRACE
+// #define DEBUG_IS
 
 namespace gc
 {
@@ -753,6 +754,7 @@ public:
 
     Clause* propagate(Solver&) final
     {
+
         int lb{0};
 
         bound_source = options::CLIQUES;
@@ -760,6 +762,8 @@ public:
         create_ordering();
 
         lb = cf.find_cliques(heuristic, opt.cliquelimit);
+
+        // std::cout << "PROPAGATE (" << lb << " / " << bestlb << ")\n";
 
         if (lb < ub
             && (s.decisionLevel() == 0 || !opt.adaptive
@@ -783,6 +787,8 @@ public:
 
             lb = mlb;
         }
+
+        // std::cout << "LOWERBOUND (" << lb << " / " << bestlb << ")\n";
 
         *lastlb = lb;
 
@@ -815,16 +821,10 @@ public:
         // check local constraints
 
 #ifdef DEBUG_IS
-        std::cout << "propag: " << lb << " " << ub << std::endl;
+        std::cout << "\npropag: " << lb << " " << ub << std::endl;
 #endif
 
-#ifdef DEBUG_IS
-        for (const auto& c : isconses) {
-            std::cout << " cons " << c.vs << std::endl;
-        }
-#endif
-
-        if (lb >= ub - 1 and lb >= ub - 1) {
+        if (opt.indset_constraints and lb >= ub - 1 and lb >= ub - 1) {
             for (int i = 0; i != cf.num_cliques; ++i) {
 
 #ifdef DEBUG_IS
@@ -837,13 +837,15 @@ public:
 
                 for (const auto& c : isconses) {
 
-#ifdef DEBUG_IS
-                    std::cout << " cons " << c.vs << std::endl;
-#endif
 
                     util_set.clear();
                     for (auto v : c.vs)
                         util_set.fast_add(g.rep_of[v]);
+
+#ifdef DEBUG_IS
+                    std::cout << " cons " << util_set << std::endl;
+#endif
+
                     util_set.intersect_with(cf.cliques[i]);
 
 #ifdef DEBUG_IS
@@ -851,6 +853,11 @@ public:
 #endif
 
                     if (static_cast<int>(util_set.size()) >= ub - 1) {
+
+#ifdef DEBUG_IS
+                        std::cout << " fail " << std::endl;
+#endif
+
                         reason.clear();
                         explain_positive_clique(util_set);
                         return s.addInactiveClause(reason);
@@ -858,6 +865,8 @@ public:
                 }
             }
         }
+
+        // std::cout << "INDSET (" << lb << " / " << bestlb << ")\n";
 
         if (opt.dominance)
             return contractWhenNIncluded();
