@@ -146,7 +146,10 @@ private:
                 std::cout << " -> {} at node " << (ith) << "/"
                           << subgraph.nodes.size() << "\n";
 #endif
-                extra.resize(endS.back());
+                if (endS.size() == 0)
+                    extra.clear();
+                else
+                    extra.resize(endS.back());
                 return ith - 1;
             }
 
