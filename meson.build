@@ -24,14 +24,27 @@ minicsp_lib = library('minicsp', ['minicsp/core/solver.cpp',
 minicsp_dep = declare_dependency(link_with: minicsp_lib,
 				 include_directories: minicsp_inc)
 
+segundo_lib = static_library('segundo',
+		      ['sota/Segundo/DSATUR/bornes.cpp',
+		       'sota/Segundo/DSATUR/dsatur_algo.cpp',
+		       'sota/Segundo/DSATUR/graphe.cpp',
+		       'sota/Segundo/DSATUR/cliquer/cliquer.cpp',
+		       'sota/Segundo/DSATUR/cliquer/graph.cpp',
+		       'sota/Segundo/DSATUR/cliquer/reorder.cpp'
+		      ])
+segundo_dep = declare_dependency(link_with: segundo_lib)
+
 executable('gc', ['src/gc.cpp'],
-	   dependencies: [minicsp_dep, basic_dep, prop_dep])
+	   dependencies: [minicsp_dep, basic_dep, prop_dep,
+			  segundo_dep])
 
 executable('preprocessing', ['src/preprocessing.cpp',
 			     'src/sparse_dynamic_graph.cpp',
 			     'src/interval_list.cpp'],
 	   dependencies: [minicsp_dep, basic_dep, prop_dep])
 
+executable('segundo', ['sota/Segundo/DSATUR/main.cpp'],
+	   dependencies: [segundo_dep])
 
 use_gecode = get_option('use_gecode')
 if use_gecode
@@ -107,4 +120,3 @@ executable('dsatur',
 executable('color6',
 	   ['sota/color6/color6.c'])
 		 
-
