@@ -917,43 +917,47 @@ public:
                   << " dlvl = " << s.decisionLevel() << std::endl;
 #endif
 
+        // if (opt.indset_constraints and lb >= ub - 1 and lb >= ub - 1) {
+        //     for (int i = 0; i != cf.num_cliques; ++i) {
+        //         if (cf.clique_sz[i] < ub -1)
+        //             continue;
+        //
+        //         for (const auto& c : isconses) {
+        //             util_set.clear();
+        //             for (auto v : c.vs)
+        //                 util_set.fast_add(g.rep_of[v]);
+        //             util_set.intersect_with(cf.cliques[i]);
+        //             if (static_cast<int>(util_set.size()) >= ub - 1) {
+        //                 // we need to choose the vertices of the
+        //                 // constraint as representatives of the
+        //                 // partitions participating in the clique
+        //                 expl_reps.clear();
+        //                 expl_reps.resize(g.capacity(), -1);
+        //                 for (auto v : c.vs) {
+        //                     if (!util_set.fast_contain(g.rep_of[v]))
+        //                         continue;
+        //                     expl_reps[g.rep_of[v]] = v;
+        //                 }
+        //
+        //                 reason.clear();
+        //                 explain_positive_clique(util_set, true);
+        //                 return s.addInactiveClause(reason);
+        //             }
+        //         }
+        //     }
+        // }
+
         if (opt.indset_constraints and lb >= ub - 1 and lb >= ub - 1) {
             for (int i = 0; i != cf.num_cliques; ++i) {
-
-#ifdef DEBUG_IS
-                std::cout << "clique " << cf.cliques[i] << " in " << g.nodeset
-                          << std::endl;
-#endif
-
                 if (cf.clique_sz[i] < ub -1)
                     continue;
 
                 for (const auto& c : isconses) {
-
-#ifdef DEBUG_IS
-                    std::cout << " cons orig " << c.vs << std::endl;
-#endif
-
                     util_set.clear();
                     for (auto v : c.vs)
                         util_set.fast_add(g.rep_of[v]);
-
-#ifdef DEBUG_IS
-                    std::cout << " cons " << util_set << std::endl;
-#endif
-
                     util_set.intersect_with(cf.cliques[i]);
-
-#ifdef DEBUG_IS
-                    std::cout << " inter = " << util_set << std::endl;
-#endif
-
                     if (static_cast<int>(util_set.size()) >= ub - 1) {
-
-#ifdef DEBUG_IS
-                        std::cout << " IS fail " << std::endl;
-#endif
-
                         // we need to choose the vertices of the
                         // constraint as representatives of the
                         // partitions participating in the clique
@@ -973,7 +977,6 @@ public:
             }
         }
 
-        // std::cout << "INDSET (" << lb << " / " << bestlb << ")\n";
 
         if (opt.dominance)
             return contractWhenNIncluded();

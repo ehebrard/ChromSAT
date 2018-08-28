@@ -130,6 +130,10 @@ public:
 
     void describe(std::ostream& os, const int num_edges = -1) const;
 
+    // whether v is simplicial (if not, a witness edge is cpied)
+    bool simplicial(
+        const int v, std::pair<int, int>& witness, bitset& util_set) const;
+
     void check_consistency() const
     {
         std::cout << "checking basic-graph consistency" << std::endl;
@@ -625,6 +629,21 @@ template <class adjacency_struct> void basic_graph<adjacency_struct>::canonize()
         //         matrix[v].sort();
         // std::unique(begin(matrix[v]), end(matrix[v]));
     }
+}
+
+template <class adjacency_struct>
+bool basic_graph<adjacency_struct>::simplicial(
+    const int v, std::pair<int, int>& witness, bitset& util_set) const
+{
+    for (auto u : matrix[v]) {
+        util_set.copy(matrix[v]);
+        util_set.setminus_with(matrix[u]);
+        if (util_set.empty())
+            return true;
+        witness.first = u;
+        witness.second = util_set.min();
+    }
+    return false;
 }
 
 template <class adjacency_struct>

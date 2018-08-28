@@ -142,6 +142,8 @@ options parse(int argc, char* argv[])
         "output in <file> using dimacs format", false, "", "string");
     cmd.add<SwitchArg>(opt.equalities, "", "equalities",
         "add implied number of equalitiy constraints", false);
+    cmd.add<SwitchArg>(
+        opt.dsatur, "", "dsatur", "use dsatur instead of minicsp", false);
     cmd.add<ValueArg<int>>(opt.memlimit, "", "memlimit",
         "does not compute dense graph above this limit (default: no limit)", false, -1, "int");
 

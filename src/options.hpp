@@ -107,6 +107,8 @@ struct options {
 
     bool equalities;
 
+    bool dsatur;
+
     int memlimit;
 };
 

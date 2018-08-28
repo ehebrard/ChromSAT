@@ -19,6 +19,9 @@
 #include <minicsp/core/solver.hpp>
 #include <minicsp/core/utils.hpp>
 
+#include "./sota/Segundo/DSATUR/dsatur_algo.h"
+#include "./sota/Segundo/DSATUR/graphe.h"
+
 enum class vertex_status : uint8_t {
     in_graph,
     low_degree_removed,
@@ -987,6 +990,58 @@ struct gc_model {
         }
     }
 
+    void solve_with_dsatur()
+    {
+        C_Graphe G;
+        DSATUR_ dsat_;
+
+        G.nb_sommets = g.size();
+        G.nb_aretes = original.count_edges();
+
+        G.matrice_adjacence.resize(G.nb_sommets);
+        G.sommets_voisins.resize(G.nb_sommets);
+
+        G.adj = (bool*)malloc(G.nb_sommets * G.nb_sommets * sizeof(bool));
+        G.sommets_voisins_bis
+            = (int*)malloc(G.nb_sommets * G.nb_sommets * sizeof(int));
+        G.degre = (int*)malloc(G.nb_sommets * sizeof(int));
+
+        for (int i = 0; i < G.nb_sommets; i++) {
+            G.matrice_adjacence[i].resize(G.nb_sommets);
+            G.sommets_voisins[i].clear();
+            G.degre[i] = 0;
+        }
+        for (int i = 0; i < G.nb_sommets; i++) {
+            for (int j = 0; j < G.nb_sommets; j++) {
+                G.matrice_adjacence[i][j] = 0;
+                G.sommets_voisins_bis[i * G.nb_sommets + j] = 0;
+                G.adj[i * G.nb_sommets + j] = false;
+            }
+        }
+
+        for (auto u : g.nodes)
+            for (auto v : g.matrix[u])
+                if (G.matrice_adjacence[u][v] == 0) {
+                    G.matrice_adjacence[u][v] = 1;
+                    G.matrice_adjacence[v][u] = 1;
+
+                    G.adj[u * G.nb_sommets + v] = true;
+                    G.adj[v * G.nb_sommets + u] = true;
+
+                    G.sommets_voisins[u].push_back(v);
+                    G.sommets_voisins[v].push_back(u);
+
+                    G.sommets_voisins_bis[(u * G.nb_sommets) + G.degre[u]] = v;
+                    G.degre[u]++;
+                    G.sommets_voisins_bis[(v * G.nb_sommets) + G.degre[v]] = u;
+                    G.degre[v]++;
+                }
+
+        dsat_.DSATUR_algo(G, 10000, 2, 2, G.nb_sommets);
+        lb = dsat_.LB;
+        ub = dsat_.UB;
+    }
+
     void finalize_solution(std::vector<pair<int, int>>& edges)
     {
         reduction.extend_solution(solution, true);
@@ -1265,22 +1320,27 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
         while (init_model.lb < init_model.ub) {
 
-            std::cout << "[search] solve a tmp model with bounds [" << init_model.lb
-                      << ".." << init_model.ub << "[ focusing on the "
-                      << (init_model.ub - 1) << "-core\n";
+            std::cout << "[search] solve a tmp model with bounds ["
+                      << init_model.lb << ".." << init_model.ub
+                      << "[ focusing on the " << (init_model.ub - 1)
+                      << "-core\n";
 
             vmap.clear();
             vmap.resize(g.capacity(), -1);
 
             gc::graph<gc::vertices_vec> gcopy(g, vmap);
-						
-						// print(gcopy);
+
+            // print(gcopy);
 
             gc_model<gc::vertices_vec> tmp_model(gcopy, options, statistics,
                 std::make_pair(init_model.lb, init_model.ub), sol,
                 (init_model.ub - 1));
 
-            tmp_model.solve();
+            if (options.dsatur) {
+                tmp_model.solve_with_dsatur();
+            } else {
+                tmp_model.solve();
+            }
 
             std::cout << "[search] tmp: [" << tmp_model.lb << "..";
             if (tmp_model.ub < init_model.ub)
@@ -1288,7 +1348,8 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
             assert(tmp_model.solution.size() == tmp_model.original.capacity());
 
-            if (tmp_model.degeneracy_sol or tmp_model.dsatur_sol or tmp_model.search_sol) {
+            if (tmp_model.degeneracy_sol or tmp_model.dsatur_sol
+                or tmp_model.search_sol) {
                 init_model.ub = tmp_model.reduction.extend_solution(
                     tmp_model.solution, true);
                 // copy the tmp model solution into the init model
