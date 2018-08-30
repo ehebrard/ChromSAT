@@ -26,6 +26,7 @@ enum class vertex_status : uint8_t {
     in_graph,
     low_degree_removed,
     indset_removed,
+    dominated_removed,
 };
 
 template <class graph_struct> void print(graph_struct& g)
@@ -83,6 +84,7 @@ struct graph_reduction {
     const gc::graph<adjacency_struct>& g;
     const gc::statistics& statistics;
     std::vector<int> removed_vertices;
+    std::vector<int> dominator;
     std::vector<gc::indset_constraint> constraints;
     std::vector<vertex_status> status;
     gc::bitset nodeset;
@@ -143,12 +145,25 @@ struct graph_reduction {
         nodeset.copy(g.nodeset);
         for (auto v : g.nodes)
             maxc = std::max(maxc, col[v]);
+
+        auto d{dominator.rbegin()};
         for (auto i = removed_vertices.rbegin(), iend = removed_vertices.rend();
              i != iend; ++i) {
             auto v = *i;
 
-            if (!full and status[v] == vertex_status::low_degree_removed)
+            //
+            //
+            // std::cout << v << " " << (dominator.size()>0 ? *d : -1) << " " <<
+            // (int)(status[v]) << std::endl;
+
+            if (!full and status[v] != vertex_status::indset_removed)
                 break;
+
+            if (status[v] == vertex_status::dominated_removed) {
+                assert(nodeset.fast_contain(*d));
+                col[v] = col[*d];
+                ++d;
+            }
 
             assert(status[v] != vertex_status::in_graph);
             util_set.clear();
@@ -157,6 +172,7 @@ struct graph_reduction {
                     continue;
                 util_set.fast_add(col[u]);
             }
+
             for (int q = 0; q != g.capacity(); ++q) {
                 if (util_set.fast_contain(q))
                     continue;
@@ -167,6 +183,7 @@ struct graph_reduction {
             }
             nodeset.fast_add(v);
         }
+
         return maxc + 1;
     }
 };
@@ -436,8 +453,6 @@ struct gc_model {
             }
 
             if (df.degrees[df.order[0]] < threshold) {
-                std::cout << "[preprocessing] remove low degree nodes ("
-                          << threshold << ")\n";
 
                 for (auto v : df.order) {
                     if (df.degrees[v] >= threshold)
@@ -445,6 +460,9 @@ struct gc_model {
                     toremove.add(v);
                     gr.removed_vertices.push_back(v);
                 }
+
+                std::cout << "[preprocessing] remove " << toremove.size()
+                          << " low degree nodes (<" << threshold << ")\n";
 
                 toremove.canonize();
 
@@ -475,6 +493,48 @@ struct gc_model {
         // return gr;
     }
 
+    void neighborhood_dominance(
+        gc::graph<adjacency_struct>& g, graph_reduction<adjacency_struct>& gr)
+    {
+
+        std::vector<int> nodes;
+        for (auto u : g.nodes)
+            nodes.push_back(u);
+
+        gc::bitset removed(0, g.capacity() - 1, gc::bitset::empt);
+
+        auto psize{g.size()};
+        for (auto u : nodes)
+            for (auto v : nodes)
+                // check if u dominates v
+                if (u != v and !g.matrix[u].fast_contain(v)
+                    and g.nodeset.fast_contain(v)
+                    and g.nodeset.fast_contain(u)) {
+                    gr.util_set.copy(g.matrix[v]);
+                    gr.util_set.setminus_with(g.matrix[u]);
+                    if (!gr.util_set.intersect(g.nodeset)) {
+                        // N(v) <= N(U)s
+
+                        assert(!removed.fast_contain(v));
+
+                        removed.add(v);
+                        //
+                        // std::cout << "\nrm " << v << " " << g.matrix[v] <<
+                        // std::endl;
+                        // std::cout << "bc " << u << " " << g.matrix[u] <<
+                        // std::endl;
+
+                        g.remove(v);
+                        gr.removed_vertices.push_back(v);
+                        gr.dominator.push_back(u);
+                        gr.status[v] = vertex_status::dominated_removed;
+                    }
+                }
+
+        if (psize > g.size())
+            std::cout << "[preprocessing] remove " << (psize - g.size())
+                      << " dominated nodes\n";
+    }
 
     graph_reduction<adjacency_struct> core_reduction(
         gc::graph<adjacency_struct>& g, std::pair<int, int> bounds,
@@ -646,6 +706,9 @@ struct gc_model {
 
         degeneracy_peeling(original, gr, k_core_threshold);
 
+        if (options.preprocessing == gc::options::FULL)
+            neighborhood_dominance(original, gr);
+
         int num_edges = 0;
         if (g.size() > 0 and lb < ub) {
 
@@ -736,20 +799,23 @@ struct gc_model {
             // g.describe(std::cout);
             // std::cout << std::endl;
 
-            vars = gc::varmap(create_vars());
-            cons = gc::post_gc_constraint(s, g, fillin, vars,
-                reduction.constraints, vertex_map, options, statistics);
+            if (!options.dsatur) {
+                vars = gc::varmap(create_vars());
+                cons = gc::post_gc_constraint(s, g, fillin, vars,
+                    reduction.constraints, vertex_map, options, statistics);
+
+                double vm_usage;
+                double resident_set;
+                gc::process_mem_usage(vm_usage, resident_set);
+
+                std::cout << "[modeling] created coloring constraint #nodes = "
+                          << original.size() << ", #vars = " << s.nVars()
+                          << ", memory = " << (long)resident_set << " \n";
+            }
 
             if (!debug_sol.empty())
                 post_eqvar_debug_sol(s, debug_sol);
 
-            double vm_usage;
-            double resident_set;
-            gc::process_mem_usage(vm_usage, resident_set);
-
-            std::cout << "[modeling] created coloring constraint #nodes = "
-                      << original.size() << ", #vars = " << s.nVars()
-                      << ", memory = " << (long)resident_set << " \n";
 
             // g.tell_class();
             // cons->g.tell_class();
@@ -767,9 +833,6 @@ struct gc_model {
                 s.learning = false;
 
             if (cons) {
-
-                // std::cout << "HERE: " << lb << " / " << cons->bestlb
-                //           << std::endl;
 
                 cons->bestlb = std::max(lb, cons->bestlb);
                 cons->ub = std::min(ub, cons->ub);
@@ -959,7 +1022,7 @@ struct gc_model {
 								
                 statistics.notify_ub(actualub);
                 statistics.display(std::cout);
-                cons->ub = ISub;
+                cons->ub = ub = ISub;
                 if (options.equalities) {
                     auto m{mineq(g.capacity(), cons->ub - 1)};
                     // mineq_constraint->set_lb(m);
@@ -1037,9 +1100,35 @@ struct gc_model {
                     G.degre[v]++;
                 }
 
-        dsat_.DSATUR_algo(G, 10000, 2, 2, G.nb_sommets);
+        std::cout << "[trace] use external dsatur on [" << lb << ".." << ub
+                  << "[\n";
+
+        // std::vector<int> tmp_solution(G.nb_sommets);
+        dsat_.DSATUR_algo(G, 10000, 2, lb, ub);
+
+        if (ub > dsat_.UB) {
+            search_sol = true;
+            assert(original.size() == dsat_.init_n);
+            assert(G.nb_sommets == dsat_.init_n);
+            for (int v = 0; v < original.size(); ++v) {
+                solution[original.nodes[v]] = dsat_.meilleure_coloration[v];
+            }
+
+            auto maxcol{*std::max_element(dsat_.meilleure_coloration,
+                dsat_.meilleure_coloration + G.nb_sommets)};
+
+            assert(maxcol == dsat_.UB - 1);
+            for (auto a : original.nodes) {
+                for (auto b : original.matrix[a]) {
+                    assert(solution[a] != solution[b]);
+                }
+            }
+        }
+
         lb = dsat_.LB;
         ub = dsat_.UB;
+
+        std::cout << "[trace] update bounds [" << lb << ".." << ub << "]\n";
     }
 
     void finalize_solution(std::vector<pair<int, int>>& edges)
@@ -1062,6 +1151,7 @@ struct gc_model {
                     std::cout << "WRONG SOLUTION: " << e.first << " and "
                               << e.second << " <- " << solution[e.first]
                               << "\n";
+                    break;
                 }
             }
         }
@@ -1197,7 +1287,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
     // histogram(g);
 
     gc::statistics statistics(g.capacity());
-    if (options.preprocessing)
+    if (options.preprocessing != gc::options::NO_PREPROCESSING)
         statistics.update_ub = false;
 
     statistics.describe(std::cout);
@@ -1318,6 +1408,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
                 if (u < v)
                     tmp_edges.push_back(std::pair<int, int>{u, v});
 
+        int limit = 5;
         while (init_model.lb < init_model.ub) {
 
             std::cout << "[search] solve a tmp model with bounds ["
@@ -1348,15 +1439,18 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
             assert(tmp_model.solution.size() == tmp_model.original.capacity());
 
+            auto incumbent{init_model.ub};
             if (tmp_model.degeneracy_sol or tmp_model.dsatur_sol
                 or tmp_model.search_sol) {
-                init_model.ub = tmp_model.reduction.extend_solution(
+                incumbent = tmp_model.reduction.extend_solution(
                     tmp_model.solution, true);
                 // copy the tmp model solution into the init model
                 for (int v = 0; v < tmp_model.original.capacity(); ++v)
                     init_model.solution[init_model.original.nodes[v]]
                         = tmp_model.solution[v];
             }
+            assert(incumbent < init_model.ub);
+            init_model.ub = incumbent;
 
             std::cout << init_model.ub << "]\n";
 
@@ -1371,6 +1465,9 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
             statistics.unbinds();
             vmap.clear();
+
+            if (--limit == 0)
+                break;
         }
 
         init_model.finalize_solution(edges);

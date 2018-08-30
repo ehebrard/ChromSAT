@@ -72,19 +72,23 @@ int main(int argc,char**argv){
 	dsat_.G = G;
 	temps_algo = atoi(argv[3]);
 
-	if(argc == 4){
-		dsat_.DSATUR_algo(G,temps_algo,atoi(argv[2]),2,G.nb_sommets);
-	}	
-	if(argc == 5){
-		dsat_.DSATUR_algo(G,temps_algo,atoi(argv[2]),atoi(argv[4]),G.nb_sommets);
-	}
-	if(argc == 6){
-		dsat_.DSATUR_algo(G,temps_algo,atoi(argv[2]),atoi(argv[4]),atoi(argv[5]));
-	}
-	cout<<"Instance : "<<pname<<"\n";
-	cout<<"UB : "<<dsat_.UB<<"\n";
-	cout<<"time : "<<dsat_.time_spent<<"\n";
-	cout<<"nodes : "<<dsat_.nombre_noeuds<<"\n";
+        std::vector<int> solution(G.nb_sommets);
+
+        if (argc == 4) {
+            dsat_.DSATUR_algo(G, temps_algo, atoi(argv[2]), 2, G.nb_sommets);
+        }
+        if (argc == 5) {
+            dsat_.DSATUR_algo(
+                G, temps_algo, atoi(argv[2]), atoi(argv[4]), G.nb_sommets);
+        }
+        if (argc == 6) {
+            dsat_.DSATUR_algo(
+                G, temps_algo, atoi(argv[2]), atoi(argv[4]), atoi(argv[5]));
+        }
+        cout << "Instance : " << pname << "\n";
+        cout << "UB : " << dsat_.UB << "\n";
+        cout << "time : " << dsat_.time_spent << "\n";
+        cout << "nodes : " << dsat_.nombre_noeuds << "\n";
 
 CLEANUP :
 	free(pname);

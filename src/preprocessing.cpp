@@ -624,41 +624,38 @@ int main(int argc, char* argv[])
 {
     auto options = gc::parse(argc, argv);
     options.describe(std::cout);
-		
-		
-		if(options.preprocessing == gc::options::SPARSE) {
-				gc::graph<gc::vertices_vec> g;
-								
-				read_graph(options, g);
-				
-				gc::statistics stat(g.size());
-				std::pair<int,int> bounds{0,g.size()};
-				
-				gc_preprocessor<gc::vertices_vec> pp(g, options, stat, bounds, 100);
 
-		} else if(options.preprocessing == gc::options::LOW_DEGREE) {
-				gc::graph<gc::bitset> g;	
-				
-				read_graph(options, g);
-				
-				
-				gc::statistics stat(g.size());
-				std::pair<int,int> bounds{0,g.size()};
-				
-				gc_preprocessor<gc::bitset> pp(g, options, stat, bounds, 100);
+    if (options.preprocessing == gc::options::NO_PREPROCESSING) {
+        gc::graph<gc::vertices_vec> g;
 
-		} else {
-				std::cout << "\nsparse graph\n";
-				gc::dyngraph g;
-				test_preprocess(options, g);
-				
-				std::cout << "\nbitset graph\n";
-				gc::graph<gc::bitset> h;	
-				test_preprocess(options, h);
-				
-				std::cout << "\nvector graph\n";
-				gc::graph<gc::vertices_vec> i;
-				test_preprocess(options, i);
-		}
-		
+        read_graph(options, g);
+
+        gc::statistics stat(g.size());
+        std::pair<int, int> bounds{0, g.size()};
+
+        gc_preprocessor<gc::vertices_vec> pp(g, options, stat, bounds, 100);
+
+    } else if (options.preprocessing == gc::options::LOW_DEGREE) {
+        gc::graph<gc::bitset> g;
+
+        read_graph(options, g);
+
+        gc::statistics stat(g.size());
+        std::pair<int, int> bounds{0, g.size()};
+
+        gc_preprocessor<gc::bitset> pp(g, options, stat, bounds, 100);
+
+    } else {
+        std::cout << "\nsparse graph\n";
+        gc::dyngraph g;
+        test_preprocess(options, g);
+
+        std::cout << "\nbitset graph\n";
+        gc::graph<gc::bitset> h;
+        test_preprocess(options, h);
+
+        std::cout << "\nvector graph\n";
+        gc::graph<gc::vertices_vec> i;
+        test_preprocess(options, i);
+    }
 }

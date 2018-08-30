@@ -124,6 +124,8 @@ public:
 
     void remove(const adjacency_struct& nodes);
 
+    void remove(const int v);
+
     void clear();
 
     void canonize();
@@ -519,6 +521,8 @@ template <class adjacency_struct> struct minimal_triangulator {
 
 /** IMPLEMENTATION **/
 
+// template<class graph_struct>
+
 template <class adjacency_struct>
 long basic_graph<adjacency_struct>::count_edges() const
 {
@@ -575,17 +579,9 @@ void basic_graph<adjacency_struct>::add_clique(const adjacency_struct& C)
 
 template <class adjacency_struct>
 void basic_graph<adjacency_struct>::remove(const adjacency_struct& toremove) {
-
-    // std::cout << "rm from nodes (" << nodes.size() << ") ";
-    // std::cout.flush();
-
     for (auto v : toremove) {
         remove_node(v);
     }
-
-    // std::cout << minicsp::cpuTime() << "\n";
-    // std::cout << "rm from neighborhoods (" << nodes.size() << ") ";
-    // std::cout.flush();
 
     if (nodeset.size() < toremove.size())
         for (auto v : nodes)
@@ -593,10 +589,15 @@ void basic_graph<adjacency_struct>::remove(const adjacency_struct& toremove) {
     else
         for (auto v : nodes)
             matrix[v].setminus_with(toremove);
+}
 
-    // std::cout << minicsp::cpuTime() << "\n";
+template <class adjacency_struct>
+void basic_graph<adjacency_struct>::remove(const int v)
+{
+    remove_node(v);
 
-    // check_consistency();
+    for (auto u : matrix[v])
+        matrix[u].remove(v);
 }
 
 template <class adjacency_struct>
