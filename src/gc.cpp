@@ -8,6 +8,7 @@
 #include "mycielski.hpp"
 #include "options.hpp"
 #include "prop.hpp"
+#include "reduction.hpp"
 #include "rewriter.hpp"
 #include "snap.hpp"
 #include "sparse_dynamic_graph.hpp"
@@ -21,13 +22,6 @@
 
 #include "./sota/Segundo/DSATUR/dsatur_algo.h"
 #include "./sota/Segundo/DSATUR/graphe.h"
-
-enum class vertex_status : uint8_t {
-    in_graph,
-    low_degree_removed,
-    indset_removed,
-    dominated_removed,
-};
 
 template <class graph_struct> void print(graph_struct& g)
 {
@@ -79,114 +73,72 @@ template <class adjacency_struct> void histogram(gc::graph<adjacency_struct>& g)
               << "%" << std::endl;
 }
 
-template< class adjacency_struct >
-struct graph_reduction {
-    const gc::graph<adjacency_struct>& g;
-    const gc::statistics& statistics;
-    std::vector<int> removed_vertices;
-    std::vector<int> dominator;
-    std::vector<gc::indset_constraint> constraints;
-    std::vector<vertex_status> status;
-    gc::bitset nodeset;
-    gc::bitset util_set;
-
-    explicit graph_reduction(
-        const gc::graph<adjacency_struct>& g, const gc::statistics& statistics)
-        : g(g)
-        , statistics(statistics)
-        , status(g.capacity(), vertex_status::in_graph)
-        , nodeset(0, g.capacity(), gc::bitset::empt)
-        , util_set(0, g.capacity(), gc::bitset::empt)
-    {
-    }
-
-    //     int extend_solution(std::vector<int>& col)
-    //     {
-    //
-    // }
-
-    // int extend_solution(std::vector<int>& col, int& is_ub)
-    // {
-    //     int maxc{0};
-    //     nodeset.copy(g.nodeset);
-    //     for (auto v : g.nodes)
-    //         maxc = std::max(maxc, col[v]);
-    //     for (auto i = removed_vertices.rbegin(), iend =
-    //     removed_vertices.rend();
-    //          i != iend; ++i) {
-    //         auto v = *i;
-    //
-    //         if (status[v] == vertex_status::low_degree_removed)
-    //             is_ub = maxc;
-    //
-    //         assert(status[v] != vertex_status::in_graph);
-    //         util_set.clear();
-    //         for (auto u : g.matrix[v]) {
-    //             if (!nodeset.fast_contain(u))
-    //                 continue;
-    //             util_set.fast_add(col[u]);
-    //         }
-    //         for (int q = 0; q != g.capacity(); ++q) {
-    //             if (util_set.fast_contain(q))
-    //                 continue;
-    //             // assert(q <= statistics.best_ub);
-    //             maxc = std::max(maxc, q);
-    //             col[v] = q;
-    //             break;
-    //         }
-    //         nodeset.fast_add(v);
-    //     }
-    //     return maxc + 1;
-    // }
-
-    int extend_solution(std::vector<int>& col, const bool full = false)
-    {
-        int maxc{0};
-        nodeset.copy(g.nodeset);
-        for (auto v : g.nodes)
-            maxc = std::max(maxc, col[v]);
-
-        auto d{dominator.rbegin()};
-        for (auto i = removed_vertices.rbegin(), iend = removed_vertices.rend();
-             i != iend; ++i) {
-            auto v = *i;
-
-            //
-            //
-            // std::cout << v << " " << (dominator.size()>0 ? *d : -1) << " " <<
-            // (int)(status[v]) << std::endl;
-
-            if (!full and status[v] != vertex_status::indset_removed)
-                break;
-
-            if (status[v] == vertex_status::dominated_removed) {
-                assert(nodeset.fast_contain(*d));
-                col[v] = col[*d];
-                ++d;
-            }
-
-            assert(status[v] != vertex_status::in_graph);
-            util_set.clear();
-            for (auto u : g.matrix[v]) {
-                if (!nodeset.fast_contain(u))
-                    continue;
-                util_set.fast_add(col[u]);
-            }
-
-            for (int q = 0; q != g.capacity(); ++q) {
-                if (util_set.fast_contain(q))
-                    continue;
-                // assert(q <= statistics.best_ub);
-                maxc = std::max(maxc, q);
-                col[v] = q;
-                break;
-            }
-            nodeset.fast_add(v);
-        }
-
-        return maxc + 1;
-    }
-};
+// template< class adjacency_struct >
+// struct graph_reduction {
+//     const gc::graph<adjacency_struct>& g;
+//     const gc::statistics& statistics;
+//     std::vector<int> removed_vertices;
+//     std::vector<int> dominator;
+//     std::vector<gc::indset_constraint> constraints;
+//     std::vector<vertex_status> status;
+//     gc::bitset nodeset;
+//     gc::bitset util_set;
+//
+//     explicit graph_reduction(
+//         const gc::graph<adjacency_struct>& g, const gc::statistics&
+//         statistics)
+//         : g(g)
+//         , statistics(statistics)
+//         , status(g.capacity(), gc::vertex_status::in_graph)
+//         , nodeset(0, g.capacity(), gc::bitset::empt)
+//         , util_set(0, g.capacity(), gc::bitset::empt)
+//     {
+//     }
+//
+//     int extend_solution(std::vector<int>& col, const bool full = false)
+//     {
+//         int maxc{0};
+//         nodeset.copy(g.nodeset);
+//         for (auto v : g.nodes)
+//             maxc = std::max(maxc, col[v]);
+//
+//         auto d{dominator.rbegin()};
+//         for (auto i = removed_vertices.rbegin(), iend =
+//         removed_vertices.rend();
+//              i != iend; ++i) {
+//             auto v = *i;
+//
+//             if (!full and status[v] != gc::vertex_status::indset_removed)
+//                 break;
+//
+//             if (status[v] == gc::vertex_status::dominated_removed) {
+//                 assert(nodeset.fast_contain(*d));
+//                 col[v] = col[*d];
+//                 ++d;
+//             }
+//
+//             assert(status[v] != gc::vertex_status::in_graph);
+//             util_set.clear();
+//             for (auto u : g.matrix[v]) {
+//                 if (!nodeset.fast_contain(u))
+//                     continue;
+//                 util_set.fast_add(col[u]);
+//             }
+//
+//             for (int q = 0; q != g.capacity(); ++q) {
+//                 if (util_set.fast_contain(q))
+//                     continue;
+//                 // assert(q <= statistics.best_ub);
+//                 maxc = std::max(maxc, q);
+//                 col[v] = q;
+//                 break;
+//             }
+//             nodeset.fast_add(v);
+//         }
+//
+//         return maxc + 1;
+//     }
+// };
 
 template< class adjacency_struct >
 struct gc_model {
@@ -208,7 +160,7 @@ struct gc_model {
     std::vector<int> vertex_map;
 
     gc::graph<adjacency_struct>& original;
-    graph_reduction<adjacency_struct> reduction;
+    gc::graph_reduction<adjacency_struct> reduction;
     gc::dense_graph g;
 
     // gc::dyngraph dg;
@@ -356,7 +308,7 @@ struct gc_model {
     }
 
     void degeneracy_peeling(gc::graph<adjacency_struct>& g,
-        graph_reduction<adjacency_struct>& gr, const int k_core_threshold)
+        gc::graph_reduction<adjacency_struct>& gr, const int k_core_threshold)
     {
         // graph_reduction<adjacency_struct> gr(g, statistics);
         // if (options.preprocessing == gc::options::NO_PREPROCESSING)
@@ -403,7 +355,7 @@ struct gc_model {
                     degeneracy = df.degrees[v];
                 }
                 reverse.push_back(v);
-                // gr.status[v] = vertex_status::low_degree_removed;
+                // gr.status[v] = gc::vertex_status::low_degree_removed;
             }
 
             if (ub > degeneracy + 1) {
@@ -414,11 +366,11 @@ struct gc_model {
                 if (!degeneracy_sol) {
                     for (auto v : df.order) {
                         gr.removed_vertices.push_back(v);
-                        gr.status[v] = vertex_status::low_degree_removed;
+                        gr.status[v] = gc::vertex_status::low_degree_removed;
                     }
                     gr.extend_solution(solution, true);
                     gr.removed_vertices.clear();
-                    gr.status.resize(g.capacity(), vertex_status::in_graph);
+                    gr.status.resize(g.capacity(), gc::vertex_status::in_graph);
                     degeneracy_sol = true;
                 }
             }
@@ -468,7 +420,7 @@ struct gc_model {
 
                 g.remove(toremove);
                 for (auto u : toremove) {
-                    gr.status[u] = vertex_status::low_degree_removed;
+                    gr.status[u] = gc::vertex_status::low_degree_removed;
                 }
 
                 toremove.clear();
@@ -493,8 +445,8 @@ struct gc_model {
         // return gr;
     }
 
-    void neighborhood_dominance(
-        gc::graph<adjacency_struct>& g, graph_reduction<adjacency_struct>& gr)
+    void neighborhood_dominance(gc::graph<adjacency_struct>& g,
+        gc::graph_reduction<adjacency_struct>& gr)
     {
 
         std::vector<int> nodes;
@@ -527,7 +479,7 @@ struct gc_model {
                         g.remove(v);
                         gr.removed_vertices.push_back(v);
                         gr.dominator.push_back(u);
-                        gr.status[v] = vertex_status::dominated_removed;
+                        gr.status[v] = gc::vertex_status::dominated_removed;
                     }
                 }
 
@@ -536,93 +488,95 @@ struct gc_model {
                       << " dominated nodes\n";
     }
 
-    graph_reduction<adjacency_struct> core_reduction(
-        gc::graph<adjacency_struct>& g, std::pair<int, int> bounds,
-        bool myciel = false)
-    {
-        graph_reduction<adjacency_struct> gr(g, statistics);
-        if (options.preprocessing == gc::options::NO_PREPROCESSING)
-            return gr;
-
-        // std::cout << "CORE REDUCTION: " << g.size() << "(" << (int*)(&g) << ")"
-        //           << std::endl;
-
-        lb = bounds.first;
-        ub = bounds.second;
-        int hlb{0};
-        gc::clique_finder<adjacency_struct> cf(g);
-        gc::mycielskan_subgraph_finder<adjacency_struct> mf(g, cf, false);
-        gc::degeneracy_finder<gc::graph<adjacency_struct>> df{g};
-
-        gc::bitset forbidden(0, g.capacity(), gc::bitset::empt);
-        gc::bitset util_set(0, g.capacity(), gc::bitset::empt);
-        adjacency_struct removedv(0, g.capacity(), gc::bitset::empt);
-        std::vector<int> toremove;
-        bool removed{false};
-        int niteration{0};
-        do {
-            ++niteration;
-            removed = false;
-            auto sol{gc::brelaz_color(g)};
-            for (auto u : g.nodes)
-                for (auto v : g.matrix[u])
-                    assert(sol[u] != sol[v]);
-            int hub{*max_element(begin(sol), end(sol)) + 1};
-
-            // df.degeneracy_ordering();
-            //             int hub{*max_element(
-            //                 begin(df.degrees), end(df.degrees))};
-            if (ub < 0 || (hub < ub && hub >= lb)) {
-                ub = hub;
-                statistics.notify_ub(ub);
-            }
-
-            hlb = cf.find_cliques(g.nodes);
-            if (myciel)
-                hlb = mf.improve_cliques_larger_than(lb);
-
-            if (hlb > lb) {
-                lb = hlb;
-                statistics.notify_lb(lb);
-            }
-            statistics.display(std::cout);
-
-            forbidden.clear();
-            toremove.clear();
-            for (auto u : g.nodes) {
-                if (forbidden.fast_contain(u))
-                    continue;
-                util_set.copy(g.matrix[u]);
-                util_set.intersect_with(g.nodeset);
-                if (util_set.size() >= static_cast<size_t>(lb))
-                    continue;
-                removed = true;
-                removedv.fast_add(u);
-                // ++statistics.num_vertex_removals;
-                toremove.push_back(u);
-                gr.removed_vertices.push_back(u);
-                gr.status[u] = vertex_status::low_degree_removed;
-                forbidden.union_with(g.matrix[u]);
-            }
-            for (auto u : toremove) {
-                g.nodes.remove(u);
-                g.nodeset.remove(u);
-            }
-        } while (removed);
-        if (removedv.size() > 0) {
-            for (auto v : g.nodes) {
-                g.matrix[v].setminus_with(removedv);
-                g.origmatrix[v].setminus_with(removedv);
-            }
-            statistics.notify_removals(g.size());
-            statistics.display(std::cout);
-        }
-
-        return gr;
-    }
+    // gc::graph_reduction<adjacency_struct> core_reduction(
+    //     gc::graph<adjacency_struct>& g, std::pair<int, int> bounds,
+    //     bool myciel = false)
+    // {
+    //     graph_reduction<adjacency_struct> gr(g, statistics);
+    //     if (options.preprocessing == gc::options::NO_PREPROCESSING)
+    //         return gr;
+    //
+    //     // std::cout << "CORE REDUCTION: " << g.size() << "(" << (int*)(&g)
+    //     << ")"
+    //     //           << std::endl;
+    //
+    //     lb = bounds.first;
+    //     ub = bounds.second;
+    //     int hlb{0};
+    //     gc::clique_finder<adjacency_struct> cf(g);
+    //     gc::mycielskan_subgraph_finder<adjacency_struct> mf(g, cf, false);
+    //     gc::degeneracy_finder<gc::graph<adjacency_struct>> df{g};
+    //
+    //     gc::bitset forbidden(0, g.capacity(), gc::bitset::empt);
+    //     gc::bitset util_set(0, g.capacity(), gc::bitset::empt);
+    //     adjacency_struct removedv(0, g.capacity(), gc::bitset::empt);
+    //     std::vector<int> toremove;
+    //     bool removed{false};
+    //     int niteration{0};
+    //     do {
+    //         ++niteration;
+    //         removed = false;
+    //         auto sol{gc::brelaz_color(g)};
+    //         for (auto u : g.nodes)
+    //             for (auto v : g.matrix[u])
+    //                 assert(sol[u] != sol[v]);
+    //         int hub{*max_element(begin(sol), end(sol)) + 1};
+    //
+    //         // df.degeneracy_ordering();
+    //         //             int hub{*max_element(
+    //         //                 begin(df.degrees), end(df.degrees))};
+    //         if (ub < 0 || (hub < ub && hub >= lb)) {
+    //             ub = hub;
+    //             statistics.notify_ub(ub);
+    //         }
+    //
+    //         hlb = cf.find_cliques(g.nodes);
+    //         if (myciel)
+    //             hlb = mf.improve_cliques_larger_than(lb);
+    //
+    //         if (hlb > lb) {
+    //             lb = hlb;
+    //             statistics.notify_lb(lb);
+    //         }
+    //         statistics.display(std::cout);
+    //
+    //         forbidden.clear();
+    //         toremove.clear();
+    //         for (auto u : g.nodes) {
+    //             if (forbidden.fast_contain(u))
+    //                 continue;
+    //             util_set.copy(g.matrix[u]);
+    //             util_set.intersect_with(g.nodeset);
+    //             if (util_set.size() >= static_cast<size_t>(lb))
+    //                 continue;
+    //             removed = true;
+    //             removedv.fast_add(u);
+    //             // ++statistics.num_vertex_removals;
+    //             toremove.push_back(u);
+    //             gr.removed_vertices.push_back(u);
+    //             gr.status[u] = gc::vertex_status::low_degree_removed;
+    //             forbidden.union_with(g.matrix[u]);
+    //         }
+    //         for (auto u : toremove) {
+    //             g.nodes.remove(u);
+    //             g.nodeset.remove(u);
+    //         }
+    //     } while (removed);
+    //     if (removedv.size() > 0) {
+    //         for (auto v : g.nodes) {
+    //             g.matrix[v].setminus_with(removedv);
+    //             g.origmatrix[v].setminus_with(removedv);
+    //         }
+    //         statistics.notify_removals(g.size());
+    //         statistics.display(std::cout);
+    //     }
+    //
+    //     return gr;
+    // }
 
     // template< class adjacency_struct >
-    void find_is_constraints(gc::graph<adjacency_struct>& g, graph_reduction<adjacency_struct>& gr)
+    void find_is_constraints(gc::graph<adjacency_struct>& g,
+        gc::graph_reduction<adjacency_struct>& gr)
     {
         gc::degeneracy_vc_solver<gc::graph<adjacency_struct>> vc(g);
 				
@@ -640,7 +594,7 @@ struct gc_model {
         // std::cout << bs << std::endl;
         for (auto v : bs) {
             gr.removed_vertices.push_back(v);
-            gr.status[v] = vertex_status::indset_removed;
+            gr.status[v] = gc::vertex_status::indset_removed;
             gr.constraints.emplace_back(gc::indset_constraint{g.matrix[v], v});
             g.nodes.remove(v);
             g.nodeset.remove(v);
@@ -695,12 +649,12 @@ struct gc_model {
         } while (lb < ub);
     }
 
-    graph_reduction<adjacency_struct> preprocess(
+    gc::graph_reduction<adjacency_struct> preprocess(
         gc::graph<adjacency_struct>& g, const int k_core_threshold)
     {
         // auto gr{degeneracy_peeling(original)};
 
-        graph_reduction<adjacency_struct> gr(g, statistics);
+        gc::graph_reduction<adjacency_struct> gr(g, statistics, solution);
         if (options.preprocessing == gc::options::NO_PREPROCESSING)
             return gr;
 

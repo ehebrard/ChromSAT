@@ -30,7 +30,7 @@ segundo_lib = static_library('segundo',
 		       'sota/Segundo/DSATUR/graphe.cpp',
 		       'sota/Segundo/DSATUR/cliquer/cliquer.cpp',
 		       'sota/Segundo/DSATUR/cliquer/graph.cpp',
-		       'sota/Segundo/DSATUR/cliquer/reorder.cpp'
+		       'sota/Segundo/DSATUR/cliquer/reorder.cpp',
 		      ])
 segundo_dep = declare_dependency(link_with: segundo_lib)
 
@@ -43,8 +43,7 @@ executable('preprocessing', ['src/preprocessing.cpp',
 			     'src/interval_list.cpp'],
 	   dependencies: [minicsp_dep, basic_dep, prop_dep])
 
-executable('segundo', ['sota/Segundo/DSATUR/main.cpp'],
-	   dependencies: [segundo_dep])
+
 
 use_gecode = get_option('use_gecode')
 if use_gecode

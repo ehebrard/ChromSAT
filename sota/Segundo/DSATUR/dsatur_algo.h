@@ -14,8 +14,12 @@
 #include "cliquer/graph.h"
 #include "cliquer/cliquer.h"
 
+#include "src/reduction.hpp"
+#include "src/vertices_vec.hpp"
+
 using namespace std;
 
+// struct gc_model;
 class DSATUR_{
 public:
     /************************************************************/
@@ -51,20 +55,24 @@ public:
 		
 		bool print_progress;
 
-    /************************************************************/
-    /************************CONSTRUCTEUR************************/
-    /************************************************************/
-    // Constructeur
-    DSATUR_()
-    {
-        quit = -1;
-        time_limit = 0;
-        time_spent = 0;
-        LB = -1;
-        UB = -1;
-        solution_courante = 0;
-        nombre_noeuds = 1;
-				print_progress = true;
+                gc::graph_reduction<gc::vertices_vec>* reduction;
+                // gc_model *caller;
+
+                /************************************************************/
+                /************************CONSTRUCTEUR************************/
+                /************************************************************/
+                // Constructeur
+                DSATUR_()
+                {
+                    quit = -1;
+                    time_limit = 0;
+                    time_spent = 0;
+                    LB = -1;
+                    UB = -1;
+                    solution_courante = 0;
+                    nombre_noeuds = 1;
+                    print_progress = true;
+                    reduction = NULL;
     };
     // Destructeur
     virtual ~DSATUR_();

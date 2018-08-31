@@ -438,16 +438,22 @@ int DSATUR_::DSATUR_algo(C_Graphe& G_param, double time_param, int regle_input,
          << (double)(clock() - start) / CLOCKS_PER_SEC << "\n";
 
     // #ifdef activate_heur
-    UB = min(UB, DSATUR_h(G));
+    int pUB = DSATUR_h(G);
+    if (pUB < UB)
+        UB = pUB;
 
-		if(print_progress)
+    if (reduction != NULL) {
+        pUB = reduction->extend_solution(meilleure_coloration);
+    }
+
     std::cout << "[data] lb = " << std::setw(4) << std::left << LB
-              << "| ub = " << std::setw(4) << std::left << UB
+              << "| ub = " << std::setw(4) << std::left << pUB
               << "| time = " << std::setw(10) << std::left
               << std::setprecision(4)
               << (double)(clock() - start) / CLOCKS_PER_SEC
               << "| conflicts = " << std::setw(10) << std::left << nombre_noeuds
               << std::endl;
+
     // #endif
 
     cout << "[trace] lower bound at "
@@ -458,9 +464,8 @@ int DSATUR_::DSATUR_algo(C_Graphe& G_param, double time_param, int regle_input,
     int size_solution = 0;
     LB = clique_cliquer_init(G, 0, solution, &size_solution);
 
-		if(print_progress)
     std::cout << "[data] lb = " << std::setw(4) << std::left << LB
-              << "| ub = " << std::setw(4) << std::left << UB
+              << "| ub = " << std::setw(4) << std::left << pUB
               << "| time = " << std::setw(10) << std::left
               << std::setprecision(4)
               << (double)(clock() - start) / CLOCKS_PER_SEC
@@ -577,9 +582,13 @@ bool DSATUR_::DSATUR_algo_rec(int profondeur)
                 UB = solution_courante;
                 store_solution(solution_courante, coloration_courante);
 
-								if(print_progress)
+                // if(print_progress)
+                int pUB = UB;
+                if (reduction != NULL) {
+                    pUB = reduction->extend_solution(meilleure_coloration);
+                }
                 std::cout << "[data] lb = " << std::setw(4) << std::left << LB
-                          << "| ub = " << std::setw(4) << std::left << UB
+                          << "| ub = " << std::setw(4) << std::left << pUB
                           << "| time = " << std::setw(10) << std::left
                           << std::setprecision(4)
                           << (double)(clock() - start) / CLOCKS_PER_SEC
