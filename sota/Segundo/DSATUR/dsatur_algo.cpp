@@ -167,7 +167,7 @@ void DSATUR_::store_solution(
 
     // now the dominated vertices
     assert(domdeleted.size() == dom_map.size());
-    for (int i = 0; i < domdeleted.size(); ++i) {
+    for (int i = domdeleted.size(); --i >= 0 ;) {
 
         assert(vertex_map[domdeleted[i]] == dom_map[i]);
         assert(meilleure_coloration[dom_map[i]] >= 0);
@@ -276,6 +276,10 @@ void DSATUR_::DSATUR_preprocessing()
             lowdegdeleted.push_back(i);
         }
     }
+
+    cout << "[trace] " << domdeleted.size() << " dominated vertices "
+         << lowdegdeleted.size() << " low degree vertices\n";
+
     if (new_nb_sommets < G.nb_sommets) {
 #ifdef DEBUG_PREP
         cout << G.nb_sommets - new_nb_sommets << " sommet(s) a enlever\n";
