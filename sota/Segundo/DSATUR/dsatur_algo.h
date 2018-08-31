@@ -48,6 +48,8 @@ public:
     std::vector<int> lowdegdeleted; // list of low degree-deleted vertices
 
     std::vector<int> vmap; // maps remaining vertices to original
+		
+		bool print_progress;
 
     /************************************************************/
     /************************CONSTRUCTEUR************************/
@@ -62,6 +64,7 @@ public:
         UB = -1;
         solution_courante = 0;
         nombre_noeuds = 1;
+				print_progress = true;
     };
     // Destructeur
     virtual ~DSATUR_();

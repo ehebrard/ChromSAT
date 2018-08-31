@@ -1104,6 +1104,7 @@ struct gc_model {
                   << "[\n";
 
         // std::vector<int> tmp_solution(G.nb_sommets);
+				dsat_.print_progress = false;
         dsat_.DSATUR_algo(G, 10000, 2, lb, ub);
 
         if (ub > dsat_.UB) {

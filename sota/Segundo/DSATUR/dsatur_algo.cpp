@@ -436,6 +436,7 @@ int DSATUR_::DSATUR_algo(C_Graphe& G_param, double time_param, int regle_input,
     // #ifdef activate_heur
     UB = min(UB, DSATUR_h(G));
 
+		if(print_progress)
     std::cout << "[data] lb = " << std::setw(4) << std::left << LB
               << "| ub = " << std::setw(4) << std::left << UB
               << "| time = " << std::setw(10) << std::left
@@ -453,6 +454,7 @@ int DSATUR_::DSATUR_algo(C_Graphe& G_param, double time_param, int regle_input,
     int size_solution = 0;
     LB = clique_cliquer_init(G, 0, solution, &size_solution);
 
+		if(print_progress)
     std::cout << "[data] lb = " << std::setw(4) << std::left << LB
               << "| ub = " << std::setw(4) << std::left << UB
               << "| time = " << std::setw(10) << std::left
@@ -571,6 +573,7 @@ bool DSATUR_::DSATUR_algo_rec(int profondeur)
                 UB = solution_courante;
                 store_solution(solution_courante, coloration_courante);
 
+								if(print_progress)
                 std::cout << "[data] lb = " << std::setw(4) << std::left << LB
                           << "| ub = " << std::setw(4) << std::left << UB
                           << "| time = " << std::setw(10) << std::left
