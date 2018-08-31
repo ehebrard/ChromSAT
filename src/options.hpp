@@ -84,7 +84,9 @@ struct options {
     enum preprocessing_types { NO_PREPROCESSING, LOW_DEGREE, FULL };
     preprocessing_types preprocessing;
 
-    bool indset_constraints;
+    enum indset_type { NO_CONS, V0, V1, V2, V3 };
+    int indset_constraints;
+    // bool indset_constraints;
 
     bool fillin;
 

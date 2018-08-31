@@ -120,8 +120,12 @@ options parse(int argc, char* argv[])
         "Level of preprocessing [0=none-1=low-degree-2=low-degree (sparse)]", false, 1, "int");
     cmd.add<SwitchArg>(opt.dominance, "", "dominance",
         "enable neighborhood-based dominance", false);
-    cmd.add<SwitchArg>(opt.indset_constraints, "", "indset",
-        "reduce by independent set constraints", false);
+    // cmd.add<SwitchArg>(opt.indset_constraints, "", "indset",
+    //     "reduce by independent set constraints", false);
+    cmd.add<ValueArg<int>>(opt.indset_constraints, "", "indset",
+        "reduce by independent set constraints [0=do not use them, 1=old "
+        "version, 2=new version]",
+        false, 0, "int");
     cmd.add<SwitchArg>(opt.fillin, "", "fillin",
         "compute fill-in of graph", false);
     cmd.add<SwitchArg>(opt.indset_lb, "", "indset-lb",
@@ -164,7 +168,7 @@ void options::describe(std::ostream& os)
     os << "[options] Bound policy    = " << boundalg << "\n";
     os << "[options] Adaptive bounds = " << adaptive << "\n";
     os << "[options] Preprocessing   = " << (preprocessing == 0 ? "none" : preprocessing == 1 ?  "dense" : "sparse") << "\n";
-    os << "[options] IS constraints  = " << indset_constraints << "\n";
+    os << "[options] IS constraints  = " << (int)indset_constraints << "\n";
     os << "[options] fillin          = " << fillin << "\n";
     os << "[options] Branching strat = ";
     switch (branching) {

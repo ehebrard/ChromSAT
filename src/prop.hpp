@@ -22,14 +22,18 @@ struct indset_constraint {
 
     template <class adjacency_struct>
     indset_constraint(adjacency_struct& scope, int s)
-        : vs(0, scope.max(), bitset::empt)
+        : bvs(0, scope.max(), bitset::empt)
         , source(s)
     {
-        vs.copy(scope);
+        vvs.reserve(scope.size());
+        for (auto v : scope)
+            vvs.push_back(v);
+        bvs.copy(scope);
     }
 
     // the vertices in the local constraint
-    bitset vs;
+    bitset bvs;
+    std::vector<int> vvs;
     // where it came from (i.e., which vertex's neighborhood is
     // it). for debugging
     int source;

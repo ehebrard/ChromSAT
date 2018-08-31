@@ -168,6 +168,8 @@ public:
 
     const varmap& vars;
     std::vector<indset_constraint> isconses;
+    std::vector<std::vector<int>> isrepvec;
+    std::vector<gc::bitset> isrepbs;
 
     statistics& stat;
 
@@ -213,6 +215,8 @@ public:
         , vpartcopy(0, g.capacity() - 1, bitset::empt)
         , vars(tvars)
         , isconses(isconses)
+        , isrepvec(isconses.size())
+        , isrepbs(isconses.size())
         , stat(stat)
         , util_set(0, g.capacity() - 1, bitset::empt)
         , util_set2(0, g.capacity() - 1, bitset::empt)
@@ -221,6 +225,10 @@ public:
         , ordering_forbidden(0, g.capacity() - 1, bitset::empt)
         , ordering_removed_bs(0, g.capacity() - 1, bitset::empt)
     {
+
+        for (auto i{0}; i < isrepbs.size(); ++i)
+            isrepbs[i].initialise(0, g.capacity() - 1, gc::bitset::empt);
+
         stat.binds(this);
         ub = g.capacity();
         for (int i = 0; i != g.capacity(); ++i) {
@@ -917,66 +925,146 @@ public:
                   << " dlvl = " << s.decisionLevel() << std::endl;
 #endif
 
-        // if (opt.indset_constraints and lb >= ub - 1 and lb >= ub - 1) {
-        //     for (int i = 0; i != cf.num_cliques; ++i) {
-        //         if (cf.clique_sz[i] < ub -1)
-        //             continue;
-        //
-        //         for (const auto& c : isconses) {
-        //             util_set.clear();
-        //             for (auto v : c.vs)
-        //                 util_set.fast_add(g.rep_of[v]);
-        //             util_set.intersect_with(cf.cliques[i]);
-        //             if (static_cast<int>(util_set.size()) >= ub - 1) {
-        //                 // we need to choose the vertices of the
-        //                 // constraint as representatives of the
-        //                 // partitions participating in the clique
-        //                 expl_reps.clear();
-        //                 expl_reps.resize(g.capacity(), -1);
-        //                 for (auto v : c.vs) {
-        //                     if (!util_set.fast_contain(g.rep_of[v]))
-        //                         continue;
-        //                     expl_reps[g.rep_of[v]] = v;
-        //                 }
-        //
-        //                 reason.clear();
-        //                 explain_positive_clique(util_set, true);
-        //                 return s.addInactiveClause(reason);
-        //             }
-        //         }
-        //     }
-        // }
+        if (opt.indset_constraints != gc::options::NO_CONS and lb >= ub - 1
+            and lb >= ub - 1) {
 
-        if (opt.indset_constraints and lb >= ub - 1 and lb >= ub - 1) {
-            for (int i = 0; i != cf.num_cliques; ++i) {
-                if (cf.clique_sz[i] < ub -1)
-                    continue;
+            if (opt.indset_constraints == gc::options::V0)
+                for (int i = 0; i != cf.num_cliques; ++i) {
+                    if (cf.clique_sz[i] < ub - 1)
+                        continue;
 
-                for (const auto& c : isconses) {
-                    util_set.clear();
-                    for (auto v : c.vs)
-                        util_set.fast_add(g.rep_of[v]);
-                    util_set.intersect_with(cf.cliques[i]);
-                    if (static_cast<int>(util_set.size()) >= ub - 1) {
-                        // we need to choose the vertices of the
-                        // constraint as representatives of the
-                        // partitions participating in the clique
-                        expl_reps.clear();
-                        expl_reps.resize(g.capacity(), -1);
-                        for (auto v : c.vs) {
-                            if (!util_set.fast_contain(g.rep_of[v]))
-                                continue;
-                            expl_reps[g.rep_of[v]] = v;
+                    for (const auto& c : isconses) {
+                        util_set.clear();
+                        for (auto v : c.bvs)
+                            util_set.fast_add(g.rep_of[v]);
+                        util_set.intersect_with(cf.cliques[i]);
+                        if (static_cast<int>(util_set.size()) >= ub - 1) {
+                            // we need to choose the vertices of the
+                            // constraint as representatives of the
+                            // partitions participating in the clique
+                            expl_reps.clear();
+                            expl_reps.resize(g.capacity(), -1);
+                            for (auto v : c.bvs) {
+                                if (!util_set.fast_contain(g.rep_of[v]))
+                                    continue;
+                                expl_reps[g.rep_of[v]] = v;
+                            }
+
+                            reason.clear();
+                            explain_positive_clique(util_set, true);
+                            return s.addInactiveClause(reason);
+                        }
+                    }
+                }
+            else if (opt.indset_constraints == gc::options::V1)
+                for (int i = 0; i != cf.num_cliques; ++i) {
+                    if (cf.clique_sz[i] < ub - 1)
+                        continue;
+
+                    for (const auto& c : isconses) {
+                        util_set.clear();
+                        for (auto v : c.vvs)
+                            util_set.fast_add(g.rep_of[v]);
+                        util_set.intersect_with(cf.cliques[i]);
+                        if (static_cast<int>(util_set.size()) >= ub - 1) {
+                            // we need to choose the vertices of the
+                            // constraint as representatives of the
+                            // partitions participating in the clique
+                            expl_reps.clear();
+                            expl_reps.resize(g.capacity(), -1);
+                            for (auto v : c.vvs) {
+                                if (!util_set.fast_contain(g.rep_of[v]))
+                                    continue;
+                                expl_reps[g.rep_of[v]] = v;
+                            }
+
+                            reason.clear();
+                            explain_positive_clique(util_set, true);
+                            return s.addInactiveClause(reason);
+                        }
+                    }
+                }
+            else if (opt.indset_constraints == gc::options::V2) {
+
+                for (auto i = 0; i < isconses.size(); ++i) {
+                    isrepbs[i].clear();
+                    for (auto v : isconses[i].vvs) {
+                        isrepbs[i].fast_add(g.rep_of[v]);
+                    }
+                }
+
+                for (int i = 0; i != cf.num_cliques; ++i) {
+                    if (cf.clique_sz[i] < ub - 1)
+                        continue;
+
+                    for (int j = 0; j < isconses.size(); ++j) {
+                        const auto& c{isconses[j]};
+                        const auto& r{isrepbs[j]};
+                        util_set.copy(r);
+                        util_set.intersect_with(cf.cliques[i]);
+                        if (static_cast<int>(util_set.size()) >= ub - 1) {
+                            // we need to choose the vertices of the
+                            // constraint as representatives of the
+                            // partitions participating in the clique
+                            expl_reps.clear();
+                            expl_reps.resize(g.capacity(), -1);
+                            for (auto v : c.vvs) {
+                                if (!util_set.fast_contain(g.rep_of[v]))
+                                    continue;
+                                expl_reps[g.rep_of[v]] = v;
+                            }
+
+                            reason.clear();
+                            explain_positive_clique(util_set, true);
+                            return s.addInactiveClause(reason);
+                        }
+                    }
+                }
+            } else {
+                for (auto i = 0; i < isconses.size(); ++i) {
+                    isrepvec[i].clear();
+                    for (auto v : isconses[i].vvs) {
+                        isrepvec[i].push_back(g.rep_of[v]);
+                    }
+                    isrepvec[i].erase(
+                        std::unique(begin(isrepvec[i]), end(isrepvec[i])),
+                        end(isrepvec[i]));
+                }
+
+                for (int i = 0; i != cf.num_cliques; ++i) {
+                    if (cf.clique_sz[i] < ub - 1)
+                        continue;
+
+                    for (int j = 0; j < isconses.size(); ++j) {
+                        const auto& c{isconses[j]};
+                        const auto& r{isrepvec[j]};
+
+                        auto intersize{0};
+                        for (auto v : r) {
+                            if (cf.cliques[i].fast_contain(v))
+                                ++intersize;
                         }
 
-                        reason.clear();
-                        explain_positive_clique(util_set, true);
-                        return s.addInactiveClause(reason);
+                        if (intersize >= ub - 1) {
+                            // we need to choose the vertices of the
+                            // constraint as representatives of the
+                            // partitions participating in the clique
+                            expl_reps.clear();
+                            expl_reps.resize(g.capacity(), -1);
+                            for (auto v : c.vvs) {
+                                if (!cf.cliques[i].fast_contain(g.rep_of[v]))
+                                    continue;
+                                expl_reps[g.rep_of[v]] = v;
+                            }
+
+                            reason.clear();
+                            explain_positive_clique(util_set, true);
+                            return s.addInactiveClause(reason);
+                        }
                     }
                 }
             }
         }
-
 
         if (opt.dominance)
             return contractWhenNIncluded();
@@ -1110,6 +1198,11 @@ void remap_constraint(
         util_set.fast_add(vertex_map[v]);
     bs.copy(util_set);
 }
+void remap_constraint(std::vector<int>& bs, const std::vector<int>& vertex_map)
+{
+    for (auto vpt{begin(bs)}; vpt != end(bs); ++vpt)
+        *vpt = vertex_map[*vpt];
+}
 
 cons_base* post_gc_constraint(Solver& s, dense_graph& g,
     boost::optional<fillin_info> fillin, const varmap& vars,
@@ -1120,8 +1213,10 @@ cons_base* post_gc_constraint(Solver& s, dense_graph& g,
     if (g.size() > 0) {
         auto cons = new gc_constraint(s, g, fillin, vars, isconses, opt, stat);
         s.addConstraint(cons);
-        for (auto& c : cons->isconses)
-            remap_constraint(c.vs, cons->util_set, vertex_map);
+        for (auto& c : cons->isconses) {
+            remap_constraint(c.bvs, cons->util_set, vertex_map);
+            remap_constraint(c.vvs, vertex_map);
+        }
         return cons;
     }
     // } catch (minicsp::unsat &u) {
