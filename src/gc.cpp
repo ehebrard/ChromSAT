@@ -1442,12 +1442,11 @@ int color(gc::options& options, gc::graph<input_format>& g)
                 for (int v = 0; v < tmp_model.original.capacity(); ++v)
                     init_model.solution[init_model.original.nodes[v]]
                         = tmp_model.solution[v];
+		            assert(incumbent < init_model.ub);
+		            init_model.ub = incumbent;
             }
-            assert(incumbent < init_model.ub);
-            init_model.ub = incumbent;
 
-            std::cout << init_model.ub << "]\n";
-
+						std::cout << init_model.ub << "]\n";
             init_model.lb = tmp_model.lb;
 
             // iub may not be equal to ilb even if the solver wasn't stopped:
