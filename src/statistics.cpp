@@ -33,8 +33,11 @@ namespace gc
 
 	   // 'file' stat seems to give the most reliable results
 	   //
+		 
+		 
 	   std::ifstream stat_stream("/proc/self/stat",std::ios_base::in);
 
+		 if(stat_stream) {
 	   // dummy vars for leading entries in stat that we don't care about
 	   //
 	   std::string pid, comm, state, ppid, pgrp, session, tty_nr;
@@ -57,6 +60,7 @@ namespace gc
 	   long page_size_kb = sysconf(_SC_PAGE_SIZE) / 1024; // in case x86-64 is configured to use 2MB pages
 	   vm_usage     = vsize / 1024.0;
 	   resident_set = rss * page_size_kb;
+	 }
 	}
 
 	
@@ -99,7 +103,7 @@ double statistics::get_bound_increase() const {
 
 void statistics::describe(std::ostream& os)
 {	
-		os << "[statistics] lb ub time conflicts delta #vert memory virtual\n";
+		os << "[statistics] lb ub time conflicts delta #vert memory\n";
 }
 
 void statistics::display(std::ostream& os)
@@ -130,7 +134,6 @@ void statistics::display(std::ostream& os)
 					 << "| delta = " << std::setw(8) << std::left << std::setprecision(4) << get_bound_increase() 
 					 << "| #vert = " << std::setw(10) << std::left << num_vertices
 					 << "| memory = " << std::setw(8) << std::left << (long)resident_set 
-					 << "| virtual = " << std::setw(8) << std::left << (long)vm_usage 
 		    	 << std::endl;
 		}
 		

@@ -721,16 +721,9 @@ struct gc_model {
                 sparse_upper_bound(dg, options.sdsaturiter);
             }
 
-						//             // if (options.strategy == gc::options::TOPDOWN) {
-						//             //          degeneracy_peeling(original, gr, ub-1);
-						//
-						// std::cout << "k_core_threshold=" << k_core_threshold << " / "
-						// 	<< options.strategy << " =? "<< gc::options::CLEVER << std::endl;
-
-            if (g.size() > 0 and lb < ub and options.indset_constraints
-                and (
-									//k_core_threshold >= 0 or 
-													options.strategy != gc::options::BOUNDS))
+            if (g.size() > 0 and lb < ub
+                and options.indset_constraints
+                and options.strategy != gc::options::BOUNDS)
                 find_is_constraints(g, gr);
         }
 
