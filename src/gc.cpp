@@ -1375,10 +1375,12 @@ int color(gc::options& options, gc::graph<input_format>& g)
                 std::make_pair(init_model.lb, init_model.ub), sol,
                 (init_model.ub - 1));
 
-            if (options.dsatur) {
-                tmp_model.solve_with_dsatur();
-            } else {
-                tmp_model.solve();
+            if (tmp_model.ub > tmp_model.lb) {
+                if (options.dsatur) {
+                    tmp_model.solve_with_dsatur();
+                } else {
+                    tmp_model.solve();
+                }
             }
 
             std::cout << "[search] tmp: [" << tmp_model.lb << "..";
