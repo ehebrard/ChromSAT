@@ -265,6 +265,10 @@ public:
             s.use_clause_callback(adaptive_callback);
         }
 
+        if (opt.fillin == options::FILLIN_DECOMPOSE) {
+            post_transitivity_decomposition();
+        }
+
         // TODO
         // std::cout << "UB = " << ub << std::endl;
         // int k = ub-1;
@@ -297,6 +301,47 @@ public:
     {
         os << "coloring";
         return os;
+    }
+
+    void post_transitivity_decomposition()
+    {
+        int numclauses{0};
+        // posts a clause assuming lit_Undef is false and ~lit_Undef is true
+        auto post_safe = [&](std::vector<Lit>&& ps) {
+            erase_if(ps, [](Lit l) { return l == lit_Undef; });
+            for (Lit l : ps)
+                if (l == ~lit_Undef)
+                    return;
+            s.addClause(std::move(ps));
+            ++numclauses;
+        };
+        auto post_ternary_clauses = [&](int u, int v, int w) {
+            Lit vu = Lit(vars[v][u]);
+            Lit uw = Lit(vars[u][w]);
+            Lit vw = Lit(vars[v][w]);
+            post_safe({~Lit(vu), ~Lit(uw), Lit(vw)});
+            post_safe({~Lit(vw), ~Lit(uw), Lit(vu)});
+            post_safe({~Lit(vu), ~Lit(vw), Lit(uw)});
+        };
+        for (auto v : g.nodes) {
+            util_set.copy(fg.origmatrix[v]);
+            util_set.setminus_with(g.origmatrix[v]);
+            for (auto u : util_set) {
+                if (u < v)
+                    continue;
+                Var uv = vars[u][v];
+                for (auto w : g.nodes) {
+                    if (w < v)
+                        continue;
+                    if (fg.origmatrix[u].fast_contain(w)
+                        && fg.origmatrix[v].fast_contain(w)) {
+                        post_ternary_clauses(u, v, w);
+                    }
+                }
+            }
+        }
+        std::cout << "[modeling] Decomposed transitivity constraint with "
+                  << numclauses << " clauses\n";
     }
 
     // helper: because u merged with v and v merged with x, x
@@ -400,6 +445,14 @@ public:
         if (u == v)
             return NO_REASON;
 
+        if (opt.fillin == options::FILLIN_DECOMPOSE) {
+            g.merge(u, v);
+#ifdef UPDATE_FG
+            fg.merge(u, v);
+#endif
+            return NO_REASON;
+        }
+
         // same as in plain version of wake()
         diffuv.copy(g.matrix[u]);
         diffuv.setminus_with(g.matrix[v]);
@@ -441,6 +494,15 @@ public:
         auto u{g.rep_of[info.u]}, v{g.rep_of[info.v]};
         if (g.matrix[u].fast_contain(v))
             return NO_REASON;
+
+        if (opt.fillin == options::FILLIN_DECOMPOSE) {
+            g.separate(u, v);
+#ifdef UPDATE_FG
+            fg.separate(u, v);
+#endif
+            return NO_REASON;
+        }
+
         bfs.bfs(info.u, info.v, [&](int x, int w) -> Clause* {
             if (x == info.u || x == info.v)
                 return NO_REASON;

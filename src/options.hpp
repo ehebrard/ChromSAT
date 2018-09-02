@@ -86,7 +86,8 @@ struct options {
 
     bool indset_constraints;
 
-    bool fillin;
+    enum fillin_type { FILLIN_NONE = 0, FILLIN_PROPAGATE, FILLIN_DECOMPOSE };
+    int fillin;
 
     bool dominance;
 
