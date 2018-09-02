@@ -252,7 +252,7 @@ public:
         , expl_reps_extra(g.capacity())
     {
 
-        for (auto i{0}; i < isrep.size(); ++i)
+        for (size_t i{0}; i < isrep.size(); ++i)
             isrep[i].initialise(0, g.capacity() - 1, gc::bitset::empt);
 
         stat.binds(this);
@@ -1159,7 +1159,7 @@ public:
         if (opt.indset_constraints and lb >= ub - 1
             and lb >= ub - 1) {
 
-                for (auto i = 0; i < isconses.size(); ++i) {
+                for (size_t i = 0; i < isconses.size(); ++i) {
                     isrep[i].clear();
                     for (auto v : isconses[i].vs) {
                         isrep[i].fast_add(g.rep_of[v]);
@@ -1170,7 +1170,7 @@ public:
                     if (cf.clique_sz[i] < ub - 1)
                         continue;
 
-                    for (int j = 0; j < isconses.size(); ++j) {
+                    for (size_t j = 0; j < isconses.size(); ++j) {
                         const auto& c{isconses[j]};
                         const auto& r{isrep[j]};
                         util_set.copy(r);
