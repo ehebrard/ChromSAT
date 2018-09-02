@@ -1094,7 +1094,7 @@ public:
 
         lb = cf.find_cliques(heuristic, opt.cliquelimit);
 
-        std::cout << "PROPAGATE (" << lb << " / " << bestlb << ")\n";
+        //std::cout << "PROPAGATE (" << lb << " / " << bestlb << ")\n";
 
         if (lb < ub
             && (s.decisionLevel() == 0 || !opt.adaptive
