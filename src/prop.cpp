@@ -70,8 +70,11 @@ struct bfs_state {
     {
         typedef decltype(f(0, 0)) rettype;
         rettype rv{};
+        std::cout << "visiting w = " << w << " fg.N = " << fg.origmatrix[w] << "\n";
         util_set.copy(fg.origmatrix[w]);
+        std::cout << "allpart = " << allpart << "\n";
         util_set.intersect_with(allpart);
+        std::cout << "will visit " << util_set << "\n";
         bool inv = vpart.fast_contain(w);
         for (auto x : util_set) {
             if (col[x] == BLACK)
@@ -196,6 +199,9 @@ public:
 
     // the representative chosen for each partition during explanation
     std::vector<int> expl_reps;
+    // for fillin: if the rep is missing some edges, we need to use
+    // more than one representative per partition
+    std::vector<std::vector<int>> expl_reps_extra;
 
     std::vector<int> ordering_removed;
 
@@ -222,6 +228,7 @@ public:
         , ordering_tmp(0, g.capacity() - 1, bitset::empt)
         , ordering_forbidden(0, g.capacity() - 1, bitset::empt)
         , ordering_removed_bs(0, g.capacity() - 1, bitset::empt)
+        , expl_reps_extra(g.capacity())
     {
 
         for (auto i{0}; i < isrep.size(); ++i)
@@ -637,11 +644,15 @@ public:
         }
 
         assert(!culprit.empty());
+        if (opt.fillin)
+            std::cout << "Explaining " << print_container{culprit} << "\n";
 
         if (!chosen_reps) {
             expl_reps.clear();
             expl_reps.resize(g.capacity(), -1);
         }
+        for (auto v : culprit)
+            expl_reps_extra[v].clear();
 
         double maxactivity{-1.0};
         Var maxvar = var_Undef;
@@ -698,30 +709,164 @@ public:
                     swap(u, v);
                     swap(ubag, vbag);
                 }
+                bool found{true};
                 if (expl_reps[v] < 0 && expl_reps[u] >= 0) {
                     // find a rep for vbag only
                     auto up = expl_reps[u];
-                    bestmatch(u, v, *ubag, *vbag, up);
+                    found = found && bestmatch(u, v, *ubag, *vbag, up);
                 } else if (expl_reps[v] < 0 && expl_reps[u] < 0) {
                     // find a rep for both vbag and ubag
                     for (auto up : *ubag) {
-                        if (bestmatch(u, v, *ubag, *vbag, up))
+                        found = found && bestmatch(u, v, *ubag, *vbag, up);
+                        if (found)
                             break;
                     }
                 } else {
                     auto ur = expl_reps[u];
                     auto vr = expl_reps[v];
                     maxvar = vars[ur][vr];
+                    if (opt.fillin && maxvar == var_Undef
+                        && !g.origmatrix[ur].fast_contain(vr))
+                        found = false;
+                    else
+                        found = true;
                     assert(maxvar == var_Undef || s.value(maxvar) == l_False);
                 }
-                assert(maxvar != var_Undef
-                    || g.origmatrix[expl_reps[u]].fast_contain(expl_reps[v])
-                    || opt.fillin);
+                assert(found || opt.fillin);
+                assert(maxvar != var_Undef || opt.fillin
+                    || g.origmatrix[expl_reps[u]].fast_contain(expl_reps[v]));
                 if (maxvar != var_Undef) {
                     assert(s.value(maxvar) == l_False);
                     reason.push(Lit(maxvar));
+                } else if (opt.fillin && !found) {
+                    auto find_variable
+                        = [&](auto& vertices,
+                              auto& N) -> std::tuple<bool, int, int> {
+                        for (auto up : vertices) {
+                            util_set2.copy(N);
+                            util_set2.intersect_with(fg.origmatrix[up]);
+                            if (!util_set2.empty()) {
+                                int vp = util_set2.min();
+                                maxvar = vars[up][vp];
+                                std::cout << "Using edge " << vp << "--"
+                                          << up << "\n";
+                                std::cout << "expl_reps[" << u
+                                          << "] = " << expl_reps[u] << "\n";
+                                std::cout << "expl_reps_extra[" << u << "] = "
+                                          << print_container{expl_reps_extra[u]}
+                                          << "\n";
+                                std::cout << "expl_reps[" << v
+                                          << "] = " << expl_reps[v] << "\n";
+                                std::cout << "expl_reps_extra[" << v << "] = "
+                                          << print_container{expl_reps_extra[v]}
+                                          << "\n";
+                                // if edge is in original graph, no var
+                                if (maxvar != var_Undef) {
+                                    assert(s.value(Lit(maxvar)) == l_False);
+                                    reason.push(Lit(maxvar));
+                                }
+                                return {true, up, vp};
+                            }
+                        }
+                        return {false, var_Undef, var_Undef};
+                    };
+
+                    auto use_extra_rep = [&](int v, int v2) {
+                        std::cout << "Using extra rep " << v2 << " for " << v
+                                  << "\n";
+                        if (expl_reps[v] == -1) {
+                            expl_reps[v] = v2;
+                            return;
+                        }
+                        int v1 = expl_reps[v];
+                        // XXX: this is a linear search, which could
+                        // be expensive if we somehow have to use many
+                        // extra reps
+                        if (v1 == v2
+                            || find(expl_reps_extra[v1].begin(),
+                                   expl_reps_extra[v1].end(), v2)
+                                != expl_reps_extra[v1].end())
+                            return;
+                        // fuck, we have to explain why v2 is in the same
+                        // partition as expl_reps[v]
+                        if (fg.origmatrix[v1].fast_contain(v2)) {
+                            reason.push(~Lit(vars[v1][v2]));
+                            assert(vars[v1][v2] != var_Undef);
+                            assert(s.value(~Lit(vars[v1][v2])) == l_False);
+                            expl_reps_extra[v].push_back(v2);
+                        } else {
+                            // breadth first search
+                            found = false;
+                            std::cout << "Trying to explain that " << v1
+                                      << " and " << v2
+                                      << " are in the same partition\n";
+                            bfs.bfs(v1, v1, [&](int w1, int w2) {
+                                if (w2 == v2) {
+                                    std::cout << "Arrived!\n";
+                                    found = true;
+                                    assert(0);
+                                }
+                                return NO_REASON;
+                            });
+                            assert(found);
+                        }
+                        std::cout << "expl_reps[" << v << "] = " << expl_reps[v]
+                                  << "\n";
+                        std::cout
+                            << "expl_reps_extra[" << u
+                            << "] = " << print_container{expl_reps_extra[v]}
+                            << "\n";
+                    };
+
+                    std::cout << "explaining edge " << u << "--" << v
+                              << " the hard way\n";
+                    std::cout
+                        << "partitions[u] = " << print_container{g.partition[u]}
+                        << "\n";
+                    std::cout
+                        << "partitions[v] = " << print_container{g.partition[v]}
+                        << "\n";
+
+                    // first, try to find a variable
+                    // between the existing extra reps
+                    util_set.clear();
+                    for (auto vp : expl_reps_extra[v])
+                        util_set.fast_add(vp);
+                    std::tuple<bool, int, int> rv{false, -1, -1};
+                    if (!util_set.empty())
+                        rv = find_variable(expl_reps_extra[u], util_set);
+
+                    using std::get;
+                    if (get<0>(rv))
+                        continue;
+                    // now try to find a variable between one of the
+                    // ureps and the rest of the partition of v
+                    for (auto vp : *vbag)
+                        util_set.fast_add(vp);
+                    rv = find_variable(expl_reps_extra[u], util_set);
+                    if (get<0>(rv)) {
+                        use_extra_rep(v, get<2>(rv));
+                    } else {
+                        // worst case: try to find a variable between any
+                        // of the vertices in vbag and any of the vertices
+                        // in ubag
+                        rv = find_variable(*ubag, util_set);
+                        assert(get<0>(rv));
+                        use_extra_rep(u, get<1>(rv));
+                        use_extra_rep(v, get<2>(rv));
+                    }
                 }
+                // std::cout << "current reason " << minicsp::print(s, &reason)
+                //           << "\n";
             }
+        if (opt.fillin) {
+            std::cout << "Finished with reason " << minicsp::print(s, &reason)
+                      << "\n";
+        }
+        for (Lit l : reason) {
+            assert(var(l) != var_Undef);
+            assert(s.value(l) == l_False);
+        }
     }
 
     Clause* explain_positive()
