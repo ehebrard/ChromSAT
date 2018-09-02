@@ -960,10 +960,13 @@ public:
                         }
                     }
                 }
-            }
-
-        if (opt.dominance)
-            return contractWhenNIncluded();
+            }				
+				
+				// auto sol{gc::brelaz_color(g,true)};
+				// int ncol{*max_element(begin(sol), end(sol)) + 1};
+				// if(ncol == lb){
+				// 	std::cout << "STOP! (" << s.decisionLevel() << ")\n";
+				// }
 
         return NO_REASON;
     }

@@ -285,11 +285,11 @@ struct gc_model {
                     for (int i = 0; i < original.size(); ++i) {
                         solution[original.nodes[i]] = sol[i];
                     }
-                    dsatur_sol = true;
 
                     auto actualncol = reduction.extend_solution(solution, true);
 
                     if (ub > actualncol) {
+												dsatur_sol = true;
                         ub = actualncol;
                         statistics.notify_ub(ub);
                         statistics.display(std::cout);
@@ -630,6 +630,8 @@ struct gc_model {
                     solution[original.nodes[i]] = col.color[i];
                 }
                 dsatur_sol = true;
+								
+								std::cout << "DSATUR SOLUTION\n";
 
                 auto actualncol = reduction.extend_solution(solution, true);
                 // std::cout << " ====> " << actualncol << std::endl;
@@ -950,6 +952,7 @@ struct gc_model {
             sat = s.solveBudget();
             if (sat == l_True) {
                 search_sol = true;
+								
                 get_solution(solution);
 
                 int solub = g.nodes.size();
