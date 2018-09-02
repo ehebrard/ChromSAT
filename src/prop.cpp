@@ -142,7 +142,7 @@ struct bfs_state {
     bfs_state(Solver& s, const dense_graph& g, const dense_graph& fg)
         : s(s)
         , g(g)
-        , fg(g)
+        , fg(fg)
         , upart(0, g.capacity() - 1, bitset::empt)
         , vpart(0, g.capacity() - 1, bitset::empt)
         , allpart(0, g.capacity() - 1, bitset::empt)
