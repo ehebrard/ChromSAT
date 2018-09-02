@@ -8,6 +8,20 @@
 
 // #define NICE_TRACE
 // #define DEBUG_IS
+// #define DEBUG_CC
+#ifdef DEBUG_CC
+#define CCOUT                                                                  \
+    if (0)                                                                     \
+        ;                                                                      \
+    else                                                                       \
+        std::cout
+#else
+#define CCOUT                                                                  \
+    if (1)                                                                     \
+        ;                                                                      \
+    else                                                                       \
+        std::cout
+#endif
 
 namespace gc
 {
@@ -36,27 +50,17 @@ struct bfs_state {
     bitset util_set;
     enum vertex_color { WHITE, GREY, BLACK };
     std::vector<vertex_color> col;
-    std::vector<int> uparent, vparent;
+    std::vector<int> uparent, vparent, parent;
     int rootu, rootv;
 
-    std::list<int> Q;
+    bool single_partition;
 
-    template <typename F> auto visit(int w, F f)
-    {
-        if (w != rootu && w != rootv) {
-            assert(vparent[w] != -1);
-            assert(uparent[w] != -1);
-            assert(fg.origmatrix[w].fast_contain(vparent[w]));
-            assert(fg.origmatrix[w].fast_contain(uparent[w]));
-            assert(fg.origmatrix[vparent[w]].fast_contain(uparent[w]));
-        }
-        return f(w);
-    }
+    std::list<int> Q;
 
     template <typename F>
     auto visit_edge(int w, int x, F f) -> decltype(f(w, x))
     {
-        if (x != rootu && x != rootv) {
+        if (x != rootu && x != rootv && !single_partition) {
             assert(vparent[x] != -1);
             assert(uparent[x] != -1);
             assert(fg.origmatrix[x].fast_contain(vparent[x]));
@@ -70,22 +74,21 @@ struct bfs_state {
     {
         typedef decltype(f(0, 0)) rettype;
         rettype rv{};
-        std::cout << "visiting w = " << w << " fg.N = " << fg.origmatrix[w] << "\n";
         util_set.copy(fg.origmatrix[w]);
-        std::cout << "allpart = " << allpart << "\n";
         util_set.intersect_with(allpart);
-        std::cout << "will visit " << util_set << "\n";
         bool inv = vpart.fast_contain(w);
         for (auto x : util_set) {
             if (col[x] == BLACK)
                 continue;
-            rv = visit_edge(w, x, f);
-            if (rv)
-                return rv;
-            if (col[x] == GREY)
+            if (col[x] == GREY) {
+                rv = visit_edge(w, x, f);
+                if (rv)
+                    return rv;
                 continue;
+            }
             Q.push_back(x);
             col[x] = GREY;
+            parent[x] = w;
             if (inv) {
                 vparent[x] = w;
                 uparent[x] = uparent[w];
@@ -93,6 +96,9 @@ struct bfs_state {
                 vparent[x] = vparent[w];
                 uparent[x] = w;
             }
+            rv = visit_edge(w, x, f);
+            if (rv)
+                return rv;
         }
         col[w] = BLACK;
         return rv;
@@ -112,7 +118,7 @@ struct bfs_state {
         return rv;
     }
 
-    template <typename F> auto bfs(int u, int v, F f) -> decltype(f(0, 0))
+    template <typename F> auto bfs_inner(int u, int v, F f) -> decltype(f(0, 0))
     {
         upart.clear();
         for (auto up : g.partition[g.rep_of[u]]) {
@@ -120,6 +126,7 @@ struct bfs_state {
             upart.fast_add(up);
             uparent[up] = -1;
             vparent[up] = -1;
+            parent[up] = -1;
         }
         vpart.clear();
         for (auto vp : g.partition[g.rep_of[v]]) {
@@ -127,6 +134,7 @@ struct bfs_state {
             vpart.fast_add(vp);
             uparent[vp] = -1;
             vparent[vp] = -1;
+            parent[vp] = -1;
         }
         allpart.copy(upart);
         allpart.union_with(vpart);
@@ -137,6 +145,18 @@ struct bfs_state {
         rootu = u;
         rootv = v;
         return do_bfs(f);
+    }
+
+    template <typename F> auto bfs(int u, int v, F f) -> decltype(f(0, 0))
+    {
+        single_partition = false;
+        return bfs_inner(u, v, f);
+    }
+
+    template <typename F> auto bfs(int u, F f) -> decltype(f(0, 0))
+    {
+        single_partition = true;
+        return bfs_inner(u, u, f);
     }
 
     bfs_state(Solver& s, const dense_graph& g, const dense_graph& fg)
@@ -150,6 +170,7 @@ struct bfs_state {
         , col(g.capacity())
         , uparent(g.capacity())
         , vparent(g.capacity())
+        , parent(g.capacity())
     {
     }
 };
@@ -336,7 +357,6 @@ public:
             for (auto u : util_set) {
                 if (u < v)
                     continue;
-                Var uv = vars[u][v];
                 for (auto w : g.nodes) {
                     if (w < v)
                         continue;
@@ -644,8 +664,7 @@ public:
         }
 
         assert(!culprit.empty());
-        if (opt.fillin)
-            std::cout << "Explaining " << print_container{culprit} << "\n";
+        CCOUT << "Explaining " << print_container{culprit} << "\n";
 
         if (!chosen_reps) {
             expl_reps.clear();
@@ -748,18 +767,18 @@ public:
                             if (!util_set2.empty()) {
                                 int vp = util_set2.min();
                                 maxvar = vars[up][vp];
-                                std::cout << "Using edge " << vp << "--"
-                                          << up << "\n";
-                                std::cout << "expl_reps[" << u
-                                          << "] = " << expl_reps[u] << "\n";
-                                std::cout << "expl_reps_extra[" << u << "] = "
-                                          << print_container{expl_reps_extra[u]}
-                                          << "\n";
-                                std::cout << "expl_reps[" << v
-                                          << "] = " << expl_reps[v] << "\n";
-                                std::cout << "expl_reps_extra[" << v << "] = "
-                                          << print_container{expl_reps_extra[v]}
-                                          << "\n";
+                                CCOUT << "Using edge " << vp << "--" << up
+                                      << "\n"
+                                      << "expl_reps[" << u
+                                      << "] = " << expl_reps[u] << "\n"
+                                      << "expl_reps_extra[" << u << "] = "
+                                      << print_container{expl_reps_extra[u]}
+                                      << "\n"
+                                      << "expl_reps[" << v
+                                      << "] = " << expl_reps[v] << "\n"
+                                      << "expl_reps_extra[" << v << "] = "
+                                      << print_container{expl_reps_extra[v]}
+                                      << "\n";
                                 // if edge is in original graph, no var
                                 if (maxvar != var_Undef) {
                                     assert(s.value(Lit(maxvar)) == l_False);
@@ -772,8 +791,8 @@ public:
                     };
 
                     auto use_extra_rep = [&](int v, int v2) {
-                        std::cout << "Using extra rep " << v2 << " for " << v
-                                  << "\n";
+                        CCOUT << "Using extra rep " << v2 << " for " << v
+                              << "\n";
                         if (expl_reps[v] == -1) {
                             expl_reps[v] = v2;
                             return;
@@ -797,35 +816,45 @@ public:
                         } else {
                             // breadth first search
                             found = false;
-                            std::cout << "Trying to explain that " << v1
-                                      << " and " << v2
-                                      << " are in the same partition\n";
-                            bfs.bfs(v1, v1, [&](int w1, int w2) {
+                            CCOUT << "Trying to explain that " << v1 << " and "
+                                  << v2 << " are in the same partition\n";
+                            bfs.bfs(v1, [&](int w1, int w2) {
                                 if (w2 == v2) {
-                                    std::cout << "Arrived!\n";
+                                    CCOUT << "Arrived!\n";
                                     found = true;
-                                    assert(0);
+                                    do {
+                                        CCOUT << "using edge " << w2 << "--"
+                                              << bfs.parent[w2] << "\n";
+                                        Var var = vars[w2][bfs.parent[w2]];
+                                        assert(var != var_Undef);
+                                        assert(s.value(var) == l_True);
+                                        reason.push(~Lit(var));
+                                        CCOUT << "\tusing "
+                                              << lit_printer(s, ~Lit(var))
+                                              << "\n";
+                                        w2 = bfs.parent[w2];
+                                    } while (w2 != v1);
+                                    return true;
                                 }
-                                return NO_REASON;
+                                return false;
                             });
+                            if (!found)
+                                std::cout << std::endl;
                             assert(found);
                         }
-                        std::cout << "expl_reps[" << v << "] = " << expl_reps[v]
-                                  << "\n";
-                        std::cout
-                            << "expl_reps_extra[" << u
-                            << "] = " << print_container{expl_reps_extra[v]}
-                            << "\n";
+                        CCOUT << "expl_reps[" << v << "] = " << expl_reps[v]
+                              << "\n"
+                              << "expl_reps_extra[" << u
+                              << "] = " << print_container{expl_reps_extra[v]}
+                              << "\n";
                     };
 
-                    std::cout << "explaining edge " << u << "--" << v
-                              << " the hard way\n";
-                    std::cout
-                        << "partitions[u] = " << print_container{g.partition[u]}
-                        << "\n";
-                    std::cout
-                        << "partitions[v] = " << print_container{g.partition[v]}
-                        << "\n";
+                    CCOUT << "explaining edge " << u << "--" << v
+                          << " the hard way\n"
+                          << "partitions[u] = "
+                          << print_container{g.partition[u]} << "\n"
+                          << "partitions[v] = "
+                          << print_container{g.partition[v]} << "\n";
 
                     // first, try to find a variable
                     // between the existing extra reps
@@ -859,10 +888,7 @@ public:
                 // std::cout << "current reason " << minicsp::print(s, &reason)
                 //           << "\n";
             }
-        if (opt.fillin) {
-            std::cout << "Finished with reason " << minicsp::print(s, &reason)
-                      << "\n";
-        }
+        CCOUT << "Finished with reason " << minicsp::print(s, &reason) << "\n";
         for (Lit l : reason) {
             assert(var(l) != var_Undef);
             assert(s.value(l) == l_False);
@@ -1068,7 +1094,7 @@ public:
 
         lb = cf.find_cliques(heuristic, opt.cliquelimit);
 
-        // std::cout << "PROPAGATE (" << lb << " / " << bestlb << ")\n";
+        std::cout << "PROPAGATE (" << lb << " / " << bestlb << ")\n";
 
         if (lb < ub
             && (s.decisionLevel() == 0 || !opt.adaptive
@@ -1167,13 +1193,13 @@ public:
                         }
                     }
                 }
-            }				
-				
-				// auto sol{gc::brelaz_color(g,true)};
-				// int ncol{*max_element(begin(sol), end(sol)) + 1};
-				// if(ncol == lb){
-				// 	std::cout << "STOP! (" << s.decisionLevel() << ")\n";
-				// }
+        }
+
+        // auto sol{gc::brelaz_color(g,true)};
+        // int ncol{*max_element(begin(sol), end(sol)) + 1};
+        // if(ncol == lb){
+        //      std::cout << "STOP! (" << s.decisionLevel() << ")\n";
+        // }
 
         return NO_REASON;
     }
