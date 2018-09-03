@@ -950,34 +950,32 @@ struct gc_model {
             sat = s.solveBudget();
             if (sat == l_True) {
                 search_sol = true;
-								
+
                 get_solution(solution);
 
-								
                 int solub = g.nodes.size();
-								if (options.fillin) {
-									
-									std::cout << g.nodes << std::endl;
-									for(auto v : g.nodes) {
-										gc::bitset rneigh(0, g.capacity(), gc::bitset::empt);
-										rneigh.copy(g.nodeset);
-										rneigh.intersect_with(g.matrix[v]);
-										std::cout << v << ": " << rneigh << std::endl;
-									}
-									
-									std::cout << "\n\n";
-										
-									
-					        gc::degeneracy_finder<gc::graph<adjacency_struct>> df_leaf{g};
-									df_leaf.degeneracy_ordering();
-									int degeneracy{0};
-									for (auto v : df.order) 
-											if (df_leaf.degrees[v] > degeneracy) 
-					            				degeneracy = df_leaf.degrees[v];
-															assert (cons->bestlb == degeneracy + 1);
-									
-								}
-								
+                if (options.fillin) {
+
+                    std::cout << g.nodes << std::endl;
+                    for (auto v : g.nodes) {
+                        gc::bitset rneigh(0, g.capacity(), gc::bitset::empt);
+                        rneigh.copy(g.nodeset);
+                        rneigh.intersect_with(g.matrix[v]);
+                        std::cout << v << ": " << rneigh << std::endl;
+                    }
+
+                    std::cout << "\n\n";
+
+                    gc::degeneracy_finder<gc::graph<adjacency_struct>> df_leaf{
+                        g};
+                    df_leaf.degeneracy_ordering();
+                    int degeneracy{0};
+                    for (auto v : df.order)
+                        if (df_leaf.degrees[v] > degeneracy)
+                            degeneracy = df_leaf.degrees[v];
+                    assert(cons->bestlb == degeneracy + 1);
+                }
+
                 assert(solub < cons->ub);
                 cons->sync_graph();
 
@@ -986,12 +984,12 @@ struct gc_model {
                 assert(ISub <= ub + 1);
 
                 std::cout << "[trace] SAT: " << cons->bestlb << ".." << solub
-                          << ".." << ISub ;
+                          << ".." << ISub;
 
-								int actualub = reduction.extend_solution(solution, true);
-								
-								std::cout << ".." << actualub << std::endl;
-								
+                int actualub = reduction.extend_solution(solution, true);
+
+                std::cout << ".." << actualub << std::endl;
+
                 statistics.notify_ub(actualub);
                 statistics.display(std::cout);
                 cons->ub = ub = ISub;
