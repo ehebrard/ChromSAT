@@ -475,6 +475,15 @@ template <class graph_struct> struct degeneracy_finder {
         , iterators(g.size())
         , ordered(g.size())
     {
+			
+			std::cout << "AFTER BUILD DF\n" << g.nodes << std::endl;
+			for(auto v : g.nodes) {
+				gc::bitset rneigh(0, g.capacity(), gc::bitset::empt);
+				rneigh.copy(g.nodeset);
+				rneigh.intersect_with(g.matrix[v]);
+				std::cout << v << ": " << rneigh << std::endl;
+			}
+			
     }
 
     void degeneracy_ordering(); // Matula & Beck

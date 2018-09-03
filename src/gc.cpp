@@ -956,12 +956,24 @@ struct gc_model {
 								
                 int solub = g.nodes.size();
 								if (options.fillin) {
-					        gc::degeneracy_finder<gc::graph<adjacency_struct>> df{g};
-									df.degeneracy_ordering();
+									
+									std::cout << g.nodes << std::endl;
+									for(auto v : g.nodes) {
+										gc::bitset rneigh(0, g.capacity(), gc::bitset::empt);
+										rneigh.copy(g.nodeset);
+										rneigh.intersect_with(g.matrix[v]);
+										std::cout << v << ": " << rneigh << std::endl;
+									}
+									
+									std::cout << "\n\n";
+										
+									
+					        gc::degeneracy_finder<gc::graph<adjacency_struct>> df_leaf{g};
+									df_leaf.degeneracy_ordering();
 									int degeneracy{0};
 									for (auto v : df.order) 
-											if (df.degrees[v] > degeneracy) 
-					            				degeneracy = df.degrees[v];
+											if (df_leaf.degrees[v] > degeneracy) 
+					            				degeneracy = df_leaf.degrees[v];
 															assert (cons->bestlb == degeneracy + 1);
 									
 								}
