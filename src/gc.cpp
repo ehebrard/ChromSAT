@@ -940,6 +940,11 @@ struct gc_model {
         using minicsp::l_False;
         using minicsp::l_True;
         using minicsp::l_Undef;
+				
+				std::cout << "\nHERE\n";
+				std::cout << g.nodes.size() << std::endl;
+				gc::degeneracy_finder<gc::graph<adjacency_struct>> df_leaf(g);
+				std::cout << df_leaf.g.nodes.size() << std::endl;
 
         minicsp::lbool sat{l_True};
         while (sat != l_False && lb < ub) {
@@ -956,17 +961,27 @@ struct gc_model {
                 int solub = g.nodes.size();
                 if (options.fillin) {
 
-                    std::cout << g.nodes << std::endl;
-                    for (auto v : g.nodes) {
-                        gc::bitset rneigh(0, g.capacity(), gc::bitset::empt);
-                        rneigh.copy(g.nodeset);
-                        rneigh.intersect_with(g.matrix[v]);
-                        std::cout << v << ": " << rneigh << std::endl;
-                    }
+ 
+									
+                    // 
+										
+										std::cout << "\nTHERE\n";
+										// std::cout << (int*)(&g) << std::endl;
+                    std::cout << g.nodes.size() << std::endl;
+										std::cout << df_leaf.g.nodes.size() << std::endl;
+										
+										
+										df_leaf.clear();
+										
+                    // for (auto v : df_leaf.g.nodes) {
+                    //     gc::bitset rneigh(0, g.capacity(), gc::bitset::empt);
+                    //     rneigh.copy(df_leaf.g.nodeset);
+                    //     rneigh.intersect_with(df_leaf.g.matrix[v]);
+                    //     std::cout << v << ": " << rneigh << std::endl;
+                    // }
 
-                    std::cout << "\n\n";
-
-                    gc::degeneracy_finder<gc::graph<adjacency_struct>> df_leaf{g};
+                    // std::cout << "\n\n";
+                    
                     df_leaf.degeneracy_ordering();
                     int degeneracy{0};
                     for (auto v : df_leaf.order)

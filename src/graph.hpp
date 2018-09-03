@@ -477,12 +477,12 @@ template <class graph_struct> struct degeneracy_finder {
     {
 			
 			std::cout << "AFTER BUILD DF\n" << g.nodes << std::endl;
-			for(auto v : g.nodes) {
-				gc::bitset rneigh(0, g.capacity(), gc::bitset::empt);
-				rneigh.copy(g.nodeset);
-				rneigh.intersect_with(g.matrix[v]);
-				std::cout << v << ": " << rneigh << std::endl;
-			}
+			// for(auto v : g.nodes) {
+			// 	gc::bitset rneigh(0, g.capacity(), gc::bitset::empt);
+			// 	rneigh.copy(g.nodeset);
+			// 	rneigh.intersect_with(g.matrix[v]);
+			// 	std::cout << v << ": " << rneigh << std::endl;
+			// }
 			
     }
 
