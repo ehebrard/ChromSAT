@@ -630,8 +630,6 @@ struct gc_model {
                     solution[original.nodes[i]] = col.color[i];
                 }
                 dsatur_sol = true;
-								
-								std::cout << "DSATUR SOLUTION\n";
 
                 auto actualncol = reduction.extend_solution(solution, true);
                 // std::cout << " ====> " << actualncol << std::endl;
