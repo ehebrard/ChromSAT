@@ -81,8 +81,9 @@ struct cons_base {
         , opt(opt)
         , g(g)
         , fg(create_filled_graph(fillin))
-        , cf(g)
-        , ccf(g)
+        , cf(g, (opt.memlimit < 0 ? g.capacity()
+                                  : std::max(10, 100000 / g.capacity())))
+        , ccf(g, (opt.indset_lb ? g.capacity() : 10))
         , lastlb(s)
         , lastdlvl(s)
     {
