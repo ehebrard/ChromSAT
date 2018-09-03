@@ -956,7 +956,7 @@ struct gc_model {
                 get_solution(solution);
 
 								
-                int solub{g.nodes.size()};
+                int solub = g.nodes.size();
 								if (options.fillin) {
 					        gc::degeneracy_finder<gc::graph<adjacency_struct>> df{g};
 									df.degeneracy_ordering();
@@ -964,7 +964,7 @@ struct gc_model {
 									for (auto v : df.order) 
 											if (df.degrees[v] > degeneracy) 
 					            				degeneracy = df.degrees[v];
-															assert (cons->bestlb == degeneracy + 1) 
+															assert (cons->bestlb == degeneracy + 1);
 									
 								}
 								
