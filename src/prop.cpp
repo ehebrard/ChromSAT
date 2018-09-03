@@ -8,6 +8,20 @@
 
 // #define NICE_TRACE
 // #define DEBUG_IS
+// #define DEBUG_CC
+#ifdef DEBUG_CC
+#define CCOUT                                                                  \
+    if (0)                                                                     \
+        ;                                                                      \
+    else                                                                       \
+        std::cout
+#else
+#define CCOUT                                                                  \
+    if (1)                                                                     \
+        ;                                                                      \
+    else                                                                       \
+        std::cout
+#endif
 
 namespace gc
 {
@@ -36,27 +50,17 @@ struct bfs_state {
     bitset util_set;
     enum vertex_color { WHITE, GREY, BLACK };
     std::vector<vertex_color> col;
-    std::vector<int> uparent, vparent;
+    std::vector<int> uparent, vparent, parent;
     int rootu, rootv;
 
-    std::list<int> Q;
+    bool single_partition;
 
-    template <typename F> auto visit(int w, F f)
-    {
-        if (w != rootu && w != rootv) {
-            assert(vparent[w] != -1);
-            assert(uparent[w] != -1);
-            assert(fg.origmatrix[w].fast_contain(vparent[w]));
-            assert(fg.origmatrix[w].fast_contain(uparent[w]));
-            assert(fg.origmatrix[vparent[w]].fast_contain(uparent[w]));
-        }
-        return f(w);
-    }
+    std::list<int> Q;
 
     template <typename F>
     auto visit_edge(int w, int x, F f) -> decltype(f(w, x))
     {
-        if (x != rootu && x != rootv) {
+        if (x != rootu && x != rootv && !single_partition) {
             assert(vparent[x] != -1);
             assert(uparent[x] != -1);
             assert(fg.origmatrix[x].fast_contain(vparent[x]));
@@ -76,13 +80,15 @@ struct bfs_state {
         for (auto x : util_set) {
             if (col[x] == BLACK)
                 continue;
-            rv = visit_edge(w, x, f);
-            if (rv)
-                return rv;
-            if (col[x] == GREY)
+            if (col[x] == GREY) {
+                rv = visit_edge(w, x, f);
+                if (rv)
+                    return rv;
                 continue;
+            }
             Q.push_back(x);
             col[x] = GREY;
+            parent[x] = w;
             if (inv) {
                 vparent[x] = w;
                 uparent[x] = uparent[w];
@@ -90,6 +96,9 @@ struct bfs_state {
                 vparent[x] = vparent[w];
                 uparent[x] = w;
             }
+            rv = visit_edge(w, x, f);
+            if (rv)
+                return rv;
         }
         col[w] = BLACK;
         return rv;
@@ -109,7 +118,7 @@ struct bfs_state {
         return rv;
     }
 
-    template <typename F> auto bfs(int u, int v, F f) -> decltype(f(0, 0))
+    template <typename F> auto bfs_inner(int u, int v, F f) -> decltype(f(0, 0))
     {
         upart.clear();
         for (auto up : g.partition[g.rep_of[u]]) {
@@ -117,6 +126,7 @@ struct bfs_state {
             upart.fast_add(up);
             uparent[up] = -1;
             vparent[up] = -1;
+            parent[up] = -1;
         }
         vpart.clear();
         for (auto vp : g.partition[g.rep_of[v]]) {
@@ -124,6 +134,7 @@ struct bfs_state {
             vpart.fast_add(vp);
             uparent[vp] = -1;
             vparent[vp] = -1;
+            parent[vp] = -1;
         }
         allpart.copy(upart);
         allpart.union_with(vpart);
@@ -136,10 +147,22 @@ struct bfs_state {
         return do_bfs(f);
     }
 
+    template <typename F> auto bfs(int u, int v, F f) -> decltype(f(0, 0))
+    {
+        single_partition = false;
+        return bfs_inner(u, v, f);
+    }
+
+    template <typename F> auto bfs(int u, F f) -> decltype(f(0, 0))
+    {
+        single_partition = true;
+        return bfs_inner(u, u, f);
+    }
+
     bfs_state(Solver& s, const dense_graph& g, const dense_graph& fg)
         : s(s)
         , g(g)
-        , fg(g)
+        , fg(fg)
         , upart(0, g.capacity() - 1, bitset::empt)
         , vpart(0, g.capacity() - 1, bitset::empt)
         , allpart(0, g.capacity() - 1, bitset::empt)
@@ -147,6 +170,7 @@ struct bfs_state {
         , col(g.capacity())
         , uparent(g.capacity())
         , vparent(g.capacity())
+        , parent(g.capacity())
     {
     }
 };
@@ -196,6 +220,9 @@ public:
 
     // the representative chosen for each partition during explanation
     std::vector<int> expl_reps;
+    // for fillin: if the rep is missing some edges, we need to use
+    // more than one representative per partition
+    std::vector<std::vector<int>> expl_reps_extra;
 
     std::vector<int> ordering_removed;
 
@@ -222,9 +249,10 @@ public:
         , ordering_tmp(0, g.capacity() - 1, bitset::empt)
         , ordering_forbidden(0, g.capacity() - 1, bitset::empt)
         , ordering_removed_bs(0, g.capacity() - 1, bitset::empt)
+        , expl_reps_extra(g.capacity())
     {
 
-        for (auto i{0}; i < isrep.size(); ++i)
+        for (size_t i{0}; i < isrep.size(); ++i)
             isrep[i].initialise(0, g.capacity() - 1, gc::bitset::empt);
 
         stat.binds(this);
@@ -265,6 +293,10 @@ public:
             s.use_clause_callback(adaptive_callback);
         }
 
+        if (opt.fillin == options::FILLIN_DECOMPOSE) {
+            post_transitivity_decomposition();
+        }
+
         // TODO
         // std::cout << "UB = " << ub << std::endl;
         // int k = ub-1;
@@ -297,6 +329,46 @@ public:
     {
         os << "coloring";
         return os;
+    }
+
+    void post_transitivity_decomposition()
+    {
+        int numclauses{0};
+        // posts a clause assuming lit_Undef is false and ~lit_Undef is true
+        auto post_safe = [&](std::vector<Lit>&& ps) {
+            erase_if(ps, [](Lit l) { return l == lit_Undef; });
+            for (Lit l : ps)
+                if (l == ~lit_Undef)
+                    return;
+            s.addClause(std::move(ps));
+            ++numclauses;
+        };
+        auto post_ternary_clauses = [&](int u, int v, int w) {
+            Lit vu = Lit(vars[v][u]);
+            Lit uw = Lit(vars[u][w]);
+            Lit vw = Lit(vars[v][w]);
+            post_safe({~Lit(vu), ~Lit(uw), Lit(vw)});
+            post_safe({~Lit(vw), ~Lit(uw), Lit(vu)});
+            post_safe({~Lit(vu), ~Lit(vw), Lit(uw)});
+        };
+        for (auto v : g.nodes) {
+            util_set.copy(fg.origmatrix[v]);
+            util_set.setminus_with(g.origmatrix[v]);
+            for (auto u : util_set) {
+                if (u < v)
+                    continue;
+                for (auto w : g.nodes) {
+                    if (w < v)
+                        continue;
+                    if (fg.origmatrix[u].fast_contain(w)
+                        && fg.origmatrix[v].fast_contain(w)) {
+                        post_ternary_clauses(u, v, w);
+                    }
+                }
+            }
+        }
+        std::cout << "[modeling] Decomposed transitivity constraint with "
+                  << numclauses << " clauses\n";
     }
 
     // helper: because u merged with v and v merged with x, x
@@ -400,6 +472,14 @@ public:
         if (u == v)
             return NO_REASON;
 
+        if (opt.fillin == options::FILLIN_DECOMPOSE) {
+            g.merge(u, v);
+#ifdef UPDATE_FG
+            fg.merge(u, v);
+#endif
+            return NO_REASON;
+        }
+
         // same as in plain version of wake()
         diffuv.copy(g.matrix[u]);
         diffuv.setminus_with(g.matrix[v]);
@@ -441,6 +521,15 @@ public:
         auto u{g.rep_of[info.u]}, v{g.rep_of[info.v]};
         if (g.matrix[u].fast_contain(v))
             return NO_REASON;
+
+        if (opt.fillin == options::FILLIN_DECOMPOSE) {
+            g.separate(u, v);
+#ifdef UPDATE_FG
+            fg.separate(u, v);
+#endif
+            return NO_REASON;
+        }
+
         bfs.bfs(info.u, info.v, [&](int x, int w) -> Clause* {
             if (x == info.u || x == info.v)
                 return NO_REASON;
@@ -575,11 +664,14 @@ public:
         }
 
         assert(!culprit.empty());
+        CCOUT << "Explaining " << print_container{culprit} << "\n";
 
         if (!chosen_reps) {
             expl_reps.clear();
             expl_reps.resize(g.capacity(), -1);
         }
+        for (auto v : culprit)
+            expl_reps_extra[v].clear();
 
         double maxactivity{-1.0};
         Var maxvar = var_Undef;
@@ -636,30 +728,171 @@ public:
                     swap(u, v);
                     swap(ubag, vbag);
                 }
+                bool found{true};
                 if (expl_reps[v] < 0 && expl_reps[u] >= 0) {
                     // find a rep for vbag only
                     auto up = expl_reps[u];
-                    bestmatch(u, v, *ubag, *vbag, up);
+                    found = found && bestmatch(u, v, *ubag, *vbag, up);
                 } else if (expl_reps[v] < 0 && expl_reps[u] < 0) {
                     // find a rep for both vbag and ubag
                     for (auto up : *ubag) {
-                        if (bestmatch(u, v, *ubag, *vbag, up))
+                        found = found && bestmatch(u, v, *ubag, *vbag, up);
+                        if (found)
                             break;
                     }
                 } else {
                     auto ur = expl_reps[u];
                     auto vr = expl_reps[v];
                     maxvar = vars[ur][vr];
+                    if (opt.fillin && maxvar == var_Undef
+                        && !g.origmatrix[ur].fast_contain(vr))
+                        found = false;
+                    else
+                        found = true;
                     assert(maxvar == var_Undef || s.value(maxvar) == l_False);
                 }
-                assert(maxvar != var_Undef
-                    || g.origmatrix[expl_reps[u]].fast_contain(expl_reps[v])
-                    || opt.fillin);
+                assert(found || opt.fillin);
+                assert(maxvar != var_Undef || opt.fillin
+                    || g.origmatrix[expl_reps[u]].fast_contain(expl_reps[v]));
                 if (maxvar != var_Undef) {
                     assert(s.value(maxvar) == l_False);
                     reason.push(Lit(maxvar));
+                } else if (opt.fillin && !found) {
+                    auto find_variable
+                        = [&](auto& vertices,
+                              auto& N) -> std::tuple<bool, int, int> {
+                        for (auto up : vertices) {
+                            util_set2.copy(N);
+                            util_set2.intersect_with(fg.origmatrix[up]);
+                            if (!util_set2.empty()) {
+                                int vp = util_set2.min();
+                                maxvar = vars[up][vp];
+                                CCOUT << "Using edge " << vp << "--" << up
+                                      << "\n"
+                                      << "expl_reps[" << u
+                                      << "] = " << expl_reps[u] << "\n"
+                                      << "expl_reps_extra[" << u << "] = "
+                                      << print_container{expl_reps_extra[u]}
+                                      << "\n"
+                                      << "expl_reps[" << v
+                                      << "] = " << expl_reps[v] << "\n"
+                                      << "expl_reps_extra[" << v << "] = "
+                                      << print_container{expl_reps_extra[v]}
+                                      << "\n";
+                                // if edge is in original graph, no var
+                                if (maxvar != var_Undef) {
+                                    assert(s.value(Lit(maxvar)) == l_False);
+                                    reason.push(Lit(maxvar));
+                                }
+                                return {true, up, vp};
+                            }
+                        }
+                        return {false, var_Undef, var_Undef};
+                    };
+
+                    auto use_extra_rep = [&](int v, int v2) {
+                        CCOUT << "Using extra rep " << v2 << " for " << v
+                              << "\n";
+                        if (expl_reps[v] == -1) {
+                            expl_reps[v] = v2;
+                            return;
+                        }
+                        int v1 = expl_reps[v];
+                        // XXX: this is a linear search, which could
+                        // be expensive if we somehow have to use many
+                        // extra reps
+                        if (v1 == v2
+                            || find(expl_reps_extra[v1].begin(),
+                                   expl_reps_extra[v1].end(), v2)
+                                != expl_reps_extra[v1].end())
+                            return;
+                        // fuck, we have to explain why v2 is in the same
+                        // partition as expl_reps[v]
+                        if (fg.origmatrix[v1].fast_contain(v2)) {
+                            reason.push(~Lit(vars[v1][v2]));
+                            assert(vars[v1][v2] != var_Undef);
+                            assert(s.value(~Lit(vars[v1][v2])) == l_False);
+                            expl_reps_extra[v].push_back(v2);
+                        } else {
+                            // breadth first search
+                            found = false;
+                            CCOUT << "Trying to explain that " << v1 << " and "
+                                  << v2 << " are in the same partition\n";
+                            bfs.bfs(v1, [&](int w1, int w2) {
+                                if (w2 == v2) {
+                                    CCOUT << "Arrived!\n";
+                                    found = true;
+                                    do {
+                                        CCOUT << "using edge " << w2 << "--"
+                                              << bfs.parent[w2] << "\n";
+                                        Var var = vars[w2][bfs.parent[w2]];
+                                        assert(var != var_Undef);
+                                        assert(s.value(var) == l_True);
+                                        reason.push(~Lit(var));
+                                        CCOUT << "\tusing "
+                                              << lit_printer(s, ~Lit(var))
+                                              << "\n";
+                                        w2 = bfs.parent[w2];
+                                    } while (w2 != v1);
+                                    return true;
+                                }
+                                return false;
+                            });
+                            if (!found)
+                                std::cout << std::endl;
+                            assert(found);
+                        }
+                        CCOUT << "expl_reps[" << v << "] = " << expl_reps[v]
+                              << "\n"
+                              << "expl_reps_extra[" << u
+                              << "] = " << print_container{expl_reps_extra[v]}
+                              << "\n";
+                    };
+
+                    CCOUT << "explaining edge " << u << "--" << v
+                          << " the hard way\n"
+                          << "partitions[u] = "
+                          << print_container{g.partition[u]} << "\n"
+                          << "partitions[v] = "
+                          << print_container{g.partition[v]} << "\n";
+
+                    // first, try to find a variable
+                    // between the existing extra reps
+                    util_set.clear();
+                    for (auto vp : expl_reps_extra[v])
+                        util_set.fast_add(vp);
+                    std::tuple<bool, int, int> rv{false, -1, -1};
+                    if (!util_set.empty())
+                        rv = find_variable(expl_reps_extra[u], util_set);
+
+                    using std::get;
+                    if (get<0>(rv))
+                        continue;
+                    // now try to find a variable between one of the
+                    // ureps and the rest of the partition of v
+                    for (auto vp : *vbag)
+                        util_set.fast_add(vp);
+                    rv = find_variable(expl_reps_extra[u], util_set);
+                    if (get<0>(rv)) {
+                        use_extra_rep(v, get<2>(rv));
+                    } else {
+                        // worst case: try to find a variable between any
+                        // of the vertices in vbag and any of the vertices
+                        // in ubag
+                        rv = find_variable(*ubag, util_set);
+                        assert(get<0>(rv));
+                        use_extra_rep(u, get<1>(rv));
+                        use_extra_rep(v, get<2>(rv));
+                    }
                 }
+                // std::cout << "current reason " << minicsp::print(s, &reason)
+                //           << "\n";
             }
+        CCOUT << "Finished with reason " << minicsp::print(s, &reason) << "\n";
+        for (Lit l : reason) {
+            assert(var(l) != var_Undef);
+            assert(s.value(l) == l_False);
+        }
     }
 
     Clause* explain_positive()
@@ -861,7 +1094,7 @@ public:
 
         lb = cf.find_cliques(heuristic, opt.cliquelimit);
 
-        // std::cout << "PROPAGATE (" << lb << " / " << bestlb << ")\n";
+        //std::cout << "PROPAGATE (" << lb << " / " << bestlb << ")\n";
 
         if (lb < ub
             && (s.decisionLevel() == 0 || !opt.adaptive
@@ -926,7 +1159,7 @@ public:
         if (opt.indset_constraints and lb >= ub - 1
             and lb >= ub - 1) {
 
-                for (auto i = 0; i < isconses.size(); ++i) {
+                for (size_t i = 0; i < isconses.size(); ++i) {
                     isrep[i].clear();
                     for (auto v : isconses[i].vs) {
                         isrep[i].fast_add(g.rep_of[v]);
@@ -937,7 +1170,7 @@ public:
                     if (cf.clique_sz[i] < ub - 1)
                         continue;
 
-                    for (int j = 0; j < isconses.size(); ++j) {
+                    for (size_t j = 0; j < isconses.size(); ++j) {
                         const auto& c{isconses[j]};
                         const auto& r{isrep[j]};
                         util_set.copy(r);
@@ -960,13 +1193,13 @@ public:
                         }
                     }
                 }
-            }				
-				
-				// auto sol{gc::brelaz_color(g,true)};
-				// int ncol{*max_element(begin(sol), end(sol)) + 1};
-				// if(ncol == lb){
-				// 	std::cout << "STOP! (" << s.decisionLevel() << ")\n";
-				// }
+        }
+
+        // auto sol{gc::brelaz_color(g,true)};
+        // int ncol{*max_element(begin(sol), end(sol)) + 1};
+        // if(ncol == lb){
+        //      std::cout << "STOP! (" << s.decisionLevel() << ")\n";
+        // }
 
         return NO_REASON;
     }

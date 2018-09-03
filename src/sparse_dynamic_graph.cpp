@@ -11,30 +11,27 @@ using namespace gc;
 
 // remove d from the bag 'd'
 void coloring::remove(const int y, const int d) {
-	
-	int idy = rank[y];
-	
-	// std::cout << "remove " << y << " @ " << idy << " from bag " << d << std::endl;
-	
-	
-	// swap y with first[satur[y].size-1], and increment first[satur[y].size-1]
-	int idf = first[d];
-	int f = order[idf];
-	
-	
-	
-	// std::cout << " -> swap with " << f << " @ " << idf << std::endl;
-	
-	rank[y] = idf;
-	rank[f] = idy;
-	
-	order[idf] = y;
-	order[idy] = f; 
 
-	++first[d];
-	
-	
-	// exit(1);
+    int idy = rank[y];
+
+    // std::cout << "remove " << y << " @ " << idy << " from bag " << d <<
+    // std::endl;
+
+    // swap y with first[satur[y].size-1], and increment first[satur[y].size-1]
+    int idf = first[d];
+    int f = order[idf];
+
+    // std::cout << " -> swap with " << f << " @ " << idf << std::endl;
+
+    rank[y] = idf;
+    rank[f] = idy;
+
+    order[idf] = y;
+    order[idy] = f;
+
+    ++first[d];
+
+    // exit(1);
 }
 
 template <class ForwardIt, class Compare>
@@ -81,10 +78,10 @@ void coloring::brelaz_color(dyngraph& g, const int randomized = 0)
         std::shuffle(begin(order), end(order), s);
         // std::cout << order[0] << std::endl;
     }
-		
-		x = 0;
-		for (auto v : order) rank[v] = x++;
-		
+
+    x = 0;
+    for (auto v : order)
+        rank[v] = x++;
 
     first.clear();
     first.push_back(0); // every node has saturation degree 0
@@ -151,45 +148,46 @@ void coloring::brelaz_color(dyngraph& g, const int randomized = 0)
 
 dyngraph::dyngraph(const int n)
 {
-	  capacity = n;
+    capacity = n;
 
-	  nodes.reserve(capacity);
-		nodes.fill();
+    nodes.reserve(capacity);
+    nodes.fill();
 
-	  nodeset.initialise(0, capacity - 1, gc::bitset::full);
+    nodeset.initialise(0, capacity - 1, gc::bitset::full);
 
-	  matrix.resize(capacity); 
-	  nb_index.resize(capacity); 
+    matrix.resize(capacity);
+    nb_index.resize(capacity);
 
-	  num_edges = 0;
+    num_edges = 0;
 }
 
-dyngraph::dyngraph(const dyngraph& g) { 
-	  capacity = g.capacity;
+dyngraph::dyngraph(const dyngraph& g)
+{
+    capacity = g.capacity;
 
-	  nodeset.initialise(0, capacity - 1, gc::bitset::empt);
-		for(auto v : g.nodes) {
-			declare_node(v);
-		}
+    nodeset.initialise(0, capacity - 1, gc::bitset::empt);
+    for (auto v : g.nodes) {
+        declare_node(v);
+    }
 
-	  matrix.resize(capacity); 
-	  nb_index.resize(capacity); 
+    matrix.resize(capacity);
+    nb_index.resize(capacity);
 
-	  num_edges = g.num_edges;
-	  nodeset.copy(g.nodeset);
-	  for (unsigned i = 0; i < g.ranks.size(); ++i) {
-	      edges.push_back(g.edges[i]);
-	      ranks.push_back(g.ranks[i]);
-	  }
+    num_edges = g.num_edges;
+    nodeset.copy(g.nodeset);
+    for (unsigned i = 0; i < g.ranks.size(); ++i) {
+        edges.push_back(g.edges[i]);
+        ranks.push_back(g.ranks[i]);
+    }
 
-	  for (int x = 0; x < capacity; ++x) {
+    for (int x = 0; x < capacity; ++x) {
 
-	      for (auto it = begin(g.matrix[x]); it != end(g.matrix[x]); ++it)
-	          matrix[x].push_back(*it);
+        for (auto it = begin(g.matrix[x]); it != end(g.matrix[x]); ++it)
+            matrix[x].push_back(*it);
 
-	      for (auto it = begin(g.nb_index[x]); it != end(g.nb_index[x]); ++it)
-	          nb_index[x].push_back(*it);
-	  }
+        for (auto it = begin(g.nb_index[x]); it != end(g.nb_index[x]); ++it)
+            nb_index[x].push_back(*it);
+    }
 }
 
 int dyngraph::size() const { return nodes.size(); }
@@ -248,7 +246,7 @@ void dyngraph::clear()
     int x;
     while (!nodes.empty()) {
         x = nodes.back();
-				nodes.pop_back();
+        nodes.pop_back();
         matrix[x].clear();
         nb_index[x].clear();
     }
@@ -260,11 +258,11 @@ void dyngraph::declare_node(const int x)
     nodes.add(x);
     nodeset.add(x);
 
-		// if(x >= capacity) {
-		// 		capacity = x+1;
-		// 	  		matrix.resize(capacity);
-		// 	  		nb_index.resize(capacity);
-		// }
+    // if(x >= capacity) {
+    //              capacity = x+1;
+    //                      matrix.resize(capacity);
+    //                      nb_index.resize(capacity);
+    // }
 }
 
 void dyngraph::add_node(const int x)
@@ -272,7 +270,7 @@ void dyngraph::add_node(const int x)
 #ifdef _VERIFY_MCGRAPH
     verify("before add node");
 #endif
-		
+
     declare_node(x);
 
     int i = degree(x), y, e, pos;
@@ -302,12 +300,12 @@ void dyngraph::add_node(const int x)
 }
 
 void dyngraph::rem_node(const int x)
-{	
-		// std::cout << "remove " << x << std::endl;
+{
+    // std::cout << "remove " << x << std::endl;
 #ifdef _VERIFY_MCGRAPH
     verify("before rem node");
 #endif
-	
+
     nodes.remove(x);
     nodeset.remove(x);
     auto i = degree(x);
@@ -324,38 +322,36 @@ void dyngraph::rem_node(const int x)
         // store the position of x in y's neighborhood
         rx = ranks[ex / 2][1 - posx];
 
-				assert(edges[ex / 2][posx] == x);
-				assert(edges[ex / 2][1- posx] == y);
-				assert(matrix[y][rx] == x);
-				assert(ranks[ex / 2][posx] == i);
-				
+        assert(edges[ex / 2][posx] == x);
+        assert(edges[ex / 2][1 - posx] == y);
+        assert(matrix[y][rx] == x);
+        assert(ranks[ex / 2][posx] == i);
 
-				// if(y == 73 or y == 74)
-				// std::cout << " - from N(" << y << "): " << edges[ex / 2] << " where it is at rank " << rx << "\n";
-
+        // if(y == 73 or y == 74)
+        // std::cout << " - from N(" << y << "): " << edges[ex / 2] << " where
+        // it is at rank " << rx << "\n";
 
         // replace x by z
         z = matrix[y].back();
         matrix[y].pop_back();
-				
-				// if(y == 73 or y == 74)
-				// std::cout << "replace edge " << edges[ex / 2] << " by edge " << edges[ nb_index[y].back() / 2 ] << std::endl;
-				
-				
-				
-				if(z != x) {
-						matrix[y][rx] = z;
 
-		        // set the new position of z in y's neighborhood
-		        ey = nb_index[y].back();
-		        posy = (ey & 1);
-		        ranks[ey / 2][posy] = rx;
+        // if(y == 73 or y == 74)
+        // std::cout << "replace edge " << edges[ex / 2] << " by edge " <<
+        // edges[ nb_index[y].back() / 2 ] << std::endl;
 
-		        //
-		        nb_index[y][rx] = ey;
-				} 
-				
-				nb_index[y].pop_back();
+        if (z != x) {
+            matrix[y][rx] = z;
+
+            // set the new position of z in y's neighborhood
+            ey = nb_index[y].back();
+            posy = (ey & 1);
+            ranks[ey / 2][posy] = rx;
+
+            //
+            nb_index[y][rx] = ey;
+        }
+
+        nb_index[y].pop_back();
     }
 
 #ifdef _VERIFY_MCGRAPH
@@ -464,10 +460,10 @@ void dyngraph::maximal_matching(
     ranklist.clear();
     for (int i = 0; i < size(); i++)
         ranklist.push_back(i);
-		
-		// std::random_device rd;
-		// std::mt19937 g(rd());
-		//     std::shuffle(ranklist.begin(), ranklist.end());
+
+    // std::random_device rd;
+    // std::mt19937 g(rd());
+    //     std::shuffle(ranklist.begin(), ranklist.end());
 
     int u, v;
     matching.assign(capacity, -1);
@@ -475,7 +471,7 @@ void dyngraph::maximal_matching(
     for (auto i = 0; i < size(); i++) {
         u = nodes[ranklist[i]];
         if (matching[u] == -1) {
-            for (auto j = 0; j < matrix[u].size(); j++) {
+            for (size_t j = 0; j < matrix[u].size(); j++) {
                 v = matrix[u][j];
                 if (matching[v] == -1) {
                     matching[u] = v;
@@ -496,16 +492,16 @@ std::ostream& dyngraph::display(std::ostream& os) const
 
         os << x << ": ";
         vecdisplay(matrix[x], os);
-				os << " (" << degree(x) << ")" << std::endl;
-				
-				// os << "   [";
-				// for(auto e : nb_index[x])
-				// 		os << " " << (e/2);
-				// os << " ]\n";
+        os << " (" << degree(x) << ")" << std::endl;
+
+        // os << "   [";
+        // for(auto e : nb_index[x])
+        //              os << " " << (e/2);
+        // os << " ]\n";
     }
-		// for(auto e : edges)
-		// 		std::cout << e << std::endl;
-			
+    // for(auto e : edges)
+    //              std::cout << e << std::endl;
+
     return os;
 }
 
@@ -535,10 +531,8 @@ void dyngraph::verify(const char* msg)
         int ry = r[0];
         int rx = r[1];
 
-
-				// std::cout << "rank of " << y << " N(" << x << ") = " << ry << std::endl;
-				// for()
-				
+        // std::cout << "rank of " << y << " N(" << x << ") = " << ry <<
+        // std::endl; for()
 
         if (nodes.contain(y) && matrix[x][ry] != y) {
             std::cout << msg << " " << i << "-th edge " << e << " points to "
@@ -587,22 +581,26 @@ void dyngraph::verify(const char* msg)
             int posx = (ey & 1);
 
             if(e[posx] != x) {
-		            std::cout << msg << " " << j << "-th neighbor of " << x << " is " << y << " but " << x << " is not the " << posx << "-th node of edge " << e << std::endl;
-		            assert(0);
+                std::cout << msg << " " << j << "-th neighbor of " << x
+                          << " is " << y << " but " << x << " is not the "
+                          << posx << "-th node of edge " << e << std::endl;
+                assert(0);
             }
             if(e[1 - posx] != y) {
-		            std::cout << msg << " " << j << "-th neighbor of " << x << " is " << y << " but " << y << " is not the " << 1-posx << "-th node of edge " << e << std::endl;
-		            assert(0);
+                std::cout << msg << " " << j << "-th neighbor of " << x
+                          << " is " << y << " but " << y << " is not the "
+                          << 1 - posx << "-th node of edge " << e << std::endl;
+                assert(0);
             }
-						
 
             Edge r = ranks[ey / 2];
 
             if(static_cast<unsigned>(r[posx]) != j) {
-	            std::cout << msg << " " << x << "'s rank in N(" << x << ") is " << r[posx] << ", should be " << j << std::endl;
-							vecdisplay(nb_index[y], std::cout);
-							std::cout << std::endl;
-	            assert(0);
+                std::cout << msg << " " << x << "'s rank in N(" << x << ") is "
+                          << r[posx] << ", should be " << j << std::endl;
+                vecdisplay(nb_index[y], std::cout);
+                std::cout << std::endl;
+                assert(0);
             }
         }
     }
@@ -618,56 +616,54 @@ void dyngraph::verify(const char* msg)
 }
 
 // void dyngraph::brelaz_color(coloring& col) {
-// 		if(node.empty()) return;
+//              if(node.empty()) return;
 //
-// 		// first order the nodes by degree
-// 		col.degree.resize(node.size());
-// 		for(auto v : node) {
-// 				col.order.push_back(v);
-// 				col.degree[v] = degree(v);
-// 		}
+//              // first order the nodes by degree
+//              col.degree.resize(node.size());
+//              for(auto v : node) {
+//                              col.order.push_back(v);
+//                              col.degree[v] = degree(v);
+//              }
 //
-// 		    std::sort(col.order.begin(), col.order.end(),
-// 		        [&](const int x, const int y) { return (degree(x) > degree(y)); });
-//
-//
-// 		for(auto v : col.order) {
-// 			std::cout << v << " " << degree(v) << std::endl;
-// 		}
-//
-// 		int c;
-// 		int x = order[0]; // the next vertex to color
-// 		int num_colors = 0; // the number of colors used so far
-//
-// 		col.satur.resize(node.size());
-// 		col.first.push_back(0); // every node has saturation degree 0
-//
-// 		do {
-// 				// forbidden_col.clear();
-// 				// for(int i=neighbor[x].size(); i<col.degree[i]; ++i) {
-// 				// 		forbidden_col.add(col.color[neighbor[x][i]]);
-// 				// }
-// 				// for(c=0; c<num_colors; ++c)
-// 				// 		if(!forbidden_col.contain(c)) break;
-// 				c = col.satur[x].get();
-// 				col.color[x] = c;
-// 				for(auto y : neighbor[x])
-// 						if(col.satur[y].add(c)) {
-// 							if(col.first.size() <= col.satur[y].size)
-// 							// swap
-//
-// 						}
+//                  std::sort(col.order.begin(), col.order.end(),
+//                      [&](const int x, const int y) { return (degree(x) >
+//                      degree(y)); });
 //
 //
-// 		} while( !node.empty() );
+//              for(auto v : col.order) {
+//                      std::cout << v << " " << degree(v) << std::endl;
+//              }
+//
+//              int c;
+//              int x = order[0]; // the next vertex to color
+//              int num_colors = 0; // the number of colors used so far
+//
+//              col.satur.resize(node.size());
+//              col.first.push_back(0); // every node has saturation degree 0
+//
+//              do {
+//                              // forbidden_col.clear();
+//                              // for(int i=neighbor[x].size();
+//                              i<col.degree[i]; ++i) {
+//                              // forbidden_col.add(col.color[neighbor[x][i]]);
+//                              // }
+//                              // for(c=0; c<num_colors; ++c)
+//                              //              if(!forbidden_col.contain(c))
+//                              break; c = col.satur[x].get(); col.color[x] = c;
+//                              for(auto y : neighbor[x])
+//                                              if(col.satur[y].add(c)) {
+//                                                      if(col.first.size() <=
+//                                                      col.satur[y].size)
+//                                                      // swap
+//
+//                                              }
+//
+//
+//              } while( !node.empty() );
 //
 //
 //
 // }
-
-
-
-
 
 std::ostream& gc::operator<<(std::ostream& os, const dyngraph& x)
 {
