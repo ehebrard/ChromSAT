@@ -507,15 +507,18 @@ struct BrelazBrancher : public Brancher {
 
 
         auto maxidx{0};
-        bitset& clq{cf.cliques[0]};
-
         // explore the cliques by decreasing size until we find one with a
         // missing chord
         while (maxidx < clqorder.size()) {
 
-            clq = cf.cliques[clqorder[maxidx]];
-            clique_bs.copy(clq);
+            // clq = cf.cliques[clqorder[maxidx]];
+            clique_bs.copy(cf.cliques[clqorder[maxidx]]);
+						
+						int sz_before = clique_bs.size();
             clique_bs.intersect_with(g.nodeset);
+						assert(sz_before == clique_bs.size());
+						
+						
             bool missing_chord = false;
 
             // try to find a vertex v of the clique s.t. (Chord(v) & V) \ N(v)
@@ -540,8 +543,6 @@ struct BrelazBrancher : public Brancher {
         if (maxidx >= clqorder.size())
             return;
 
-        clique_bs.copy(clq);
-        clique_bs.intersect_with(g.nodeset);
         util_set2.clear(); // we are going to store all the potential chords in
         // util_set2
 
