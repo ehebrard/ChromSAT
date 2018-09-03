@@ -1075,6 +1075,8 @@ struct gc_model {
                         v.setmax(s, cons->ub - 2, minicsp::NO_REASON);
                 }
 
+                // cons->cf.clear();
+
             } else if (sat == l_Undef) {
                 std::cout << "[trace] *** INTERRUPTED ***\n";
                 break;

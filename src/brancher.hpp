@@ -14,7 +14,7 @@ namespace gc
 struct Brancher {
     minicsp::Solver& s;
     dense_graph& g;
-		dense_graph& fg;
+    dense_graph& fg;
     const varmap& evars;
     const std::vector<minicsp::cspvar>& xvars;
     cons_base& constraint;
@@ -22,12 +22,12 @@ struct Brancher {
 
     int64_t numdecisions{0}, numchoices{0};
 
-    Brancher(minicsp::Solver& s, dense_graph& g, dense_graph& fg, const varmap& evars,
-        const std::vector<minicsp::cspvar>& xvars, cons_base& constraint,
-        const options& opt)
+    Brancher(minicsp::Solver& s, dense_graph& g, dense_graph& fg,
+        const varmap& evars, const std::vector<minicsp::cspvar>& xvars,
+        cons_base& constraint, const options& opt)
         : s(s)
         , g(g)
-				, fg(fg)
+        , fg(fg)
         , evars(evars)
         , xvars(xvars)
         , constraint(constraint)
@@ -327,6 +327,9 @@ struct BrelazBrancher : public Brancher {
     // vertices that are ignored because they have low degree
     std::vector<int> low_degree;
 
+    int nlit{0};
+    std::vector<minicsp::Lit> level_0_choices;
+
     BrelazBrancher(minicsp::Solver& s, dense_graph& g, dense_graph& fg, const varmap& evars,
         const std::vector<minicsp::cspvar>& xvars, cons_base& constraint,
         const options& opt)
@@ -443,9 +446,9 @@ struct BrelazBrancher : public Brancher {
             util_set.copy(g.matrix[v]);
             util_set.intersect_with(clique_bs);
             int vc = util_set.size();
-						
-						assert(vc < clqsize);
-						
+
+            assert(vc < clqsize);
+
             if (vc < maxc || vc == clqsize)
                 continue;
 
@@ -455,8 +458,6 @@ struct BrelazBrancher : public Brancher {
             util_set.setminus_with(clique_bs);
             util_set.intersect_with(g.nodeset);
             int vd = util_set.size();
-
-						
 
             // max neighboring colors, tie breaking by degree
             if ((vc > maxc && vc < clqsize) || (vc == maxc && vd > maxd)) {
@@ -493,11 +494,26 @@ struct BrelazBrancher : public Brancher {
         cand.push_back(minicsp::Lit(evar));
     }
 
-
-
     void select_candidates_cvars(std::vector<minicsp::Lit>& cand)
     {
+
+        if (s.decisionLevel() <= 1 and nlit == s.nVars()) {
+					
+						// std::cout << "Use previous branching decisions\n";
+					
+            for (auto l : level_0_choices) {
+                cand.push_back(l);
+            }
+						
+						return;
+        }
+
         auto& cf = constraint.cf;
+
+        // if (s.decisionLevel() <= 1 and nlit != s.nVars()) {
+        //     std::cout << "Number of unit literal changed! (" << s.nVars()
+        //               << " vars)\n";
+        // }
 
         clqorder.clear();
         for (int i = 0; i < cf.num_cliques; ++i)
@@ -505,29 +521,40 @@ struct BrelazBrancher : public Brancher {
         std::sort(begin(clqorder), end(clqorder),
             [&](int a, int b) { return cf.clique_sz[a] > cf.clique_sz[b]; });
 
+        // std::cout << "level = " << s.decisionLevel() << ", " << g.size() << " nodes, " << g.count_edges()
+        //           << " edges, max clique = " << cf.clique_sz[clqorder[0]]
+        //           << std::endl;
 
-        auto maxidx{0};
+        size_t maxidx{0};
         // explore the cliques by decreasing size until we find one with a
         // missing chord
         while (maxidx < clqorder.size()) {
 
-            // clq = cf.cliques[clqorder[maxidx]];
             clique_bs.copy(cf.cliques[clqorder[maxidx]]);
-						
-						int sz_before = clique_bs.size();
-            clique_bs.intersect_with(g.nodeset);
-						assert(sz_before == clique_bs.size());
-						
-						
+            // int sz_before = clique_bs.size();
+            // clique_bs.intersect_with(g.nodeset);
+            // assert(sz_before == clique_bs.size());
+
+            // std::cout << "try " << clique_bs << std::endl;
+
             bool missing_chord = false;
 
-            // try to find a vertex v of the clique s.t. (Chord(v) & V) \ N(v)
+            // try to find a vertex v of the
+            // clique s.t. (Chord(v) & V) \ N(v)
             // is non-empty
             for (auto v : clique_bs) {
                 util_set.copy(fg.origmatrix[v]);
                 util_set.intersect_with(g.nodeset);
 
                 if (!g.matrix[v].includes(util_set)) {
+
+                    gc::bitset mchords(0, g.capacity() - 1, gc::bitset::empt);
+                    mchords.copy(util_set);
+                    mchords.setminus_with(g.matrix[v]);
+                    // std::cout << " -> missing "
+                    //              "chords! "
+                    //           << mchords << std::endl;
+
                     missing_chord = true; // ok we have found one
                     break;
                 }
@@ -543,6 +570,8 @@ struct BrelazBrancher : public Brancher {
         if (maxidx >= clqorder.size())
             return;
 
+        clique_bs.copy(cf.cliques[clqorder[maxidx]]);
+        // clique_bs.intersect_with(g.nodeset);
         util_set2.clear(); // we are going to store all the potential chords in
         // util_set2
 
@@ -563,7 +592,8 @@ struct BrelazBrancher : public Brancher {
             util_set.copy(g.matrix[v]);
             util_set.intersect_with(clique_bs);
             int vc = util_set.size();
-            if (vc < maxc) continue;
+            if (vc < maxc)
+                continue;
 
             // degree == neighborhood setminus clique (restricted to
             // current graph)
@@ -586,19 +616,29 @@ struct BrelazBrancher : public Brancher {
         util_set.intersect_with(fg.origmatrix[maxv]);
         util_set.setminus_with(g.matrix[maxv]);
 
-        int u = util_set.min();
-        minicsp::Var evar{minicsp::var_Undef};
-        evar = evars[u][maxv];
-        assert(evar != minicsp::var_Undef);
-        cand.push_back(minicsp::Lit(evar));
+        // int u = util_set.min();
+
+        for (auto u : util_set) {
+            minicsp::Var evar{minicsp::var_Undef};
+            evar = evars[u][maxv];
+            assert(evar != minicsp::var_Undef);
+            cand.push_back(minicsp::Lit(evar));
+        }
+
+        if (s.decisionLevel() <= 1 and nlit != s.nVars()) {
+            nlit = s.nVars();
+            level_0_choices.clear();
+            for (auto l : cand)
+                level_0_choices.push_back(l);
+        }
     }
 
     void select_candidates(std::vector<minicsp::Lit>& cand)
     {
         if (opt.xvars)
             select_candidates_xvars(cand);
-				else if (opt.fillin)
-						select_candidates_cvars(cand);
+        else if (opt.fillin)
+            select_candidates_cvars(cand);
         else
             select_candidates_evars(cand);
     }
