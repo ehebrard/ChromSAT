@@ -966,11 +966,10 @@ struct gc_model {
 
                     std::cout << "\n\n";
 
-                    gc::degeneracy_finder<gc::graph<adjacency_struct>> df_leaf{
-                        g};
+                    gc::degeneracy_finder<gc::graph<adjacency_struct>> df_leaf{g};
                     df_leaf.degeneracy_ordering();
                     int degeneracy{0};
-                    for (auto v : df.order)
+                    for (auto v : df_leaf.order)
                         if (df_leaf.degrees[v] > degeneracy)
                             degeneracy = df_leaf.degrees[v];
                     assert(cons->bestlb == degeneracy + 1);
