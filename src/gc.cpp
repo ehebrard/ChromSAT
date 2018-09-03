@@ -964,8 +964,8 @@ struct gc_model {
 									for (auto v : df.order) 
 											if (df.degrees[v] > degeneracy) 
 					            				degeneracy = df.degrees[v];
-															assert (cons->bestlb == degeneracy + 1);
-									
+									assert (cons->bestlb == degeneracy + 1);
+									solub = degeneracy + 1;
 								}
 								
                 assert(solub < cons->ub);
