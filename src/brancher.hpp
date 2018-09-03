@@ -14,7 +14,7 @@ namespace gc
 struct Brancher {
     minicsp::Solver& s;
     dense_graph& g;
-		dense_graph& fg;
+    dense_graph& fg;
     const varmap& evars;
     const std::vector<minicsp::cspvar>& xvars;
     cons_base& constraint;
@@ -22,12 +22,12 @@ struct Brancher {
 
     int64_t numdecisions{0}, numchoices{0};
 
-    Brancher(minicsp::Solver& s, dense_graph& g, dense_graph& fg, const varmap& evars,
-        const std::vector<minicsp::cspvar>& xvars, cons_base& constraint,
-        const options& opt)
+    Brancher(minicsp::Solver& s, dense_graph& g, dense_graph& fg,
+        const varmap& evars, const std::vector<minicsp::cspvar>& xvars,
+        cons_base& constraint, const options& opt)
         : s(s)
         , g(g)
-				, fg(fg)
+        , fg(fg)
         , evars(evars)
         , xvars(xvars)
         , constraint(constraint)
@@ -443,9 +443,9 @@ struct BrelazBrancher : public Brancher {
             util_set.copy(g.matrix[v]);
             util_set.intersect_with(clique_bs);
             int vc = util_set.size();
-						
-						assert(vc < clqsize);
-						
+
+            assert(vc < clqsize);
+
             if (vc < maxc || vc == clqsize)
                 continue;
 
@@ -455,8 +455,6 @@ struct BrelazBrancher : public Brancher {
             util_set.setminus_with(clique_bs);
             util_set.intersect_with(g.nodeset);
             int vd = util_set.size();
-
-						
 
             // max neighboring colors, tie breaking by degree
             if ((vc > maxc && vc < clqsize) || (vc == maxc && vd > maxd)) {
@@ -505,16 +503,13 @@ struct BrelazBrancher : public Brancher {
         std::sort(begin(clqorder), end(clqorder),
             [&](int a, int b) { return cf.clique_sz[a] > cf.clique_sz[b]; });
 
-
-        auto maxidx{0};
-        bitset& clq{cf.cliques[0]};
+        size_t maxidx{0};
 
         // explore the cliques by decreasing size until we find one with a
         // missing chord
         while (maxidx < clqorder.size()) {
 
-            clq = cf.cliques[clqorder[maxidx]];
-            clique_bs.copy(clq);
+            clique_bs.copy(cf.cliques[clqorder[maxidx]]);
             clique_bs.intersect_with(g.nodeset);
             bool missing_chord = false;
 
@@ -540,7 +535,7 @@ struct BrelazBrancher : public Brancher {
         if (maxidx >= clqorder.size())
             return;
 
-        clique_bs.copy(clq);
+        clique_bs.copy(cf.cliques[clqorder[maxidx]]);
         clique_bs.intersect_with(g.nodeset);
         util_set2.clear(); // we are going to store all the potential chords in
         // util_set2
@@ -596,8 +591,8 @@ struct BrelazBrancher : public Brancher {
     {
         if (opt.xvars)
             select_candidates_xvars(cand);
-				else if (opt.fillin)
-						select_candidates_cvars(cand);
+        else if (opt.fillin)
+            select_candidates_cvars(cand);
         else
             select_candidates_evars(cand);
     }
