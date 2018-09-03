@@ -382,8 +382,18 @@ struct gc_model {
             std::cout << "[preprocessing] compute lower bound\n";
 
             auto plb = cf.find_cliques(reverse);
+            if (lb < plb) {
+
+                if (lb_safe) {
+                    lb = plb;
+                    statistics.notify_lb(lb);
+                    statistics.display(std::cout);
+                    changes = true;
+                }
+            }
 
             if (options.boundalg != gc::options::CLIQUES) {
+                std::cout << "[preprocessing] compute mycielski lower bound\n";
                 cf.sort_cliques(plb);
                 plb = mf.improve_cliques_larger_than(plb);
             }
