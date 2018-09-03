@@ -358,6 +358,10 @@ struct gc_model {
                 // gr.status[v] = gc::vertex_status::low_degree_removed;
             }
 
+            // std::cout << "DEGENERACY = " << degeneracy << " / " << df.d <<
+            // std::endl;
+            // assert(degeneracy == df.d);
+
             if (ub > degeneracy + 1) {
                 ub = degeneracy + 1;
                 statistics.notify_ub(ub);
@@ -377,14 +381,25 @@ struct gc_model {
 
             std::cout << "[preprocessing] compute lower bound\n";
 
+						bool changes = false;
             auto plb = cf.find_cliques(reverse);
+            if (lb < plb) {
+
+                if (lb_safe) {
+                    lb = plb;
+                    statistics.notify_lb(lb);
+                    statistics.display(std::cout);
+                    changes = true;
+                }
+            }
 
             if (options.boundalg != gc::options::CLIQUES) {
+                std::cout << "[preprocessing] compute mycielski lower bound\n";
                 cf.sort_cliques(plb);
                 plb = mf.improve_cliques_larger_than(plb);
             }
 
-            bool changes = false;
+            
             if (lb < plb) {
 
                 if (lb_safe) {
@@ -444,6 +459,44 @@ struct gc_model {
 
         // return gr;
     }
+
+    // // assume that we already have a meaningful lb, peels as much as possible
+    // so
+    // // that we keep at least k nodes
+    // void aggressive_peeling(gc::graph<adjacency_struct>& g,
+    //     gc::graph_reduction<adjacency_struct>& gr, const int threshold)
+    // {
+    //     std::cout << "[preprocessing] start peeling (" << threshold << ")\n";
+    //
+    //     gc::degeneracy_finder<gc::graph<adjacency_struct>> df{g};
+    //
+    //     adjacency_struct toremove;
+    //     toremove.initialise(0, g.capacity(), gc::bitset::empt);
+    //
+    //     df.degeneracy_ordering();
+    //
+    //     for (auto v : df.order) {
+    //         if (toremove.size() + threshold >= g.size())
+    //             break;
+    //         toremove.add(v);
+    //         gr.removed_vertices.push_back(v);
+    //     }
+    //
+    //     std::cout << "[preprocessing] aggressively remove " <<
+    //     toremove.size()
+    //               << " low degree nodes (<" << threshold << ")\n";
+    //
+    //     toremove.canonize();
+    //
+    //     g.remove(toremove);
+    //     for (auto u : toremove) {
+    //         gr.status[u] = gc::vertex_status::low_degree_removed;
+    //     }
+    //
+    //     toremove.clear();
+    //     statistics.notify_removals(g.size());
+    //     statistics.display(std::cout);
+    // }
 
     void neighborhood_dominance(gc::graph<adjacency_struct>& g,
         gc::graph_reduction<adjacency_struct>& gr)
@@ -930,11 +983,40 @@ struct gc_model {
         // return col;
     }
 
+    // same as above expect that this is not a clique. "order" is the degeneracy
+    // ordering
+    int get_chordal_solution(std::vector<int>& col, std::vector<int>& order)
+    {
+        int maxc{0};
+        std::vector<int> nodeset; //(0, g.capacity(), bitset::empt);
+        gc::bitset colors(0, g.capacity(), gc::bitset::empt);
+
+        for (auto i = order.rbegin(), iend = order.rend(); i != iend; ++i) {
+            auto v = *i;
+            colors.fill();
+            for (auto u : nodeset) {
+                if (!g.matrix[v].fast_contain(u))
+                    continue;
+                colors.fast_remove(col[original.nodes[u]]);
+            }
+
+            auto q{colors.min()};
+            maxc = std::max(maxc, q);
+            for (auto u : g.partition[v])
+                col[original.nodes[u]] = q;
+            nodeset.push_back(v);
+        }
+				
+				return maxc + 1;
+    }
+
     // color the residual graph
-    // model:lb and model:ub store the lower and upper bounds of the RESIDUAL
+    // model:lb and model:ub store the lower and upper bounds of the
+    // RESIDUAL
     // graph
     //
-    // store the solution in model::solution and extends it w.r.t. the IS only
+    // store the solution in model::solution and extends it w.r.t. the IS
+    // only
     void solve()
     {
         using minicsp::l_False;
@@ -950,36 +1032,45 @@ struct gc_model {
             sat = s.solveBudget();
             if (sat == l_True) {
                 search_sol = true;
-								
-                get_solution(solution);
 
-								
                 int solub = g.nodes.size();
-								if (options.fillin) {
-					        gc::degeneracy_finder<gc::graph<adjacency_struct>> df{g};
-									df.degeneracy_ordering();
-									int degeneracy{0};
-									for (auto v : df.order) 
-											if (df.degrees[v] > degeneracy) 
-					            				degeneracy = df.degrees[v];
-									assert (cons->bestlb == degeneracy + 1);
-									solub = degeneracy + 1;
-								}
-								
+
+                if (options.fillin) {
+
+                    gc::degeneracy_finder<gc::dense_graph> df_leaf{g};
+                    df_leaf.degeneracy_ordering();
+                    int degeneracy{0};
+                    for (auto v : df_leaf.order)
+                        if (df_leaf.degrees[v] > degeneracy)
+                            degeneracy = df_leaf.degrees[v];
+
+                    solub = (degeneracy + 1);
+
+                    assert(solub < cons->ub);
+
+										int ncol{get_chordal_solution(solution, df_leaf.order)};
+										
+										assert(ncol == solub);
+
+                } else {
+                    get_solution(solution);
+                }
+
+
                 assert(solub < cons->ub);
                 cons->sync_graph();
 
                 // extends to the IS
                 int ISub = reduction.extend_solution(solution, false);
-                assert(ISub <= ub + 1);
+                assert(ISub <= ub + (options.indset_constraints ? 1 : 0));
 
                 std::cout << "[trace] SAT: " << cons->bestlb << ".." << solub
-                          << ".." << ISub ;
+                          << ".." << ISub;
 
-								int actualub = reduction.extend_solution(solution, true);
-								
-								std::cout << ".." << actualub << std::endl;
-								
+                int actualub = reduction.extend_solution(solution, true);
+
+                std::cout << ".." << actualub << std::endl;
+
                 statistics.notify_ub(actualub);
                 statistics.display(std::cout);
                 cons->ub = ub = ISub;
@@ -996,6 +1087,8 @@ struct gc_model {
                     for (auto v : xvars)
                         v.setmax(s, cons->ub - 2, minicsp::NO_REASON);
                 }
+
+                // cons->cf.clear();
 
             } else if (sat == l_Undef) {
                 std::cout << "[trace] *** INTERRUPTED ***\n";
@@ -1064,7 +1157,7 @@ struct gc_model {
                   << "[\n";
 
         // std::vector<int> tmp_solution(G.nb_sommets);
-				dsat_.print_progress = false;
+        dsat_.print_progress = false;
         dsat_.DSATUR_algo(G, 10000, 2, lb, ub);
 
         if (ub > dsat_.UB) {
@@ -1090,46 +1183,46 @@ struct gc_model {
         ub = dsat_.UB;
 
         std::cout << "[trace] update bounds [" << lb << ".." << ub << "]\n";
-    }
-
-    void finalize_solution(std::vector<pair<int, int>>& edges)
-    {
-        reduction.extend_solution(solution, true);
-        auto ncol{*std::max_element(begin(solution), end(solution)) + 1};
-        std::cout << "[solution] " << ncol << "-coloring computed at "
-                  << minicsp::cpuTime() << std::endl
-                  << std::endl;
-
-        if (options.printsolution) {
-            for (int v = 0; v < original.capacity(); ++v)
-                std::cout << " " << std::setw(2) << solution[v];
-            std::cout << std::endl;
         }
 
-        if (options.checksolution) {
-            for (auto e : edges) {
-                if (solution[e.first] == solution[e.second]) {
-                    std::cout << "WRONG SOLUTION: " << e.first << " and "
-                              << e.second << " <- " << solution[e.first]
-                              << "\n";
-                    break;
+        void finalize_solution(std::vector<pair<int, int>>& edges)
+        {
+            reduction.extend_solution(solution, true);
+            auto ncol{*std::max_element(begin(solution), end(solution)) + 1};
+            std::cout << "[solution] " << ncol << "-coloring computed at "
+                      << minicsp::cpuTime() << std::endl
+                      << std::endl;
+
+            if (options.printsolution) {
+                for (int v = 0; v < original.capacity(); ++v)
+                    std::cout << " " << std::setw(2) << solution[v];
+                std::cout << std::endl;
+            }
+
+            if (options.checksolution) {
+                for (auto e : edges) {
+                    if (solution[e.first] == solution[e.second]) {
+                        std::cout << "WRONG SOLUTION: " << e.first << " and "
+                                  << e.second << " <- " << solution[e.first]
+                                  << "\n";
+                        break;
+                    }
                 }
             }
         }
-    }
 
-    void print_stats()
-    {
+        void print_stats()
+        {
 
-        if (statistics.best_lb >= statistics.best_ub)
-            std::cout << "OPTIMUM " << statistics.best_ub << "\n";
-        else
-            std::cout << "Best bounds [" << statistics.best_lb << ", "
-                      << statistics.best_ub << "]\n";
-        minicsp::printStats(s);
-        statistics.display(std::cout);
-        std::cout << std::endl;
-    }
+            if (statistics.best_lb >= statistics.best_ub)
+                std::cout << "OPTIMUM " << statistics.best_ub << "\n";
+            else
+                std::cout << "Best bounds [" << statistics.best_lb << ", "
+                          << statistics.best_ub << "]\n";
+            minicsp::printStats(s);
+            statistics.display(std::cout);
+            std::cout << std::endl;
+        }
 };
 
 template<class adjacency_struct>
@@ -1369,7 +1462,6 @@ int color(gc::options& options, gc::graph<input_format>& g)
                 if (u < v)
                     tmp_edges.push_back(std::pair<int, int>{u, v});
 
-        int limit = 5;
         while (init_model.lb < init_model.ub) {
 
             std::cout << "[search] solve a tmp model with bounds ["
@@ -1427,14 +1519,93 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
             statistics.unbinds();
             vmap.clear();
-
-            if (--limit == 0)
-                break;
         }
 
         init_model.finalize_solution(edges);
 
     } break;
+    // case gc::options::AGGRESSIVE: {
+    //
+    //     std::vector<int> vmap(g.capacity(), -1);
+    //     options.strategy = gc::options::BOUNDS; // so that we don't create
+    //     the
+    //     // dense graph yet
+    //     gc_model<gc::vertices_vec> init_model(
+    //         g, options, statistics, std::make_pair(0, g.size()), sol);
+    //
+    //     options.strategy = gc::options::CLEVER;
+    //     statistics.update_lb = false;
+    //
+    //     std::vector<std::pair<int, int>> tmp_edges;
+    //     for (auto u : init_model.g.nodes)
+    //         for (auto v : init_model.g.matrix[u])
+    //             if (u < v)
+    //                 tmp_edges.push_back(std::pair<int, int>{u, v});
+    //
+    //     while (init_model.lb < init_model.ub) {
+    //
+    //         std::cout << "[search] solve a tmp model with bounds ["
+    //                   << init_model.lb << ".." << init_model.ub
+    //                   << "[ focusing on the " << (init_model.ub - 1)
+    //                   << "-core\n";
+    //
+    //         vmap.clear();
+    //         vmap.resize(g.capacity(), -1);
+    //
+    //         gc::graph<gc::vertices_vec> gcopy(g, vmap);
+    //
+    //         // print(gcopy);
+    //
+    //         gc_model<gc::vertices_vec> tmp_model(gcopy, options, statistics,
+    //             std::make_pair(init_model.lb, init_model.ub), sol,
+    //             (init_model.ub - 1));
+    //
+    //         if (tmp_model.ub > tmp_model.lb) {
+    //             if (options.dsatur) {
+    //                 tmp_model.solve_with_dsatur();
+    //             } else {
+    //                 tmp_model.solve();
+    //             }
+    //         }
+    //
+    //         std::cout << "[search] tmp: [" << tmp_model.lb << "..";
+    //         if (tmp_model.ub < init_model.ub)
+    //             std::cout << tmp_model.ub << "..";
+    //
+    //         assert(tmp_model.solution.size() ==
+    //         tmp_model.original.capacity());
+    //
+    //         auto incumbent{init_model.ub};
+    //         if (tmp_model.degeneracy_sol or tmp_model.dsatur_sol
+    //             or tmp_model.search_sol) {
+    //             incumbent = tmp_model.reduction.extend_solution(
+    //                 tmp_model.solution, true);
+    //             // copy the tmp model solution into the init model
+    //             for (int v = 0; v < tmp_model.original.capacity(); ++v)
+    //                 init_model.solution[init_model.original.nodes[v]]
+    //                     = tmp_model.solution[v];
+    // 		            assert(incumbent < init_model.ub);
+    // 		            init_model.ub = incumbent;
+    //         }
+    //
+    // 						std::cout << init_model.ub <<
+    // "]\n";
+    //         init_model.lb = tmp_model.lb;
+    //
+    //         // iub may not be equal to ilb even if the solver wasn't stopped:
+    //         // coloring the removed vertices might have required extra colors
+    //         // either way, [ilb, iub] are correct bounds
+    //         statistics.notify_ub(init_model.ub);
+    //         statistics.notify_lb(init_model.lb);
+    //         statistics.display(std::cout);
+    //
+    //         statistics.unbinds();
+    //         vmap.clear();
+    //     }
+    //
+    //     init_model.finalize_solution(edges);
+    //
+    // } break;
     case gc::options::BOUNDS: {
         std::pair<int, int> bounds{0, g.size()};
         gc_model<input_format> model(g, options, statistics, bounds, sol);

@@ -560,6 +560,8 @@ int mycielskan_subgraph_finder<adjacency_struct>::improve_cliques_larger_than(
     for (auto cl = 0; cl < cf.num_cliques; ++cl) {
         if (cf.clique_sz[cl] >= size) {
 
+            std::cout << "extend " << cf.cliques[cl] << std::endl;
+
             auto mycielski_lb = cf.clique_sz[cl] + extends(cf.cliques[cl]);
             if (mycielski_lb > lb) {
                 lb = mycielski_lb;

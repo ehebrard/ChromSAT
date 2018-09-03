@@ -145,7 +145,9 @@ options parse(int argc, char* argv[])
     cmd.add<SwitchArg>(
         opt.dsatur, "", "dsatur", "use dsatur instead of minicsp", false);
     cmd.add<ValueArg<int>>(opt.memlimit, "", "memlimit",
-        "does not compute dense graph above this limit (default: no limit)", false, -1, "int");
+        "does not compute dense graph above this limit and downgrade reasoning "
+        "on large instances (default: no limit)",
+        false, -1, "int");
 
     cmd.parse(argc, argv);
     return opt;
