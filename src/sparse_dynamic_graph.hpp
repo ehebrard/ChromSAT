@@ -173,8 +173,12 @@ dyngraph::dyngraph(const gc::graph<adjacency_struct>& g)
 
     for (auto v : g.nodes)
         for (auto u : g.matrix[v])
-            if (vmap[u] > vmap[v])
+            if (g.nodeset.fast_contain(u) and vmap[u] > vmap[v])
                 add_edge(vmap[v], vmap[u]);
+
+    // std::cout << ">>>>> " << g.count_edges() << " / " << edges.size() <<
+    // std::endl;
+    // assert(g.count_edges() == edges.size());
 }
 
 std::ostream& operator<<(std::ostream& os, const dyngraph& x);

@@ -58,6 +58,10 @@ template <class adjacency_struct> struct graph_reduction {
             maxc = std::max(maxc, col[v]);
 
         auto d{dominator.rbegin()};
+				
+				
+				// std::cout << "\n |removed| = " << removed_vertices.size() << " " << nodeset << std::endl;
+				
         for (auto i = removed_vertices.rbegin(), iend = removed_vertices.rend();
              i != iend; ++i) {
             auto v = *i;
@@ -68,6 +72,9 @@ template <class adjacency_struct> struct graph_reduction {
             if (status[v] == vertex_status::dominated_removed) {
                 assert(nodeset.fast_contain(*d));
                 col[v] = col[*d];
+								
+								// std::cout << "col[" << v << "] <- col[" << (*d) << "] = " << col[v] << std::endl;
+								
                 ++d;
             }
 
@@ -85,6 +92,9 @@ template <class adjacency_struct> struct graph_reduction {
                 // assert(q <= statistics.best_ub);
                 maxc = std::max(maxc, q);
                 col[v] = q;
+								
+								// std::cout << "col[" << v << "] = " << col[v] << std::endl;
+								
                 break;
             }
             nodeset.fast_add(v);
