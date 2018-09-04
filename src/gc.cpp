@@ -374,7 +374,7 @@ struct gc_model {
             std::cout << "[preprocessing] compute lower bound\n";
 
             auto plb = cf.find_cliques(reverse);
-            if (options.boundalg != gc::options::CLIQUES) {
+            if (options.boundalg != gc::options::CLIQUES and (options.myciellimit < 0 or g.size() < options.myciellimit)) {
                 std::cout << "[preprocessing] compute mycielski lower bound\n";
                 cf.sort_cliques(plb);
                 plb = mf.improve_cliques_larger_than(plb);
@@ -413,13 +413,13 @@ struct gc_model {
                 ub_safe = (threshold <= lb);
             }
 
-            if (options.preprocessing == gc::options::FULL
-                and (prev_size > g.size() or prev_size == original_size)) {
+            if (prev_size > g.size() or prev_size == original_size) {
                 // changes at the peeling step, or first step
 
-                prev_size = g.size();
+                // prev_size = g.size();
 
-                neighborhood_dominance(g, gr);
+                if (options.preprocessing == gc::options::FULL)
+                    neighborhood_dominance(g, gr);
             }
 
         }; // while (prev_size > g.size() and lb < ub);
@@ -455,7 +455,6 @@ struct gc_model {
         adjacency_struct toremove;
         toremove.initialise(0, g.capacity(), gc::bitset::empt);
 
-        int stop = 10;
         do {
             if (g.size() == 0) {
                 break;
@@ -577,7 +576,7 @@ struct gc_model {
             if (!changes)
                 break;
 
-        } while (stop-- > 0);
+        } while (true);
 
         return (size_before > g.size());
         // return gr;
@@ -841,10 +840,10 @@ struct gc_model {
         gc::graph_reduction<adjacency_struct> gr(g, statistics, solution);
         if (options.preprocessing == gc::options::NO_PREPROCESSING)
             return gr;
-        else if (options.preprocessing == gc::options::FULL)
+        else // if (options.preprocessing == gc::options::FULL)
             peeling(original, gr, k_core_threshold);
-        else
-            degeneracy_peeling(original, gr, k_core_threshold);
+        // else
+        //     degeneracy_peeling(original, gr, k_core_threshold);
 
         //             if (options.preprocessing == gc::options::FULL)
         // neighborhood_dominance(original, gr);
@@ -1163,7 +1162,7 @@ struct gc_model {
         minicsp::lbool sat{l_True};
         while (sat != l_False && lb < ub) {
 
-            std::cout << "[trace] solve* in [" << cons->bestlb << ".."
+            std::cout << "[trace] solve in [" << cons->bestlb << ".."
                       << cons->ub << "[\n";
 
             sat = s.solveBudget();
@@ -1616,6 +1615,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
             gc_model<gc::vertices_vec> tmp_model(gcopy, options, statistics,
                 std::make_pair(init_model.lb, init_model.ub), sol,
                 (init_model.ub - 1));
+								
 
             if (tmp_model.ub > tmp_model.lb) {
                 if (options.dsatur) {

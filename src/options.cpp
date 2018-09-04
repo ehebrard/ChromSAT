@@ -148,6 +148,9 @@ options parse(int argc, char* argv[])
         "does not compute dense graph above this limit and downgrade reasoning "
         "on large instances (default: no limit)",
         false, -1, "int");
+    cmd.add<ValueArg<int>>(opt.myciellimit, "", "myciellimit",
+        "does not use myciel on graphs larger than the limit (default: no limit)",
+        false, -1, "int");
 
     cmd.parse(argc, argv);
     return opt;

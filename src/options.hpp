@@ -111,6 +111,8 @@ struct options {
     bool dsatur;
 
     int memlimit;
+		
+		int myciellimit;
 };
 
 options parse(int argc, char* argv[]);
