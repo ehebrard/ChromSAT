@@ -44,7 +44,6 @@ executable('preprocessing', ['src/preprocessing.cpp',
 	   dependencies: [minicsp_dep, basic_dep, prop_dep])
 
 
-
 use_gecode = get_option('use_gecode')
 if use_gecode
   gecode_root = get_option('gecode')
