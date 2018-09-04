@@ -27,9 +27,12 @@ template <class graph_struct> void print(graph_struct& g)
 {
     std::ofstream outfile("debug.col", std::ios_base::out);
 
-    outfile << "p edge " << g.size() << " " << g.count_edges() << std::endl;
-    for (auto u : g.nodes) {
-        for (auto v : g.matrix[u]) {
+    std::vector<int> vmap(g.capacity());
+    graph_struct gc(g, vmap);
+
+    outfile << "p edge " << gc.size() << " " << gc.count_edges() << std::endl;
+    for (auto u : gc.nodes) {
+        for (auto v : gc.matrix[u]) {
             if (u < v)
                 outfile << "e " << (u + 1) << " " << (v + 1) << std::endl;
         }
@@ -307,13 +310,132 @@ struct gc_model {
             return create_all_vars();
     }
 
-    void degeneracy_peeling(gc::graph<adjacency_struct>& g,
+    bool peeling(gc::graph<adjacency_struct>& g,
+        gc::graph_reduction<adjacency_struct>& gr, const int k_core_threshold)
+    {
+        int original_size{g.size()};
+        std::cout << "[preprocessing] start peeling (" << k_core_threshold
+                  << ")\n";
+
+        auto threshold = std::max(lb, k_core_threshold);
+        gc::clique_finder<adjacency_struct> cf{
+            g, std::min(options.cliquelimit, g.size())};
+        gc::mycielskan_subgraph_finder<adjacency_struct> mf(g, cf, false);
+        gc::degeneracy_finder<gc::graph<adjacency_struct>> df{g};
+
+        adjacency_struct toremove;
+        toremove.initialise(0, g.capacity(), gc::bitset::empt);
+
+        bool ub_safe{true};
+        int prev_size{original_size + 1};
+        while (g.size() and prev_size > g.size() and lb < ub) {
+
+            prev_size = g.size();
+
+            cf.clear();
+            df.clear();
+            // mf.clear();
+
+            std::cout << "[preprocessing] compute degeneracy ordering\n";
+            int degeneracy = 0;
+            df.degeneracy_ordering();
+
+            std::vector<int>
+                reverse; // TODO change that by using iterators in clique finder
+            for (auto rit = df.order.rbegin(); rit != df.order.rend(); ++rit) {
+                auto v{*rit};
+                if (df.degrees[v] > degeneracy) {
+                    degeneracy = df.degrees[v];
+                }
+                reverse.push_back(v);
+            }
+
+            if (ub > degeneracy + 1) {
+                ub = std::max(lb, degeneracy + 1);
+
+                if (ub_safe) {
+                    statistics.notify_ub(ub);
+                    statistics.display(std::cout);
+                }
+
+                if (!degeneracy_sol) {
+                    int c{0};
+                    for (auto v : df.order) {
+                        solution[v] = c++;
+                    }
+                    gr.extend_solution(solution, true);
+                    // gr.removed_vertices.clear();
+                    // gr.status.resize(g.capacity(),
+                    // gc::vertex_status::in_graph);
+                    degeneracy_sol = true;
+                }
+            }
+
+            std::cout << "[preprocessing] compute lower bound\n";
+
+            auto plb = cf.find_cliques(reverse);
+            if (options.boundalg != gc::options::CLIQUES) {
+                std::cout << "[preprocessing] compute mycielski lower bound\n";
+                cf.sort_cliques(plb);
+                plb = mf.improve_cliques_larger_than(plb);
+            }
+
+            if (lb < plb) {
+                lb = plb;
+                statistics.notify_lb(lb);
+                statistics.display(std::cout);
+            }
+
+            threshold = std::max(lb, threshold);
+            if (df.degrees[df.order[0]] < threshold) {
+
+                for (auto v : df.order) {
+                    if (df.degrees[v] >= threshold)
+                        break;
+                    toremove.add(v);
+                    gr.removed_vertices.push_back(v);
+                }
+
+                std::cout << "[preprocessing] remove " << toremove.size()
+                          << " low degree nodes (<" << threshold << ")\n";
+
+                toremove.canonize();
+
+                g.remove(toremove);
+                for (auto u : toremove) {
+                    gr.status[u] = gc::vertex_status::low_degree_removed;
+                }
+
+                toremove.clear();
+                // statistics.notify_removals(g.size());
+                statistics.display(std::cout);
+
+                ub_safe = (threshold <= lb);
+            }
+
+            if (options.preprocessing == gc::options::FULL
+                and (prev_size > g.size() or prev_size == original_size)) {
+                // changes at the peeling step, or first step
+
+                prev_size = g.size();
+
+                neighborhood_dominance(g, gr);
+            }
+
+        }; // while (prev_size > g.size() and lb < ub);
+
+        return (original_size > g.size());
+        // return gr;
+    }
+
+    bool degeneracy_peeling(gc::graph<adjacency_struct>& g,
         gc::graph_reduction<adjacency_struct>& gr, const int k_core_threshold)
     {
         // graph_reduction<adjacency_struct> gr(g, statistics);
         // if (options.preprocessing == gc::options::NO_PREPROCESSING)
         //     return gr;
 
+        int size_before{g.size()};
         std::cout << "[preprocessing] start peeling (" << k_core_threshold << ")\n";
 
         // histogram(g);
@@ -393,7 +515,7 @@ struct gc_model {
                 }
             }
 
-            if (options.boundalg != gc::options::CLIQUES and g.size() < 10000) {
+            if (options.boundalg != gc::options::CLIQUES) {
                 std::cout << "[preprocessing] compute mycielski lower bound\n";
                 cf.sort_cliques(plb);
                 plb = mf.improve_cliques_larger_than(plb);
@@ -457,6 +579,7 @@ struct gc_model {
 
         } while (stop-- > 0);
 
+        return (size_before > g.size());
         // return gr;
     }
 
@@ -498,9 +621,13 @@ struct gc_model {
     //     statistics.display(std::cout);
     // }
 
-    void neighborhood_dominance(gc::graph<adjacency_struct>& g,
+    bool neighborhood_dominance(gc::graph<adjacency_struct>& g,
         gc::graph_reduction<adjacency_struct>& gr)
     {
+
+        int size_before{g.size()};
+
+        std::cout << "[preprocessing] neighborhood dominance\n";
 
         std::vector<int> nodes;
         for (auto u : g.nodes)
@@ -536,9 +663,13 @@ struct gc_model {
                     }
                 }
 
-        if (psize > g.size())
+        if (psize > g.size()) {
             std::cout << "[preprocessing] remove " << (psize - g.size())
                       << " dominated nodes\n";
+            statistics.display(std::cout);
+        }
+
+        return (size_before > g.size());
     }
 
     // gc::graph_reduction<adjacency_struct> core_reduction(
@@ -710,13 +841,19 @@ struct gc_model {
         gc::graph_reduction<adjacency_struct> gr(g, statistics, solution);
         if (options.preprocessing == gc::options::NO_PREPROCESSING)
             return gr;
+        else if (options.preprocessing == gc::options::FULL)
+            peeling(original, gr, k_core_threshold);
+        else
+            degeneracy_peeling(original, gr, k_core_threshold);
 
-        degeneracy_peeling(original, gr, k_core_threshold);
+        //             if (options.preprocessing == gc::options::FULL)
+        // neighborhood_dominance(original, gr);
 
-        if (options.preprocessing == gc::options::FULL)
-            neighborhood_dominance(original, gr);
+        std::cout << "[preprocessing] preprocessed graph: ";
+        g.describe(std::cout, -1);
+        std::cout << std::endl << std::endl;
 
-        int num_edges = 0;
+        int num_edges = -1;
         if (g.size() > 0 and lb < ub) {
 
             if (options.sdsaturiter > 0) {
@@ -728,15 +865,15 @@ struct gc_model {
                 sparse_upper_bound(dg, options.sdsaturiter);
             }
 
-            if (g.size() > 0 and lb < ub
-                and options.indset_constraints
-                and options.strategy != gc::options::BOUNDS)
+            if (g.size() > 0 and lb < ub and options.indset_constraints
+                and options.strategy != gc::options::BOUNDS) {
                 find_is_constraints(g, gr);
+            }
         }
 
         std::cout << "[preprocessing] finished at " << minicsp::cpuTime()
                   << "\n\n[modeling] preprocessed graph: ";
-        g.describe(std::cout, num_edges);
+        g.describe(std::cout, -1);
         std::cout << std::endl << std::endl;
 
         return gr;
