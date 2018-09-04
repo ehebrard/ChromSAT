@@ -393,7 +393,7 @@ struct gc_model {
                 }
             }
 
-            if (options.boundalg != gc::options::CLIQUES) {
+            if (options.boundalg != gc::options::CLIQUES and g.size() < 10000) {
                 std::cout << "[preprocessing] compute mycielski lower bound\n";
                 cf.sort_cliques(plb);
                 plb = mf.improve_cliques_larger_than(plb);
