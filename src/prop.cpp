@@ -63,10 +63,11 @@ struct bfs_state {
         if (x != rootu && x != rootv && !single_partition) {
             assert(vparent[x] != -1);
             assert(uparent[x] != -1);
-            assert(fg.origmatrix[x].fast_contain(vparent[x]));
-            assert(fg.origmatrix[x].fast_contain(uparent[x]));
-            assert(fg.origmatrix[vparent[x]].fast_contain(uparent[x]));
+            // assert(fg.origmatrix[x].fast_contain(vparent[x]));
+            // assert(fg.origmatrix[x].fast_contain(uparent[x]));
+            // assert(fg.origmatrix[vparent[x]].fast_contain(uparent[x]));
         }
+        // std::cout << "BFS visiting edge " << w << "->" << x << "\n";
         return f(w, x);
     }
 
@@ -110,6 +111,7 @@ struct bfs_state {
         rettype rv{};
         while(!Q.empty()) {
             int v = Q.front();
+            // std::cout << "BFS visiting " << v << "\n";
             Q.pop_front();
             rv = do_bfs(v, f);
             if (rv || Q.empty())
@@ -128,6 +130,7 @@ struct bfs_state {
             vparent[up] = -1;
             parent[up] = -1;
         }
+        // std::cout << "upart = " << upart << "\n";
         vpart.clear();
         for (auto vp : g.partition[g.rep_of[v]]) {
             col[vp] = WHITE;
@@ -136,12 +139,13 @@ struct bfs_state {
             vparent[vp] = -1;
             parent[vp] = -1;
         }
+        // std::cout << "vpart = " << vpart << "\n";
         allpart.copy(upart);
         allpart.union_with(vpart);
         Q.clear();
         Q.push_back(v);
         uparent[v] = u;
-        col[u] = BLACK;
+        vparent[u] = v;
         rootu = u;
         rootv = v;
         return do_bfs(f);
@@ -420,6 +424,12 @@ public:
     Clause* transitive_separate(
         int u, int v, const bitset& diffvu, const bitset& vpart)
     {
+        std::cout << "transitive separate " << u << "--" << v << "\n";
+        std::cout << "partition[" << u
+                  << "] = " << print_container{g.partition[u]} << "\n";
+        std::cout << "partition[" << v
+                  << "] = " << print_container{g.partition[v]} << "\n";
+        std::cout << u << " will gain neighbors " << diffvu << "\n";
         needbfs.clear();
         // for each partition to which we must add edges, first find
         // at least one edge that can be fixed immediately, which will
@@ -430,34 +440,57 @@ public:
             util_set.intersect_with(fg.origmatrix[up]);
             for (auto n : util_set) {
                 if (fg.origmatrix[up].fast_contain(v)
-                    && fg.origmatrix[n].fast_contain(v))
+                    && fg.origmatrix[n].fast_contain(v)) {
+                    std::cout << "Immediate separation " << up << "--" << n
+                              << " via rep = " << v << "\n";
                     DO_OR_RETURN(separate(up, v, n));
-                else {
+                    bfsroots[n] = {up, n};
+                } else {
                     util_set2.copy(vpart);
                     util_set2.intersect_with(fg.origmatrix[up]);
                     util_set2.intersect_with(fg.origmatrix[n]);
                     if (util_set2.empty()) {
                         needbfs.fast_add(g.rep_of[n]);
-                        bfsroots[n] = {up, n};
+                        // bfsroots[n] = {up, n};
+                        std::cout << "Will set " << up << "--" << n
+                                  << " using BFS\n";
                         continue;
                     }
                     int via = util_set2.min();
+                    std::cout << "Immediate step of separation " << up << "--"
+                              << n << " via " << via << "\n";
                     DO_OR_RETURN(separate(up, via, n));
+                    bfsroots[n] = {up, n};
+                    std::cout << "\t\tWill start BFS from " << up
+                              << " to reach " << n << "\n";
                 }
             }
         }
 
         for (auto v : needbfs) {
             auto e = bfsroots[v];
-            bfs.bfs(e.first, e.second, [&](int x, int w) -> Clause* {
+            std::cout << "\n****\tBFSing " << e.first << "-" << e.second
+                      << "\n";
+            bfs.bfs(e.second, e.first, [&](int x, int w) -> Clause* {
+                std::cout << "transitive_separate: checking edge " << w << "--"
+                          << x << "\n";
                 bool xinv = bfs.vpart.fast_contain(x);
                 bool winv = bfs.vpart.fast_contain(w);
+                std::cout << "inv: " << winv << xinv << "\n";
+                // std::cout << "vpart = " << bfs.vpart << "\n";
+                // std::cout << "upart = " << bfs.upart << "\n";
                 if (xinv == winv)
                     return NO_REASON;
-                if (xinv)
+                if (xinv) {
+                    std::cout << "\tseparate(" << x << "," << bfs.vparent[w]
+                              << "," << w << ")\n";
                     DO_OR_RETURN(separate(x, bfs.vparent[w], w));
-                else
+                } else {
+                    std::cout << "here\n";
+                    std::cout << "\tseparate(" << x << "," << bfs.uparent[w]
+                              << "," << w << ")\n";
                     DO_OR_RETURN(separate(x, bfs.uparent[w], w));
+                }
                 return NO_REASON;
             });
         }
@@ -480,6 +513,12 @@ public:
             return NO_REASON;
         }
 
+        std::cout << "\n\nmerge " << info.u << "--" << info.v << "\n";
+        std::cout << "partition[" << u
+                  << "] = " << print_container{g.partition[u]} << "\n";
+        std::cout << "partition[" << v
+                  << "] = " << print_container{g.partition[v]} << "\n";
+
         // same as in plain version of wake()
         diffuv.copy(g.matrix[u]);
         diffuv.setminus_with(g.matrix[v]);
@@ -487,17 +526,35 @@ public:
         diffvu.setminus_with(g.matrix[u]);
 
         // set to true all the variables between the two partitions
-        bfs.bfs(info.u, info.v, [&](int x, int w) -> Clause* {
-            if (x == info.u || x == info.v)
+        bfs.bfs(info.u, info.v, [&](int w, int x) -> Clause* {
+            if ((x == info.u || x == info.v) && (w == info.u || w == info.v))
                 return NO_REASON;
+            // followed edge from w to x
+            std::cout << "merge: checking edge " << w << "->" << x << "\n";
             bool xinv = bfs.vpart.fast_contain(x);
             bool winv = bfs.vpart.fast_contain(w);
+            std::cout << "inv: " << winv << xinv << "\n";
+            std::cout << "vpart = " << bfs.vpart << "\n";
+            std::cout << "upart = " << bfs.upart << "\n";
             if (xinv == winv)
                 return NO_REASON;
-            if (xinv)
-                DO_OR_RETURN(merge_3way(w, bfs.vparent[w], x));
-            else
-                DO_OR_RETURN(merge_3way(w, bfs.uparent[w], x));
+            if (xinv) {
+                std::cout << "\t1: merge(" << x << "," << bfs.vparent[w] << ","
+                          << w << ")\n";
+                assert(bfs.vparent[w] != x || x == bfs.rootv);
+                if (x == bfs.rootv)
+                    DO_OR_RETURN(merge_3way(x, bfs.rootu, w));
+                else
+                    DO_OR_RETURN(merge_3way(x, bfs.vparent[w], w));
+            } else {
+                std::cout << "\t2: merge(" << x << "," << bfs.uparent[w] << ","
+                          << w << ")\n";
+                assert(bfs.uparent[w] != x || x == bfs.rootu);
+                if (x == bfs.rootu)
+                    DO_OR_RETURN(merge_3way(x, bfs.rootv, w));
+                else
+                    DO_OR_RETURN(merge_3way(x, bfs.uparent[w], w));
+            }
             return NO_REASON;
         });
 
@@ -506,7 +563,7 @@ public:
         vpartcopy.copy(bfs.vpart); // this will be destroyed by the
                                    // bfs calls in transitive_separate()
         DO_OR_RETURN(transitive_separate(v, info.u, diffuv, bfs.upart));
-        DO_OR_RETURN(transitive_separate(u, info.v, diffvu, bfs.vpart));
+        DO_OR_RETURN(transitive_separate(u, info.v, diffvu, vpartcopy));
 
         g.merge(u, v);
 #ifdef UPDATE_FG
@@ -531,16 +588,26 @@ public:
         }
 
         bfs.bfs(info.u, info.v, [&](int x, int w) -> Clause* {
-            if (x == info.u || x == info.v)
+            std::cout << "separate: checking edge " << w << "--" << x << "\n";
+            if ((x == info.u || x == info.v) && (w == info.u || w == info.v))
                 return NO_REASON;
+            std::cout << "pass 1\n";
             bool xinv = bfs.vpart.fast_contain(x);
             bool winv = bfs.vpart.fast_contain(w);
+            std::cout << "inv: " << winv << xinv << "\n";
+            std::cout << "vpart = " << bfs.vpart << "\n";
+            std::cout << "upart = " << bfs.upart << "\n";
             if (xinv == winv)
                 return NO_REASON;
-            if (xinv)
-                DO_OR_RETURN(separate(x, bfs.vparent[w], w));
-            else
-                DO_OR_RETURN(separate(x, bfs.uparent[w], w));
+            if (xinv) {
+                std::cout << "vparent[" << w << "] = " << bfs.vparent[w]
+                          << "\n";
+                DO_OR_RETURN(separate(x, bfs.uparent[x], w));
+            } else {
+                std::cout << "uparent[" << w << "] = " << bfs.uparent[w]
+                          << "\n";
+                DO_OR_RETURN(separate(x, bfs.vparent[x], w));
+            }
             return NO_REASON;
         });
         g.separate(u, v);
@@ -1081,6 +1148,7 @@ public:
 
     Clause* propagate(Solver&) final
     {
+        // check_consistency();
 
         int lb{0};
 
