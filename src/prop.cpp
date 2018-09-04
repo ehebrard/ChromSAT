@@ -1304,6 +1304,8 @@ public:
                 if (x == var_Undef)
                     continue;
                 auto info = varinfo[x];
+                if (info.u < 0 || info.u == info.v)
+                    continue;
                 if (s.value(x) == l_False) {
                     if (!g.matrix[g.rep_of[info.u]].contain(g.rep_of[info.v])) {
                         std::cout << info.u << "-" << info.v
