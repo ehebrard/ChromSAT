@@ -840,10 +840,10 @@ struct gc_model {
         gc::graph_reduction<adjacency_struct> gr(g, statistics, solution);
         if (options.preprocessing == gc::options::NO_PREPROCESSING)
             return gr;
-        else // if (options.preprocessing == gc::options::FULL)
+        else if (options.preprocessing == gc::options::FULL)
             peeling(original, gr, k_core_threshold);
-        // else
-        //     degeneracy_peeling(original, gr, k_core_threshold);
+        else
+            degeneracy_peeling(original, gr, k_core_threshold);
 
         //             if (options.preprocessing == gc::options::FULL)
         // neighborhood_dominance(original, gr);

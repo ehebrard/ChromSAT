@@ -1213,6 +1213,8 @@ public:
                 bs.setminus_with(g.origmatrix[u]);
             }
             for (auto u : bs) {
+                if (opt.fillin && !fg.origmatrix[v].fast_contain(u))
+                    continue;
                 assert(vars[v][u] != var_Undef);
                 if (s.value(vars[v][u]) != l_False)
                     std::cout << "Partition " << v
@@ -1220,8 +1222,11 @@ public:
                               // << print_container(g.partition[v])
                               << " has extra neighbor " << u << std::endl;
             }
-            for (auto u : bs)
+            for (auto u : bs) {
+                if (opt.fillin && !fg.origmatrix[v].fast_contain(u))
+                    continue;
                 assert(s.value(vars[v][u]) == l_False);
+            }
         }
 
         bool failed{false};
@@ -1249,6 +1254,12 @@ public:
                                   << " not merged, var is true\n";
                         failed = true;
                     }
+                }
+                if (s.value(x) == l_Undef) {
+                    int ur = g.rep_of[info.u];
+                    int vr = g.rep_of[info.v];
+                    assert(ur != vr);
+                    assert(!g.matrix[ur].fast_contain(vr));
                 }
             }
         if (failed)
