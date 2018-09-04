@@ -113,6 +113,8 @@ struct options {
     int memlimit;
 		
 		int myciellimit;
+
+                bool ubfocus;
 };
 
 options parse(int argc, char* argv[]);

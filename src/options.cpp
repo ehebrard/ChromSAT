@@ -144,6 +144,8 @@ options parse(int argc, char* argv[])
         "add implied number of equalitiy constraints", false);
     cmd.add<SwitchArg>(
         opt.dsatur, "", "dsatur", "use dsatur instead of minicsp", false);
+    cmd.add<SwitchArg>(opt.ubfocus, "", "ubfocus",
+        "do not try hard to get lb's [default=false]", false);
     cmd.add<ValueArg<int>>(opt.memlimit, "", "memlimit",
         "does not compute dense graph above this limit and downgrade reasoning "
         "on large instances (default: no limit)",

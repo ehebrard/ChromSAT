@@ -497,16 +497,16 @@ struct BrelazBrancher : public Brancher {
     void select_candidates_cvars(std::vector<minicsp::Lit>& cand)
     {
 
-        //         if (s.decisionLevel() <= 1 and nlit == s.nVars()) {
-        //
-        // // std::cout << "Use previous branching decisions\n";
-        //
-        //             for (auto l : level_0_choices) {
-        //                 cand.push_back(l);
-        //             }
-        //
-        // return;
-        //         }
+        if (s.decisionLevel() <= 1 and nlit == s.nVars()) {
+
+            // std::cout << "Use previous branching decisions\n";
+
+            for (auto l : level_0_choices) {
+                cand.push_back(l);
+            }
+
+            return;
+        }
 
         auto& cf = constraint.cf;
 
@@ -625,26 +625,26 @@ struct BrelazBrancher : public Brancher {
             cand.push_back(minicsp::Lit(evar));
         }
 
-        // if (s.decisionLevel() <= 1 and nlit != s.nVars()) {
-        //     nlit = s.nVars();
-        //     level_0_choices.clear();
-        //     for (auto l : cand)
-        //         level_0_choices.push_back(l);
-        // }
+        if (s.decisionLevel() <= 1 and nlit != s.nVars()) {
+            nlit = s.nVars();
+            level_0_choices.clear();
+            for (auto l : cand)
+                level_0_choices.push_back(l);
+        }
     }
 
     void select_candidates(std::vector<minicsp::Lit>& cand)
     {
-        if (s.decisionLevel() <= 1 and nlit == s.nVars()) {
-
-            // std::cout << "Use previous branching decisions\n";
-
-            for (auto l : level_0_choices) {
-                cand.push_back(l);
-            }
-
-            return;
-        }
+        // if (s.decisionLevel() <= 1 and nlit == s.nVars()) {
+        //
+        //     // std::cout << "Use previous branching decisions\n";
+        //
+        //     for (auto l : level_0_choices) {
+        //         cand.push_back(l);
+        //     }
+        //
+        //     return;
+        // }
 
         if (opt.xvars)
             select_candidates_xvars(cand);
@@ -653,12 +653,12 @@ struct BrelazBrancher : public Brancher {
         else
             select_candidates_evars(cand);
 
-        if (!opt.xvars and s.decisionLevel() <= 1 and nlit != s.nVars()) {
-            nlit = s.nVars();
-            level_0_choices.clear();
-            for (auto l : cand)
-                level_0_choices.push_back(l);
-        }
+        // if (!opt.xvars and s.decisionLevel() <= 1 and nlit != s.nVars()) {
+        //     nlit = s.nVars();
+        //     level_0_choices.clear();
+        //     for (auto l : cand)
+        //         level_0_choices.push_back(l);
+        // }
     }
 };
 

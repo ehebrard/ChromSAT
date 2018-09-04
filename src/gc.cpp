@@ -1153,14 +1153,14 @@ struct gc_model {
     //
     // store the solution in model::solution and extends it w.r.t. the IS
     // only
-    void solve()
+    void solve(const int ub_limit = -1)
     {
         using minicsp::l_False;
         using minicsp::l_True;
         using minicsp::l_Undef;
 
         minicsp::lbool sat{l_True};
-        while (sat != l_False && lb < ub) {
+        while (sat != l_False and lb < ub) {
 
             std::cout << "[trace] solve in [" << cons->bestlb << ".."
                       << cons->ub << "[\n";
@@ -1225,6 +1225,9 @@ struct gc_model {
                 }
 
                 // cons->cf.clear();
+
+                if (actualub < ub_limit)
+                    break;
 
             } else if (sat == l_Undef) {
                 std::cout << "[trace] *** INTERRUPTED ***\n";
@@ -1621,7 +1624,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
                 if (options.dsatur) {
                     tmp_model.solve_with_dsatur();
                 } else {
-                    tmp_model.solve();
+                    tmp_model.solve(init_model.ub);
                 }
             }
 
