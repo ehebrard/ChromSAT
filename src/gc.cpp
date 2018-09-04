@@ -840,10 +840,10 @@ struct gc_model {
         gc::graph_reduction<adjacency_struct> gr(g, statistics, solution);
         if (options.preprocessing == gc::options::NO_PREPROCESSING)
             return gr;
-        else if (options.preprocessing == gc::options::FULL)
+        else // if (options.preprocessing == gc::options::FULL)
             peeling(original, gr, k_core_threshold);
-        else
-            degeneracy_peeling(original, gr, k_core_threshold);
+        // else
+        //     degeneracy_peeling(original, gr, k_core_threshold);
 
         //             if (options.preprocessing == gc::options::FULL)
         // neighborhood_dominance(original, gr);
@@ -1620,7 +1620,12 @@ int color(gc::options& options, gc::graph<input_format>& g)
                 (init_model.ub - 1));
 								
 
-            if (tmp_model.ub > tmp_model.lb) {
+								// std::cout << "[" << tmp_model.lb << ".." << tmp_model.ub << "]\n";
+								// assert(tmp_model.g.size() > 0 or tmp_model.ub > tmp_model.lb);
+								
+
+
+            if (tmp_model.ub > tmp_model.lb and tmp_model.g.size() > 0) {
                 if (options.dsatur) {
                     tmp_model.solve_with_dsatur();
                 } else {
