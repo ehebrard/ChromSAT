@@ -18,7 +18,12 @@ struct options {
     // minicsp options
     bool trace{false};
 
-    enum learning_level { NO_LEARNING, NAIVE_POSITIVE, CHOOSE_POSITIVE };
+    enum learning_level {
+        NO_LEARNING,
+        NAIVE_POSITIVE,
+        CHOOSE_POSITIVE,
+        DYNAMIC_REPS
+    };
     learning_level learning{NAIVE_POSITIVE};
 
     bool xvars;
@@ -111,10 +116,10 @@ struct options {
     bool dsatur;
 
     int memlimit;
-		
-		int myciellimit;
 
-                bool ubfocus;
+    int myciellimit;
+
+    bool ubfocus;
 };
 
 options parse(int argc, char* argv[]);
