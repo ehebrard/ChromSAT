@@ -422,6 +422,8 @@ struct gc_model {
                     neighborhood_dominance(g, gr);
             }
 
+            if (g.size() > 1000000)
+                break;
         }; // while (prev_size > g.size() and lb < ub);
 
         return (original_size > g.size());
@@ -634,13 +636,20 @@ struct gc_model {
 
         gc::bitset removed(0, g.capacity() - 1, gc::bitset::empt);
 
+        int limit = 100000;
         auto psize{g.size()};
-        for (auto u : nodes)
+        for (auto u : nodes) {
             for (auto v : nodes)
                 // check if u dominates v
                 if (u != v and !g.matrix[u].fast_contain(v)
                     and g.nodeset.fast_contain(v)
                     and g.nodeset.fast_contain(u)) {
+                    if (--limit <= 0)
+                        break;
+
+                    // if (limit % 1000 == 0)
+                    //     std::cout << limit << std::endl;
+
                     gr.util_set.copy(g.matrix[v]);
                     gr.util_set.setminus_with(g.matrix[u]);
                     if (!gr.util_set.intersect(g.nodeset)) {
@@ -648,6 +657,7 @@ struct gc_model {
 
                         assert(!removed.fast_contain(v));
 
+                        ++limit;
                         removed.add(v);
                         //
                         // std::cout << "\nrm " << v << " " << g.matrix[v] <<
@@ -661,6 +671,9 @@ struct gc_model {
                         gr.status[v] = gc::vertex_status::dominated_removed;
                     }
                 }
+            if (limit <= 0)
+                break;
+        }
 
         if (psize > g.size()) {
             std::cout << "[preprocessing] remove " << (psize - g.size())
