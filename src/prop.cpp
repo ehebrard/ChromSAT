@@ -198,6 +198,9 @@ public:
     std::vector<indset_constraint> isconses;
     std::vector<gc::bitset> isrep;
 
+    // used with learning=DYNAMIC_REPS
+    std::vector<int> dynamic_reps;
+
     statistics& stat;
 
     struct varinfo_t {
@@ -246,6 +249,7 @@ public:
         , vars(tvars)
         , isconses(isconses)
         , isrep(isconses.size())
+        , dynamic_reps(g.capacity())
         , stat(stat)
         , util_set(0, g.capacity() - 1, bitset::empt)
         , util_set2(0, g.capacity() - 1, bitset::empt)
@@ -694,6 +698,10 @@ public:
             }
 
             g.merge(u, v);
+            dynamic_reps[u] = info.u;
+            dynamic_reps[v] = info.v; // the partition is not there
+                                      // anymore, but we may use this
+                                      // when we backtrack
         } else {
 
             if (g.matrix[u].fast_contain(v))
@@ -720,7 +728,8 @@ public:
     // If opt.learning is CHOOSE_POSITIVE, itfinds the variable
     // between two partitions with max VSIDS and sets expl_reps of the
     // two partitions so that they choose this variable. Otherwise,
-    // just sets expl_reps to be equal to rep_of.
+    // just sets expl_reps to be equal to the representative of the
+    // partition (static or dynamic)
     //
     // If expl_reps for one of the two partitions is already set, its
     // choice is consistent with that value.
@@ -731,13 +740,29 @@ public:
     bool bestmatch(int u, int v, const std::vector<int>& ubag,
         const std::vector<int>& vbag, int up, int& maxvar, double& maxactivity)
     {
+        assert(u == g.rep_of[u]);
+        assert(v == g.rep_of[v]);
         if (opt.learning != options::CHOOSE_POSITIVE) {
-            expl_reps[u] = g.rep_of[u];
-            expl_reps[v] = g.rep_of[v];
-            if (g.origmatrix[u].fast_contain(v))
+            if (opt.learning == options::DYNAMIC_REPS) {
+                int ur = dynamic_reps[u];
+                int vr = dynamic_reps[v];
+                // use the dynamic representative, except if it's not
+                // in the same partition anymore (can happen after
+                // backtracking)
+                if (g.rep_of[ur] != u)
+                    ur = g.rep_of[u];
+                if (g.rep_of[vr] != v)
+                    vr = g.rep_of[v];
+                expl_reps[u] = ur;
+                expl_reps[v] = vr;
+            } else {
+                expl_reps[u] = g.rep_of[u];
+                expl_reps[v] = g.rep_of[v];
+            }
+            if (g.origmatrix[expl_reps[u]].fast_contain(expl_reps[v]))
                 maxvar = var_Undef;
             else
-                maxvar = vars[u][v];
+                maxvar = vars[expl_reps[u]][expl_reps[v]];
             return true;
         }
         int bestu{-1}, bestv{-1};
@@ -1010,6 +1035,7 @@ public:
             return INVALID_CLAUSE;
         case options::NAIVE_POSITIVE:
         case options::CHOOSE_POSITIVE:
+        case options::DYNAMIC_REPS:
             return explain_positive();
         default:
             assert(0);
@@ -1146,6 +1172,45 @@ public:
         }
     }
 
+    Clause* propagate_IS_constraints()
+    {
+        for (size_t i = 0; i < isconses.size(); ++i) {
+            isrep[i].clear();
+            for (auto v : isconses[i].vs) {
+                isrep[i].fast_add(g.rep_of[v]);
+            }
+        }
+
+        for (int i = 0; i != cf.num_cliques; ++i) {
+            if (cf.clique_sz[i] < ub - 1)
+                continue;
+
+            for (size_t j = 0; j < isconses.size(); ++j) {
+                const auto& c{isconses[j]};
+                const auto& r{isrep[j]};
+                util_set.copy(r);
+                util_set.intersect_with(cf.cliques[i]);
+                if (static_cast<int>(util_set.size()) >= ub - 1) {
+                    // we need to choose the vertices of the
+                    // constraint as representatives of the
+                    // partitions participating in the clique
+                    expl_reps.clear();
+                    expl_reps.resize(g.capacity(), -1);
+                    for (auto v : c.vs) {
+                        if (!util_set.fast_contain(g.rep_of[v]))
+                            continue;
+                        expl_reps[g.rep_of[v]] = v;
+                    }
+
+                    reason.clear();
+                    explain_positive_clique(util_set, true);
+                    return s.addInactiveClause(reason);
+                }
+            }
+        }
+        return NO_REASON;
+    }
+
     Clause* propagate(Solver&) final
     {
         // check_consistency();
@@ -1220,43 +1285,8 @@ public:
                   << " dlvl = " << s.decisionLevel() << std::endl;
 #endif
 
-        if (opt.indset_constraints and lb >= ub - 1
-            and lb >= ub - 1) {
-
-                for (size_t i = 0; i < isconses.size(); ++i) {
-                    isrep[i].clear();
-                    for (auto v : isconses[i].vs) {
-                        isrep[i].fast_add(g.rep_of[v]);
-                    }
-                }
-
-                for (int i = 0; i != cf.num_cliques; ++i) {
-                    if (cf.clique_sz[i] < ub - 1)
-                        continue;
-
-                    for (size_t j = 0; j < isconses.size(); ++j) {
-                        const auto& c{isconses[j]};
-                        const auto& r{isrep[j]};
-                        util_set.copy(r);
-                        util_set.intersect_with(cf.cliques[i]);
-                        if (static_cast<int>(util_set.size()) >= ub - 1) {
-                            // we need to choose the vertices of the
-                            // constraint as representatives of the
-                            // partitions participating in the clique
-                            expl_reps.clear();
-                            expl_reps.resize(g.capacity(), -1);
-                            for (auto v : c.vs) {
-                                if (!util_set.fast_contain(g.rep_of[v]))
-                                    continue;
-                                expl_reps[g.rep_of[v]] = v;
-                            }
-
-                            reason.clear();
-                            explain_positive_clique(util_set, true);
-                            return s.addInactiveClause(reason);
-                        }
-                    }
-                }
+        if (opt.indset_constraints and lb >= ub - 1 and lb >= ub - 1) {
+            DO_OR_RETURN(propagate_IS_constraints());
         }
 
         // auto sol{gc::brelaz_color(g,true)};
