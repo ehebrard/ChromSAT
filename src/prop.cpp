@@ -63,10 +63,11 @@ struct bfs_state {
         if (x != rootu && x != rootv && !single_partition) {
             assert(vparent[x] != -1);
             assert(uparent[x] != -1);
-            assert(fg.origmatrix[x].fast_contain(vparent[x]));
-            assert(fg.origmatrix[x].fast_contain(uparent[x]));
-            assert(fg.origmatrix[vparent[x]].fast_contain(uparent[x]));
+            // assert(fg.origmatrix[x].fast_contain(vparent[x]));
+            // assert(fg.origmatrix[x].fast_contain(uparent[x]));
+            // assert(fg.origmatrix[vparent[x]].fast_contain(uparent[x]));
         }
+        // std::cout << "BFS visiting edge " << w << "->" << x << "\n";
         return f(w, x);
     }
 
@@ -110,6 +111,7 @@ struct bfs_state {
         rettype rv{};
         while(!Q.empty()) {
             int v = Q.front();
+            // std::cout << "BFS visiting " << v << "\n";
             Q.pop_front();
             rv = do_bfs(v, f);
             if (rv || Q.empty())
@@ -128,6 +130,7 @@ struct bfs_state {
             vparent[up] = -1;
             parent[up] = -1;
         }
+        // std::cout << "upart = " << upart << "\n";
         vpart.clear();
         for (auto vp : g.partition[g.rep_of[v]]) {
             col[vp] = WHITE;
@@ -136,12 +139,13 @@ struct bfs_state {
             vparent[vp] = -1;
             parent[vp] = -1;
         }
+        // std::cout << "vpart = " << vpart << "\n";
         allpart.copy(upart);
         allpart.union_with(vpart);
         Q.clear();
         Q.push_back(v);
         uparent[v] = u;
-        col[u] = BLACK;
+        vparent[u] = v;
         rootu = u;
         rootv = v;
         return do_bfs(f);
@@ -194,6 +198,9 @@ public:
     std::vector<indset_constraint> isconses;
     std::vector<gc::bitset> isrep;
 
+    // used with learning=DYNAMIC_REPS
+    std::vector<int> dynamic_reps;
+
     statistics& stat;
 
     struct varinfo_t {
@@ -242,6 +249,7 @@ public:
         , vars(tvars)
         , isconses(isconses)
         , isrep(isconses.size())
+        , dynamic_reps(g.capacity())
         , stat(stat)
         , util_set(0, g.capacity() - 1, bitset::empt)
         , util_set2(0, g.capacity() - 1, bitset::empt)
@@ -420,6 +428,12 @@ public:
     Clause* transitive_separate(
         int u, int v, const bitset& diffvu, const bitset& vpart)
     {
+        std::cout << "transitive separate " << u << "--" << v << "\n";
+        std::cout << "partition[" << u
+                  << "] = " << print_container<std::vector<int>>{g.partition[u]} << "\n";
+        std::cout << "partition[" << v
+                  << "] = " << print_container<std::vector<int>>{g.partition[v]} << "\n";
+        std::cout << u << " will gain neighbors " << diffvu << "\n";
         needbfs.clear();
         // for each partition to which we must add edges, first find
         // at least one edge that can be fixed immediately, which will
@@ -430,34 +444,57 @@ public:
             util_set.intersect_with(fg.origmatrix[up]);
             for (auto n : util_set) {
                 if (fg.origmatrix[up].fast_contain(v)
-                    && fg.origmatrix[n].fast_contain(v))
+                    && fg.origmatrix[n].fast_contain(v)) {
+                    std::cout << "Immediate separation " << up << "--" << n
+                              << " via rep = " << v << "\n";
                     DO_OR_RETURN(separate(up, v, n));
-                else {
+                    bfsroots[n] = {up, n};
+                } else {
                     util_set2.copy(vpart);
                     util_set2.intersect_with(fg.origmatrix[up]);
                     util_set2.intersect_with(fg.origmatrix[n]);
                     if (util_set2.empty()) {
                         needbfs.fast_add(g.rep_of[n]);
-                        bfsroots[n] = {up, n};
+                        // bfsroots[n] = {up, n};
+                        std::cout << "Will set " << up << "--" << n
+                                  << " using BFS\n";
                         continue;
                     }
                     int via = util_set2.min();
+                    std::cout << "Immediate step of separation " << up << "--"
+                              << n << " via " << via << "\n";
                     DO_OR_RETURN(separate(up, via, n));
+                    bfsroots[n] = {up, n};
+                    std::cout << "\t\tWill start BFS from " << up
+                              << " to reach " << n << "\n";
                 }
             }
         }
 
         for (auto v : needbfs) {
             auto e = bfsroots[v];
-            bfs.bfs(e.first, e.second, [&](int x, int w) -> Clause* {
+            std::cout << "\n****\tBFSing " << e.first << "-" << e.second
+                      << "\n";
+            bfs.bfs(e.second, e.first, [&](int x, int w) -> Clause* {
+                std::cout << "transitive_separate: checking edge " << w << "--"
+                          << x << "\n";
                 bool xinv = bfs.vpart.fast_contain(x);
                 bool winv = bfs.vpart.fast_contain(w);
+                std::cout << "inv: " << winv << xinv << "\n";
+                // std::cout << "vpart = " << bfs.vpart << "\n";
+                // std::cout << "upart = " << bfs.upart << "\n";
                 if (xinv == winv)
                     return NO_REASON;
-                if (xinv)
+                if (xinv) {
+                    std::cout << "\tseparate(" << x << "," << bfs.vparent[w]
+                              << "," << w << ")\n";
                     DO_OR_RETURN(separate(x, bfs.vparent[w], w));
-                else
+                } else {
+                    std::cout << "here\n";
+                    std::cout << "\tseparate(" << x << "," << bfs.uparent[w]
+                              << "," << w << ")\n";
                     DO_OR_RETURN(separate(x, bfs.uparent[w], w));
+                }
                 return NO_REASON;
             });
         }
@@ -480,6 +517,12 @@ public:
             return NO_REASON;
         }
 
+        std::cout << "\n\nmerge " << info.u << "--" << info.v << "\n";
+        std::cout << "partition[" << u
+                  << "] = " << print_container<std::vector<int>>{g.partition[u]} << "\n";
+        std::cout << "partition[" << v
+                  << "] = " << print_container<std::vector<int>>{g.partition[v]} << "\n";
+
         // same as in plain version of wake()
         diffuv.copy(g.matrix[u]);
         diffuv.setminus_with(g.matrix[v]);
@@ -487,17 +530,35 @@ public:
         diffvu.setminus_with(g.matrix[u]);
 
         // set to true all the variables between the two partitions
-        bfs.bfs(info.u, info.v, [&](int x, int w) -> Clause* {
-            if (x == info.u || x == info.v)
+        bfs.bfs(info.u, info.v, [&](int w, int x) -> Clause* {
+            if ((x == info.u || x == info.v) && (w == info.u || w == info.v))
                 return NO_REASON;
+            // followed edge from w to x
+            std::cout << "merge: checking edge " << w << "->" << x << "\n";
             bool xinv = bfs.vpart.fast_contain(x);
             bool winv = bfs.vpart.fast_contain(w);
+            std::cout << "inv: " << winv << xinv << "\n";
+            std::cout << "vpart = " << bfs.vpart << "\n";
+            std::cout << "upart = " << bfs.upart << "\n";
             if (xinv == winv)
                 return NO_REASON;
-            if (xinv)
-                DO_OR_RETURN(merge_3way(w, bfs.vparent[w], x));
-            else
-                DO_OR_RETURN(merge_3way(w, bfs.uparent[w], x));
+            if (xinv) {
+                std::cout << "\t1: merge(" << x << "," << bfs.vparent[w] << ","
+                          << w << ")\n";
+                assert(bfs.vparent[w] != x || x == bfs.rootv);
+                if (x == bfs.rootv)
+                    DO_OR_RETURN(merge_3way(x, bfs.rootu, w));
+                else
+                    DO_OR_RETURN(merge_3way(x, bfs.vparent[w], w));
+            } else {
+                std::cout << "\t2: merge(" << x << "," << bfs.uparent[w] << ","
+                          << w << ")\n";
+                assert(bfs.uparent[w] != x || x == bfs.rootu);
+                if (x == bfs.rootu)
+                    DO_OR_RETURN(merge_3way(x, bfs.rootv, w));
+                else
+                    DO_OR_RETURN(merge_3way(x, bfs.uparent[w], w));
+            }
             return NO_REASON;
         });
 
@@ -506,7 +567,7 @@ public:
         vpartcopy.copy(bfs.vpart); // this will be destroyed by the
                                    // bfs calls in transitive_separate()
         DO_OR_RETURN(transitive_separate(v, info.u, diffuv, bfs.upart));
-        DO_OR_RETURN(transitive_separate(u, info.v, diffvu, bfs.vpart));
+        DO_OR_RETURN(transitive_separate(u, info.v, diffvu, vpartcopy));
 
         g.merge(u, v);
 #ifdef UPDATE_FG
@@ -531,16 +592,26 @@ public:
         }
 
         bfs.bfs(info.u, info.v, [&](int x, int w) -> Clause* {
-            if (x == info.u || x == info.v)
+            std::cout << "separate: checking edge " << w << "--" << x << "\n";
+            if ((x == info.u || x == info.v) && (w == info.u || w == info.v))
                 return NO_REASON;
+            std::cout << "pass 1\n";
             bool xinv = bfs.vpart.fast_contain(x);
             bool winv = bfs.vpart.fast_contain(w);
+            std::cout << "inv: " << winv << xinv << "\n";
+            std::cout << "vpart = " << bfs.vpart << "\n";
+            std::cout << "upart = " << bfs.upart << "\n";
             if (xinv == winv)
                 return NO_REASON;
-            if (xinv)
-                DO_OR_RETURN(separate(x, bfs.vparent[w], w));
-            else
-                DO_OR_RETURN(separate(x, bfs.uparent[w], w));
+            if (xinv) {
+                std::cout << "vparent[" << w << "] = " << bfs.vparent[w]
+                          << "\n";
+                DO_OR_RETURN(separate(x, bfs.uparent[x], w));
+            } else {
+                std::cout << "uparent[" << w << "] = " << bfs.uparent[w]
+                          << "\n";
+                DO_OR_RETURN(separate(x, bfs.vparent[x], w));
+            }
             return NO_REASON;
         });
         g.separate(u, v);
@@ -627,6 +698,10 @@ public:
             }
 
             g.merge(u, v);
+            dynamic_reps[u] = info.u;
+            dynamic_reps[v] = info.v; // the partition is not there
+                                      // anymore, but we may use this
+                                      // when we backtrack
         } else {
 
             if (g.matrix[u].fast_contain(v))
@@ -653,7 +728,8 @@ public:
     // If opt.learning is CHOOSE_POSITIVE, itfinds the variable
     // between two partitions with max VSIDS and sets expl_reps of the
     // two partitions so that they choose this variable. Otherwise,
-    // just sets expl_reps to be equal to rep_of.
+    // just sets expl_reps to be equal to the representative of the
+    // partition (static or dynamic)
     //
     // If expl_reps for one of the two partitions is already set, its
     // choice is consistent with that value.
@@ -664,13 +740,29 @@ public:
     bool bestmatch(int u, int v, const std::vector<int>& ubag,
         const std::vector<int>& vbag, int up, int& maxvar, double& maxactivity)
     {
+        assert(u == g.rep_of[u]);
+        assert(v == g.rep_of[v]);
         if (opt.learning != options::CHOOSE_POSITIVE) {
-            expl_reps[u] = g.rep_of[u];
-            expl_reps[v] = g.rep_of[v];
-            if (g.origmatrix[u].fast_contain(v))
+            if (opt.learning == options::DYNAMIC_REPS) {
+                int ur = dynamic_reps[u];
+                int vr = dynamic_reps[v];
+                // use the dynamic representative, except if it's not
+                // in the same partition anymore (can happen after
+                // backtracking)
+                if (g.rep_of[ur] != u)
+                    ur = g.rep_of[u];
+                if (g.rep_of[vr] != v)
+                    vr = g.rep_of[v];
+                expl_reps[u] = ur;
+                expl_reps[v] = vr;
+            } else {
+                expl_reps[u] = g.rep_of[u];
+                expl_reps[v] = g.rep_of[v];
+            }
+            if (g.origmatrix[expl_reps[u]].fast_contain(expl_reps[v]))
                 maxvar = var_Undef;
             else
-                maxvar = vars[u][v];
+                maxvar = vars[expl_reps[u]][expl_reps[v]];
             return true;
         }
         int bestu{-1}, bestv{-1};
@@ -943,6 +1035,7 @@ public:
             return INVALID_CLAUSE;
         case options::NAIVE_POSITIVE:
         case options::CHOOSE_POSITIVE:
+        case options::DYNAMIC_REPS:
             return explain_positive();
         default:
             assert(0);
@@ -1079,8 +1172,48 @@ public:
         }
     }
 
+    Clause* propagate_IS_constraints()
+    {
+        for (size_t i = 0; i < isconses.size(); ++i) {
+            isrep[i].clear();
+            for (auto v : isconses[i].vs) {
+                isrep[i].fast_add(g.rep_of[v]);
+            }
+        }
+
+        for (int i = 0; i != cf.num_cliques; ++i) {
+            if (cf.clique_sz[i] < ub - 1)
+                continue;
+
+            for (size_t j = 0; j < isconses.size(); ++j) {
+                const auto& c{isconses[j]};
+                const auto& r{isrep[j]};
+                util_set.copy(r);
+                util_set.intersect_with(cf.cliques[i]);
+                if (static_cast<int>(util_set.size()) >= ub - 1) {
+                    // we need to choose the vertices of the
+                    // constraint as representatives of the
+                    // partitions participating in the clique
+                    expl_reps.clear();
+                    expl_reps.resize(g.capacity(), -1);
+                    for (auto v : c.vs) {
+                        if (!util_set.fast_contain(g.rep_of[v]))
+                            continue;
+                        expl_reps[g.rep_of[v]] = v;
+                    }
+
+                    reason.clear();
+                    explain_positive_clique(util_set, true);
+                    return s.addInactiveClause(reason);
+                }
+            }
+        }
+        return NO_REASON;
+    }
+
     Clause* propagate(Solver&) final
     {
+        // check_consistency();
 
         int lb{0};
 
@@ -1152,43 +1285,8 @@ public:
                   << " dlvl = " << s.decisionLevel() << std::endl;
 #endif
 
-        if (opt.indset_constraints and lb >= ub - 1
-            and lb >= ub - 1) {
-
-                for (size_t i = 0; i < isconses.size(); ++i) {
-                    isrep[i].clear();
-                    for (auto v : isconses[i].vs) {
-                        isrep[i].fast_add(g.rep_of[v]);
-                    }
-                }
-
-                for (int i = 0; i != cf.num_cliques; ++i) {
-                    if (cf.clique_sz[i] < ub - 1)
-                        continue;
-
-                    for (size_t j = 0; j < isconses.size(); ++j) {
-                        const auto& c{isconses[j]};
-                        const auto& r{isrep[j]};
-                        util_set.copy(r);
-                        util_set.intersect_with(cf.cliques[i]);
-                        if (static_cast<int>(util_set.size()) >= ub - 1) {
-                            // we need to choose the vertices of the
-                            // constraint as representatives of the
-                            // partitions participating in the clique
-                            expl_reps.clear();
-                            expl_reps.resize(g.capacity(), -1);
-                            for (auto v : c.vs) {
-                                if (!util_set.fast_contain(g.rep_of[v]))
-                                    continue;
-                                expl_reps[g.rep_of[v]] = v;
-                            }
-
-                            reason.clear();
-                            explain_positive_clique(util_set, true);
-                            return s.addInactiveClause(reason);
-                        }
-                    }
-                }
+        if (opt.indset_constraints and lb >= ub - 1 and lb >= ub - 1) {
+            DO_OR_RETURN(propagate_IS_constraints());
         }
 
         // auto sol{gc::brelaz_color(g,true)};
@@ -1236,6 +1334,8 @@ public:
                 if (x == var_Undef)
                     continue;
                 auto info = varinfo[x];
+                if (info.u < 0 || info.u == info.v)
+                    continue;
                 if (s.value(x) == l_False) {
                     if (!g.matrix[g.rep_of[info.u]].contain(g.rep_of[info.v])) {
                         std::cout << info.u << "-" << info.v
