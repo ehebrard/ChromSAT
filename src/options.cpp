@@ -247,6 +247,9 @@ void options::describe(std::ostream& os)
     case CLEVER:
         os << "(Verma et al.)";
         break;
+    case COLOR:
+        os << "heuristic coloring";
+        break;
     }
     os << "\n";
     os << std::endl;

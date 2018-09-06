@@ -1502,6 +1502,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
 			
       std::cout << "dsatur (2):\n";
       gc::dyngraph dg(g);
+			gc::coloring col;
       col.brelaz_color(dg, 0);
       auto ncol{*std::max_element(begin(col.color), end(col.color)) + 1};
 			std::cout << " at " << minicsp::cpuTime() << std::endl;
