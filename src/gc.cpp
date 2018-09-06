@@ -422,6 +422,8 @@ struct gc_model {
                     neighborhood_dominance(g, gr);
             }
 
+            if (g.size() > 1000000)
+                break;
         }; // while (prev_size > g.size() and lb < ub);
 
         return (original_size > g.size());
@@ -634,13 +636,20 @@ struct gc_model {
 
         gc::bitset removed(0, g.capacity() - 1, gc::bitset::empt);
 
+        int limit = 100000;
         auto psize{g.size()};
-        for (auto u : nodes)
+        for (auto u : nodes) {
             for (auto v : nodes)
                 // check if u dominates v
                 if (u != v and !g.matrix[u].fast_contain(v)
                     and g.nodeset.fast_contain(v)
                     and g.nodeset.fast_contain(u)) {
+                    if (--limit <= 0)
+                        break;
+
+                    // if (limit % 1000 == 0)
+                    //     std::cout << limit << std::endl;
+
                     gr.util_set.copy(g.matrix[v]);
                     gr.util_set.setminus_with(g.matrix[u]);
                     if (!gr.util_set.intersect(g.nodeset)) {
@@ -648,6 +657,7 @@ struct gc_model {
 
                         assert(!removed.fast_contain(v));
 
+                        ++limit;
                         removed.add(v);
                         //
                         // std::cout << "\nrm " << v << " " << g.matrix[v] <<
@@ -661,6 +671,9 @@ struct gc_model {
                         gr.status[v] = gc::vertex_status::dominated_removed;
                     }
                 }
+            if (limit <= 0)
+                break;
+        }
 
         if (psize > g.size()) {
             std::cout << "[preprocessing] remove " << (psize - g.size())
@@ -1433,21 +1446,12 @@ int color(gc::options& options, gc::graph<input_format>& g)
             },
             [&](int, gc::weight) {});
 
-    // if (options.format != "edg")
     g.canonize();
     long num_edges{g.count_edges()};
-    // for (auto v : g.nodes) {
-    //     num_edges += g.matrix[v].size();
-    // }
-    // num_edges /= 2;
+
 
     if (options.convert != "") {
         std::ofstream outfile(options.convert.c_str(), std::ios_base::out);
-
-        // std::cout << options.convert.substr(options.convert.size()-3, 3) <<
-        // std::endl;
-        // exit(1);
-
         if (options.convert.substr(options.convert.size() - 3, 3) == "edg") {
             outfile << g.size() << " " << num_edges << "\n";
             for (auto u : g.nodes) {
@@ -1477,7 +1481,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
     g.describe(std::cout, num_edges);
     std::cout << " at " << minicsp::cpuTime() << std::endl;
-    // histogram(g);
+
 
     gc::statistics statistics(g.capacity());
     if (options.preprocessing != gc::options::NO_PREPROCESSING)
@@ -1489,6 +1493,22 @@ int color(gc::options& options, gc::graph<input_format>& g)
     // std::cout << "MAIN (READ): " << g.size() << "(" << (int*)(&g) << ")"
     //           << std::endl;
     switch (options.strategy) {
+    case gc::options::COLOR: {
+
+			std::cout << "\ndsatur (1):\n";
+      auto sol{gc::brelaz_color(g, false)};
+      int ncol{*max_element(begin(sol), end(sol)) + 1};
+			std::cout << " at " << minicsp::cpuTime() << std::endl;
+			
+      std::cout << "dsatur (2):\n";
+      gc::dyngraph dg(g);
+      col.brelaz_color(dg, 0);
+      auto ncol{*std::max_element(begin(col.color), end(col.color)) + 1};
+			std::cout << " at " << minicsp::cpuTime() << std::endl;
+			
+			
+
+    } break;
     case gc::options::BNB: {
         std::pair<int, int> bounds{0, g.size()};
         if (options.preprocessing == gc::options::NO_PREPROCESSING) {
