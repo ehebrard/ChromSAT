@@ -430,9 +430,9 @@ public:
     {
         std::cout << "transitive separate " << u << "--" << v << "\n";
         std::cout << "partition[" << u
-                  << "] = " << print_container{g.partition[u]} << "\n";
+                  << "] = " << print_container<std::vector<int>>{g.partition[u]} << "\n";
         std::cout << "partition[" << v
-                  << "] = " << print_container{g.partition[v]} << "\n";
+                  << "] = " << print_container<std::vector<int>>{g.partition[v]} << "\n";
         std::cout << u << " will gain neighbors " << diffvu << "\n";
         needbfs.clear();
         // for each partition to which we must add edges, first find
@@ -519,9 +519,9 @@ public:
 
         std::cout << "\n\nmerge " << info.u << "--" << info.v << "\n";
         std::cout << "partition[" << u
-                  << "] = " << print_container{g.partition[u]} << "\n";
+                  << "] = " << print_container<std::vector<int>>{g.partition[u]} << "\n";
         std::cout << "partition[" << v
-                  << "] = " << print_container{g.partition[v]} << "\n";
+                  << "] = " << print_container<std::vector<int>>{g.partition[v]} << "\n";
 
         // same as in plain version of wake()
         diffuv.copy(g.matrix[u]);
