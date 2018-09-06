@@ -1495,16 +1495,18 @@ int color(gc::options& options, gc::graph<input_format>& g)
     switch (options.strategy) {
     case gc::options::COLOR: {
 
+			int ncol{0};
+
 			std::cout << "\ndsatur (1):\n";
       auto sol{gc::brelaz_color(g, false)};
-      int ncol{*max_element(begin(sol), end(sol)) + 1};
+      ncol = *max_element(begin(sol), end(sol)) + 1;
 			std::cout << " at " << minicsp::cpuTime() << std::endl;
 			
       std::cout << "dsatur (2):\n";
       gc::dyngraph dg(g);
 			gc::coloring col;
       col.brelaz_color(dg, 0);
-      auto ncol{*std::max_element(begin(col.color), end(col.color)) + 1};
+      ncol = *std::max_element(begin(col.color), end(col.color)) + 1;
 			std::cout << " at " << minicsp::cpuTime() << std::endl;
 			
 			
