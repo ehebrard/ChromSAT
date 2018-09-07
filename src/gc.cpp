@@ -66,12 +66,8 @@ struct quick_dsatur {
 		    first.clear();
 		    first.push_back(0); // every node has saturation degree 0
 
-<<<<<<< HEAD
-				int not_empty{order.size()};
-=======
-				auto not_empty{order.size()};
->>>>>>> 14ec2f70465f4036bac4b5461eacd2247b922c3e
 				
+				auto not_empty{order.size()};
 				std::cout << not_empty << std::endl;
 				
 				while(not_empty--)
@@ -125,10 +121,7 @@ struct quick_dsatur {
 		}
     void clear()
     {
-<<<<<<< HEAD
-=======
 				color.clear();
->>>>>>> 14ec2f70465f4036bac4b5461eacd2247b922c3e
         first.clear();
         for (auto v : order)
             satur[v].clear();
