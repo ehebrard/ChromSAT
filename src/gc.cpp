@@ -1872,16 +1872,16 @@ int color(gc::options& options, gc::graph<input_format>& g)
         std::cout << "\ndsatur (1):\n";
         quick_dsatur<gc::interval_list> col1;
         std::cout << " at " << minicsp::cpuTime() << std::endl;
-        col1.brelaz_color(g, 30, 0, 1, false);
+        col1.brelaz_color(g, 30, 1, 1, false);
         std::cout << " at " << minicsp::cpuTime() << std::endl;
         ncol = *std::max_element(begin(col1.color), end(col1.color)) + 1;
         std::cout << " ==> " << ncol << std::endl;
         std::cout << " at " << minicsp::cpuTime() << std::endl;
 
         quick_dsatur<colbitset> col2;
-        std::cout << "\ndsatur (1'):\n";
+        std::cout << "\ndsatur (2):\n";
         std::cout << " at " << minicsp::cpuTime() << std::endl;
-        col2.brelaz_color(g, 30, 0, 1, true);
+        col2.brelaz_color(g, 30, 1, 1, true);
         std::cout << " at " << minicsp::cpuTime() << std::endl;
         ncol = *std::max_element(begin(col2.color), end(col2.color)) + 1;
         std::cout << " ==> " << ncol << std::endl;
@@ -1889,11 +1889,21 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
         col1.clear();
 
-        std::cout << "\ndsatur (1''):\n";
+        std::cout << "\ndsatur (1'):\n";
         std::cout << " at " << minicsp::cpuTime() << std::endl;
-        col1.brelaz_color(g, 30, 0, 100, false);
+        col1.brelaz_color(g, 30, 1, 100, false);
         std::cout << " at " << minicsp::cpuTime() << std::endl;
         ncol = *std::max_element(begin(col1.color), end(col1.color)) + 1;
+        std::cout << " ==> " << ncol << std::endl;
+        std::cout << " at " << minicsp::cpuTime() << std::endl;
+				
+        col2.clear();
+
+        std::cout << "\ndsatur (2'):\n";
+        std::cout << " at " << minicsp::cpuTime() << std::endl;
+        col2.brelaz_color(g, 30, 1, 100, true);
+        std::cout << " at " << minicsp::cpuTime() << std::endl;
+        ncol = *std::max_element(begin(col2.color), end(col2.color)) + 1;
         std::cout << " ==> " << ncol << std::endl;
         std::cout << " at " << minicsp::cpuTime() << std::endl;
 
