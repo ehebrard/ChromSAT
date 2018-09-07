@@ -90,7 +90,7 @@ public:
 
     /** edges */
     // the current number of edges (the list of edges is not updated)
-    int num_edges;
+    size_t num_edges;
     // the (original) edges of the graph
     std::vector<Edge> edges;
     // ranks stores the indices of the nodes in eachother's neighbor list so
@@ -105,18 +105,18 @@ public:
 
 
     dyngraph() {}
-    dyngraph(const int n);
+    dyngraph(const size_t n);
     dyngraph(const dyngraph& g);
     template <class adjacency_struct>
     dyngraph(const gc::graph<adjacency_struct>& g);
 
     // helpers
-    int size() const;
+    size_t size() const;
     bool null() const;
     bool empty() const;
     bool full() const;
     bool has_node(int x) const;
-    int degree(const int x) const { return matrix[x].size(); }
+    size_t degree(const int x) const { return matrix[x].size(); }
 		double get_density() const;
 
     // remove every edge and node
@@ -202,7 +202,7 @@ struct coloring {
 				color.clear();
         first.clear();
         for (auto v : order)
-            satur[v].clear();
+            satur[v].fill();
     }
 };
 

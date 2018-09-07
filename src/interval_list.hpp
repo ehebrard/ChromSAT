@@ -19,6 +19,13 @@ namespace gc
 
 class interval_list
 {
+	/*
+	- next implements a linked list of indices for inf/sup the end of the list is signaled by "-1"
+	- freed stores unused indices in order to optimise space
+	- inf/sup store the lower and upper bounds of the interval, respectively
+	
+	*/
+	
 
 public:
 	
@@ -29,14 +36,20 @@ public:
 	std::vector<int> next;
 	std::vector<int> freed;
 	
-	size_t size;
+	size_t size_;
 	
+	inline size_t size() { return size_; }
 	
 	interval_list();
 	
-	bool add(const int x);
-	int get() const;
-	void clear();
+	bool remove(const int x);
+	int min() const;
+	void fill();
+	
+	void initialise(const int ub) {} // dummy 
+	
+	void check_consistency();
+	
 	
 	std::ostream& display(std::ostream& os) const;
 

@@ -93,7 +93,7 @@ void coloring::brelaz_color(dyngraph& g, const int randomized = 0)
             break;
 
         // get the highest saturation degree
-        d = satur[order[iter++]].size;
+        d = satur[order[iter++]].size();
 
         // remove the unused pointers
         while (first.size() > d + 1)
@@ -123,7 +123,7 @@ void coloring::brelaz_color(dyngraph& g, const int randomized = 0)
         remove(x, d);
 
         // use the first possible color for x
-        c = satur[x].get();
+        c = satur[x].min();
         color[x] = c;
 
         // remove x from the graph
@@ -131,14 +131,14 @@ void coloring::brelaz_color(dyngraph& g, const int randomized = 0)
 
         // update the saturation degree of x's neighbors
         for (auto y : g.matrix[x])
-            if (satur[y].add(c)) {
+            if (satur[y].remove(c)) {
                 // new highest saturation degree, new pointer
-                if (first.size() <= satur[y].size)
+                if (first.size() <= satur[y].size())
                     first.push_back(*rbegin(first));
 
                 // move y one partition up in the saturation degree
                 // list
-                remove(y, satur[y].size - 1);
+                remove(y, satur[y].size() - 1);
             }
 
     } while (true);
@@ -147,7 +147,7 @@ void coloring::brelaz_color(dyngraph& g, const int randomized = 0)
 
 
 
-dyngraph::dyngraph(const int n)
+dyngraph::dyngraph(const size_t n)
 {
     capacity = n;
 
@@ -191,7 +191,7 @@ dyngraph::dyngraph(const dyngraph& g)
     }
 }
 
-int dyngraph::size() const { return nodes.size(); }
+size_t dyngraph::size() const { return nodes.size(); }
 
 bool dyngraph::null() const { return nodes.size() == 0; }
 
