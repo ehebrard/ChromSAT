@@ -15,6 +15,7 @@
 #include "statistics.hpp"
 #include "utils.hpp"
 #include "vcsolver.hpp"
+#include "interval_list.hpp"
 
 #include <minicsp/core/cons.cpp>
 #include <minicsp/core/solver.hpp>
@@ -22,6 +23,110 @@
 
 #include "./sota/Segundo/DSATUR/dsatur_algo.h"
 #include "./sota/Segundo/DSATUR/graphe.h"
+
+
+struct quick_dsatur {
+
+    std::vector<int> color;
+    std::vector<int> order;
+    std::vector<int> rank;
+    std::vector<int> first;
+    std::vector<gc::interval_list> satur;
+    std::random_device rd;
+
+
+		template <class graph_struct>
+    void brelaz_color(graph_struct& g, const int randomized)
+		{
+		    if (g.nodes.empty())
+		        return;
+
+		    int iter = 0, c, d, x;
+
+		    rank.resize(g.capacity());
+		    color.resize(g.capacity(), -1);
+		    satur.resize(g.capacity());
+
+		    //
+		    order.clear();
+
+		    // nodes are stored by non-increasing saturation degree
+		    for (auto v : g.nodes) {
+		        order.push_back(v);
+		    }
+		    if (randomized == 1) {
+		        std::mt19937 s(rd());
+		        std::shuffle(begin(order), end(order), s);
+		    }
+
+		    x = 0;
+		    for (auto v : order)
+		        rank[v] = x++;
+
+		    first.clear();
+		    first.push_back(0); // every node has saturation degree 0
+
+				int not_empty{order.size()};
+				
+				std::cout << not_empty << std::endl;
+				
+				while(not_empty--)
+				{
+		        // get the highest saturation degree
+		        d = satur[order[iter++]].size;
+
+		        // remove the unused pointers
+		        while (first.size() > d + 1)
+		            first.pop_back();
+
+						// no tie breaking for extra quickness
+						x = *(begin(order) + first[d]);
+
+		        // remove x from the partition of nodes with saturation
+		        // degree d
+		        remove(x, d);
+
+		        // use the first possible color for x
+		        c = satur[x].get();
+		        color[x] = c;
+
+		        // update the saturation degree of x's neighbors
+		        for (auto y : g.matrix[x])
+		            if (color[y] < 0 and satur[y].add(c)) {
+		                // new highest saturation degree, new pointer
+		                if (first.size() <= satur[y].size)
+		                    first.push_back(*rbegin(first));
+
+		                // move y one partition up in the saturation degree
+		                // list
+		                remove(y, satur[y].size - 1);
+		            }
+		    } 
+		}
+    void remove(const int y, const int d) 
+		{
+				int idy = rank[y];
+
+				// swap y with first[satur[y].size-1], and increment first[satur[y].size-1]
+				int idf = first[d];
+				int f = order[idf];
+
+				rank[y] = idf;
+				rank[f] = idy;
+
+				order[idf] = y;
+				order[idy] = f;
+
+				++first[d];
+		}
+    void clear()
+    {
+        first.clear();
+        for (auto v : order)
+            satur[v].clear();
+    }
+};
+
 
 template <class graph_struct> void print(graph_struct& g)
 {
@@ -1496,17 +1601,43 @@ int color(gc::options& options, gc::graph<input_format>& g)
     case gc::options::COLOR: {
 
 			int ncol{0};
-
-			std::cout << "\ndsatur (1):\n";
-      auto sol{gc::brelaz_color(g, false)};
-      ncol = *max_element(begin(sol), end(sol)) + 1;
+			
 			std::cout << " at " << minicsp::cpuTime() << std::endl;
+			std::cout << "\ndsatur (1):\n";
+			quick_dsatur col1;
+			std::cout << " at " << minicsp::cpuTime() << std::endl;
+      col1.brelaz_color(g, 0);
+			std::cout << " at " << minicsp::cpuTime() << std::endl;
+      ncol = *std::max_element(begin(col1.color), end(col1.color)) + 1;
+			std::cout << " ==> " << ncol << std::endl;
+			std::cout << " at " << minicsp::cpuTime() << std::endl;
+			
+			col1.clear();
+
+			std::cout << "\n at " << minicsp::cpuTime() << std::endl;
+			std::cout << "dsatur (1'):\n";
+			std::cout << " at " << minicsp::cpuTime() << std::endl;
+      col1.brelaz_color(g, 0);
+			std::cout << " at " << minicsp::cpuTime() << std::endl;
+      ncol = *std::max_element(begin(col1.color), end(col1.color)) + 1;
+			std::cout << " ==> " << ncol << std::endl;
+			std::cout << " at " << minicsp::cpuTime() << std::endl;
+			
+
+			// std::cout << "\ndsatur (1):\n";
+			//       auto sol{gc::brelaz_color(g, false)};
+			//       ncol = *max_element(begin(sol), end(sol)) + 1;
+			// std::cout << " at " << minicsp::cpuTime() << std::endl;
 			
       std::cout << "dsatur (2):\n";
       gc::dyngraph dg(g);
+			std::cout << " at " << minicsp::cpuTime() << std::endl;
 			gc::coloring col;
+			std::cout << " at " << minicsp::cpuTime() << std::endl;
       col.brelaz_color(dg, 0);
+			std::cout << " at " << minicsp::cpuTime() << std::endl;
       ncol = *std::max_element(begin(col.color), end(col.color)) + 1;
+			std::cout << " ==> " << ncol << std::endl;
 			std::cout << " at " << minicsp::cpuTime() << std::endl;
 			
 			
