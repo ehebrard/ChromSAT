@@ -535,14 +535,13 @@ int read_graph(gc::options& options, gc::dyngraph& g)
 
 	sg.canonize();
 
-	g = gc::dyngraph{sg.capacity()};
-	for(auto v : sg.nodes) 
-		for(auto u : sg.matrix[v]) 
-			if(u > v) 
-				g.add_edge(v,u);
+        g = gc::dyngraph{static_cast<size_t>(sg.capacity())};
+        for (auto v : sg.nodes)
+            for (auto u : sg.matrix[v])
+                if (u > v)
+                    g.add_edge(v, u);
 
-
-	return g.num_edges;
+        return g.num_edges;
 }
 
 std::vector<int> upper_bound(gc::options& options, gc::dyngraph& g) 

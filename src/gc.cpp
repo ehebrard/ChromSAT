@@ -26,317 +26,371 @@
 
 
 struct colbitset {
-	
-	gc::bitset b;
-	size_t size_; 
-	
-	inline size_t size() { return size_; }
-	
-	// colbitset() {}
-	
-	bool remove(const int x) {
-		if(!b.fast_contain(x)) return false;
-		b.fast_remove(x);
-		--size_;
-		return true;
-  }
-	int min() const {
-		return b.min();
-	}
-	void fill() {
-		b.fill();
-	}
-	
-	void initialise(const int ub) {
-		size_ = 0;
-		b.initialise(0, ub-1, gc::bitset::full);
-	} // dummy 
-	
+
+    gc::bitset b;
+    size_t size_;
+
+    inline size_t size() { return size_; }
+
+    colbitset() {}
+    colbitset(const int ub)
+        : b(0, ub - 1, gc::bitset::full)
+    {
+        size_ = 0;
+    }
+
+    bool remove(const int x)
+    {
+        if (!b.fast_contain(x))
+            return false;
+        b.fast_remove(x);
+        ++size_;
+        return true;
+    }
+    int min() const { return b.min(); }
+    bool contain(const int elt) const { return !b.fast_contain(elt); }
+    void fill()
+    {
+        b.fill();
+        size_ = 0;
+    }
+
+    void initialise(const int ub)
+    {
+        size_ = 0;
+        b.initialise(0, ub - 1, gc::bitset::full);
+    } // dummy
+
+    std::ostream& display(std::ostream& os) const { return b.display(os); }
 };
 
+std::ostream& operator<<(std::ostream& os, const colbitset& x)
+{
+    return x.display(os);
+}
+
+std::ostream& operator<<(std::ostream& os, const colbitset* x)
+{
+    return x->display(os);
+}
 
 template <class color_set>
 struct quick_dsatur {
 
     std::vector<int> color;
-		std::vector<int> degree;
+    std::vector<int> degree;
     std::vector<int> order;
     std::vector<int> rank;
     std::vector<int> first;
     std::vector<color_set> satur;
     std::random_device rd;
-		int limit;
-		
-		// std::vector<int> single;
-		// intstack allowed_colors;
-		//
-		// template <class graph_struct>
-		// int recolor(graph_struct& g, const int x, const int numcolors)
-		// {
-		// 		// count the number of x's neighbors in each color bag
-		// 		size_t ncandidates{0};
-		// 		single.clear();
-		// 		single.resize(numcolors,-1);
-		// 		for (auto y : g.matrix[x]) {
-		// 	        if (color[y] >= 0) {
-		// 				if(single[color[y]] == -1) {
-		// 					single[color[y]] = y;
-		// 					++ncandidates;
-		// 				} else {
-		// 					single[color[y]] = -2;
-		// 					--ncandidates;
-		// 				}
-		// 			}
-		// 		}
-		//
-		// 		while(ncandidates > 0) {
-		// 			// find a color bag where x has only one neighbor
-		// 			for(int b{0}; b < numcolors; ++b) {
-		// 				if(single[b] >= 0) {
-		// 					--ncandidates;
-		//
-		// 					auto w{single[b]}; // that vertex is the only neighbor of x colored with c
-		//
-		// 					// try to find an alternative color for w
-		// 					allowed_colors.reserve(numcolors);
-		// 					allowed_colors.fill();
-		//
-		// 					for (auto y : g.matrix[w])
-		// 						if( color[y] >= 0 and allowed_colors.contain(color[y]) ) {
-		// 							allowed_colors.remove(color[y]);
-		// 							if(allowed_colors.empty())
-		// 								break;
-		// 						}
-		//
-		// 					if (! allowed_colors.empty() ) {
-		// 						auto a{allowed_colors[0]};
-		// 						// color w with a instead of b and x with b
-		//
-		// 						color[w] = a;
-		// 						// add the color a to all future neighbors of w
-		// 						for (auto y : g.matrix[w])
-		// 							if( color[y] < 0 )
-		//
-		//
-		//
-		// 						return b;
-		// 					}
-		// 				}
-		// 			}
-		// 		}
-		//
-		// 		return numcolors;
-		// }
+    int limit;
 
+    // std::vector<int> single;
+    // intstack allowed_colors;
+    //
+    // template <class graph_struct>
+    // int recolor(graph_struct& g, const int x, const int numcolors)
+    // {
+    // 		// count the number of x's neighbors in each color bag
+    // 		size_t ncandidates{0};
+    // 		single.clear();
+    // 		single.resize(numcolors,-1);
+    // 		for (auto y : g.matrix[x]) {
+    // 	        if (color[y] >= 0) {
+    // 				if(single[color[y]] == -1) {
+    // 					single[color[y]] = y;
+    // 					++ncandidates;
+    // 				} else {
+    // 					single[color[y]] = -2;
+    // 					--ncandidates;
+    // 				}
+    // 			}
+    // 		}
+    //
+    // 		while(ncandidates > 0) {
+    // 			// find a color bag where x has only one neighbor
+    // 			for(int b{0}; b < numcolors; ++b) {
+    // 				if(single[b] >= 0) {
+    // 					--ncandidates;
+    //
+    // 					auto w{single[b]}; // that vertex is the
+    // only
+    // neighbor
+    // of
+    // x
+    // colored
+    // with c
+    //
+    // 					// try to find an alternative color for
+    // w
+    // 					allowed_colors.reserve(numcolors);
+    // 					allowed_colors.fill();
+    //
+    // 					for (auto y : g.matrix[w])
+    // 						if( color[y] >= 0 and
+    // allowed_colors.contain(color[y])
+    // )
+    // {
+    // 							allowed_colors.remove(color[y]);
+    // 							if(allowed_colors.empty())
+    // 								break;
+    // 						}
+    //
+    // 					if (! allowed_colors.empty() ) {
+    // 						auto a{allowed_colors[0]};
+    // 						// color w with a instead of b
+    // and
+    // x
+    // with
+    // b
+    //
+    // 						color[w] = a;
+    // 						// add the color a to all future
+    // neighbors
+    // of
+    // w
+    // 						for (auto y : g.matrix[w])
+    // 							if( color[y] < 0 )
+    //
+    //
+    //
+    // 						return b;
+    // 					}
+    // 				}
+    // 			}
+    // 		}
+    //
+    // 		return numcolors;
+    // }
 
-		template <class graph_struct>
-    int brelaz_color(graph_struct& g, const int ub, const int seed, const int limit=1, const bool init=true)
-		{
-		    if (g.nodes.empty())
-		        return 0;
+    template <class graph_struct>
+    int brelaz_color(graph_struct& g, const int ub, const int seed,
+        const int limit = 1, const bool init = true)
+    {
+        if (g.nodes.empty())
+            return 0;
 
-		    int c, d, x, numcolors{0};
+        int c, d, x, numcolors{0};
 
-				
+        rank.resize(g.capacity());
+        color.resize(g.capacity(), -1);
+        degree.resize(g.capacity());
 
-		    rank.resize(g.capacity());
-		    color.resize(g.capacity(), -1);
-				degree.resize(g.capacity());
-				
-				
-				auto uninitialised{begin(satur)};
-				satur.resize(g.capacity());
-				
-				if(init)
-						for(auto it{uninitialised}; it!=end(satur); ++it) {
-								it->initialise(ub);
-						}
-				
-				
-		    //
-		    order.clear();
+        // auto uninitialised{begin(satur)};
 
-		    // nodes are stored by non-increasing saturation degree
-		    for (auto v : g.nodes) {
-		        order.push_back(v);
-						degree[v] = g.matrix[v].size();
-		    }
-		    if (seed > 0) {
-		        std::mt19937 s(rd());
-		        std::shuffle(begin(order), end(order), s);
-		    }
-				
-				std::sort(begin(order), end(order), [&](const int x_, const int y_) {
+        if (init) {
+            // for(auto i=0; i<satur.size(); ++i)
+            // 	satur[i].initialise(ub);
+            while (satur.size() < g.capacity()) {
+                color_set cb;
+                cb.initialise(ub);
+                satur.push_back(cb);
+            }
+        } else
+            satur.resize(g.capacity());
+
+        //
+        order.clear();
+
+        // nodes are stored by non-increasing saturation
+        // degree
+        for (auto v : g.nodes) {
+            order.push_back(v);
+            degree[v] = g.matrix[v].size();
+        }
+        if (seed > 0) {
+            std::mt19937 s(rd());
+            std::shuffle(begin(order), end(order), s);
+        }
+
+        std::sort(begin(order), end(order), [&](const int x_, const int y_) {
             return (degree[x_] > degree[y_]);
         });
 
+        x = 0;
+        for (auto v : order)
+            rank[v] = x++;
 
-		    x = 0;
-		    for (auto v : order)
-		        rank[v] = x++;
+        first.clear();
+        first.push_back(0); // every node has saturation degree 0
 
-		    first.clear();
-		    first.push_back(0); // every node has saturation degree 0
+        size_t iter{0};
+        while (iter < order.size()) {
+            // get the highest saturation degree
+            d = satur[order[iter++]].size();
 
+            // remove the unused pointers
+            while (first.size() > d + 1)
+                first.pop_back();
 
-				size_t iter{0};
-				while(iter < order.size())
-				{
-		        // get the highest saturation degree
-		        d = satur[order[iter++]].size();
+            // check_consistency(g);
 
-		        // remove the unused pointers
-		        while (first.size() > d + 1)
-		            first.pop_back();
+            // no tie breaking for extra quickness
+            auto first_v = (begin(order) + first[d]);
 
-						// no tie breaking for extra quickness
-						auto first_v = (begin(order) + first[d]);
-						
-						if (limit > 1) {
-							auto last_v = (d > 0 ? begin(order) + first[d - 1] : end(order));
-							if(last_v - first_v > limit)
-									last_v = first_v + limit; 
-							x = *std::max_element(first_v, last_v,
-                [&](const int x_, const int y_) {
-                    return (degree[x_] < degree[y_]);
-                }); 
-						}	else {
-							x = *first_v;
-						}
-					
-		        // remove x from the partition of nodes with saturation
-		        // degree d
-		        remove(x, d);
+            if (limit > 1) {
+                auto last_v
+                    = (d > 0 ? begin(order) + first[d - 1] : end(order));
+                if (last_v - first_v > limit)
+                    last_v = first_v + limit;
+                x = *std::max_element(
+                    first_v, last_v, [&](const int x_, const int y_) {
+                        return (degree[x_] < degree[y_]);
+                    });
+            } else {
+                x = *first_v;
+            }
 
-		        // use the first possible color for x
-		        c = satur[x].min();
-		        
-						if(c == numcolors) {
+            // remove x from the partition of nodes with saturation
+            // degree d
+            remove(x, d);
 
-								++numcolors;
-						}
+            // use the first possible color for x
+            c = satur[x].min();
 
-						assign_color(g, x, c);
-						
-						for (auto y : g.matrix[x])
-							--degree[y];
-		    } 
-				
-				return numcolors;
-		}
-		
-		template <class graph_struct>
-		void assign_color(graph_struct& g, const int x, const int c)
-		{
-			color[x] = c;
-      // update the saturation degree of x's neighbors
-      for (auto y : g.matrix[x])
-          if (color[y] < 0) {
-							// update degree
-							// --degree[y];
-							if(satur[y].remove(c)) {
-              
-									// new highest saturation degree, new pointer
-	                if (first.size() <= satur[y].size())
-	                    first.push_back(*rbegin(first));
+            if (c == numcolors) {
 
-	                // move y one partition up in the saturation degree
-	                // list
-	                remove(y, satur[y].size() - 1);
-							}
-          }
-		}
-		// void uncolor(const int x, const int c)
-		// {
-		//       // update the saturation degree of x's neighbors
-		//       for (auto y : g.matrix[x])
-		//           if (color[y] < 0) {
-		// 					// update degree
-		// 					// --degree[y];
-		// 					if(satur[y].add(c)) {
-		//
-		// 							// new highest saturation degree, new pointer
-		// 	                if (first.size() <= satur[y].size)
-		// 	                    first.push_back(*rbegin(first));
-		//
-		// 	                // move y one partition up in the saturation degree
-		// 	                // list
-		// 	                remove(y, satur[y].size - 1);
-		// 					}
-		//           }
-		// }
-    void remove(const int y, const int d) 
-		{
-				int idy = rank[y];
+                ++numcolors;
+            }
 
-				// swap y with first[satur[y].size-1], and increment first[satur[y].size-1]
-				int idf = first[d];
-				int f = order[idf];
+            assign_color(g, x, c);
 
-				rank[y] = idf;
-				rank[f] = idy;
+            for (auto y : g.matrix[x])
+                --degree[y];
+        }
 
-				order[idf] = y;
-				order[idy] = f;
+        return numcolors;
+    }
 
-				++first[d];
-		}
+    template <class graph_struct>
+    void assign_color(graph_struct& g, const int x, const int c)
+    {
+        color[x] = c;
+        // update the saturation degree of x's neighbors
+        for (auto y : g.matrix[x])
+            if (color[y] < 0) {
+                if (satur[y].remove(c)) {
+                    // new highest saturation degree, new pointer
+                    if (first.size() <= satur[y].size())
+                        first.push_back(*rbegin(first));
+
+                    // move y one partition up in the saturation degree
+                    // list
+                    remove(y, satur[y].size() - 1);
+                }
+            }
+    }
+    // void uncolor(const int x, const int c)
+    // {
+    //       // update the saturation degree of x's neighbors
+    //       for (auto y : g.matrix[x])
+    //           if (color[y] < 0) {
+    // 					// update degree
+    // 					// --degree[y];
+    // 					if(satur[y].add(c)) {
+    //
+    // 							// new highest
+    // saturation
+    // degree,
+    // new
+    // pointer
+    // 	                if (first.size() <= satur[y].size)
+    // 	                    first.push_back(*rbegin(first));
+    //
+    // 	                // move y one partition up in the saturation degree
+    // 	                // list
+    // 	                remove(y, satur[y].size - 1);
+    // 					}
+    //           }
+    // }
+    void remove(const int y, const int d)
+    {
+        int idy = rank[y];
+
+        // swap y with first[satur[y].size-1], and increment
+        // first[satur[y].size-1]
+        int idf = first[d];
+        int f = order[idf];
+
+        rank[y] = idf;
+        rank[f] = idy;
+
+        order[idf] = y;
+        order[idy] = f;
+
+        ++first[d];
+    }
     void clear()
     {
-				color.clear();
+        color.clear();
         first.clear();
         for (auto v : order)
             satur[v].fill();
     }
-		
-		template <class graph_struct>
-		void check_consistency(graph_struct& g)
-		{
-			for(size_t r=0; r<order.size(); ++r) {
-				assert(rank[order[r]] == r);
-			}
-			
-			int d = first.size();
-			while(--d>0) {
-				int s = first[d];
-				int e = first[d-1];
-				
-				for(int i=s; i<e; ++i) {
-					assert(satur[order[i]].size == d);
-				}
-			}
-			
-			int s = first[0];
-			int e = order.size();
-			
-			for(int i=s; i<e; ++i) {
-				assert(satur[order[i]].size == 0);
-			}
 
-			size_t first_uncolored = (first.size() > 0 ? first.back() : 0);
-			
-			for(size_t i=0; i<first_uncolored; ++i) {
-				int v = order[i];
-				
-				assert(color[v] >= 0);
-				
-				for(auto u : g.matrix[v]) {
-					assert(color[u] != color[v]);
-					
-					if(color[u] < 0) {
-						assert(satur[u].fast_contain(v));
-					}
-				}
-				
-			}
-			
-			for(size_t i=first_uncolored; i<order.size(); ++i) {
-				int v = order[i];
-				
-				assert(color[v] < 0);
-			}
+    template <class graph_struct> void check_consistency(graph_struct& g)
+    {
+        for (size_t r = 0; r < order.size(); ++r) {
+            assert(rank[order[r]] == r);
 
-		}
+            auto v{order[r]};
+            std::cout << v << ": ";
+            if (color[v] >= 0) {
+                std::cout << color[v];
+                for (auto u : g.matrix[v]) {
+                    if (color[u] < 0)
+                        std::cout << " " << u;
+                }
+                std::cout << std::endl;
+            } else {
+                std::cout << satur[v] << std::endl;
+            }
+        }
+
+        int d = first.size();
+        while (--d > 0) {
+            int s = first[d];
+            int e = first[d - 1];
+
+            for (int i = s; i < e; ++i) {
+                assert(satur[order[i]].size() == d);
+            }
+        }
+
+        int s = first[0];
+        int e = order.size();
+
+        for (int i = s; i < e; ++i) {
+            assert(satur[order[i]].size() == 0);
+        }
+
+        size_t first_uncolored = (first.size() > 0 ? first.back() : 0);
+
+        for (size_t i = 0; i < first_uncolored; ++i) {
+            int v = order[i];
+
+            assert(color[v] >= 0);
+
+            for (auto u : g.matrix[v]) {
+                assert(color[u] != color[v]);
+
+                if (color[u] < 0) {
+                    if (!satur[u].contain(color[v]))
+                        std::cout << "ERROR: " << satur[u] << " " << color[v]
+                                  << std::endl;
+
+                    assert(satur[u].contain(color[v]));
+                }
+            }
+        }
+
+        for (size_t i = first_uncolored; i < order.size(); ++i) {
+            int v = order[i];
+
+            assert(color[v] < 0);
+        }
+    }
 };
 
 
@@ -1812,57 +1866,53 @@ int color(gc::options& options, gc::graph<input_format>& g)
     switch (options.strategy) {
     case gc::options::COLOR: {
 
-			int ncol{0};
-			
-			std::cout << " at " << minicsp::cpuTime() << std::endl;
-			std::cout << "\ndsatur (1):\n";
-			quick_dsatur<gc::interval_list> col1;
-			std::cout << " at " << minicsp::cpuTime() << std::endl;
-			col1.brelaz_color(g, 30, 1, 1, false);
-			std::cout << " at " << minicsp::cpuTime() << std::endl;
-      ncol = *std::max_element(begin(col1.color), end(col1.color)) + 1;
-			std::cout << " ==> " << ncol << std::endl;
-			std::cout << " at " << minicsp::cpuTime() << std::endl;
-			
-			
-			quick_dsatur<colbitset> col2;
-			std::cout << "\ndsatur (1'):\n";
-			std::cout << " at " << minicsp::cpuTime() << std::endl;
-			col2.brelaz_color(g, 30, 1, 1, true);
-			std::cout << " at " << minicsp::cpuTime() << std::endl;
-			      ncol = *std::max_element(begin(col2.color), end(col2.color)) + 1;
-			std::cout << " ==> " << ncol << std::endl;
-			std::cout << " at " << minicsp::cpuTime() << std::endl;
+        int ncol{0};
 
+        std::cout << " at " << minicsp::cpuTime() << std::endl;
+        std::cout << "\ndsatur (1):\n";
+        quick_dsatur<gc::interval_list> col1;
+        std::cout << " at " << minicsp::cpuTime() << std::endl;
+        col1.brelaz_color(g, 30, 0, 1, false);
+        std::cout << " at " << minicsp::cpuTime() << std::endl;
+        ncol = *std::max_element(begin(col1.color), end(col1.color)) + 1;
+        std::cout << " ==> " << ncol << std::endl;
+        std::cout << " at " << minicsp::cpuTime() << std::endl;
 
-			col1.clear();
+        quick_dsatur<colbitset> col2;
+        std::cout << "\ndsatur (1'):\n";
+        std::cout << " at " << minicsp::cpuTime() << std::endl;
+        col2.brelaz_color(g, 30, 0, 1, true);
+        std::cout << " at " << minicsp::cpuTime() << std::endl;
+        ncol = *std::max_element(begin(col2.color), end(col2.color)) + 1;
+        std::cout << " ==> " << ncol << std::endl;
+        std::cout << " at " << minicsp::cpuTime() << std::endl;
 
-			std::cout << "\ndsatur (1''):\n";
-			std::cout << " at " << minicsp::cpuTime() << std::endl;
-			col1.brelaz_color(g, 30, 1, 100, false);
-			std::cout << " at " << minicsp::cpuTime() << std::endl;
-			      ncol = *std::max_element(begin(col1.color), end(col1.color)) + 1;
-			std::cout << " ==> " << ncol << std::endl;
-			std::cout << " at " << minicsp::cpuTime() << std::endl;
-			
+        col1.clear();
 
-			// std::cout << "\ndsatur (1):\n";
-			//       auto sol{gc::brelaz_color(g, false)};
-			//       ncol = *max_element(begin(sol), end(sol)) + 1;
-			// std::cout << " at " << minicsp::cpuTime() << std::endl;
-			
-      std::cout << "dsatur (2):\n";
-      gc::dyngraph dg(g);
-			std::cout << " at " << minicsp::cpuTime() << std::endl;
-			gc::coloring col;
-			std::cout << " at " << minicsp::cpuTime() << std::endl;
-      col.brelaz_color(dg, 0);
-			std::cout << " at " << minicsp::cpuTime() << std::endl;
-      ncol = *std::max_element(begin(col.color), end(col.color)) + 1;
-			std::cout << " ==> " << ncol << std::endl;
-			std::cout << " at " << minicsp::cpuTime() << std::endl;
-			
-			
+        std::cout << "\ndsatur (1''):\n";
+        std::cout << " at " << minicsp::cpuTime() << std::endl;
+        col1.brelaz_color(g, 30, 0, 100, false);
+        std::cout << " at " << minicsp::cpuTime() << std::endl;
+        ncol = *std::max_element(begin(col1.color), end(col1.color)) + 1;
+        std::cout << " ==> " << ncol << std::endl;
+        std::cout << " at " << minicsp::cpuTime() << std::endl;
+
+        // // std::cout << "\ndsatur (1):\n";
+        // //       auto sol{gc::brelaz_color(g, false)};
+        // //       ncol = *max_element(begin(sol), end(sol)) + 1;
+        // // std::cout << " at " << minicsp::cpuTime() <<
+        // // std::endl;
+        //
+        // std::cout << "dsatur (2):\n";
+        // gc::dyngraph dg(g);
+        // std::cout << " at " << minicsp::cpuTime() << std::endl;
+        // gc::coloring col;
+        // std::cout << " at " << minicsp::cpuTime() << std::endl;
+        // col.brelaz_color(dg, 0);
+        // std::cout << " at " << minicsp::cpuTime() << std::endl;
+        // ncol = *std::max_element(begin(col.color), end(col.color)) + 1;
+        // std::cout << " ==> " << ncol << std::endl;
+        // std::cout << " at " << minicsp::cpuTime() << std::endl;
 
     } break;
     case gc::options::BNB: {

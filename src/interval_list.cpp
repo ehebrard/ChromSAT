@@ -15,6 +15,14 @@ gc::interval_list::interval_list() {
 		size_ = 0; 
 }
 
+bool gc::interval_list::contain(const int x)
+{
+    int pos = next[0];
+    while (pos > 1 && sup[pos] < x) {
+        pos = next[pos];
+    }
+    return inf[pos] <= x;
+}
 
 bool gc::interval_list::remove(const int x) {
 	int prev=0, pos=next[0], idx;

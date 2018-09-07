@@ -28,31 +28,29 @@ class interval_list
 	
 
 public:
-	
-	static const int BIG = 0x1000000;
-	
-	std::vector<int> inf;
-	std::vector<int> sup;
-	std::vector<int> next;
-	std::vector<int> freed;
-	
-	size_t size_;
-	
-	inline size_t size() { return size_; }
-	
-	interval_list();
-	
-	bool remove(const int x);
-	int min() const;
-	void fill();
-	
-	void initialise(const int ub) {} // dummy 
-	
-	void check_consistency();
-	
-	
-	std::ostream& display(std::ostream& os) const;
+    static const int BIG = 0x1000000;
 
+    std::vector<int> inf;
+    std::vector<int> sup;
+    std::vector<int> next;
+    std::vector<int> freed;
+
+    size_t size_;
+
+    inline size_t size() { return size_; }
+
+    interval_list();
+
+    bool contain(const int x);
+    bool remove(const int x);
+    int min() const;
+    void fill();
+
+    void initialise(const int ub) {} // dummy
+
+    void check_consistency();
+
+    std::ostream& display(std::ostream& os) const;
 };
 
 std::ostream& operator<<(std::ostream& os, const interval_list& x);
