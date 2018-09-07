@@ -199,6 +199,7 @@ struct coloring {
     void remove(const int y, const int d);
     void clear()
     {
+				color.clear();
         first.clear();
         for (auto v : order)
             satur[v].clear();
