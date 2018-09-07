@@ -732,7 +732,7 @@ public:
             set_max(s.max());
 
             int a, b;
-            for (int i = 1; i < s.size(); ++i) {
+            for (size_t i = 1; i < s.size(); ++i) {
                 a = s.vertices[i - 1];
                 b = s.vertices[i];
                 remove_interval(a + 1, b - 1);

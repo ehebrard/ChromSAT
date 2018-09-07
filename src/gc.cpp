@@ -28,6 +28,7 @@
 struct quick_dsatur {
 
     std::vector<int> color;
+		std::vector<int> degree;
     std::vector<int> order;
     std::vector<int> rank;
     std::vector<int> first;
@@ -46,6 +47,7 @@ struct quick_dsatur {
 		    rank.resize(g.capacity());
 		    color.resize(g.capacity(), -1);
 		    satur.resize(g.capacity());
+				degree.resize(g.capacity());
 
 		    //
 		    order.clear();
@@ -53,6 +55,7 @@ struct quick_dsatur {
 		    // nodes are stored by non-increasing saturation degree
 		    for (auto v : g.nodes) {
 		        order.push_back(v);
+						degree[v] = g.matrix[v].size();
 		    }
 		    if (randomized == 1) {
 		        std::mt19937 s(rd());
@@ -66,10 +69,8 @@ struct quick_dsatur {
 		    first.clear();
 		    first.push_back(0); // every node has saturation degree 0
 
-				
-				auto not_empty{order.size()};
-				std::cout << not_empty << std::endl;
-				
+				long num_candidates{0};
+				auto not_empty{order.size()};				
 				while(not_empty--)
 				{
 		        // get the highest saturation degree
@@ -80,8 +81,24 @@ struct quick_dsatur {
 		            first.pop_back();
 
 						// no tie breaking for extra quickness
-						x = *(begin(order) + first[d]);
-
+						auto first_v = (begin(order) + first[d]);
+						auto last_v = (d > 0 ? begin(order) + first[d - 1] : end(order));
+						
+						
+						
+						if (randomized == 2) {
+							num_candidates += (last_v - first_v);
+							x = *std::max_element(first_v, last_v,
+                [&](const int x_, const int y_) {
+                    return (degree[x_] < degree[y_]);
+                }); 
+						}	else {
+							
+							++num_candidates;
+								
+						x = *first_v;
+					}
+					
 		        // remove x from the partition of nodes with saturation
 		        // degree d
 		        remove(x, d);
@@ -93,7 +110,10 @@ struct quick_dsatur {
 		        // update the saturation degree of x's neighbors
 		        for (auto y : g.matrix[x])
 		            if (color[y] < 0 and satur[y].add(c)) {
-		                // new highest saturation degree, new pointer
+										// update degree
+										--degree[y];
+		                
+										// new highest saturation degree, new pointer
 		                if (first.size() <= satur[y].size)
 		                    first.push_back(*rbegin(first));
 
@@ -102,6 +122,8 @@ struct quick_dsatur {
 		                remove(y, satur[y].size - 1);
 		            }
 		    } 
+				
+				std::cout << (double)(num_candidates)/(double)(g.size()) << std::endl;
 		}
     void remove(const int y, const int d) 
 		{
@@ -1615,10 +1637,20 @@ int color(gc::options& options, gc::graph<input_format>& g)
 			
 			col1.clear();
 
-			std::cout << "\n at " << minicsp::cpuTime() << std::endl;
-			std::cout << "dsatur (1'):\n";
+			std::cout << "\ndsatur (1'):\n";
 			std::cout << " at " << minicsp::cpuTime() << std::endl;
 			col1.brelaz_color(g, 1);
+			std::cout << " at " << minicsp::cpuTime() << std::endl;
+      ncol = *std::max_element(begin(col1.color), end(col1.color)) + 1;
+			std::cout << " ==> " << ncol << std::endl;
+			std::cout << " at " << minicsp::cpuTime() << std::endl;
+			
+			
+			col1.clear();
+
+			std::cout << "\ndsatur (1''):\n";
+			std::cout << " at " << minicsp::cpuTime() << std::endl;
+			col1.brelaz_color(g, 2);
 			std::cout << " at " << minicsp::cpuTime() << std::endl;
       ncol = *std::max_element(begin(col1.color), end(col1.color)) + 1;
 			std::cout << " ==> " << ncol << std::endl;

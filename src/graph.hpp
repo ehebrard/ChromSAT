@@ -82,13 +82,6 @@ public:
             int i = 0;
             for (auto v : g.nodes) {
                 matrix[i].initialise(0, g.size() - 1, bitset::empt);
-
-                if (vmap.size() <= v) {
-                    std::cout << v << " / " << vmap.size() << "(" << g.size()
-                              << ")" << std::endl;
-                }
-                assert(vmap.size() > v);
-
                 vmap[v] = i++;
             }
             assert(i == g.size());

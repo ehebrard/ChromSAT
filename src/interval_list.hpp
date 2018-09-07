@@ -29,7 +29,7 @@ public:
 	std::vector<int> next;
 	std::vector<int> freed;
 	
-	int size;
+	size_t size;
 	
 	
 	interval_list();
