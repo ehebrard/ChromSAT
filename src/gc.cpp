@@ -66,7 +66,11 @@ struct quick_dsatur {
 		    first.clear();
 		    first.push_back(0); // every node has saturation degree 0
 
+<<<<<<< HEAD
 				int not_empty{order.size()};
+=======
+				auto not_empty{order.size()};
+>>>>>>> 14ec2f70465f4036bac4b5461eacd2247b922c3e
 				
 				std::cout << not_empty << std::endl;
 				
@@ -121,6 +125,10 @@ struct quick_dsatur {
 		}
     void clear()
     {
+<<<<<<< HEAD
+=======
+				color.clear();
+>>>>>>> 14ec2f70465f4036bac4b5461eacd2247b922c3e
         first.clear();
         for (auto v : order)
             satur[v].clear();
@@ -1606,7 +1614,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
 			std::cout << "\ndsatur (1):\n";
 			quick_dsatur col1;
 			std::cout << " at " << minicsp::cpuTime() << std::endl;
-      col1.brelaz_color(g, 0);
+			col1.brelaz_color(g, 1);
 			std::cout << " at " << minicsp::cpuTime() << std::endl;
       ncol = *std::max_element(begin(col1.color), end(col1.color)) + 1;
 			std::cout << " ==> " << ncol << std::endl;
@@ -1617,7 +1625,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
 			std::cout << "\n at " << minicsp::cpuTime() << std::endl;
 			std::cout << "dsatur (1'):\n";
 			std::cout << " at " << minicsp::cpuTime() << std::endl;
-      col1.brelaz_color(g, 0);
+			col1.brelaz_color(g, 1);
 			std::cout << " at " << minicsp::cpuTime() << std::endl;
       ncol = *std::max_element(begin(col1.color), end(col1.color)) + 1;
 			std::cout << " ==> " << ncol << std::endl;
