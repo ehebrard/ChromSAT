@@ -181,7 +181,7 @@ struct quick_dsatur {
     std::vector<colvector> satur;
 
     std::vector<std::vector<int>::iterator> rank;
-    std::vector<std::vector<int>::iterator> tail_list;
+    std::vector<std::vector<int>::iterator> last_vertex;
 
     std::random_device rd;
     int limit;
@@ -227,9 +227,14 @@ struct quick_dsatur {
         for (auto vptr{begin(order)}; vptr != end(order); ++vptr)
             rank[*vptr] = vptr;
 
-        tail_list.resize(ub + 1, begin(order));
+				auto beg{begin(order)};
+
+				std::cout << last_vertex.size() << " " << ub << std::endl;
+
+        last_vertex.resize(ub + 1, beg);
+				
         satur.resize(g.capacity(), colvector(ub));
-        *begin(tail_list) = end(order);
+        *begin(last_vertex) = end(order);
 
         std::vector<int>::iterator candidate{begin(order)};
 
@@ -242,7 +247,7 @@ struct quick_dsatur {
 
             if (limit > 1) {
                 auto best{std::max_element(candidate,
-                    std::min(tail_list[d], candidate + limit),
+                    std::min(last_vertex[d], candidate + limit),
                     [&](const int x_, const int y_) {
                         return (degree[x_] < degree[y_]);
                     })};
@@ -251,8 +256,8 @@ struct quick_dsatur {
             }
 
             // move all the ptr >= d
-            while (d < tail_list.size())
-                ++tail_list[++d];
+            while (d < last_vertex.size())
+                ++last_vertex[++d];
 
             // use the first possible color for x
             c = satur[*candidate].min();
@@ -314,25 +319,25 @@ struct quick_dsatur {
     {
 
         // swap y with *end_list[d]
-        auto l{*tail_list[d]};
+        auto l{*last_vertex[d]};
 
         rank[l] = rank[y];
-        rank[y] = tail_list[d];
+        rank[y] = last_vertex[d];
 
         *rank[y] = y;
         *rank[l] = l;
 
-        ++tail_list[d];
+        ++last_vertex[d];
     }
 
     // satur[y] was d+1, and is now d
     void move_down(const int y, const int d)
     {
         // swap y with *end_list[d]
-        auto l{*(--tail_list[d])};
+        auto l{*(--last_vertex[d])};
 
         rank[l] = rank[y];
-        rank[y] = tail_list[d];
+        rank[y] = last_vertex[d];
 
         *rank[y] = y;
         *rank[l] = l;
@@ -340,7 +345,7 @@ struct quick_dsatur {
 
     void clear()
     {
-        tail_list.clear();
+        last_vertex.clear();
         color.clear();
         for (auto v : order)
             satur[v].fill();
@@ -349,11 +354,11 @@ struct quick_dsatur {
 
     template <class graph_struct> void check_consistency(graph_struct& g)
     {
-        int d = tail_list.size() - 1;
+        int d = last_vertex.size() - 1;
         for (auto r{begin(order)}; r != end(order); ++r) {
 
             bool lim{false};
-            while (tail_list[d] == r) {
+            while (last_vertex[d] == r) {
                 lim = true;
                 std::cout << "start[" << d - 1 << "] ";
                 --d;
@@ -379,9 +384,9 @@ struct quick_dsatur {
             }
             }
 
-            for (size_t d{tail_list.size() - 1}; d > 0; --d) {
-                assert(tail_list[d] <= tail_list[d - 1]);
-                for (auto r{tail_list[d]}; r != tail_list[d - 1]; ++r) {
+            for (size_t d{last_vertex.size() - 1}; d > 0; --d) {
+                assert(last_vertex[d] <= last_vertex[d - 1]);
+                for (auto r{last_vertex[d]}; r != last_vertex[d - 1]; ++r) {
 
                     if (color[*r] < 0 and satur[*r].size() != (d - 1)) {
 
@@ -411,8 +416,8 @@ struct quick_dsatur {
                         }
                     }
                 } else {
-                    assert(tail_list[d] > r);
-                    assert(tail_list[d + 1] <= r);
+                    assert(last_vertex[d] > r);
+                    assert(last_vertex[d + 1] <= r);
                 }
             }
     }
