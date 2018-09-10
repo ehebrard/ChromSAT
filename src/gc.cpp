@@ -206,8 +206,6 @@ struct quick_dsatur {
 
         int c, d, numcolors{0};
 
-        //
-        // order.clear();
 
         // nodes are stored by non-increasing saturation
         // degree
@@ -227,14 +225,10 @@ struct quick_dsatur {
         for (auto vptr{begin(order)}; vptr != end(order); ++vptr)
             rank[*vptr] = vptr;
 
-				auto beg{begin(order)};
-
-				std::cout << last_vertex.size() << " " << ub << std::endl;
-
-        last_vertex.resize(ub + 1, beg);
-				
         satur.resize(g.capacity(), colvector(ub));
-        *begin(last_vertex) = end(order);
+				        
+				last_vertex.resize(ub + 1, begin(order));
+				*begin(last_vertex) = end(order);				
 
         std::vector<int>::iterator candidate{begin(order)};
 
@@ -256,8 +250,8 @@ struct quick_dsatur {
             }
 
             // move all the ptr >= d
-            while (d < last_vertex.size())
-                ++last_vertex[++d];
+            while (++d < last_vertex.size())
+                ++last_vertex[d];
 
             // use the first possible color for x
             c = satur[*candidate].min();
