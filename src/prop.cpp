@@ -324,6 +324,11 @@ public:
         // rhs);
         //                        s.addConstraint(mineq_constraint);
 
+        if (opt.triangle_up)
+            s.use_UP_callback([this](Lit p, const Clause& c) {
+                return unit_propagate(p, c);
+            });
+
         DO_OR_THROW(propagate(s));
     }
 
@@ -377,6 +382,113 @@ public:
         }
         std::cout << "[modeling] Decomposed transitivity constraint with "
                   << numclauses << " clauses\n";
+    }
+
+    minicsp::Solver::UP_result unit_propagate(Lit, const Clause& c)
+    {
+        sync_graph();
+        int bestidx{-1};
+        Lit other = c[0];
+        auto s0 = sign(c[0]);
+        varinfo_t info = varinfo[var(other)];
+        int u = g.rep_of[info.u], v = g.rep_of[info.v];
+        varinfo_t kinfo;
+        int ku{-1}, kv{-1};
+        for (int k = 2; k < c.size(); k++) {
+            auto kvalue = s.value(c[k]);
+            if (kvalue == l_False)
+                continue;
+            if (kvalue == l_True) {
+                bestidx = k;
+                break;
+            }
+            if (bestidx < 0) {
+                bestidx = k;
+            }
+            if (sign(c[k]) != s0) {
+                bestidx = k;
+                break;
+            }
+            kinfo = varinfo[var(c[k])];
+            ku = g.rep_of[kinfo.u];
+            kv = g.rep_of[kinfo.v];
+            if (ku != u || kv != v) {
+                bestidx = k;
+                break;
+            }
+        }
+        if (ku == u && kv == v && s.value(c[bestidx]) != l_True
+            && sign(c[bestidx]) == s0) {
+#ifdef DEBUG_SUPERUP
+            std::cout << "propportunity " << minicsp::print(s, &c) << "\n";
+            std::cout << "unset literals: ";
+            for (Lit l : c)
+                if (s.value(l) != l_False)
+                    std::cout << minicsp::lit_printer(s, l) << " ";
+            std::cout << "\n";
+            std::cout << "partition[" << v
+                      << "] = " << print_container{g.partition[v]} << std::endl;
+            std::cout << "partition[" << u
+                      << "] = " << print_container{g.partition[u]} << "\n";
+#endif
+            util_set.clear();
+            bool positive_clause{!sign(c[0])};
+            reason.clear();
+            for (Lit l : c) {
+                if (s.value(l) == l_False)
+                    reason.push(l);
+                else {
+                    kinfo = varinfo[var(l)];
+                    util_set.fast_add(kinfo.u);
+                    util_set.fast_add(kinfo.v);
+                }
+            }
+            int urep{-1}, vrep{-1};
+#ifdef DEBUG_SUPERUP
+            std::cout << "vertices involved " << util_set << "\n";
+            std::cout << "Reason: ";
+#endif
+            for (auto vp : g.partition[v]) {
+                if (util_set.fast_contain(vp)) {
+                    if (vrep < 0)
+                        vrep = vp;
+                    else {
+#ifdef DEBUG_SUPERUP
+                        std::cout << lit_printer(s, ~Lit(vars[vrep][vp]))
+                                  << " ";
+#endif
+                        reason.push(~Lit(vars[vrep][vp]));
+                    }
+                }
+            }
+            for (auto up : g.partition[u]) {
+                if (util_set.fast_contain(up)) {
+                    if (urep < 0)
+                        urep = up;
+                    else {
+#ifdef DEBUG_SUPERUP
+                        std::cout << lit_printer(s, ~Lit(vars[urep][up]))
+                                  << " ";
+                        std::cout << std::flush;
+#endif
+                        reason.push(~Lit(vars[urep][up]));
+                        assert(s.value(~Lit(vars[urep][up])) == l_False);
+                    }
+                }
+            }
+#ifdef DEBUG_SUPERUP
+            std::cout << "\nEffect: " << lit_printer(s, Lit(vars[vrep][urep]))
+                      << std::endl;
+#endif
+            assert(s.value(vars[vrep][urep]) == l_Undef);
+            for (Lit l : reason)
+                assert(s.value(l) == l_False);
+            if (positive_clause)
+                s.enqueueFill(Lit(vars[vrep][urep]), reason);
+            else
+                s.enqueueFill(~Lit(vars[vrep][urep]), reason);
+        }
+        return {bestidx};
     }
 
     // helper: because u merged with v and v merged with x, x

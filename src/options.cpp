@@ -153,6 +153,8 @@ options parse(int argc, char* argv[])
     cmd.add<ValueArg<int>>(opt.myciellimit, "", "myciellimit",
         "does not use myciel on graphs larger than the limit (default: no limit)",
         false, -1, "int");
+    cmd.add<SwitchArg>(opt.triangle_up, "", "triangleup",
+        "do partition-aware unit propagation", false);
 
     cmd.parse(argc, argv);
     return opt;
@@ -178,6 +180,7 @@ void options::describe(std::ostream& os)
                   : (fillin == options::FILLIN_PROPAGATE ? "yes (propagate)"
                                                          : "yes (decompose)"))
        << "\n";
+    os << "[options] Triangle UP     = " << triangle_up << "\n";
     os << "[options] Branching strat = ";
     switch (branching) {
     case gc::options::VSIDS:
