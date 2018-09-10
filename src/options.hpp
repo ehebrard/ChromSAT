@@ -120,6 +120,8 @@ struct options {
     int myciellimit;
 
     bool ubfocus;
+
+    bool triangle_up;
 };
 
 options parse(int argc, char* argv[]);
