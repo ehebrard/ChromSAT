@@ -480,7 +480,8 @@ public:
             std::cout << "\nEffect: " << lit_printer(s, Lit(vars[vrep][urep]))
                       << std::endl;
 #endif
-            assert(s.value(vars[vrep][urep]) == l_Undef);
+						if (s.value(vars[vrep][urep]) != l_Undef) return {bestidx};
+            // assert(s.value(vars[vrep][urep]) == l_Undef);
             for (Lit l : reason)
                 assert(s.value(l) == l_False);
             if (positive_clause)
