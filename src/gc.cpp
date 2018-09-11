@@ -40,7 +40,7 @@ struct colvector {
         size_ = 0;
     }
 
-    bool remove(const int x)
+    bool add(const int x)
     {
         ++b[x];
         if (b[x] == 1) {
@@ -49,7 +49,7 @@ struct colvector {
         }
         return false;
     }
-    bool add(const int x)
+    bool remove(const int x)
     {
         --b[x];
         if (b[x] == 0) {
@@ -58,7 +58,7 @@ struct colvector {
         }
         return false;
     }
-    int min() const
+    int get_first_allowed() const
     {
         for (auto i{begin(b)}; i != end(b); ++i)
             if (*i == 0)
@@ -67,7 +67,7 @@ struct colvector {
     }
     bool contain(const int elt) const { return b[elt] > 0; }
     bool num_neighbors_of_color(const int elt) const { return b[elt]; }
-    void fill()
+    void clear()
     {
         for (auto i{begin(b)}; i != end(b); ++i)
             *i = 0;
@@ -76,6 +76,7 @@ struct colvector {
 
     void initialise(const int ub)
     {
+        b.clear();
         size_ = 0;
         b.resize(ub, 0);
     }
@@ -84,7 +85,7 @@ struct colvector {
     {
         os << "[";
         for (auto i{begin(b)}; i != end(b); ++i)
-            if (*i == 0)
+            if (*i != 0)
                 os << " " << (i - begin(b));
         os << " ]";
         return os;
@@ -101,84 +102,12 @@ std::ostream& operator<<(std::ostream& os, const colvector* x)
     return x->display(os);
 }
 
-
-//     template <class graph_struct>
-//     int recolor(graph_struct& g, const int x, const int numcolors)
-//     {
-//         std::cout << "start recolor (" << numcolors << ")\n";
-//
-//         // count the number of x's neighbors in each color bag
-//         size_t ncandidates{0};
-//         single.clear();
-//         single.resize(numcolors, -1);
-//         for (auto y : g.matrix[x]) {
-//             if (color[y] >= 0 and color[y] < numcolors - 1) {
-//                 if (single[color[y]] == -1) {
-//                     single[color[y]] = y;
-//                     // ++ncandidates;
-//                     // std::cout << color[y] << "?\n" ;
-//                 } else {
-//                     single[color[y]] = -2;
-//                     // --ncandidates;
-//                     // std::cout << "not " << color[y] << "!\n" ;
-//                 }
-//             }
-//         }
-//
-//         std::cout << ncandidates << std::endl;
-//
-//         // while (ncandidates > 0) {
-//         // find a color bag where x has only one neighbor
-//         for (int b{0}; b < numcolors - 1; ++b) {
-//             if (single[b] >= 0) {
-//                 --ncandidates;
-//                 auto w{single[b]}; // that vertex is the only neighbor of x
-//                 // colored with c
-//
-//                 allowed_colors.reserve(numcolors);
-//                 allowed_colors.fill();
-//                 allowed_colors.remove(color[w]);
-//
-//                 for (auto y : g.matrix[w])
-//                     if (color[y] >= 0 and allowed_colors.contain(color[y])) {
-//                         allowed_colors.remove(color[y]);
-//                         if (allowed_colors.empty())
-//                             break;
-//                     }
-//
-//                 if (!allowed_colors.empty()) {
-//                     auto a{allowed_colors[0]};
-//                     // color w with a instead of b and x with b
-//
-//                     std::cout << x << " <-/- " << numcolors << " (" << w
-//                               << " = " << b << " <- " << b << ")" <<
-//                               std::endl;
-//
-//                     assert(a > b);
-//
-//                     assign_color(g, w, a);
-//
-//                     unassign_color(g, w, b);
-//
-//                     std::cout << "end* recolor\n";
-//                     return b;
-//                 }
-//             }
-//         }
-//         // }
-//
-//         std::cout << "end recolor\n";
-//         return numcolors;
-//     }
-//
-
-
 struct quick_dsatur {
 
     std::vector<int> color;
     std::vector<int> degree;
     std::vector<int> order;
-    std::vector<colvector> satur;
+    std::vector<colvector> neighbor_colors;
 
     std::vector<std::vector<int>::iterator> rank;
     std::vector<std::vector<int>::iterator> last_vertex;
@@ -186,12 +115,85 @@ struct quick_dsatur {
     std::random_device rd;
     int limit;
 
-    // std::vector<int> single;
-    // intstack allowed_colors;
+    std::vector<int> single;
+    colvector colorbag;
 
-    // quick_dsatur(const int n, const int ub)
-    // {
-    // }
+		// return true is recoloring was succesful (the next color to use is < numcolors) and false otherwise. numcolors is set to the color to be used, and the first vertex in the order list might change
+    template <class graph_struct>
+    bool recolor(graph_struct& g, const int x, int& numcolors)
+    {		
+        auto rx{rank[x]};
+
+        // count the number of x's neighbors in each color bag
+        single.clear();
+        single.resize(numcolors, -1);
+        for (auto y : g.matrix[x]) {
+            if (color[y] >= 0 and color[y] < numcolors - 1) {
+                if (single[color[y]] == -1)
+                    single[color[y]] = y;
+                else
+                    single[color[y]] = -2;
+            }
+        }
+
+        // find a color bag where x has only one neighbor
+        for (int b{0}; b < numcolors - 1; ++b) {
+            if (single[b] >= 0) {
+                auto w{single[b]};
+                // w is the only neighbor of x colored with c
+						
+                colorbag.initialise(numcolors);
+
+                // make sur that we do not recolor vertices to smaller colors,
+                // as it could entail infinite loops
+                for (int c = 0; c <= b; ++c)
+                    colorbag.add(c);
+
+                for (auto y : g.matrix[w])
+                    if (color[y] >= 0) {
+
+                        // std::cout << color[y] << " in N(" << w << ")\n";
+
+                        colorbag.add(color[y]);
+                        if (colorbag.size() == numcolors)
+                            break;
+                    }
+
+                if (colorbag.size() < numcolors) {
+                    auto a{colorbag.get_first_allowed()};
+                    // color w with a instead of b and x with b
+
+                    unassign_color(g, w, b);
+                    assign_color(g, w, a);
+
+#ifdef _DEBUG_DSATUR
+                    check_consistency(g);
+#endif
+										
+                    auto y{*rx};
+                    if (y != x) {
+												// recoloring the neighbors of x decreased its sat-degree, but increased that of y (or it was already high)
+
+                        if (neighbor_colors[y].size() == numcolors) {
+													// y's sat-degree is not satisfying, let's try to recolor it as well
+                            return recolor(g, y, numcolors);
+                        } else {
+													// ok, but we switch to assigning y before x
+                            numcolors = neighbor_colors[y].get_first_allowed();
+                        }
+
+                    } else {						
+											// everything went as planned
+                        numcolors = b;
+                    }
+
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
 
     template <class graph_struct>
     int brelaz_color(
@@ -225,19 +227,21 @@ struct quick_dsatur {
         for (auto vptr{begin(order)}; vptr != end(order); ++vptr)
             rank[*vptr] = vptr;
 
-        satur.resize(g.capacity(), colvector(ub));
-				        
-				last_vertex.resize(ub + 1, begin(order));
-				*begin(last_vertex) = end(order);				
+        neighbor_colors.resize(g.capacity(), colvector(ub));
+
+        last_vertex.resize(ub + 1, begin(order));
+        *begin(last_vertex) = end(order);
 
         std::vector<int>::iterator candidate{begin(order)};
 
         while (candidate != end(order)) {
 
-            // check_consistency(g);
-
+#ifdef _DEBUG_DSATUR
+            check_consistency(g);
+#endif
+						
             // get the highest saturation degree
-            d = satur[*candidate].size();
+            d = neighbor_colors[*candidate].size();
 
             if (limit > 1) {
                 auto best{std::max_element(candidate,
@@ -249,20 +253,22 @@ struct quick_dsatur {
                 swap(*best, *candidate);
             }
 
-            // move all the ptr >= d
-            while (++d < last_vertex.size())
-                ++last_vertex[d];
-
             // use the first possible color for x
-            c = satur[*candidate].min();
-
-            // std::cout << (*candidate) << " <- " << c << std::endl;
+            c = neighbor_colors[*candidate].get_first_allowed();
+				
             if (c == numcolors) {
-                ++numcolors;
+                if ((last_vertex[d] - last_vertex[d+1]) > 1 or !recolor(g, *candidate, c)) {
+                    ++numcolors;   
+                } else {
+                    --d;
+                }
             }
 
-            // std::cout << x << " <- " << c << std::endl;
-            assign_color(g, candidate, c);
+            // move all the pointers >= d
+            while (++d < last_vertex.size())
+                ++last_vertex[d];
+						
+            assign_color(g, *candidate, c);
 
             // update degrees
             if (limit > 1)
@@ -276,43 +282,50 @@ struct quick_dsatur {
     }
 
     template <class graph_struct>
-    void assign_color(
-        graph_struct& g, const std::vector<int>::iterator px, const int c)
+    void assign_color(graph_struct& g, const int x, const int c)
     {
-        auto x{*px};
         color[x] = c;
 
+#ifdef _DEBUG_DSATUR
+        std::cout << "assigns " << c << " to " << x << "\n";
+#endif
+				
         // update the saturation degree of x's neighbors
         for (auto y : g.matrix[x])
             if (color[y] < 0) {
-                if (satur[y].remove(c)) {
-                    auto d{satur[y].size()};
+                if (neighbor_colors[y].add(c)) {
+                    auto d{neighbor_colors[y].size()};
                     // move y one partition up in the saturation degree
                     // list
                     move_up(y, d);
                 }
-            } // else satur[y].remove(c);
+            } // else neighbor_colors[y].add(c);
     }
 
     template <class graph_struct>
     void unassign_color(graph_struct& g, const int x, const int c)
     {
+			
+#ifdef _DEBUG_DSATUR
+        std::cout << "unassigns " << x << " (" << c << ")\n";
+#endif
+				
         // update the saturation degree of x's neighbors
         for (auto y : g.matrix[x])
             if (color[y] < 0) {
-                if (satur[y].add(c)) {
-                    // move y one partition down in the saturation degree
+                if (neighbor_colors[y].remove(c)) {
+										// move y one partition down in the saturation degree
                     // list
-                    move_down(y, satur[y].size() + 1);
+                    move_down(y, neighbor_colors[y].size() + 1);
                 }
-            }
+            } else
+                assert(color[y] != c);
     }
 
     // satur[y] was d, and is now d+1
     void move_up(const int y, const int d)
     {
-
-        // swap y with *end_list[d]
+        // swap y with *last_vertex[d]
         auto l{*last_vertex[d]};
 
         rank[l] = rank[y];
@@ -327,7 +340,7 @@ struct quick_dsatur {
     // satur[y] was d+1, and is now d
     void move_down(const int y, const int d)
     {
-        // swap y with *end_list[d]
+        // swap y with *last_vertex[d]-1
         auto l{*(--last_vertex[d])};
 
         rank[l] = rank[y];
@@ -342,11 +355,11 @@ struct quick_dsatur {
         last_vertex.clear();
         color.clear();
         for (auto v : order)
-            satur[v].fill();
-				order.clear();
+            neighbor_colors[v].clear();
+        order.clear();
     }
 
-    template <class graph_struct> void check_consistency(graph_struct& g)
+    template <class graph_struct> void print(graph_struct& g)
     {
         int d = last_vertex.size() - 1;
         for (auto r{begin(order)}; r != end(order); ++r) {
@@ -360,8 +373,6 @@ struct quick_dsatur {
             if (lim) {
                 std::cout << std::endl;
             }
-            assert(rank[*r] == r);
-
             auto v{*r};
 
             std::cout << v << ": ";
@@ -373,40 +384,59 @@ struct quick_dsatur {
                 }
                 std::cout << std::endl;
             } else {
-                std::cout << " (" << satur[v].size() << ")" << satur[v]
-                          << std::endl;
+                std::cout << " (" << neighbor_colors[v].size() << ")"
+                          << neighbor_colors[v] << std::endl;
             }
-            }
+        }
+    }
 
-            for (size_t d{last_vertex.size() - 1}; d > 0; --d) {
-                assert(last_vertex[d] <= last_vertex[d - 1]);
-                for (auto r{last_vertex[d]}; r != last_vertex[d - 1]; ++r) {
+    template <class graph_struct> void check_consistency(graph_struct& g)
+    {
+        print(g);
+        for (auto r{begin(order)}; r != end(order); ++r) {
+            assert(rank[*r] == r);
+        }
 
-                    if (color[*r] < 0 and satur[*r].size() != (d - 1)) {
+        for (size_t d{last_vertex.size() - 1}; d > 0; --d) {
+            assert(last_vertex[d] <= last_vertex[d - 1]);
+            for (auto r{last_vertex[d]}; r != last_vertex[d - 1]; ++r) {
 
-                        std::cout << *r << " has satur degree "
-                                  << satur[*r].size() << " but is in bucket "
-                                  << (d - 1) << std::endl;
-                    }
+                if (color[*r] < 0 and neighbor_colors[*r].size() != (d - 1)) {
 
-                    assert(color[*r] >= 0 or satur[*r].size() == (d - 1));
+                    std::cout << *r << " has satur degree "
+                              << neighbor_colors[*r].size()
+                              << " but is in bucket " << (d - 1) << std::endl;
                 }
+
+                assert(color[*r] >= 0 or neighbor_colors[*r].size() == (d - 1));
+            }
             }
 
             for (auto r{begin(order)}; r != end(order); ++r) {
                 auto v{*r};
-                auto d{satur[v].size()};
+                auto d{neighbor_colors[v].size()};
 
                 if (color[v] >= 0) {
                     for (auto u : g.matrix[v]) {
+
+                        if (color[u] == color[v]) {
+                            std::cout << "N(" << v << ") = " << g.matrix[v]
+                                      << std::endl;
+                            std::cout << "ERROR: " << u << ":=" << color[u]
+                                      << " and " << v << ":=" << color[v]
+                                      << std::endl;
+                        }
+
                         assert(color[u] != color[v]);
 
                         if (color[u] < 0) {
-                            if (!satur[u].contain(color[v]))
-                                std::cout << "ERROR: " << satur[u] << " "
-                                          << color[v] << std::endl;
+                            if (!neighbor_colors[u].contain(color[v]))
+                                std::cout << "ERROR: NC(" << u
+                                          << ") = " << neighbor_colors[u]
+                                          << " - c[" << v << "] = " << color[v]
+                                          << std::endl;
 
-                            assert(satur[u].contain(color[v]));
+                            assert(neighbor_colors[u].contain(color[v]));
                         }
                     }
                 } else {
@@ -1098,7 +1128,7 @@ struct gc_model {
     //     gc::mycielskan_subgraph_finder<adjacency_struct> mf(g, cf, false);
     //     gc::degeneracy_finder<gc::graph<adjacency_struct>> df{g};
     //
-    //     gc::bitset forbidden(0, g.capacity(), gc::bitset::empt);
+    //     gc::bitset addden(0, g.capacity(), gc::bitset::empt);
     //     gc::bitset util_set(0, g.capacity(), gc::bitset::empt);
     //     adjacency_struct removedv(0, g.capacity(), gc::bitset::empt);
     //     std::vector<int> toremove;
@@ -1131,10 +1161,10 @@ struct gc_model {
     //         }
     //         statistics.display(std::cout);
     //
-    //         forbidden.clear();
+    //         addden.clear();
     //         toremove.clear();
     //         for (auto u : g.nodes) {
-    //             if (forbidden.fast_contain(u))
+    //             if (addden.fast_contain(u))
     //                 continue;
     //             util_set.copy(g.matrix[u]);
     //             util_set.intersect_with(g.nodeset);
@@ -1146,7 +1176,7 @@ struct gc_model {
     //             toremove.push_back(u);
     //             gr.removed_vertices.push_back(u);
     //             gr.status[u] = gc::vertex_status::low_degree_removed;
-    //             forbidden.union_with(g.matrix[u]);
+    //             addden.union_with(g.matrix[u]);
     //         }
     //         for (auto u : toremove) {
     //             g.nodes.remove(u);
