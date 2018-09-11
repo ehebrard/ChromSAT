@@ -255,9 +255,6 @@ struct quick_dsatur {
             // use the first possible color for x
             c = neighbor_colors[*candidate].get_first_allowed();
 
-            if (c == ub)
-                return g.size();
-
             if (c == numcolors) {
                 if ((last_vertex[d] - last_vertex[d + 1]) > 2
                     or !recolor(g, *candidate, c)) {
@@ -266,6 +263,9 @@ struct quick_dsatur {
                     --d;
                 }
             }
+						
+            if (numcolors > ub)
+                return g.size();
 
             // move all the pointers >= d
             while (++d < last_vertex.size())
