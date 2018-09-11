@@ -208,7 +208,6 @@ struct quick_dsatur {
 
         int c, d, numcolors{0};
 
-
         // nodes are stored by non-increasing saturation
         // degree
         for (auto v : g.nodes) {
@@ -255,9 +254,13 @@ struct quick_dsatur {
 
             // use the first possible color for x
             c = neighbor_colors[*candidate].get_first_allowed();
-				
+
+            if (c == ub)
+                return g.size();
+
             if (c == numcolors) {
-                if ((last_vertex[d] - last_vertex[d+1]) > 1 or !recolor(g, *candidate, c)) {
+                if ((last_vertex[d] - last_vertex[d + 1]) > 2
+                    or !recolor(g, *candidate, c)) {
                     ++numcolors;   
                 } else {
                     --d;
@@ -1920,82 +1923,31 @@ int color(gc::options& options, gc::graph<input_format>& g)
     switch (options.strategy) {
     case gc::options::COLOR: {
 
-        int ncol{0};
-
-        // std::cout << " at " << minicsp::cpuTime() << std::endl;
-        // std::cout << "\ndsatur (1):\n";
-        // quick_dsatur<gc::interval_list> col1;
-        // std::cout << " at " << minicsp::cpuTime() << std::endl;
-        // col1.brelaz_color(g, 30, 1, 1, false);
-        // std::cout << " at " << minicsp::cpuTime() << std::endl;
-        // ncol = *std::max_element(begin(col1.color), end(col1.color)) + 1;
-        // std::cout << " ==> " << ncol << std::endl;
-        // std::cout << " at " << minicsp::cpuTime() << std::endl;
-        //
-        // quick_dsatur<colbitset> col2;
-        // std::cout << "\ndsatur (2):\n";
-        // std::cout << " at " << minicsp::cpuTime() << std::endl;
-        // col2.brelaz_color(g, 30, 1, 1, true);
-        // std::cout << " at " << minicsp::cpuTime() << std::endl;
-        // ncol = *std::max_element(begin(col2.color), end(col2.color)) + 1;
-        // std::cout << " ==> " << ncol << std::endl;
-        // std::cout << " at " << minicsp::cpuTime() << std::endl;
+        int ncol{31};
 
         quick_dsatur col3;
-        std::cout << "\ndsatur (3):\n";
-        std::cout << " at " << minicsp::cpuTime() << std::endl;
-        col3.brelaz_color(g, 30, 1, 1);
-        std::cout << " at " << minicsp::cpuTime() << std::endl;
-        ncol = *std::max_element(begin(col3.color), end(col3.color)) + 1;
-        std::cout << " ==> " << ncol << std::endl;
-        std::cout << " at " << minicsp::cpuTime() << std::endl;
 
-        // col1.clear();
-        //
-        // std::cout << "\ndsatur (1'):\n";
-        // std::cout << " at " << minicsp::cpuTime() << std::endl;
-        // col1.brelaz_color(g, 30, 1, 100, false);
-        // std::cout << " at " << minicsp::cpuTime() << std::endl;
-        // ncol = *std::max_element(begin(col1.color), end(col1.color)) + 1;
-        // std::cout << " ==> " << ncol << std::endl;
-        // std::cout << " at " << minicsp::cpuTime() << std::endl;
-        //
-        // col2.clear();
-        //
-        // std::cout << "\ndsatur (2'):\n";
-        // std::cout << " at " << minicsp::cpuTime() << std::endl;
-        // col2.brelaz_color(g, 30, 1, 100, true);
-        // std::cout << " at " << minicsp::cpuTime() << std::endl;
-        // ncol = *std::max_element(begin(col2.color), end(col2.color)) + 1;
-        // std::cout << " ==> " << ncol << std::endl;
-        // std::cout << " at " << minicsp::cpuTime() << std::endl;
+        int niter{100};
+        do {
+            std::cout << "\ndsatur (with ub = " << ncol-1 << "): ";
+						std::cout.flush();
+            double timebefore = minicsp::cpuTime();
+            int nc = col3.brelaz_color(g, ncol-1, 100, 1);
+            if (nc < g.size()) {
+                ncol
+                    = *std::max_element(begin(col3.color), end(col3.color)) + 1;
+                assert(nc == ncol);
+								std::cout << " ==> " << ncol ;
+            } else {
+                std::cout << " no improvement " ;
+            }
 
-        col3.clear();
 
-        std::cout << "\ndsatur (3'):\n";
-        std::cout << " at " << minicsp::cpuTime() << std::endl;
-        col3.brelaz_color(g, 30, 10, 1);
-        std::cout << " at " << minicsp::cpuTime() << std::endl;
-        ncol = *std::max_element(begin(col3.color), end(col3.color)) + 1;
-        std::cout << " ==> " << ncol << std::endl;
-        std::cout << " at " << minicsp::cpuTime() << std::endl;
-
-        // // std::cout << "\ndsatur (1):\n";
-        // //       auto sol{gc::brelaz_color(g, false)};
-        // //       ncol = *max_element(begin(sol), end(sol)) + 1;
-        // // std::cout << " at " << minicsp::cpuTime() <<
-        // // std::endl;
-        //
-        // std::cout << "dsatur (2):\n";
-        // gc::dyngraph dg(g);
-        // std::cout << " at " << minicsp::cpuTime() << std::endl;
-        // gc::coloring col;
-        // std::cout << " at " << minicsp::cpuTime() << std::endl;
-        // col.brelaz_color(dg, 0);
-        // std::cout << " at " << minicsp::cpuTime() << std::endl;
-        // ncol = *std::max_element(begin(col.color), end(col.color)) + 1;
-        // std::cout << " ==> " << ncol << std::endl;
-        // std::cout << " at " << minicsp::cpuTime() << std::endl;
+            
+							std::cout << "("
+                      << (minicsp::cpuTime() - timebefore) << ")" << std::endl;
+            col3.clear();
+        } while (niter-- > 0);
 
     } break;
     case gc::options::BNB: {
