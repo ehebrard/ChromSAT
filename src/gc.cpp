@@ -1923,16 +1923,24 @@ int color(gc::options& options, gc::graph<input_format>& g)
     switch (options.strategy) {
     case gc::options::COLOR: {
 
-        int ncol{31};
+        std::cout << "\ndegeneracy: ";
+        std::cout.flush();
+        double timebefore = minicsp::cpuTime();
+        gc::degeneracy_finder<gc::graph<input_format>> df{g};
+        df.degeneracy_ordering();
+        auto ncol { *std::max_element(begin(df.degrees), end(df.degrees)) + 1 };
+
+        std::cout << " ==> " << ncol << "(" << (minicsp::cpuTime() - timebefore)
+                  << ")" << std::endl;
 
         quick_dsatur col3;
 
-        int niter{100};
+        int niter{32};
         do {
             std::cout << "\ndsatur (with ub = " << ncol-1 << "): ";
 						std::cout.flush();
             double timebefore = minicsp::cpuTime();
-            int nc = col3.brelaz_color(g, ncol-1, 100, 1);
+            int nc = col3.brelaz_color(g, ncol - 1, (1 << (33 - niter)), 1);
             if (nc < g.size()) {
                 ncol
                     = *std::max_element(begin(col3.color), end(col3.color)) + 1;
@@ -1941,9 +1949,6 @@ int color(gc::options& options, gc::graph<input_format>& g)
             } else {
                 std::cout << " no improvement " ;
             }
-
-
-            
 							std::cout << "("
                       << (minicsp::cpuTime() - timebefore) << ")" << std::endl;
             col3.clear();
