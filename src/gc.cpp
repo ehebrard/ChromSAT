@@ -17,6 +17,7 @@
 #include "vcsolver.hpp"
 #include "interval_list.hpp"
 #include "dsatur.hpp"
+#include "cliquesampler.hpp"
 
 #include <minicsp/core/cons.cpp>
 #include <minicsp/core/solver.hpp>
@@ -1510,9 +1511,13 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
         std::cout << " ==> " << ncol << "(" << (minicsp::cpuTime() - timebefore)
                   << ")" << std::endl;
+				
+				
+				// gc::clique_sampler<input_format> cs;
+				// cs.find_clique(g, 0, begin(df.buckets[ncol-1]), end(df.buckets[ncol-1]), 64);
+				
 
-        gc::DSatur col3;
-
+        gc::dsatur col3;
         int niter{32};
         do {
             std::cout << "\ndsatur (with ub = " << ncol-1 << "): ";

@@ -86,7 +86,7 @@ std::ostream& operator<<(std::ostream& os, const colvector* x)
     return x->display(os);
 }
 
-struct DSatur {
+struct dsatur {
 
     std::vector<int> color;
     std::vector<int> degree;
