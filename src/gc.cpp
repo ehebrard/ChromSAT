@@ -1507,23 +1507,68 @@ int color(gc::options& options, gc::graph<input_format>& g)
         double timebefore = minicsp::cpuTime();
         gc::degeneracy_finder<gc::graph<input_format>> df{g};
         df.degeneracy_ordering();
-        auto ncol { *std::max_element(begin(df.degrees), end(df.degrees)) + 1 };
+        std::vector<std::vector<int>::iterator> cores;
+        size_t d{0};
+        for (auto it{begin(df.order)}; it != end(df.order); ++it) {
 
+            auto di{df.degrees[*it]};
+            if (di > d) {
+                cores.push_back(it);
+                d = di;
+            }
+            //
+            // std::cout << std::setw(3) << *it << " " << std::setw(3) << di <<
+            // " "
+            //           << std::setw(3) << d << std::endl;
+        }
+
+        // auto ncol { *std::max_element(begin(df.degrees), end(df.degrees)) + 1
+        // };
+
+        auto ncol{d + 1};
         std::cout << " ==> " << ncol << "(" << (minicsp::cpuTime() - timebefore)
                   << ")" << std::endl;
+
+        // std::cout << *(cores.back()) << " " << *(rend(df.order)) <<
+        // std::endl;
+
+				auto samplebase{(g.size() > options.samplebase ? (options.samplebase + (g.size() - options.samplebase) / 100) : g.size())};
+
+				assert(begin(df.order) + samplebase <= end(df.order));
 				
 				
-				// gc::clique_sampler<input_format> cs;
-				// cs.find_clique(g, 0, begin(df.buckets[ncol-1]), end(df.buckets[ncol-1]), 64);
-				
+        std::cout << "\nclique sampling:\n";
+        timebefore = minicsp::cpuTime();
+        gc::clique_sampler cs((end(df.order) - samplebase), end(df.order));
+				// gc::clique_sampler cs(begin(df.order), end(df.order));
+
+        size_t width{1};
+        int lb{0};
+
+        while (width <= options.probewidth) {
+            std::cout << "lb = " << lb << ". Sample (base = " << samplebase << ", width = " << width
+                      << ")\n";
+
+            auto nlb{cs.find_clique(
+                g, lb, end(df.order), end(df.order), samplebase, width)};
+            if (nlb > lb) {
+                lb = nlb;
+            } else {
+                width *= 2;
+            }
+        }
+        std::cout << " ==> lb = " << lb << "("
+                  << (minicsp::cpuTime() - timebefore) << ")" << std::endl;
 
         gc::dsatur col3;
-        int niter{32};
+        int maxiter{3};
+        int niter{maxiter};
         do {
             std::cout << "\ndsatur (with ub = " << ncol-1 << "): ";
 						std::cout.flush();
             double timebefore = minicsp::cpuTime();
-            int nc = col3.brelaz_color(g, ncol - 1, (1 << (33 - niter)), 1);
+            int nc = col3.brelaz_color(
+                g, ncol - 1, (1 << (maxiter + 1 - niter)), 1);
             if (nc < g.size()) {
                 ncol
                     = *std::max_element(begin(col3.color), end(col3.color)) + 1;

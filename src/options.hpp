@@ -122,6 +122,10 @@ struct options {
     bool ubfocus;
 
     bool triangle_up;
+
+    int samplebase;
+
+    int probewidth;
 };
 
 options parse(int argc, char* argv[]);

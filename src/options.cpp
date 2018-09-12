@@ -155,6 +155,11 @@ options parse(int argc, char* argv[])
         false, -1, "int");
     cmd.add<SwitchArg>(opt.triangle_up, "", "triangleup",
         "do partition-aware unit propagation", false);
+    cmd.add<ValueArg<int>>(opt.samplebase, "", "samplebase",
+        "size of the sampling base for max clique (default = 512)", false, 512,
+        "int");
+    cmd.add<ValueArg<int>>(opt.probewidth, "", "probewidth",
+        "size of the max probe width (default = 64)", false, 64, "int");
 
     cmd.parse(argc, argv);
     return opt;
