@@ -1,5 +1,6 @@
 #include "vertices_vec.hpp"
 #include "bitset.hpp"
+#include "utils.hpp"
 
 // TODO
 /* Copying : clear vector before ? use  = , std::copy, or else ?
@@ -35,15 +36,15 @@ void vertices_vec::copy(BitSet const& elts) {
 }
 
 void vertices_vec::canonize() {
-		sort_by_number();
-		vertices.erase(std::unique(begin(), end()), end());
+    sort_by_number();
+    vertices.erase(std::unique(begin(), end()), end());
 }
 
 std::vector<int>::const_iterator vertices_vec::find(const int elt) const
-{		
+{
     auto i = std::lower_bound(begin(), end(), elt);
     if (i == end() or *i != elt)
-	     return end();		 
+        return end();
     return i;
 }
 
@@ -76,10 +77,8 @@ void vertices_vec::intersect_with(bitset const& bs)
 {
     using std::begin;
     using std::end;
-    buffer.clear();
-    std::set_intersection(vertices.begin(), vertices.end(), begin(bs), end(bs),
-        std::back_inserter(buffer));
-    swap(vertices, buffer);
+    erase_if(vertices, [&](int elt) { return !bs.fast_contain(elt); });
+    std::sort(vertices.begin(), vertices.end());
 }
 
 void vertices_vec::safe_intersect_with(vertices_vec & v)
@@ -196,7 +195,7 @@ std::ostream& vertices_vec::display(std::ostream& os) const {
         os << *it << " ";
     }
     os << "}";
-		return os;
+                return os;
 }
 
 void vertices_vec::remove(const int e) { vertices.erase(find(e)); }

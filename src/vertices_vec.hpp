@@ -50,7 +50,7 @@ public:
     bool empty() const { return vertices.empty(); }
     size_t size() const { return vertices.size(); }
     void clear() { vertices.clear(); }
-		void sort() { std::sort(begin(), end()); }
+    void sort() { std::sort(begin(), end()); }
     void push_back(int i) { vertices.push_back(i); }
     void reserve(size_t n) { vertices.reserve(n); }
 
@@ -71,7 +71,7 @@ public:
     void initialise(const int lb, const int ub, const int p);
 
     inline void add(const int v) { vertices.push_back(v); }
-		inline void erase(iterator it) { vertices.erase(it); }
+    inline void erase(iterator it) { vertices.erase(it); }
     inline void fast_add(const int v) { vertices.push_back(v); }
     bool fast_contain(const int elt) const;
 
@@ -80,8 +80,8 @@ public:
     {
         return std::is_sorted(vertices.begin(), vertices.end());
     }
-		
-		void canonize();
+
+    void canonize();
 
     // Modifies this
     void intersect_with(vertices_vec const& v);
