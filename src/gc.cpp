@@ -250,7 +250,7 @@ struct gc_model {
             return create_all_vars();
     }
 
-    bool peeling(gc::graph<adjacency_struct>& g,
+    bool old_peeling(gc::graph<adjacency_struct>& g,
         gc::graph_reduction<adjacency_struct>& gr, const int k_core_threshold)
     {
         int original_size{g.size()};
@@ -370,7 +370,7 @@ struct gc_model {
         // return gr;
     }
 
-    bool cai_peeling(gc::graph<adjacency_struct>& g,
+    bool peeling(gc::graph<adjacency_struct>& g,
         gc::graph_reduction<adjacency_struct>& gr, const int k_core_threshold)
     {
         int original_size{g.size()};
@@ -381,61 +381,60 @@ struct gc_model {
         gc::clique_sampler cs;
         gc::degeneracy_finder<gc::graph<adjacency_struct>> df{g};
 
+        bool ub_safe{(threshold <= lb)};
+        std::cout << "[preprocessing] compute degeneracy ordering\n";
+        df.degeneracy_ordering();
+
+        std::vector<std::vector<int>::iterator> cores;
+        std::vector<int> degrees;
+        int degeneracy{-1};
+        for (auto it{begin(df.order)}; it != end(df.order); ++it) {
+            auto di{df.degrees[*it]};
+            if (di > degeneracy) {
+                degeneracy = di;
+                cores.push_back(it);
+                degrees.push_back(degeneracy);
+            }
+        }
+        cores.push_back(end(df.order));
+
+        if (ub > degeneracy + 1) {
+
+            if (!degeneracy_sol) {
+                int maxc{gr.greedy_solution(solution, rbegin(df.order),
+                    rend(df.order), degeneracy + 1)};
+                degeneracy_sol = true;
+
+                assert(maxc <= degeneracy + 1);
+                assert(maxc >= lb);
+
+                ub = maxc;
+                if (ub_safe) {
+                    statistics.notify_ub(ub);
+                    statistics.display(std::cout);
+                }
+            }
+        }
+
         adjacency_struct toremove;
         toremove.initialise(0, g.capacity(), gc::bitset::empt);
 
-        bool ub_safe{true};
+        auto samplebase{(g.size() > options.samplebase
+                ? (options.samplebase + (g.size() - options.samplebase) / 100)
+                : g.size())};
+
         int prev_size{original_size + 1};
+        int k{0};
+
         while (g.size() and prev_size > g.size() and lb < ub) {
 
             prev_size = g.size();
 
-            df.clear();
-
-            std::cout << "[preprocessing] compute degeneracy ordering\n";
-            df.degeneracy_ordering();
-
-            std::vector<std::vector<int>::iterator> cores;
-            std::vector<int> degrees;
-            int degeneracy{-1};
-            for (auto it{begin(df.order)}; it != end(df.order); ++it) {
-                auto di{df.degrees[*it]};
-                if (di > degeneracy) {
-                    degeneracy = di;
-                    cores.push_back(it);
-                    degrees.push_back(degeneracy);
-                }
-            }
-            cores.push_back(end(df.order));
-
-            std::cout << "extend solution\n";
-
-            if (ub > degeneracy + 1) {
-
-                if (!degeneracy_sol) {
-                    int maxc{gr.greedy_solution(solution, rbegin(df.order),
-                        rend(df.order), degeneracy + 1)};
-                    degeneracy_sol = true;
-
-                    assert(maxc <= degeneracy + 1);
-                    assert(maxc >= lb);
-
-                    ub = maxc;
-                    if (ub_safe) {
-                        statistics.notify_ub(ub);
-                        statistics.display(std::cout);
-                    }
-                }
-            }
-
+            // df.clear();
             std::cout << "[preprocessing] compute lower bound\n";
 
-            auto samplebase{(g.size() > options.samplebase
-                    ? (options.samplebase
-                          + (g.size() - options.samplebase) / 100)
-                    : g.size())};
-
-            assert(begin(df.order) + samplebase <= end(df.order));
+            samplebase = std::min(samplebase, g.size());
+            // assert(begin(df.order) + samplebase <= end(df.order));
 
             cs.set_domain((end(df.order) - samplebase), end(df.order),
                 g.capacity(), true);
@@ -459,35 +458,16 @@ struct gc_model {
             threshold = std::max(lb, threshold);
             if (df.degrees[df.order[0]] < threshold) {
 
-                // std::cout << *begin(df.order) << "..";
-                for (auto v : df.order) {
-                    if (df.degrees[v] >= threshold)
-                        break;
-                    toremove.add(v);
+                auto prev{k};
+                while (degrees[k] < threshold)
+                    ++k;
 
+                for (auto vp{cores[prev]}; vp != cores[k]; ++vp) {
+                    auto v{*vp};
+
+                    toremove.add(v);
                     gr.removed_vertices.push_back(v);
                 }
-                // if (toremove.size() > 0)
-                //     std::cout << toremove.vertices.back();
-                // std::cout << std::endl;
-
-                int i{0};
-                while (degrees[i] < threshold)
-                    ++i;
-
-                // // if (toremove.size() != (cores[i] - begin(df.order))) {
-                //
-                //     for (size_t j = 1; j < cores.size() - 1; ++j) {
-                //         std::cout << degrees[j - 1] << "-core: ["
-                //                   << *(cores[j - 1]) << " -- " << *(cores[j]-1)
-                //                   << "] (" << (cores[j] - cores[j - 1]) << ")" << std::endl;
-                //     }
-                // // }
-                //
-                // std::cout << "keep the " << degrees[i] << "-core starting at "
-                //           << *(cores[i]) << std::endl;
-
-                assert(toremove.size() == (cores[i] - begin(df.order)));
 
                 std::cout << "[preprocessing] remove " << toremove.size()
                           << " low degree nodes (<" << threshold << ")\n";
@@ -500,27 +480,48 @@ struct gc_model {
                 }
 
                 toremove.clear();
-                // statistics.notify_removals(g.size());
                 statistics.display(std::cout);
 
                 ub_safe = (threshold <= lb);
             }
 
             if (prev_size > g.size() or prev_size == original_size) {
-                // changes at the peeling step, or first step
-
-                // prev_size = g.size();
-
                 if (options.preprocessing == gc::options::FULL)
                     neighborhood_dominance(g, gr);
             }
 
-            // if (g.size() > 1000000)
-            //     break;
-        }; // while (prev_size > g.size() and lb < ub);
+            if (options.sdsaturiter > 0 and !dsatur_sol) {
+                std::cout << "[preprocessing] launch sparse dsatur ("
+                          << options.sdsaturiter << " times) at "
+                          << minicsp::cpuTime() << "\n";
+
+                gc::dsatur col;
+                int niter{options.sdsaturiter};
+                do {
+                    auto ncol{col.brelaz_color(g, ub - 1,
+                        (1 << (options.sdsaturiter + 1 - niter)), 1)};
+                    if (ncol < ub) {
+                        for (int i = 0; i < original.size(); ++i) {
+                            solution[original.nodes[i]] = col.color[i];
+                        }
+                        dsatur_sol = true;
+
+                        auto actualncol
+                            = reduction.extend_solution(solution, true);
+                        // std::cout << " ====> " << actualncol << std::endl;
+
+                        if (ub > actualncol) {
+                            ub = actualncol;
+                            statistics.notify_ub(ub);
+                            statistics.display(std::cout);
+                        }
+                    }
+                    col.clear();
+                } while (--niter > 0);
+            }
+        };
 
         return (original_size > g.size());
-        // return gr;
     }
 
     bool degeneracy_peeling(gc::graph<adjacency_struct>& g,
@@ -956,7 +957,7 @@ struct gc_model {
         if (options.preprocessing == gc::options::NO_PREPROCESSING)
             return gr;
         else // if (options.preprocessing == gc::options::FULL)
-            cai_peeling(original, gr, k_core_threshold);
+            peeling(original, gr, k_core_threshold);
         // else
         //     degeneracy_peeling(original, gr, k_core_threshold);
 
@@ -967,54 +968,54 @@ struct gc_model {
         g.describe(std::cout, -1);
         std::cout << std::endl << std::endl;
 
-        if (g.size() > 0 and lb < ub) {
+        // if (g.size() > 0 and lb < ub) {
+        //
+        //     if (options.sdsaturiter > 0) {
+        //         std::cout << "[preprocessing] launch sparse dsatur ("
+        //                   << options.sdsaturiter << " times) at "
+        //                   << minicsp::cpuTime() << "\n";
+        //
+        //         gc::dsatur col;
+        //         int niter{options.sdsaturiter};
+        //         do {
+        //             auto ncol{col.brelaz_color(g, ub - 1,
+        //                 (1 << (options.sdsaturiter + 1 - niter)), 1)};
+        //             if (ncol < ub) {
+        //                 for (int i = 0; i < original.size(); ++i) {
+        //                     solution[original.nodes[i]] = col.color[i];
+        //                 }
+        //                 dsatur_sol = true;
+        //
+        //                 auto actualncol
+        //                     = reduction.extend_solution(solution, true);
+        //                 // std::cout << " ====> " << actualncol << std::endl;
+        //
+        //                 if (ub > actualncol) {
+        //                     ub = actualncol;
+        //                     statistics.notify_ub(ub);
+        //                     statistics.display(std::cout);
+        //                 }
+        //             }
+        //             col.clear();
+        //         } while (--niter > 0);
+        //
+        //         // gc::dyngraph dg(g);
+        //         // num_edges = dg.edges.size();
+        //         // sparse_upper_bound(dg, options.sdsaturiter);
+        //     }
 
-            if (options.sdsaturiter > 0) {
-                std::cout << "[preprocessing] launch sparse dsatur ("
-                          << options.sdsaturiter << " times) at "
-                          << minicsp::cpuTime() << "\n";
-
-                gc::dsatur col;
-                int niter{options.sdsaturiter};
-                do {
-                    auto ncol{col.brelaz_color(g, ub - 1,
-                        (1 << (options.sdsaturiter + 1 - niter)), 1)};
-                    if (ncol < ub) {
-                        for (int i = 0; i < original.size(); ++i) {
-                            solution[original.nodes[i]] = col.color[i];
-                        }
-                        dsatur_sol = true;
-
-                        auto actualncol
-                            = reduction.extend_solution(solution, true);
-                        // std::cout << " ====> " << actualncol << std::endl;
-
-                        if (ub > actualncol) {
-                            ub = actualncol;
-                            statistics.notify_ub(ub);
-                            statistics.display(std::cout);
-                        }
-                    }
-                    col.clear();
-                } while (--niter > 0);
-
-                // gc::dyngraph dg(g);
-                // num_edges = dg.edges.size();
-                // sparse_upper_bound(dg, options.sdsaturiter);
+        if (g.size() > 0 and lb < ub and options.indset_constraints
+            and options.strategy != gc::options::BOUNDS) {
+            find_is_constraints(g, gr);
             }
+            // }
 
-            if (g.size() > 0 and lb < ub and options.indset_constraints
-                and options.strategy != gc::options::BOUNDS) {
-                find_is_constraints(g, gr);
-            }
-        }
+            std::cout << "[preprocessing] finished at " << minicsp::cpuTime()
+                      << "\n\n[modeling] preprocessed graph: ";
+            g.describe(std::cout, -1);
+            std::cout << std::endl << std::endl;
 
-        std::cout << "[preprocessing] finished at " << minicsp::cpuTime()
-                  << "\n\n[modeling] preprocessed graph: ";
-        g.describe(std::cout, -1);
-        std::cout << std::endl << std::endl;
-
-        return gr;
+            return gr;
     }
 
     void post_eqvar_debug_sol(Solver& s, const std::vector<int>& coloring)
