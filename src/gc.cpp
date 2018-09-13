@@ -1508,13 +1508,15 @@ int color(gc::options& options, gc::graph<input_format>& g)
         gc::degeneracy_finder<gc::graph<input_format>> df{g};
         df.degeneracy_ordering();
         std::vector<std::vector<int>::iterator> cores;
+        std::vector<int> degrees;
         size_t d{0};
         for (auto it{begin(df.order)}; it != end(df.order); ++it) {
 
             auto di{df.degrees[*it]};
             if (di > d) {
-                cores.push_back(it);
                 d = di;
+                cores.push_back(it);
+                degrees.push_back(d);
             }
             //
             // std::cout << std::setw(3) << *it << " " << std::setw(3) << di <<
@@ -1539,8 +1541,9 @@ int color(gc::options& options, gc::graph<input_format>& g)
 				
         std::cout << "\nclique sampling:\n";
         timebefore = minicsp::cpuTime();
-        gc::clique_sampler cs((end(df.order) - samplebase), end(df.order));
-				// gc::clique_sampler cs(begin(df.order), end(df.order));
+        gc::clique_sampler cs(
+            (end(df.order) - samplebase), end(df.order), g.capacity());
+        // gc::clique_sampler cs(begin(df.order), end(df.order));
 
         size_t width{1};
         int lb{0};
@@ -1548,6 +1551,32 @@ int color(gc::options& options, gc::graph<input_format>& g)
         while (width <= options.probewidth) {
             std::cout << "lb = " << lb << ". Sample (base = " << samplebase << ", width = " << width
                       << ")\n";
+
+            auto nlb{cs.find_clique(
+                g, lb, end(df.order), end(df.order), samplebase, width)};
+            if (nlb > lb) {
+                lb = nlb;
+            } else {
+                width *= 2;
+            }
+        }
+        std::cout << " ==> lb = " << lb << "("
+                  << (minicsp::cpuTime() - timebefore) << ")" << std::endl;
+
+        std::cout << "\nclique sampling again:\n";
+        timebefore = minicsp::cpuTime();
+
+        int i{0};
+        while (degrees[i] < lb - 1)
+            ++i;
+        cs.set_domain(cores[i], end(df.order), g.capacity(), false);
+        // gc::clique_sampler cs(begin(df.order), end(df.order));
+
+        width = 1;
+
+        while (width <= options.probewidth) {
+            std::cout << "lb = " << lb << ". Sample (base = " << samplebase
+                      << ", width = " << width << ")\n";
 
             auto nlb{cs.find_clique(
                 g, lb, end(df.order), end(df.order), samplebase, width)};

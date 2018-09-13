@@ -31,8 +31,11 @@ struct clique_sampler {
 
     std::vector<int> start_set;
     std::vector<int> cand_set;
+    std::vector<int> probed;
     std::vector<std::vector<int>> domain;
     std::vector<int> buffer;
+
+    gc::bitset nodeset;
 
     std::vector<int> clique;
     int lb;
@@ -40,12 +43,25 @@ struct clique_sampler {
 
     clique_sampler() {}
 
-    template <class viterator> clique_sampler(viterator first, viterator last)
+    template <class viterator>
+    clique_sampler(viterator first, viterator last, const int n)
     {
+        set_domain(first, last, n, true);
+    }
+
+    template <class viterator>
+    void set_domain(
+        viterator first, viterator last, const int n, const bool full)
+    {
+        nodeset.reinitialise(0, n - 1, 0);
         start_set.clear();
+
+        if (full)
+            nodeset.fill();
 
         for (auto vp{first}; vp != last; ++vp) {
             start_set.push_back(*vp);
+            nodeset.fast_add(*vp);
 
 #ifdef _DEBUG_SAMPLE
             std::cout << " " << (*vp);
@@ -74,6 +90,8 @@ struct clique_sampler {
 #endif
         }
 
+        std::cout << start_set.size() << " / " << nodeset.size() << std::endl;
+
 #ifdef _DEBUG_SAMPLE
         if (first != last)
             std::cout << std::endl;
@@ -94,12 +112,14 @@ struct clique_sampler {
             clique.push_back(v);
 						
             cand_set.clear();
-            for (auto v : g.matrix[v])
-                cand_set.push_back(v);
-						
-						auto p{probe(g)};
-						// std::cout << " " << p ;
-						// std::cout.flush();
+            for (auto u : g.matrix[v])
+                if (nodeset.fast_contain(u))
+                    cand_set.push_back(u);
+						probed = cand_set;
+
+            auto p{probe(g)};
+            // std::cout << " " << p ;
+            // std::cout.flush();
             lb = std::max(lb, p);
         }
 				// std::cout << std::endl;
@@ -124,13 +144,14 @@ struct clique_sampler {
         int largest{0};
         // select 'probewidth' samples
         for (int i = 0; i < w; ++i) {
-            std::swap(cand_set[i],
-                cand_set[i + (xorshf96() % (cand_set.size() - i))]);
+            std::swap(
+                probed[i], probed[i + (xorshf96() % (probed.size() - i))]);
 
             auto v{cand_set[i]};
             domain[i].clear();
             for (auto u : g.matrix[v])
-                domain[i].push_back(u);
+                if (nodeset.fast_contain(u))
+                    domain[i].push_back(u);
 
             // Put intersection in the buffer
             buffer.clear();
@@ -151,6 +172,7 @@ struct clique_sampler {
         clique.push_back(cand_set[largest]);
 
         std::swap(cand_set, domain[largest]);
+        probed = cand_set;
 
         return probe(g);
     }

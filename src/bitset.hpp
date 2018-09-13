@@ -173,9 +173,18 @@ public:
 
     void reinitialise(const int lb, const int ub, const WORD_TYPE p)
     {
-        table += neg_words;
-        delete[] table;
-        initialise(lb, ub, p, NULL);
+        if (table) {
+            if (neg_words > (lb >> EXP) or pos_words <= (ub >> EXP)) {
+
+                table += neg_words;
+                delete[] table;
+                initialise(lb, ub, p, NULL);
+            } else if (p)
+                fill();
+            else
+                clear();
+        } else
+            initialise(lb, ub, p, NULL);
     }
 
     void initialise(const int sz, const WORD_TYPE p)
