@@ -83,73 +83,6 @@ template <class adjacency_struct> void histogram(gc::graph<adjacency_struct>& g)
               << "%" << std::endl;
 }
 
-// template< class adjacency_struct >
-// struct graph_reduction {
-//     const gc::graph<adjacency_struct>& g;
-//     const gc::statistics& statistics;
-//     std::vector<int> removed_vertices;
-//     std::vector<int> dominator;
-//     std::vector<gc::indset_constraint> constraints;
-//     std::vector<vertex_status> status;
-//     gc::bitset nodeset;
-//     gc::bitset util_set;
-//
-//     explicit graph_reduction(
-//         const gc::graph<adjacency_struct>& g, const gc::statistics&
-//         statistics)
-//         : g(g)
-//         , statistics(statistics)
-//         , status(g.capacity(), gc::vertex_status::in_graph)
-//         , nodeset(0, g.capacity(), gc::bitset::empt)
-//         , util_set(0, g.capacity(), gc::bitset::empt)
-//     {
-//     }
-//
-//     int extend_solution(std::vector<int>& col, const bool full = false)
-//     {
-//         int maxc{0};
-//         nodeset.copy(g.nodeset);
-//         for (auto v : g.nodes)
-//             maxc = std::max(maxc, col[v]);
-//
-//         auto d{dominator.rbegin()};
-//         for (auto i = removed_vertices.rbegin(), iend =
-//         removed_vertices.rend();
-//              i != iend; ++i) {
-//             auto v = *i;
-//
-//             if (!full and status[v] != gc::vertex_status::indset_removed)
-//                 break;
-//
-//             if (status[v] == gc::vertex_status::dominated_removed) {
-//                 assert(nodeset.fast_contain(*d));
-//                 col[v] = col[*d];
-//                 ++d;
-//             }
-//
-//             assert(status[v] != gc::vertex_status::in_graph);
-//             util_set.clear();
-//             for (auto u : g.matrix[v]) {
-//                 if (!nodeset.fast_contain(u))
-//                     continue;
-//                 util_set.fast_add(col[u]);
-//             }
-//
-//             for (int q = 0; q != g.capacity(); ++q) {
-//                 if (util_set.fast_contain(q))
-//                     continue;
-//                 // assert(q <= statistics.best_ub);
-//                 maxc = std::max(maxc, q);
-//                 col[v] = q;
-//                 break;
-//             }
-//             nodeset.fast_add(v);
-//         }
-//
-//         return maxc + 1;
-//     }
-// };
-
 template< class adjacency_struct >
 struct gc_model {
     const gc::options& options;
@@ -437,6 +370,159 @@ struct gc_model {
         // return gr;
     }
 
+    bool cai_peeling(gc::graph<adjacency_struct>& g,
+        gc::graph_reduction<adjacency_struct>& gr, const int k_core_threshold)
+    {
+        int original_size{g.size()};
+        std::cout << "[preprocessing] start peeling (" << k_core_threshold
+                  << ")\n";
+
+        auto threshold = std::max(lb, k_core_threshold);
+        gc::clique_sampler cs;
+        gc::degeneracy_finder<gc::graph<adjacency_struct>> df{g};
+
+        adjacency_struct toremove;
+        toremove.initialise(0, g.capacity(), gc::bitset::empt);
+
+        bool ub_safe{true};
+        int prev_size{original_size + 1};
+        while (g.size() and prev_size > g.size() and lb < ub) {
+
+            prev_size = g.size();
+
+            df.clear();
+
+            std::cout << "[preprocessing] compute degeneracy ordering\n";
+            df.degeneracy_ordering();
+
+            std::vector<std::vector<int>::iterator> cores;
+            std::vector<int> degrees;
+            int degeneracy{-1};
+            for (auto it{begin(df.order)}; it != end(df.order); ++it) {
+                auto di{df.degrees[*it]};
+                if (di > degeneracy) {
+                    degeneracy = di;
+                    cores.push_back(it);
+                    degrees.push_back(degeneracy);
+                }
+            }
+            cores.push_back(end(df.order));
+
+            std::cout << "extend solution\n";
+
+            if (ub > degeneracy + 1) {
+
+                if (!degeneracy_sol) {
+                    int maxc{gr.greedy_solution(solution, rbegin(df.order),
+                        rend(df.order), degeneracy + 1)};
+                    degeneracy_sol = true;
+
+                    assert(maxc <= degeneracy + 1);
+                    assert(maxc >= lb);
+
+                    ub = maxc;
+                    if (ub_safe) {
+                        statistics.notify_ub(ub);
+                        statistics.display(std::cout);
+                    }
+                }
+            }
+
+            std::cout << "[preprocessing] compute lower bound\n";
+
+            auto samplebase{(g.size() > options.samplebase
+                    ? (options.samplebase
+                          + (g.size() - options.samplebase) / 100)
+                    : g.size())};
+
+            assert(begin(df.order) + samplebase <= end(df.order));
+
+            cs.set_domain((end(df.order) - samplebase), end(df.order),
+                g.capacity(), true);
+
+            size_t width{1};
+            while (width <= options.probewidth) {
+                auto nlb{cs.find_clique(
+                    g, lb, end(df.order), end(df.order), samplebase, width)};
+                if (nlb > lb) {
+                    lb = nlb;
+
+                    if (k_core_threshold < 0) {
+                        statistics.notify_lb(lb);
+                        statistics.display(std::cout);
+                    }
+                } else {
+                    width *= 2;
+                }
+            }
+
+            threshold = std::max(lb, threshold);
+            if (df.degrees[df.order[0]] < threshold) {
+
+                // std::cout << *begin(df.order) << "..";
+                for (auto v : df.order) {
+                    if (df.degrees[v] >= threshold)
+                        break;
+                    toremove.add(v);
+
+                    gr.removed_vertices.push_back(v);
+                }
+                // if (toremove.size() > 0)
+                //     std::cout << toremove.vertices.back();
+                // std::cout << std::endl;
+
+                int i{0};
+                while (degrees[i] < threshold)
+                    ++i;
+
+                // // if (toremove.size() != (cores[i] - begin(df.order))) {
+                //
+                //     for (size_t j = 1; j < cores.size() - 1; ++j) {
+                //         std::cout << degrees[j - 1] << "-core: ["
+                //                   << *(cores[j - 1]) << " -- " << *(cores[j]-1)
+                //                   << "] (" << (cores[j] - cores[j - 1]) << ")" << std::endl;
+                //     }
+                // // }
+                //
+                // std::cout << "keep the " << degrees[i] << "-core starting at "
+                //           << *(cores[i]) << std::endl;
+
+                assert(toremove.size() == (cores[i] - begin(df.order)));
+
+                std::cout << "[preprocessing] remove " << toremove.size()
+                          << " low degree nodes (<" << threshold << ")\n";
+
+                toremove.canonize();
+
+                g.remove(toremove);
+                for (auto u : toremove) {
+                    gr.status[u] = gc::vertex_status::low_degree_removed;
+                }
+
+                toremove.clear();
+                // statistics.notify_removals(g.size());
+                statistics.display(std::cout);
+
+                ub_safe = (threshold <= lb);
+            }
+
+            if (prev_size > g.size() or prev_size == original_size) {
+                // changes at the peeling step, or first step
+
+                // prev_size = g.size();
+
+                if (options.preprocessing == gc::options::FULL)
+                    neighborhood_dominance(g, gr);
+            }
+
+            // if (g.size() > 1000000)
+            //     break;
+        }; // while (prev_size > g.size() and lb < ub);
+
+        return (original_size > g.size());
+        // return gr;
+    }
+
     bool degeneracy_peeling(gc::graph<adjacency_struct>& g,
         gc::graph_reduction<adjacency_struct>& gr, const int k_core_threshold)
     {
@@ -445,7 +531,8 @@ struct gc_model {
         //     return gr;
 
         int size_before{g.size()};
-        std::cout << "[preprocessing] start peeling (" << k_core_threshold << ")\n";
+        std::cout << "[preprocessing] start peeling (" << k_core_threshold
+                  << ")\n";
 
         // histogram(g);
 
@@ -477,8 +564,8 @@ struct gc_model {
             int degeneracy = 0;
             df.degeneracy_ordering();
 
-            std::vector<int>
-                reverse; // TODO change that by using iterators in clique finder
+            std::vector<int> reverse; // TODO change that by using iterators
+            // in clique finder
             for (auto rit = df.order.rbegin(); rit != df.order.rend(); ++rit) {
                 auto v{*rit};
                 if (df.degrees[v] > degeneracy) {
@@ -488,7 +575,8 @@ struct gc_model {
                 // gr.status[v] = gc::vertex_status::low_degree_removed;
             }
 
-            // std::cout << "DEGENERACY = " << degeneracy << " / " << df.d <<
+            // std::cout << "DEGENERACY = " << degeneracy << " / " << df.d
+            // <<
             // std::endl;
             // assert(degeneracy == df.d);
 
@@ -511,7 +599,7 @@ struct gc_model {
 
             std::cout << "[preprocessing] compute lower bound\n";
 
-						bool changes = false;
+            bool changes = false;
             auto plb = cf.find_cliques(reverse);
             if (lb < plb) {
 
@@ -529,7 +617,6 @@ struct gc_model {
                 plb = mf.improve_cliques_larger_than(plb);
             }
 
-            
             if (lb < plb) {
 
                 if (lb_safe) {
@@ -575,9 +662,11 @@ struct gc_model {
             }
             // else {
             //
-            //                 std::cout << "lowest degree node " << df.order[0]
+            //                 std::cout << "lowest degree node " <<
+            //                 df.order[0]
             //                 << " ("
-            //                           << df.degrees[df.order[0]] << ") is >=
+            //                           << df.degrees[df.order[0]] << ") is
+            //                           >=
             //                           " << threshold
             //                           << std::endl;
             //             }
@@ -591,13 +680,15 @@ struct gc_model {
         // return gr;
     }
 
-    // // assume that we already have a meaningful lb, peels as much as possible
+    // // assume that we already have a meaningful lb, peels as much as
+    // possible
     // so
     // // that we keep at least k nodes
     // void aggressive_peeling(gc::graph<adjacency_struct>& g,
     //     gc::graph_reduction<adjacency_struct>& gr, const int threshold)
     // {
-    //     std::cout << "[preprocessing] start peeling (" << threshold << ")\n";
+    //     std::cout << "[preprocessing] start peeling (" << threshold <<
+    //     ")\n";
     //
     //     gc::degeneracy_finder<gc::graph<adjacency_struct>> df{g};
     //
@@ -667,7 +758,8 @@ struct gc_model {
                         ++limit;
                         removed.add(v);
                         //
-                        // std::cout << "\nrm " << v << " " << g.matrix[v] <<
+                        // std::cout << "\nrm " << v << " " << g.matrix[v]
+                        // <<
                         // std::endl;
                         // std::cout << "bc " << u << " " << g.matrix[u] <<
                         // std::endl;
@@ -699,7 +791,8 @@ struct gc_model {
     //     if (options.preprocessing == gc::options::NO_PREPROCESSING)
     //         return gr;
     //
-    //     // std::cout << "CORE REDUCTION: " << g.size() << "(" << (int*)(&g)
+    //     // std::cout << "CORE REDUCTION: " << g.size() << "(" <<
+    //     (int*)(&g)
     //     << ")"
     //     //           << std::endl;
     //
@@ -707,7 +800,8 @@ struct gc_model {
     //     ub = bounds.second;
     //     int hlb{0};
     //     gc::clique_finder<adjacency_struct> cf(g);
-    //     gc::mycielskan_subgraph_finder<adjacency_struct> mf(g, cf, false);
+    //     gc::mycielskan_subgraph_finder<adjacency_struct> mf(g, cf,
+    //     false);
     //     gc::degeneracy_finder<gc::graph<adjacency_struct>> df{g};
     //
     //     gc::bitset addden(0, g.capacity(), gc::bitset::empt);
@@ -782,15 +876,13 @@ struct gc_model {
         gc::graph_reduction<adjacency_struct>& gr)
     {
         gc::degeneracy_vc_solver<gc::graph<adjacency_struct>> vc(g);
-				
-				//
-				// std::cout << "PRINT GRAPH\n";
-				// vector<int> vmap(g.capacity(), -1);
-				// gc::graph<adjacency_struct> pcopy(g, vmap);
-				// print(pcopy);
-				
-				
-				
+
+        //
+        // std::cout << "PRINT GRAPH\n";
+        // vector<int> vmap(g.capacity(), -1);
+        // gc::graph<adjacency_struct> pcopy(g, vmap);
+        // print(pcopy);
+
         auto bs = vc.find_is();
         std::cout << "[preprocessing] extract IS constraint size = "
                   << bs.size() << "\n";
@@ -822,7 +914,8 @@ struct gc_model {
 
             // // [TODO: WHEN GIVING A "FAKE" LB, WE CAN FIND A SMALLER
             // COLORING,
-            // // 1/ WE SHOULD CHECK WHAT IS THE ACTUAL SIZE OF THAT COLORING 2/
+            // // 1/ WE SHOULD CHECK WHAT IS THE ACTUAL SIZE OF THAT
+            // COLORING 2/
             // // OTHERWISE WE CAN ONLY GUARANTEE LB]
             // if (ncol < lb) {
             //     ncol = lb;
@@ -861,7 +954,7 @@ struct gc_model {
         if (options.preprocessing == gc::options::NO_PREPROCESSING)
             return gr;
         else // if (options.preprocessing == gc::options::FULL)
-            peeling(original, gr, k_core_threshold);
+            cai_peeling(original, gr, k_core_threshold);
         // else
         //     degeneracy_peeling(original, gr, k_core_threshold);
 
@@ -872,16 +965,40 @@ struct gc_model {
         g.describe(std::cout, -1);
         std::cout << std::endl << std::endl;
 
-        int num_edges = -1;
         if (g.size() > 0 and lb < ub) {
 
             if (options.sdsaturiter > 0) {
                 std::cout << "[preprocessing] launch sparse dsatur ("
                           << options.sdsaturiter << " times) at "
                           << minicsp::cpuTime() << "\n";
-                gc::dyngraph dg(g);
-                num_edges = dg.edges.size();
-                sparse_upper_bound(dg, options.sdsaturiter);
+
+                gc::dsatur col;
+                int niter{options.sdsaturiter};
+                do {
+                    auto ncol{col.brelaz_color(g, ub - 1,
+                        (1 << (options.sdsaturiter + 1 - niter)), 1)};
+                    if (ncol < ub) {
+                        for (int i = 0; i < original.size(); ++i) {
+                            solution[original.nodes[i]] = col.color[i];
+                        }
+                        dsatur_sol = true;
+
+                        auto actualncol
+                            = reduction.extend_solution(solution, true);
+                        // std::cout << " ====> " << actualncol << std::endl;
+
+                        if (ub > actualncol) {
+                            ub = actualncol;
+                            statistics.notify_ub(ub);
+                            statistics.display(std::cout);
+                        }
+                    }
+                    col.clear();
+                } while (--niter > 0);
+
+                // gc::dyngraph dg(g);
+                // num_edges = dg.edges.size();
+                // sparse_upper_bound(dg, options.sdsaturiter);
             }
 
             if (g.size() > 0 and lb < ub and options.indset_constraints
@@ -946,7 +1063,8 @@ struct gc_model {
 
             // // g.check_consistency();
             // for(int i=0; i<g.size(); ++i) {
-            //      std::cout << original.matrix[i] << " / " << g.matrix[i] <<
+            //      std::cout << original.matrix[i] << " / " << g.matrix[i]
+            //      <<
             //      std::endl;
             // }
             // std::cout << std::endl;
@@ -971,7 +1089,6 @@ struct gc_model {
 
             if (!debug_sol.empty())
                 post_eqvar_debug_sol(s, debug_sol);
-
 
             // g.tell_class();
             // cons->g.tell_class();
@@ -1023,7 +1140,7 @@ struct gc_model {
                 case gc::options::VSIDS:
                     if (options.branching_low_degree) {
                         brancher = std::make_unique<gc::VSIDSBrancher>(
-                            s, g, cons->fg, vars,xvars, *cons, options);
+                            s, g, cons->fg, vars, xvars, *cons, options);
                         brancher->use();
                     } else
                         s.varbranch = minicsp::VAR_VSIDS;
@@ -1031,7 +1148,7 @@ struct gc_model {
                 case gc::options::VSIDS_GUIDED:
                     if (options.branching_low_degree) {
                         brancher = std::make_unique<gc::VSIDSBrancher>(
-                            s, g, cons->fg, vars,xvars, *cons, options);
+                            s, g, cons->fg, vars, xvars, *cons, options);
                         brancher->use();
                     } else
                         s.varbranch = minicsp::VAR_VSIDS;
@@ -1040,12 +1157,12 @@ struct gc_model {
                     break;
                 case gc::options::VSIDS_PHASED:
                     brancher = std::make_unique<gc::VSIDSPhaseBrancher>(
-                        s, g, cons->fg, vars,xvars, *cons, options, -1, -1);
+                        s, g, cons->fg, vars, xvars, *cons, options, -1, -1);
                     brancher->use();
                     break;
                 case gc::options::VSIDS_CLIQUE:
                     brancher = std::make_unique<gc::VSIDSCliqueBrancher>(
-                        s, g, cons->fg, vars,xvars, *cons, options);
+                        s, g, cons->fg, vars, xvars, *cons, options);
                     break;
                 case gc::options::VSIDS_COLORS_POSITIVE:
                     if (!options.xvars) {
@@ -1055,63 +1172,63 @@ struct gc_model {
                         exit(1);
                     }
                     brancher = std::make_unique<gc::VSIDSColorBrancher>(
-                        s, g, cons->fg, vars,xvars, *cons, options);
+                        s, g, cons->fg, vars, xvars, *cons, options);
                     brancher->use();
                     break;
                 case gc::options::BRELAZ:
                     brancher = std::make_unique<gc::BrelazBrancher>(
-                        s, g, cons->fg, vars,xvars, *cons, options);
+                        s, g, cons->fg, vars, xvars, *cons, options);
                     brancher->use();
                     break;
                 case gc::options::PARTITION_SUM:
                     brancher = gc::make_partition_brancher<-1, -1>(
-                        s, g, cons->fg, vars,xvars, *cons, options, sum);
+                        s, g, cons->fg, vars, xvars, *cons, options, sum);
                     brancher->use();
                     break;
                 case gc::options::PARTITION_PRODUCT:
                     brancher = gc::make_partition_brancher<-1, -1>(
-                        s, g, cons->fg, vars,xvars, *cons, options, prod);
+                        s, g, cons->fg, vars, xvars, *cons, options, prod);
                     brancher->use();
                     break;
                 case gc::options::DEGREE_SUM:
                     brancher = gc::make_degree_brancher<-1, -1>(
-                        s, g, cons->fg, vars,xvars, *cons, options, sum);
+                        s, g, cons->fg, vars, xvars, *cons, options, sum);
                     brancher->use();
                     break;
                 case gc::options::DEGREE_PRODUCT:
                     brancher = gc::make_degree_brancher<-1, -1>(
-                        s, g, cons->fg, vars,xvars, *cons, options, prod);
+                        s, g, cons->fg, vars, xvars, *cons, options, prod);
                     brancher->use();
                     break;
                 case gc::options::DEGREE_UNION:
                     brancher
                         = std::make_unique<gc::DegreeUnionBrancher<-1, -1>>(
-                            s, g, cons->fg, vars,xvars, *cons, options);
+                            s, g, cons->fg, vars, xvars, *cons, options);
                     brancher->use();
                     break;
                 case gc::options::PARTITION_SUM_DYN:
                     brancher = gc::make_partition_brancher<2, 3>(
-                        s, g, cons->fg, vars,xvars, *cons, options, sum);
+                        s, g, cons->fg, vars, xvars, *cons, options, sum);
                     brancher->use();
                     break;
                 case gc::options::PARTITION_PRODUCT_DYN:
                     brancher = gc::make_partition_brancher<2, 3>(
-                        s, g, cons->fg, vars,xvars, *cons, options, prod);
+                        s, g, cons->fg, vars, xvars, *cons, options, prod);
                     brancher->use();
                     break;
                 case gc::options::DEGREE_SUM_DYN:
                     brancher = gc::make_degree_brancher<2, 3>(
-                        s, g, cons->fg, vars,xvars, *cons, options, sum);
+                        s, g, cons->fg, vars, xvars, *cons, options, sum);
                     brancher->use();
                     break;
                 case gc::options::DEGREE_PRODUCT_DYN:
                     brancher = gc::make_degree_brancher<2, 3>(
-                        s, g, cons->fg, vars,xvars, *cons, options, prod);
+                        s, g, cons->fg, vars, xvars, *cons, options, prod);
                     brancher->use();
                     break;
                 case gc::options::DEGREE_UNION_DYN:
                     brancher = std::make_unique<gc::DegreeUnionBrancher<2, 3>>(
-                        s, g, cons->fg, vars,xvars, *cons, options);
+                        s, g, cons->fg, vars, xvars, *cons, options);
                     brancher->use();
                     break;
                 }

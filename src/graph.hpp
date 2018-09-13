@@ -571,16 +571,47 @@ void basic_graph<adjacency_struct>::add_clique(const adjacency_struct& C)
 
 template <class adjacency_struct>
 void basic_graph<adjacency_struct>::remove(const adjacency_struct& toremove) {
+    // for (auto v : toremove) {
+    //     remove_node(v);
+    // }
+	
+	double timebefore = minicsp::cpuTime();
+	std::cout << "remove from nodes ";
+	std::cout.flush();
+	
     for (auto v : toremove) {
-        remove_node(v);
+        nodes.remove(v);
     }
+		
+		std::cout << (minicsp::cpuTime() - timebefore) << "s\nremove from nodeset ";	
+		std::cout.flush();
+		timebefore = minicsp::cpuTime();
+		
+		nodeset.setminus_with(toremove);
+		
 
-    if (nodeset.size() < toremove.size())
-        for (auto v : nodes)
+	std::cout << (minicsp::cpuTime() - timebefore) << "s\nrremove " << toremove.size() << " nodes from " << nodes.size() << " neighborhoods";
+	std::cout.flush();
+	timebefore = minicsp::cpuTime();
+
+	int count = 0;
+
+    if (nodes.size() < toremove.size()) {
+        for (auto v : nodes) {
+					
+					if(++count % 1000 == 0) {
+						std::cout << ".";
+						std::cout.flush();
+					}
+					
             matrix[v].intersect_with(nodeset);
-    else
+					}
+    } else {
         for (auto v : nodes)
             matrix[v].setminus_with(toremove);
+		}
+		
+		std::cout << (minicsp::cpuTime() - timebefore) << "s\ndone!";
 }
 
 template <class adjacency_struct>

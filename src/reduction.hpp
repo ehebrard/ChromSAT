@@ -36,7 +36,7 @@ template <class adjacency_struct> struct graph_reduction {
         , statistics(statistics)
         , status(g.capacity(), vertex_status::in_graph)
         , nodeset(0, g.capacity(), gc::bitset::empt)
-        , util_set(0, g.capacity(), gc::bitset::empt)
+        // , util_set(0, g.capacity(), gc::bitset::empt)
         , solution(solution)
     {
     }
@@ -52,6 +52,8 @@ template <class adjacency_struct> struct graph_reduction {
 
     int extend_solution(std::vector<int>& col, const bool full = false)
     {
+        util_set.reinitialise(0, g.capacity(), gc::bitset::empt);
+
         int maxc{0};
         nodeset.copy(g.nodeset);
         for (auto v : g.nodes)
@@ -86,17 +88,54 @@ template <class adjacency_struct> struct graph_reduction {
                 util_set.fast_add(col[u]);
             }
 
+            // int q{util_set.min()};
+            //
+            // maxc = std::max(maxc, q);
+            // col[v] = q;
+
             for (int q = 0; q != g.capacity(); ++q) {
                 if (util_set.fast_contain(q))
                     continue;
                 // assert(q <= statistics.best_ub);
                 maxc = std::max(maxc, q);
                 col[v] = q;
-								
-								// std::cout << "col[" << v << "] = " << col[v] << std::endl;
-								
+
+                // std::cout << "col[" << v << "] = " << col[v] << std::endl;
+
                 break;
             }
+            nodeset.fast_add(v);
+        }
+
+        return maxc + 1;
+    }
+
+    template <class viterator>
+    int greedy_solution(
+        std::vector<int>& col, viterator first, viterator last, const int ub)
+    {
+        util_set.reinitialise(0, ub, gc::bitset::empt);
+
+        int maxc{0};
+        nodeset.clear();
+
+        for (auto i = first; i != last; ++i) {
+            auto v = *i;
+
+            util_set.fill();
+            for (auto u : g.matrix[v]) {
+                if (!nodeset.fast_contain(u))
+                    continue;
+                util_set.fast_remove(col[u]);
+            }
+
+            int q{util_set.min()};
+
+            maxc = std::max(maxc, q);
+            col[v] = q;
+
+            assert(q <= ub);
+
             nodeset.fast_add(v);
         }
 

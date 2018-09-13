@@ -90,8 +90,6 @@ struct clique_sampler {
 #endif
         }
 
-        std::cout << start_set.size() << " / " << nodeset.size() << std::endl;
-
 #ifdef _DEBUG_SAMPLE
         if (first != last)
             std::cout << std::endl;

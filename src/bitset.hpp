@@ -178,6 +178,7 @@ public:
 
                 table += neg_words;
                 delete[] table;
+                table = NULL;
                 initialise(lb, ub, p, NULL);
             } else if (p)
                 fill();
