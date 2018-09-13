@@ -27,7 +27,7 @@ template <class adjacency_struct> struct graph_reduction {
     std::vector<gc::indset_constraint> constraints;
     std::vector<vertex_status> status;
     gc::bitset nodeset;
-    gc::bitset util_set;
+    // gc::bitset util_set;
     std::vector<int>& solution;
 
     explicit graph_reduction(const gc::graph<adjacency_struct>& g,
@@ -41,18 +41,19 @@ template <class adjacency_struct> struct graph_reduction {
     {
     }
 
-    int extend_solution(const int* col)
+    int extend_solution(const int* col, const int ub)
     {
         for (int v = 0; v < g.size(); ++v) {
             solution[g.nodes[v]] = col[v];
         }
 
-        return extend_solution(solution, true);
+        return extend_solution(solution, ub, true);
     }
 
-    int extend_solution(std::vector<int>& col, const bool full = false)
+    int extend_solution(std::vector<int>& col, const int ub, const bool full = false)
     {
-        util_set.reinitialise(0, g.capacity(), gc::bitset::empt);
+				gc::bitset util_set;
+        util_set.initialise(0, ub, gc::bitset::empt);
 
         int maxc{0};
         nodeset.copy(g.nodeset);
@@ -81,29 +82,29 @@ template <class adjacency_struct> struct graph_reduction {
             }
 
             assert(status[v] != vertex_status::in_graph);
-            util_set.clear();
+            util_set.fill();
             for (auto u : g.matrix[v]) {
                 if (!nodeset.fast_contain(u))
                     continue;
-                util_set.fast_add(col[u]);
+                util_set.fast_remove(col[u]);
             }
 
-            // int q{util_set.min()};
+            int q{util_set.min()};
+
+            maxc = std::max(maxc, q);
+            col[v] = q;
+
+            // for (int q = 0; q != g.capacity(); ++q) {
+            //     if (util_set.fast_contain(q))
+            //         continue;
+            //     // assert(q <= statistics.best_ub);
+            //     maxc = std::max(maxc, q);
+            //     col[v] = q;
             //
-            // maxc = std::max(maxc, q);
-            // col[v] = q;
-
-            for (int q = 0; q != g.capacity(); ++q) {
-                if (util_set.fast_contain(q))
-                    continue;
-                // assert(q <= statistics.best_ub);
-                maxc = std::max(maxc, q);
-                col[v] = q;
-
-                // std::cout << "col[" << v << "] = " << col[v] << std::endl;
-
-                break;
-            }
+            //     // std::cout << "col[" << v << "] = " << col[v] << std::endl;
+            //
+            //     break;
+            // }
             nodeset.fast_add(v);
         }
 
@@ -114,7 +115,8 @@ template <class adjacency_struct> struct graph_reduction {
     int greedy_solution(
         std::vector<int>& col, viterator first, viterator last, const int ub)
     {
-        util_set.reinitialise(0, ub, gc::bitset::empt);
+				gc::bitset util_set;
+      	util_set.initialise(0, ub, gc::bitset::empt);
 
         int maxc{0};
         nodeset.clear();

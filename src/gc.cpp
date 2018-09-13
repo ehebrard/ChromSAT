@@ -229,7 +229,7 @@ struct gc_model {
                         solution[original.nodes[i]] = sol[i];
                     }
 
-                    auto actualncol = reduction.extend_solution(solution, true);
+                    auto actualncol = reduction.extend_solution(solution, ub, true);
 
                     if (ub > actualncol) {
 												dsatur_sol = true;
@@ -303,7 +303,7 @@ struct gc_model {
                     for (auto v : df.order) {
                         solution[v] = c++;
                     }
-                    gr.extend_solution(solution, true);
+                    gr.extend_solution(solution, ub, true);
                     // gr.removed_vertices.clear();
                     // gr.status.resize(g.capacity(),
                     // gc::vertex_status::in_graph);
@@ -590,7 +590,7 @@ struct gc_model {
                         gr.removed_vertices.push_back(v);
                         gr.status[v] = gc::vertex_status::low_degree_removed;
                     }
-                    gr.extend_solution(solution, true);
+                    gr.extend_solution(solution, ub, true);
                     gr.removed_vertices.clear();
                     gr.status.resize(g.capacity(), gc::vertex_status::in_graph);
                     degeneracy_sol = true;
@@ -734,6 +734,8 @@ struct gc_model {
 
         gc::bitset removed(0, g.capacity() - 1, gc::bitset::empt);
 
+				gc::bitset util_set(0, g.capacity()-1, gc::bitset::empt);
+
         int limit = 100000;
         auto psize{g.size()};
         for (auto u : nodes) {
@@ -748,9 +750,9 @@ struct gc_model {
                     // if (limit % 1000 == 0)
                     //     std::cout << limit << std::endl;
 
-                    gr.util_set.copy(g.matrix[v]);
-                    gr.util_set.setminus_with(g.matrix[u]);
-                    if (!gr.util_set.intersect(g.nodeset)) {
+                    util_set.copy(g.matrix[v]);
+                    util_set.setminus_with(g.matrix[u]);
+                    if (!util_set.intersect(g.nodeset)) {
                         // N(v) <= N(U)s
 
                         assert(!removed.fast_contain(v));
@@ -927,7 +929,7 @@ struct gc_model {
                 }
                 dsatur_sol = true;
 
-                auto actualncol = reduction.extend_solution(solution, true);
+                auto actualncol = reduction.extend_solution(solution, ub, true);
                 // std::cout << " ====> " << actualncol << std::endl;
 
                 if (ub > actualncol) {
@@ -1334,13 +1336,13 @@ struct gc_model {
                 cons->sync_graph();
 
                 // extends to the IS
-                int ISub = reduction.extend_solution(solution, false);
+                int ISub = reduction.extend_solution(solution, ub, false);
                 assert(ISub <= ub + (options.indset_constraints ? 1 : 0));
 
                 std::cout << "[trace] SAT: " << cons->bestlb << ".." << solub
                           << ".." << ISub;
 
-                int actualub = reduction.extend_solution(solution, true);
+                int actualub = reduction.extend_solution(solution, ub, true);
 
                 std::cout << ".." << actualub << std::endl;
 
@@ -1463,7 +1465,7 @@ struct gc_model {
 
         void finalize_solution(std::vector<pair<int, int>>& edges)
         {
-            reduction.extend_solution(solution, true);
+            reduction.extend_solution(solution, ub, true);
             auto ncol{*std::max_element(begin(solution), end(solution)) + 1};
             std::cout << "[solution] " << ncol << "-coloring computed at "
                       << minicsp::cpuTime() << std::endl
@@ -1883,7 +1885,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
             if (tmp_model.degeneracy_sol or tmp_model.dsatur_sol
                 or tmp_model.search_sol) {
                 incumbent = tmp_model.reduction.extend_solution(
-                    tmp_model.solution, true);
+                    tmp_model.solution, init_model.ub, true);
                 // copy the tmp model solution into the init model
                 for (int v = 0; v < tmp_model.original.capacity(); ++v)
                     init_model.solution[init_model.original.nodes[v]]
@@ -1995,7 +1997,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
         std::pair<int, int> bounds{0, g.size()};
         gc_model<input_format> model(g, options, statistics, bounds, sol);
         // int is_ub{0};
-        model.reduction.extend_solution(model.solution, true);
+        model.reduction.extend_solution(model.solution, bounds.second, true);
         auto ncol{
             *std::max_element(begin(model.solution), end(model.solution)) + 1};
         std::cout << "[solution] " << ncol << "-coloring computed at "

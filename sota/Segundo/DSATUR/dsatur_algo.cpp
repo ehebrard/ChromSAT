@@ -443,7 +443,7 @@ int DSATUR_::DSATUR_algo(C_Graphe& G_param, double time_param, int regle_input,
         UB = pUB;
 
     if (reduction != NULL) {
-        pUB = reduction->extend_solution(meilleure_coloration);
+        pUB = reduction->extend_solution(meilleure_coloration, UB);
     }
 
     std::cout << "[data] lb = " << std::setw(4) << std::left << LB
@@ -585,7 +585,7 @@ bool DSATUR_::DSATUR_algo_rec(int profondeur)
                 // if(print_progress)
                 int pUB = UB;
                 if (reduction != NULL) {
-                    pUB = reduction->extend_solution(meilleure_coloration);
+                    pUB = reduction->extend_solution(meilleure_coloration, UB);
                 }
                 std::cout << "[data] lb = " << std::setw(4) << std::left << LB
                           << "| ub = " << std::setw(4) << std::left << pUB
