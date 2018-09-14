@@ -369,6 +369,23 @@ struct gc_model {
         return (original_size > g.size());
         // return gr;
     }
+		
+		
+		/*
+		
+		- compute k-cores, degeneracy and greedy ub
+		
+		- find a clique (lb) by sampling
+		
+		- remove all but the lb-core
+		
+		- run sparse dsatur
+		
+		
+		*/
+		
+		
+		
 
     bool peeling(gc::graph<adjacency_struct>& g,
         gc::graph_reduction<adjacency_struct>& gr, const int k_core_threshold)
@@ -397,6 +414,13 @@ struct gc_model {
             }
         }
         cores.push_back(end(df.order));
+				degrees.push_back(g.size());
+				
+				
+				for(int i{1}; i<cores.size(); ++i) {
+					std::cout << "[info] " << degrees[i-1] << "-core: " << (cores[i] - cores[i-1]) << " vertices [" << *cores[i-1] << "--" << *(cores[i]-1) << "]\n";					
+				}
+				
 
         if (ub > degeneracy + 1) {
 
@@ -459,8 +483,15 @@ struct gc_model {
             if (df.degrees[df.order[0]] < threshold) {
 
                 auto prev{k};
-                while (degrees[k] < threshold)
+								
+								
+                while (degrees[k] < threshold) {
                     ++k;
+										// if(k == degrees.size()) {
+										// 	assert(lb == ub);
+										// 	break;
+										// }
+									}
 
                 for (auto vp{cores[prev]}; vp != cores[k]; ++vp) {
                     auto v{*vp};
@@ -490,7 +521,7 @@ struct gc_model {
                     neighborhood_dominance(g, gr);
             }
 
-            if (options.sdsaturiter > 0 and !dsatur_sol) {
+            if (options.sdsaturiter > 0 and !dsatur_sol and lb < ub) {
                 std::cout << "[preprocessing] launch sparse dsatur ("
                           << options.sdsaturiter << " times) at "
                           << minicsp::cpuTime() << "\n";
