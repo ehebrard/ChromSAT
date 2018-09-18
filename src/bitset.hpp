@@ -1120,6 +1120,7 @@ public:
 
     inline bool fast_contain(const int elt) const
     {
+        assert((elt >> EXP) >= neg_words and (elt >> EXP) < pos_words);
         return ((table[(elt >> EXP)] & ((WORD_TYPE)1 << (elt & CACHE))));
     }
 

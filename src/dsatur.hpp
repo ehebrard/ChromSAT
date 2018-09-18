@@ -102,7 +102,12 @@ struct dsatur {
     std::vector<int> single;
     colvector colorbag;
 
-		// return true is recoloring was succesful (the next color to use is < numcolors) and false otherwise. numcolors is set to the color to be used, and the first vertex in the order list might change
+    std::vector<int> ncolor;
+    std::vector<int>::iterator frontier;
+
+    // return true is recoloring was succesful (the next color to use is <
+    // numcolors) and false otherwise. numcolors is set to the color to be used,
+    // and the first vertex in the order list might change
     template <class graph_struct>
     bool recolor(graph_struct& g, const int x, int& numcolors)
     {		
@@ -189,6 +194,7 @@ struct dsatur {
         rank.resize(g.capacity());
         color.resize(g.capacity(), -1);
         degree.resize(g.capacity());
+        // ncolor.reserve(g.size());
 
         int c, d, numcolors{0};
 
@@ -242,14 +248,19 @@ struct dsatur {
             if (c == numcolors) {
                 if ((last_vertex[d] - last_vertex[d + 1]) > 2
                     or !recolor(g, *candidate, c)) {
-                    ++numcolors;   
+                    ++numcolors;
+                    frontier = candidate;
                 } else {
                     --d;
                 }
             }
-						
-            if (numcolors > ub)
+
+            ncolor.push_back(numcolors);
+
+            if (numcolors > ub) {
+                frontier = end(order);
                 return g.size();
+            }
 
             // move all the pointers >= d
             while (++d < last_vertex.size())
@@ -264,6 +275,49 @@ struct dsatur {
 
             ++candidate;
         }
+
+        std::cout << "END DSATUR " << numcolors << std::endl;
+        std::cout << ncolor.size() << " " << order.size() << " " << g.size()
+                  << std::endl;
+        assert(ncolor.size() == order.size());
+        for (int i = 0; i < ncolor.size(); ++i) {
+            assert(ncolor[i] >= 0);
+            assert(rank[order[i]] == begin(order) + i);
+        }
+
+        gc::bitset visited_vertex(0, g.capacity() - 1, gc::bitset::empt);
+        gc::bitset visited_color(0, numcolors - 1, gc::bitset::empt);
+        std::vector<int> core;
+        core.reserve(g.size());
+        core.push_back(*frontier);
+
+        for (auto vi{begin(core)}; vi != end(core); ++vi) {
+            auto v{*vi};
+            auto r{rank[v]};
+            auto c{ncolor[r - begin(order)]};
+            visited_color.clear();
+
+            std::cout << " reason for " << v << " = " << color[v] << " (" << c
+                      << ")\n";
+
+            for (auto u : g.matrix[v])
+                if (rank[u] < r and color[u] < c
+                    and !visited_color.fast_contain(color[u])) {
+                    visited_color.fast_add(color[u]);
+
+                    std::cout << "  - " << u << " (" << color[u] << ")";
+
+                    if (!visited_vertex.fast_contain(u)) {
+                        visited_vertex.fast_add(u);
+												core.push_back(u);
+                        std::cout << " (add to list)";
+                    }
+
+                    std::cout << std::endl;
+                }
+        }
+
+        std::cout << "core size = " << core.size() << std::endl;
 
         return numcolors;
     }
@@ -344,6 +398,7 @@ struct dsatur {
         for (auto v : order)
             neighbor_colors[v].clear();
         order.clear();
+        ncolor.clear();
     }
 
     template <class graph_struct> void print(graph_struct& g)

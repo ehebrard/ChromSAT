@@ -129,7 +129,7 @@ public:
     bool simplicial(
         const int v, std::pair<int, int>& witness, bitset& util_set) const;
 
-    void check_consistency() const
+    void check_basic_consistency() const
     {
         std::cout << "checking basic-graph consistency" << std::endl;
 
@@ -454,15 +454,19 @@ template <class adjacency_struct> struct clique_finder {
 template <class graph_struct> struct degeneracy_finder {
 
     const graph_struct& g;
-    int d;
+    int degeneracy;
     std::vector<int> order;
     std::vector<int> degrees;
     std::vector<std::list<int>::iterator> iterators;
     std::vector<bool> ordered;
     std::vector<std::list<int>> buckets;
 
+    std::vector<std::vector<int>::iterator> core;
+    std::vector<int> core_degree;
+
     degeneracy_finder(const graph_struct& g)
         : g(g)
+        , degeneracy{-1}
         , degrees(g.capacity())
         , iterators(g.capacity())
         , ordered(g.capacity())
@@ -942,30 +946,34 @@ void degeneracy_finder<graph_struct>::clear()
 template <class graph_struct>
 void degeneracy_finder<graph_struct>::degeneracy_ordering()
 {
-    if (g.size() == g.capacity()) {
-        for (auto v : g.nodes) {
-            auto vd = g.matrix[v].size();
-            if (vd >= buckets.size())
-                buckets.resize(vd + 1);
-            buckets[vd].push_front(v);
-            degrees[v] = vd;
-            iterators[v] = buckets[vd].begin();
-            ordered[v] = false;
-        }
-    } else {
-        gc::bitset actual_neighbors(0, g.capacity() - 1, gc::bitset::empt);
-        for (auto v : g.nodes) {
-            actual_neighbors.copy(g.matrix[v]);
-            actual_neighbors.intersect_with(g.nodeset);
-            auto vd = actual_neighbors.size();
-            if (vd >= buckets.size())
-                buckets.resize(vd + 1);
-            buckets[vd].push_front(v);
-            degrees[v] = vd;
-            iterators[v] = buckets[vd].begin();
-            ordered[v] = false;
-        }
+
+    assert(!g.matrix[31].fast_contain(-1));
+
+    order.reserve(g.size());
+    // if (g.size() == g.capacity()) {
+    for (auto v : g.nodes) {
+        auto vd = g.matrix[v].size();
+        if (vd >= buckets.size())
+            buckets.resize(vd + 1);
+        buckets[vd].push_front(v);
+        degrees[v] = vd;
+        iterators[v] = buckets[vd].begin();
+        ordered[v] = false;
     }
+    // } else {
+    //     gc::bitset actual_neighbors(0, g.capacity() - 1, gc::bitset::empt);
+    //     for (auto v : g.nodes) {
+    //         actual_neighbors.copy(g.matrix[v]);
+    //         actual_neighbors.intersect_with(g.nodeset);
+    //         auto vd = actual_neighbors.size();
+    //         if (vd >= buckets.size())
+    //             buckets.resize(vd + 1);
+    //         buckets[vd].push_front(v);
+    //         degrees[v] = vd;
+    //         iterators[v] = buckets[vd].begin();
+    //         ordered[v] = false;
+    //     }
+    // }
 
     while (true) {
         size_t i{0};
@@ -975,14 +983,17 @@ void degeneracy_finder<graph_struct>::degeneracy_ordering()
         if (i == buckets.size())
             break;
 
-        d = std::max(d, static_cast<int>(i));
+        if (degeneracy < static_cast<int>(i)) {
+            degeneracy = i;
+            core.push_back(end(order));
+            core_degree.push_back(degeneracy);
+        }
+        // d = std::max(d, static_cast<int>(i));
 
         auto v = buckets[i].back();
         order.push_back(v);
         buckets[i].pop_back();
         ordered[v] = true;
-
-        // std::cout << " " << d ;
 
         for (auto u : g.matrix[v]) {
             if (!g.nodeset.fast_contain(u) or ordered[u])
@@ -994,6 +1005,9 @@ void degeneracy_finder<graph_struct>::degeneracy_ordering()
             iterators[u] = buckets[ud].begin();
         }
     }
+
+    core.push_back(end(order));
+    core_degree.push_back(g.size());
 }
 
 template <class graph_struct>
