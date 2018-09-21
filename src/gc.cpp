@@ -499,6 +499,10 @@ struct gc_model {
         std::cout << std::endl << std::endl;
     }
 
+	void induced_subgraph(gc::graph_reduction<adjacency_struct>& gr, adjacency_struct toremove) {
+
+	}
+
     bool neighborhood_dominance(gc::graph_reduction<adjacency_struct>& gr)
     {
 
@@ -1598,6 +1602,79 @@ int color(gc::options& options, gc::graph<input_format>& g)
                 }
             }
         }
+    } break;
+
+    case gc::options::TEST: {
+		std::cout << "Test strategy" << std::endl;
+
+		options.preprocessing == gc::options::NO_PREPROCESSING; // Avoid graph_reduction peeling
+		options.strategy = gc::options::BOUNDS; // so that we don't create the dense graph yet
+
+		std::pair<int, int> bounds{0, g.size()};
+        gc_model<input_format> model(g, options, statistics, bounds, sol);
+        
+		//model.solve_with_dsatur(); Why this method ?
+		
+		// DSATUR, once or several times ?
+		auto ncol{model.col.brelaz_color(g, model.ub - 1, 1, 1)}; // col is a gc::dsatur
+
+		std::cout << "[solution] " << ncol << "-coloring computed at "
+                  << minicsp::cpuTime() << std::endl
+                  << std::endl;
+		
+		model.col.print(g);
+		
+		// Copy the graph up to the vertice with color max
+
+		//int indsub_size = *(model.col.rank[*(model.col.frontier)])+1; // Questionnable
+		//std::vector<int> vmap(indsub_size);
+
+		// gc::graph<gc::vertices_vec> gindsub(g, vmap); NOT GOOD
+
+		//gc::graph<gc::vertices_vec> gindsub(graph_reduction, vmap); // DENSE GRAPH
+
+		// USE REDUCE AND "gcopy"
+		
+		std::cout << "Selected vertices for induced subgraph:" << std::endl;
+		
+		for (auto vptr{begin(model.col.order)}; vptr != model.col.frontier; ++vptr) {
+			auto v{*vptr};		 
+			std::cout << v << " " << model.col.color[v] << std::endl;
+			model.toremove.add(v);
+			model.reduction.removed_vertices.push_back(v);
+		}
+		
+		model.toremove.canonize();
+
+        model.original.remove(model.toremove);
+
+
+        for (auto u : model.toremove) {
+            model.reduction.status[u] = gc::vertex_status::dsatur_removed;
+        }
+
+        model.toremove.clear();
+
+        std::cout << "Induced subgraph ";
+        model.original.describe(std::cout, -1);
+        std::cout << std::endl << std::endl;				
+
+		//model.induced_subgraph(model.reduction, toremove);
+		
+		//final = gc::dense_graph(model.original, model.vertex_map);
+		
+		// Vertices selection (those up to colormax) 
+			// Count them to init gindsub
+		// Induced edges selection
+		// -> GC on gc::dense_graph final from gc_model
+		
+//		gc::graph<gc::vertices_vec> gindsub(g, vmap);
+//		gc_model<gc::vertices_vec> tmp_model(gindsub, options, statistics,
+//            std::make_pair(model.lb, model.ub), sol);
+//		tmp_model.solve();
+		
+				
+		
     } break;
     }
 

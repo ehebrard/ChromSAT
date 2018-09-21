@@ -17,6 +17,7 @@ enum class vertex_status : uint8_t {
     low_degree_removed,
     indset_removed,
     dominated_removed,
+	dsatur_removed,
 };
 
 template <class adjacency_struct> struct graph_reduction {
