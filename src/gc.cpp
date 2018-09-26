@@ -660,6 +660,7 @@ struct gc_model {
         , reduction{preprocess(k_core_threshold)}
     {
 
+		std::cout << "gc_model OK  \n"; // Fails for tmp_model of strategy TEST
         if (options.strategy != gc::options::BOUNDS and original.size() > 0
             and lb < ub) {
 
@@ -1640,7 +1641,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
 		
 		init_model.toremove.canonize();
 
-		// reduction of original
+		// reduction of g
         init_model.original.remove(init_model.toremove);
 
         for (auto u : init_model.toremove) {
@@ -1651,30 +1652,25 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
         std::cout << "Induced subgraph :";
         init_model.original.describe(std::cout, -1);
-        std::cout << std::endl << std::endl;
+        std::cout << std::endl << std::endl;		
 		
-	
-		// GC on dense representation of original with ub = colormax
-		//model.final = gc::dense_graph(model.original, model.vertex_map);
-		
-		// Need another model ?
-		options.preprocessing = gc::options::FULL;
-		options.strategy = gc::options::CLEVER;
-
+		// New model for gc on residual graph (g)
+		//options.preprocessing = gc::options::LOW_DEGREE; //  "FULL" & "LOW_DEGREE trigger bug
+		options.strategy = gc::options::CLEVER; // No effect ? (How to choose strategy for coloring the residual graph ?)
 		
 		vmap.clear();
         vmap.resize(g.capacity(), -1);
 
-        gc::graph<gc::vertices_vec> gcopy(g, vmap);
+        gc::graph<gc::vertices_vec> gcopy(g, vmap); // use dense_graph instead ?
 
 		gc_model<gc::vertices_vec> tmp_model(gcopy, options, statistics,
         std::make_pair(init_model.lb, init_model.ub), sol,
         (init_model.ub - 1));
+		std::cout << " tmp_model (and its preprocessing) OK \n";
 		
 		if (tmp_model.ub > tmp_model.lb and tmp_model.final.size() > 0)
 			tmp_model.solve(init_model.ub);
 		
-
 		    std::cout << "[search] tmp: [" << tmp_model.lb << "..";
             if (tmp_model.ub < init_model.ub)
                 std::cout << tmp_model.ub << "..";
@@ -1701,7 +1697,18 @@ int color(gc::options& options, gc::graph<input_format>& g)
             statistics.notify_ub(init_model.ub);
             statistics.notify_lb(init_model.lb);
             statistics.display(std::cout);
+			
+			tmp_model.finalize_solution(edges);
+        	tmp_model.print_stats();
+			
+			init_model.reduction.extend_solution(init_model.solution, init_model.ub, true);
+			init_model.print_stats();
 
+			auto fcol{
+            *std::max_element(begin(init_model.solution), end(init_model.solution)) + 1};
+        	std::cout << "[solution] " << ncol << "-coloring computed at "
+                  << minicsp::cpuTime() << std::endl
+                  << std::endl;
             statistics.unbinds();
             vmap.clear();				
 
