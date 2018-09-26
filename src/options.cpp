@@ -114,7 +114,7 @@ options parse(int argc, char* argv[])
         false, 1000, "int");
     cmd.add<ValueArg<int>>(opt.strategy, "", "strategy",
         "Solution strategy [0=BNB-1=bottom-up-2=top-down-3=preprocessing "
-        "only-4=top-down as in (Verma et al.)]",
+        "only-4=top-down as in (Verma et al.)-5=color-6=test]",
         false, 0, "int");
     cmd.add<ValueArg<int>>(opt.preprocessing, "", "preprocessing",
         "Level of preprocessing [0=none-1=low-degree-2=low-degree (sparse)]", false, 1, "int");
@@ -258,6 +258,9 @@ void options::describe(std::ostream& os)
     case COLOR:
         os << "heuristic coloring";
         break;
+    case TEST:
+    	os << "test";
+    	break;
     }
     os << "\n";
     os << std::endl;

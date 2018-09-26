@@ -499,9 +499,6 @@ struct gc_model {
         std::cout << std::endl << std::endl;
     }
 
-	void induced_subgraph(gc::graph_reduction<adjacency_struct>& gr, adjacency_struct toremove) {
-
-	}
 
     bool neighborhood_dominance(gc::graph_reduction<adjacency_struct>& gr)
     {
@@ -1605,76 +1602,110 @@ int color(gc::options& options, gc::graph<input_format>& g)
     } break;
 
     case gc::options::TEST: {
+		// Run DSAT, pick the vertices up to color max
+		// Run GC on them
+		// Extend solution to the rest
+		// How to loop ?
 		std::cout << "Test strategy" << std::endl;
+		
+		std::vector<int> vmap(g.capacity(), -1);
 
-		options.preprocessing == gc::options::NO_PREPROCESSING; // Avoid graph_reduction peeling
+		options.preprocessing = gc::options::NO_PREPROCESSING; // Avoid graph_reduction peeling ?
 		options.strategy = gc::options::BOUNDS; // so that we don't create the dense graph yet
 
 		std::pair<int, int> bounds{0, g.size()};
-        gc_model<input_format> model(g, options, statistics, bounds, sol);
+        gc_model<input_format> init_model(g, options, statistics, std::make_pair(0, g.size()), sol);
         
 		//model.solve_with_dsatur(); Why this method ?
 		
 		// DSATUR, once or several times ?
-		auto ncol{model.col.brelaz_color(g, model.ub - 1, 1, 1)}; // col is a gc::dsatur
+		auto ncol{init_model.col.brelaz_color(g, init_model.ub - 1, 1, 1)}; // col is a gc::dsatur
 
 		std::cout << "[solution] " << ncol << "-coloring computed at "
                   << minicsp::cpuTime() << std::endl
                   << std::endl;
 		
-		model.col.print(g);
+		//model.col.print(g);
+
 		
-		// Copy the graph up to the vertice with color max
-
-		//int indsub_size = *(model.col.rank[*(model.col.frontier)])+1; // Questionnable
-		//std::vector<int> vmap(indsub_size);
-
-		// gc::graph<gc::vertices_vec> gindsub(g, vmap); NOT GOOD
-
-		//gc::graph<gc::vertices_vec> gindsub(graph_reduction, vmap); // DENSE GRAPH
-
-		// USE REDUCE AND "gcopy"
+		// Vertices selection upt to the one with colormax, remove others		
+		//std::cout << "Selected vertices for induced subgraph:" << std::endl;
 		
-		std::cout << "Selected vertices for induced subgraph:" << std::endl;
-		
-		for (auto vptr{begin(model.col.order)}; vptr != model.col.frontier; ++vptr) {
+		for (auto vptr{init_model.col.frontier}; vptr != end(init_model.col.order); ++vptr) {
 			auto v{*vptr};		 
-			std::cout << v << " " << model.col.color[v] << std::endl;
-			model.toremove.add(v);
-			model.reduction.removed_vertices.push_back(v);
+			//std::cout << v << " " << model.col.color[v] << std::endl;
+			init_model.toremove.add(v);
+			init_model.reduction.removed_vertices.push_back(v);
 		}
 		
-		model.toremove.canonize();
+		init_model.toremove.canonize();
 
-        model.original.remove(model.toremove);
+		// reduction of original
+        init_model.original.remove(init_model.toremove);
 
-
-        for (auto u : model.toremove) {
-            model.reduction.status[u] = gc::vertex_status::dsatur_removed;
+        for (auto u : init_model.toremove) {
+            init_model.reduction.status[u] = gc::vertex_status::dsatur_removed;
         }
 
-        model.toremove.clear();
+        init_model.toremove.clear();
 
-        std::cout << "Induced subgraph ";
-        model.original.describe(std::cout, -1);
-        std::cout << std::endl << std::endl;				
+        std::cout << "Induced subgraph :";
+        init_model.original.describe(std::cout, -1);
+        std::cout << std::endl << std::endl;
+		
+	
+		// GC on dense representation of original with ub = colormax
+		//model.final = gc::dense_graph(model.original, model.vertex_map);
+		
+		// Need another model ?
+		options.preprocessing = gc::options::FULL;
+		options.strategy = gc::options::CLEVER;
 
-		//model.induced_subgraph(model.reduction, toremove);
 		
-		//final = gc::dense_graph(model.original, model.vertex_map);
+		vmap.clear();
+        vmap.resize(g.capacity(), -1);
+
+        gc::graph<gc::vertices_vec> gcopy(g, vmap);
+
+		gc_model<gc::vertices_vec> tmp_model(gcopy, options, statistics,
+        std::make_pair(init_model.lb, init_model.ub), sol,
+        (init_model.ub - 1));
 		
-		// Vertices selection (those up to colormax) 
-			// Count them to init gindsub
-		// Induced edges selection
-		// -> GC on gc::dense_graph final from gc_model
+		if (tmp_model.ub > tmp_model.lb and tmp_model.final.size() > 0)
+			tmp_model.solve(init_model.ub);
 		
-//		gc::graph<gc::vertices_vec> gindsub(g, vmap);
-//		gc_model<gc::vertices_vec> tmp_model(gindsub, options, statistics,
-//            std::make_pair(model.lb, model.ub), sol);
-//		tmp_model.solve();
-		
+
+		    std::cout << "[search] tmp: [" << tmp_model.lb << "..";
+            if (tmp_model.ub < init_model.ub)
+                std::cout << tmp_model.ub << "..";
+
+            assert(tmp_model.solution.size() == tmp_model.original.capacity());
+
+            auto incumbent{init_model.ub};
+            if (tmp_model.degeneracy_sol or tmp_model.dsatur_sol or tmp_model.search_sol) {
+                incumbent = tmp_model.reduction.extend_solution(tmp_model.solution, init_model.ub, true);
+                // copy the tmp model solution into the init model
+                for (int v = 0; v < tmp_model.original.capacity(); ++v)
+                    init_model.solution[init_model.original.nodes[v]]
+                        = tmp_model.solution[v];
+		            assert(incumbent < init_model.ub);
+		            init_model.ub = incumbent;
+            }
+
+			std::cout << init_model.ub << "]\n";
+            init_model.lb = tmp_model.lb;
+
+            // iub may not be equal to ilb even if the solver wasn't stopped:
+            // coloring the removed vertices might have required extra colors
+            // either way, [ilb, iub] are correct bounds
+            statistics.notify_ub(init_model.ub);
+            statistics.notify_lb(init_model.lb);
+            statistics.display(std::cout);
+
+            statistics.unbinds();
+            vmap.clear();				
+
 				
-		
     } break;
     }
 
