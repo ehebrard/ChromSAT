@@ -104,6 +104,7 @@ struct dsatur {
 
     std::vector<int> ncolor;
     std::vector<int>::iterator frontier;
+	int n_rel; // number of relevant vertices
 
     // return true is recoloring was succesful (the next color to use is <
     // numcolors) and false otherwise. numcolors is set to the color to be used,
@@ -238,7 +239,7 @@ struct dsatur {
                     [&](const int x_, const int y_) {
                         return (degree[x_] < degree[y_]);
                     })};
-								std::swap(rank[*best], rank[*candidate]); // not sure this is useful
+				std::swap(rank[*best], rank[*candidate]); // not sure this is useful
                 std::swap(*best, *candidate);
             }
 
@@ -258,7 +259,7 @@ struct dsatur {
             ncolor.push_back(numcolors);
 
             if (numcolors > ub) {
-                frontier = end(order);
+                //frontier = end(order);
                 return g.size();
             }
 
@@ -297,23 +298,23 @@ struct dsatur {
             auto c{ncolor[r - begin(order)]};
             visited_color.clear();
 
-            std::cout << " reason for " << v << " = " << color[v] << " (" << c
-                      << ")\n";
+//            std::cout << " reason for " << v << " = " << color[v] << " (" << c
+//                      << ")\n";
 
             for (auto u : g.matrix[v])
                 if (rank[u] < r and color[u] < c
                     and !visited_color.fast_contain(color[u])) {
                     visited_color.fast_add(color[u]);
 
-                    std::cout << "  - " << u << " (" << color[u] << ")";
+//                    std::cout << "  - " << u << " (" << color[u] << ")";
 
                     if (!visited_vertex.fast_contain(u)) {
                         visited_vertex.fast_add(u);
-												core.push_back(u);
-                        std::cout << " (add to list)";
+						core.push_back(u);
+//                        std::cout << " (add to list)";
                     }
 
-                    std::cout << std::endl;
+//                    std::cout << std::endl;
                 }
         }
 

@@ -26,7 +26,7 @@
 #include "./sota/Segundo/DSATUR/dsatur_algo.h"
 #include "./sota/Segundo/DSATUR/graphe.h"
 
-
+#define DEBUG_DSIT
 
 
 
@@ -348,14 +348,17 @@ struct gc_model {
                         ub = actualncol;
                         statistics.notify_ub(ub);
                         statistics.display(std::cout);
+						
+						col.n_rel = (1 + col.frontier - begin(col.order));
 
                         std::cout << "relevant vertices: "
-                                  << (1 + col.frontier - begin(col.order))
+                                  << col.n_rel
                                   << std::endl;
                     }
                 }
-                col.clear();
-            } while (--niter > 0);
+				if (--niter > 0) // Do not clear last col
+                	col.clear();
+            } while (niter > 0);
         }
     }
 
@@ -659,8 +662,6 @@ struct gc_model {
         , toremove(0, ig.capacity(), 0)
         , reduction{preprocess(k_core_threshold)}
     {
-
-		std::cout << "gc_model OK  \n"; // Fails for tmp_model of strategy TEST
         if (options.strategy != gc::options::BOUNDS and original.size() > 0
             and lb < ub) {
 
@@ -1615,30 +1616,54 @@ int color(gc::options& options, gc::graph<input_format>& g)
 		options.strategy = gc::options::BOUNDS; // so that we don't create the dense graph yet
 
 		std::pair<int, int> bounds{0, g.size()};
-        gc_model<input_format> init_model(g, options, statistics, std::make_pair(0, g.size()), sol);
+        gc_model<input_format> init_model(g, options, statistics, bounds, sol);
         
 		//model.solve_with_dsatur(); Why this method ?
+
+		init_model.upper_bound(); // Set sdsaturiter to the desired number of iteration
+		
 		
 		// DSATUR, once or several times ?
-		auto ncol{init_model.col.brelaz_color(g, init_model.ub - 1, 1, 1)}; // col is a gc::dsatur
+//		auto ncol{init_model.col.brelaz_color(g, init_model.ub - 1, 1, 1)}; // col is a gc::dsatur
 
-		std::cout << "[solution] " << ncol << "-coloring computed at "
-                  << minicsp::cpuTime() << std::endl
-                  << std::endl;
-		
-		//model.col.print(g);
+//		std::cout << "[solution] " << ncol << "-coloring computed at "
+//                  << minicsp::cpuTime() << std::endl
+//                  << std::endl;
 
+#ifdef DEBUG_DSIT
+//		std::cout << "\nColoration :\n";		
+//		init_model.col.print(g);
+#endif
 		
 		// Vertices selection upt to the one with colormax, remove others		
 		//std::cout << "Selected vertices for induced subgraph:" << std::endl;
-		
-		for (auto vptr{init_model.col.frontier}; vptr != end(init_model.col.order); ++vptr) {
-			auto v{*vptr};		 
-			//std::cout << v << " " << model.col.color[v] << std::endl;
+
+		int n_rem{0};
+		for (auto vptr{init_model.col.frontier + 1}; vptr != end(init_model.col.order); ++vptr) {
+			auto v{*vptr};
+#ifdef DEBUG_DSIT		 
+			std::cout << v << " " << init_model.col.color[v] << std::endl;
+#endif
 			init_model.toremove.add(v);
 			init_model.reduction.removed_vertices.push_back(v);
+			++n_rem;
 		}
-		
+		std::cout << n_rem << " vertices removed \n\n";
+
+
+//#ifdef DEBUG_DSIT
+//		std::cout << "Printing coloration order : \n";
+//		int n{0};
+//		for (auto r{begin(init_model.col.order)}; r != end(init_model.col.order); ++r) {
+//			auto v{*r};
+//			std::cout << "order: " << n << "		vertex : " << v << "		Color : " << init_model.col.color[v] 
+//						 << "		Rank : (" << *init_model.col.rank[v] << ")" << std::endl;
+//		++n;
+//		}
+//		std::cout << "Vf : "<< *init_model.col.frontier << std::endl;
+//#endif
+
+
 		init_model.toremove.canonize();
 
 		// reduction of g
@@ -1650,18 +1675,21 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
         init_model.toremove.clear();
 
+#ifdef DEBUG_DSIT
         std::cout << "Induced subgraph :";
         init_model.original.describe(std::cout, -1);
         std::cout << std::endl << std::endl;		
-		
-		// New model for gc on residual graph (g)
-		//options.preprocessing = gc::options::LOW_DEGREE; //  "FULL" & "LOW_DEGREE trigger bug
-		options.strategy = gc::options::CLEVER; // No effect ? (How to choose strategy for coloring the residual graph ?)
-		
+#endif	
+
+		// New model for gc on residual graph (g)		
 		vmap.clear();
         vmap.resize(g.capacity(), -1);
 
         gc::graph<gc::vertices_vec> gcopy(g, vmap); // use dense_graph instead ?
+
+		// Set options for tmp_model
+		//options.preprocessing = gc::options::LOW_DEGREE; //  "FULL" & "LOW_DEGREE trigger bug
+		options.strategy = gc::options::CLEVER; // No effect ? (How to choose strategy for coloring the residual graph ?)
 
 		gc_model<gc::vertices_vec> tmp_model(gcopy, options, statistics,
         std::make_pair(init_model.lb, init_model.ub), sol,
@@ -1669,7 +1697,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
 		std::cout << " tmp_model (and its preprocessing) OK \n";
 		
 		if (tmp_model.ub > tmp_model.lb and tmp_model.final.size() > 0)
-			tmp_model.solve(init_model.ub);
+			tmp_model.solve(init_model.ub); // Maybe check if tmp_model.ub < init_model.ub
 		
 		    std::cout << "[search] tmp: [" << tmp_model.lb << "..";
             if (tmp_model.ub < init_model.ub)
@@ -1679,7 +1707,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
             auto incumbent{init_model.ub};
             if (tmp_model.degeneracy_sol or tmp_model.dsatur_sol or tmp_model.search_sol) {
-                incumbent = tmp_model.reduction.extend_solution(tmp_model.solution, init_model.ub, true);
+                incumbent = tmp_model.reduction.extend_solution(tmp_model.solution, tmp_model.ub, true);
                 // copy the tmp model solution into the init model
                 for (int v = 0; v < tmp_model.original.capacity(); ++v)
                     init_model.solution[init_model.original.nodes[v]]
@@ -1700,20 +1728,26 @@ int color(gc::options& options, gc::graph<input_format>& g)
 			
 			tmp_model.finalize_solution(edges);
         	tmp_model.print_stats();
+
+			//TODO
+			// Assign the coloring of tmp_model to init_model for the first vertex to the frontier			
+			// Extend with dsatur to the entire graph
 			
 			init_model.reduction.extend_solution(init_model.solution, init_model.ub, true);
 			init_model.print_stats();
 
 			auto fcol{
             *std::max_element(begin(init_model.solution), end(init_model.solution)) + 1};
-        	std::cout << "[solution] " << ncol << "-coloring computed at "
+        	std::cout << "[solution] " << fcol << "-coloring computed at "
                   << minicsp::cpuTime() << std::endl
                   << std::endl;
             statistics.unbinds();
-            vmap.clear();				
+            vmap.clear();
+			
+			//TODO: iterate !				
 
 				
-    } break;
+    	} break;
     }
 
     return 0;
