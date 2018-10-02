@@ -104,6 +104,8 @@ struct dsatur {
 
     std::vector<int> ncolor;
     std::vector<int>::iterator frontier;
+		
+		std::vector<int> core;
 
     // return true is recoloring was succesful (the next color to use is <
     // numcolors) and false otherwise. numcolors is set to the color to be used,
@@ -349,7 +351,8 @@ struct dsatur {
         gc::bitset visited_vertex(0, g.capacity() - 1, gc::bitset::empt);
         // gc::bitset visited_color(0, numcolors - 1, gc::bitset::empt);
         std::vector<int> color_witness(numcolors, -1);
-        std::vector<int> core;
+        // std::vector<int> core;
+				core.clear();
         core.reserve(g.size());
         core.push_back(*frontier);
 
@@ -430,6 +433,26 @@ struct dsatur {
 
         std::cout << "core size = " << (frontier - begin(order) + 1) << " / "
                   << core.size() << std::endl;
+    }
+
+    void select()
+    {
+        auto first{begin(order)};
+        for (auto it{begin(core)}; it != end(core); ++it) {
+            auto v{*it};
+            auto u{*first};
+            std::swap(*(rank[v]), *first);
+            rank[u] = rank[v];
+            rank[v] = first++;
+        }
+
+        int x{0};
+        for (auto it{begin(order)}; it != end(order); ++it) {
+            assert(it == rank[*it]);
+            assert(x >= core.size() or core[x] == *it);
+
+            ++x;
+        }
     }
 
     template <class graph_struct>

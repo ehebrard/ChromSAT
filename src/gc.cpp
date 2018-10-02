@@ -334,6 +334,7 @@ struct gc_model {
                 std::cout << " ==> " << ncol << std::endl;
                 col.get_core(original, ub - 1, true);
                 col.get_core(original, ub - 1, false);
+								col.select();
 
                 if (ncol < ub) {
                     for (int i = 0; i < original.size(); ++i) {
