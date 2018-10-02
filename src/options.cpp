@@ -259,8 +259,11 @@ void options::describe(std::ostream& os)
         os << "heuristic coloring";
         break;
     case TEST:
-    	os << "test";
-    	break;
+        os << "test";
+        break;
+    case IDSATUR:
+        os << "iterated dsatur";
+        break;
     }
     os << "\n";
     os << std::endl;

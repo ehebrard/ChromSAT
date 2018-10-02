@@ -26,9 +26,7 @@
 #include "./sota/Segundo/DSATUR/dsatur_algo.h"
 #include "./sota/Segundo/DSATUR/graphe.h"
 
-#define DEBUG_DSIT
-
-
+// #define DEBUG_DSIT
 
 template <class graph_struct> void print(graph_struct& g)
 {
@@ -331,9 +329,11 @@ struct gc_model {
             int niter{options.sdsaturiter};
             do {
                 auto ncol{col.brelaz_color(original, ub - 1,
-                    (1 << (options.sdsaturiter + 1 - niter)), 1)};
+                    (1 << (options.sdsaturiter + 1 - niter)), 12345 + niter)};
 
                 std::cout << " ==> " << ncol << std::endl;
+                col.get_core(original, ub - 1, true);
+                col.get_core(original, ub - 1, false);
 
                 if (ncol < ub) {
                     for (int i = 0; i < original.size(); ++i) {
@@ -348,11 +348,10 @@ struct gc_model {
                         ub = actualncol;
                         statistics.notify_ub(ub);
                         statistics.display(std::cout);
-						
-						col.n_rel = (1 + col.frontier - begin(col.order));
 
-                        std::cout << "relevant vertices: "
-                                  << col.n_rel
+                        auto n_rel{1 + col.frontier - begin(col.order)};
+
+                        std::cout << "relevant vertices: " << n_rel
                                   << std::endl;
                     }
                 }
@@ -1298,10 +1297,22 @@ int color(gc::options& options, gc::graph<input_format>& g)
     } break;
     case gc::options::BNB: {
         std::pair<int, int> bounds{0, g.size()};
+        gc_model<input_format> model(g, options, statistics, bounds, sol);
+
+        model.solve();
+
+        model.finalize_solution(edges);
+
+        model.print_stats();
+    } break;
+    case gc::options::IDSATUR: {
+        std::pair<int, int> bounds{0, g.size()};
 
         options.strategy = gc::options::BOUNDS; // so that we don't create the
         // dense graph yet
         gc_model<input_format> model(g, options, statistics, bounds, sol);
+
+        exit(1);
 
         model.minimal_core(model.reduction, model.ub, 500);
         options.strategy = gc::options::CLEVER;
@@ -1612,19 +1623,24 @@ int color(gc::options& options, gc::graph<input_format>& g)
 		
 		std::vector<int> vmap(g.capacity(), -1);
 
-		options.preprocessing = gc::options::NO_PREPROCESSING; // Avoid graph_reduction peeling ?
-		options.strategy = gc::options::BOUNDS; // so that we don't create the dense graph yet
+                // options.preprocessing = gc::options::NO_PREPROCESSING; //
+                // Avoid graph_reduction peeling ?
+                options.strategy = gc::options::BOUNDS; // so that we don't
+                // create the dense
+                // graph yet
 
-		std::pair<int, int> bounds{0, g.size()};
-        gc_model<input_format> init_model(g, options, statistics, bounds, sol);
-        
-		//model.solve_with_dsatur(); Why this method ?
+                std::pair<int, int> bounds{0, g.size()};
+                gc_model<input_format> init_model(
+                    g, options, statistics, bounds, sol);
 
-		init_model.upper_bound(); // Set sdsaturiter to the desired number of iteration
-		
-		
-		// DSATUR, once or several times ?
-//		auto ncol{init_model.col.brelaz_color(g, init_model.ub - 1, 1, 1)}; // col is a gc::dsatur
+                // model.solve_with_dsatur(); Why this method ?
+
+                init_model.upper_bound(); // Set sdsaturiter to the desired
+// number of iteration
+
+// DSATUR, once or several times ?
+//		auto ncol{init_model.col.brelaz_color(g, init_model.ub - 1, 1,
+// 1)}; // col is a gc::dsatur
 
 //		std::cout << "[solution] " << ncol << "-coloring computed at "
 //                  << minicsp::cpuTime() << std::endl

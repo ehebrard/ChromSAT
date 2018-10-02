@@ -104,7 +104,6 @@ struct dsatur {
 
     std::vector<int> ncolor;
     std::vector<int>::iterator frontier;
-	int n_rel; // number of relevant vertices
 
     // return true is recoloring was succesful (the next color to use is <
     // numcolors) and false otherwise. numcolors is set to the color to be used,
@@ -172,9 +171,11 @@ struct dsatur {
                             numcolors = neighbor_colors[y].get_first_allowed();
                         }
 
-                    } else {						
-											// everything went as planned
+                    } else {
+                        // everything went as planned
                         numcolors = b;
+
+                        // perhaps we should swap x and w so that
                     }
 
                     return true;
@@ -185,19 +186,43 @@ struct dsatur {
         return false;
     }
 
-    template <class graph_struct>
-    int brelaz_color(
-        graph_struct& g, const int ub, const int limit = 1, const int seed = 1)
+    template <class graph_struct, class RandomIt>
+    int brelaz_color_guided(graph_struct& g, const int ub, RandomIt beg,
+        RandomIt end, std::vector<int> coloring, const int limit = 1,
+        const int seed = 1)
     {
-        if (g.nodes.empty())
+
+        if (beg == end)
             return 0;
-				
+
+        brelaz_init(g, ub, limit, seed);
+
+        auto first{begin(order)};
+
+        for (auto vptr{begin(order)}; vptr != end(order); ++vptr)
+            rank[*vptr] = vptr;
+
+        for (auto it{beg}; it != end; ++it) {
+            auto v{*it};
+            std::swap(*first, *(rank[v]));
+            rank[*(rank[v])] = rank[v];
+            rank[v] = first;
+            assign_color(g, *first, coloring[v]);
+            ++first;
+        }
+
+        return brelaz_greedy(g, ub, begin(order), limit);
+    }
+
+    //
+    template <class graph_struct>
+    void brelaz_init(
+        graph_struct& g, const int ub, const int limit, const int seed)
+    {
         rank.resize(g.capacity());
         color.resize(g.capacity(), -1);
         degree.resize(g.capacity());
         // ncolor.reserve(g.size());
-
-        int c, d, numcolors{0};
 
         // nodes are stored by non-increasing saturation
         // degree
@@ -206,23 +231,32 @@ struct dsatur {
             degree[v] = g.matrix[v].size();
         }
         if (seed > 0) {
-            std::mt19937 s(rd());
+            // std::mt19937 s(rd());
+            std::mt19937 s((seed * 256) + 75);
             std::shuffle(begin(order), end(order), s);
         }
 
-        std::sort(begin(order), end(order), [&](const int x_, const int y_) {
+        neighbor_colors.resize(g.capacity(), colvector(ub));
+    }
+
+    template <class graph_struct>
+    int brelaz_greedy(graph_struct& g, const int ub,
+        std::vector<int>::iterator start, const int limit)
+    {
+
+        int c, d, numcolors{0};
+
+        std::sort(start, end(order), [&](const int x_, const int y_) {
             return (degree[x_] > degree[y_]);
         });
 
-        for (auto vptr{begin(order)}; vptr != end(order); ++vptr)
+        for (auto vptr{start}; vptr != end(order); ++vptr)
             rank[*vptr] = vptr;
 
-        neighbor_colors.resize(g.capacity(), colvector(ub));
-
-        last_vertex.resize(ub + 1, begin(order));
+        last_vertex.resize(ub + 1, start);
         *begin(last_vertex) = end(order);
 
-        std::vector<int>::iterator candidate{begin(order)};
+        std::vector<int>::iterator candidate{start};
 
         while (candidate != end(order)) {
 
@@ -239,7 +273,8 @@ struct dsatur {
                     [&](const int x_, const int y_) {
                         return (degree[x_] < degree[y_]);
                     })};
-				std::swap(rank[*best], rank[*candidate]); // not sure this is useful
+                std::swap(
+                    rank[*best], rank[*candidate]); // not sure this is useful
                 std::swap(*best, *candidate);
             }
 
@@ -247,7 +282,7 @@ struct dsatur {
             c = neighbor_colors[*candidate].get_first_allowed();
 
             if (c == numcolors) {
-                if ((last_vertex[d] - last_vertex[d + 1]) > 2
+                if (true or (last_vertex[d] - last_vertex[d + 1]) > 2
                     or !recolor(g, *candidate, c)) {
                     ++numcolors;
                     frontier = candidate;
@@ -259,7 +294,10 @@ struct dsatur {
             ncolor.push_back(numcolors);
 
             if (numcolors > ub) {
-                //frontier = end(order);
+
+                color[*candidate] = c;
+                // get_core(g, numcolors);
+
                 return g.size();
             }
 
@@ -277,17 +315,40 @@ struct dsatur {
             ++candidate;
         }
 
-        std::cout << "END DSATUR " << numcolors << std::endl;
-        std::cout << ncolor.size() << " " << order.size() << " " << g.size()
-                  << std::endl;
         assert(ncolor.size() == order.size());
         for (int i = 0; i < ncolor.size(); ++i) {
             assert(ncolor[i] >= 0);
             assert(rank[order[i]] == begin(order) + i);
         }
 
+        // get_core(g, numcolors);
+
+        return numcolors;
+    }
+
+    template <class graph_struct>
+    int brelaz_color(
+        graph_struct& g, const int ub, const int limit = 1, const int seed = 1)
+    {
+        if (g.nodes.empty())
+            return 0;
+
+        brelaz_init(g, ub, limit, seed);
+
+        return brelaz_greedy(g, ub, begin(order), limit);
+    }
+
+    template <class graph_struct>
+    void get_core(graph_struct& g, const int numcolors, const bool small)
+    {
+
+        std::cout << "END DSATUR " << numcolors << std::endl;
+        std::cout << ncolor.size() << " " << order.size() << " " << g.size()
+                  << std::endl;
+
         gc::bitset visited_vertex(0, g.capacity() - 1, gc::bitset::empt);
-        gc::bitset visited_color(0, numcolors - 1, gc::bitset::empt);
+        // gc::bitset visited_color(0, numcolors - 1, gc::bitset::empt);
+        std::vector<int> color_witness(numcolors, -1);
         std::vector<int> core;
         core.reserve(g.size());
         core.push_back(*frontier);
@@ -296,31 +357,79 @@ struct dsatur {
             auto v{*vi};
             auto r{rank[v]};
             auto c{ncolor[r - begin(order)]};
-            visited_color.clear();
 
-//            std::cout << " reason for " << v << " = " << color[v] << " (" << c
-//                      << ")\n";
+            assert(color[v] < c);
 
+            // visited_color.clear();
+            color_witness.clear();
+            color_witness.resize(numcolors, -1);
+
+            // std::cout << " reason for " << v << " = " << color[v] << " (" <<
+            // c
+            //           << ") @" << (r - begin(order)) << "\n";
+
+            // get a witness for each color that u cannot take
+            // prefer 1/ a witness already in the core, 2/ a witness with lower
+            // rank
+
+            auto maxc{(small ? color[v] : c)};
             for (auto u : g.matrix[v])
-                if (rank[u] < r and color[u] < c
-                    and !visited_color.fast_contain(color[u])) {
-                    visited_color.fast_add(color[u]);
-
-//                    std::cout << "  - " << u << " (" << color[u] << ")";
-
+                if (rank[u] < r and color[u] < maxc) {
+                    if (visited_vertex.fast_contain(u))
+                        color_witness[color[u]] = u;
+                    else if (color_witness[color[u]] < 0
+                        or rank[u] < rank[color_witness[color[u]]]) {
+                        color_witness[color[u]] = u;
+                    }
+                }
+            for (auto k{0}; k < c; ++k) {
+                auto u{color_witness[k]};
+                if (color_witness[k] > 0) {
                     if (!visited_vertex.fast_contain(u)) {
                         visited_vertex.fast_add(u);
-						core.push_back(u);
-//                        std::cout << " (add to list)";
+                        core.push_back(u);
+                        // std::cout << " -> " << u << std::endl;
                     }
-
-//                    std::cout << std::endl;
+                    // else {
+                    //                         std::cout << "**\n";
+                    //                     }
                 }
+            }
+
+            //             for (auto u : g.matrix[v])
+            //                 if (rank[u] < r and color[u] < color[v] //and
+            //                 neighbor_colors[u].size() == ncolor[rank[u] -
+            //                 begin(order)] - 1
+            // 			and (color_witness[color[u]] < 0
+            // 				or rank[u] < rank
+            //
+            // 				// and
+            // !visited_color.fast_contain(color[u]))
+            // {
+            //                     visited_color.fast_add(color[u]);
+            //
+            //                                        // std::cout << "  - " <<
+            //                                        u << " (" <<
+            //                                        // color[u] << ") @" <<
+            //                                        (rank[u] - begin(order))
+            //                                        << " sat=" <<
+            //                                        neighbor_colors[u].size();
+            //
+            //                     if (!visited_vertex.fast_contain(u)) {
+            //                         visited_vertex.fast_add(u);
+            //                         core.push_back(u);
+            //                                                // std::cout << "
+            //                                                (add to list)";
+            //                     }
+            //
+            //                                        // std::cout << std::endl;
+            //                 }
+            //
+            // // assert(visited_color.size() == c-1);
         }
 
-        std::cout << "core size = " << core.size() << std::endl;
-
-        return numcolors;
+        std::cout << "core size = " << (frontier - begin(order) + 1) << " / "
+                  << core.size() << std::endl;
     }
 
     template <class graph_struct>
