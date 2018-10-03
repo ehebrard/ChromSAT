@@ -87,7 +87,8 @@ public:
             assert(i == g.size());
             for (auto v : g.nodes) {
                 for (auto u : g.matrix[v]) {
-                    matrix[vmap[v]].add(vmap[u]);
+                    if (g.nodeset.fast_contain(u))
+                        matrix[vmap[v]].add(vmap[u]);
                 }
             }
             canonize();

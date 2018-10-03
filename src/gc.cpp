@@ -122,9 +122,9 @@ struct gc_model {
 
     minicsp::cons_pb* mineq_constraint{NULL};
 
-    gc::varmap create_chord_vars()
+    gc::varmap create_chord_vars(gc::dense_graph& g)
     {
-        gc::minfill_buffer<gc::dense_graph> mb{final};
+        gc::minfill_buffer<gc::dense_graph> mb{g};
         mb.minfill();
         std::cout << "[modeling] "<< mb.fillin.size()
                   << " edges in minfill, width = " << mb.width << "\n";
@@ -133,8 +133,8 @@ struct gc_model {
 
         using std::begin;
         using std::end;
-        gc::varmap vars(begin(final.nodes), end(final.nodes));
-        vars.vars.resize(final.size());
+        gc::varmap vars(begin(g.nodes), end(g.nodes));
+        vars.vars.resize(g.size());
         for (auto e : fillin->edges) {
             int i = e.first, j = e.second;
             Var v = s.newVar();
@@ -158,20 +158,20 @@ struct gc_model {
         return vars;
     }
 
-    gc::varmap create_all_vars()
+    gc::varmap create_all_vars(gc::dense_graph& g)
     {
         using std::begin;
         using std::end;
 
         std::vector<minicsp::Var> all_vars;
 
-        gc::varmap vars(begin(final.nodes), end(final.nodes));
-        vars.vars.resize(final.size());
-        for (auto i : final.nodes) {
-            for (auto j : final.nodes) {
+        gc::varmap vars(begin(g.nodes), end(g.nodes));
+        vars.vars.resize(g.size());
+        for (auto i : g.nodes) {
+            for (auto j : g.nodes) {
                 if (j < i)
                     continue;
-                if (final.matrix[i].fast_contain(j))
+                if (g.matrix[i].fast_contain(j))
                     continue;
                 vars.vars[i][j] = s.newVar();
                 vars.vars[j][i] = vars.vars[i][j];
@@ -208,10 +208,10 @@ struct gc_model {
         return vars;
     }
 
-    gc::varmap create_vars()
+    gc::varmap create_vars(gc::dense_graph& g)
     {
 
-        if (final.size() > 0 and options.ddsaturiter > 0 and lb < ub) {
+        if (g.size() > 0 and options.ddsaturiter > 0 and lb < ub) {
 
             std::cout << "[modeling] launch dense dsatur ("
                       << options.ddsaturiter << " times) at "
@@ -220,11 +220,11 @@ struct gc_model {
             // we have a dense graph now, so let's compute dsatur the other way
             // just in case
             for (int i = 0; i < options.ddsaturiter; ++i) {
-                auto sol{gc::brelaz_color(final, (options.ddsaturiter > 1))};
+                auto sol{gc::brelaz_color(g, (options.ddsaturiter > 1))};
                 int ncol{*max_element(begin(sol), end(sol)) + 1};
 
                 if (ub > ncol) {
-                    assert(final.size() == original.size());
+                    assert(g.size() == original.size());
                     for (int i = 0; i < original.size(); ++i) {
                         solution[original.nodes[i]] = sol[i];
                     }
@@ -245,9 +245,9 @@ struct gc_model {
         }
 
         if (options.fillin)
-            return create_chord_vars();
+            return create_chord_vars(g);
         else
-            return create_all_vars();
+            return create_all_vars(g);
     }
 
     /*
@@ -318,6 +318,29 @@ struct gc_model {
         toremove.clear();
     }
 
+    gc::dense_graph dsatur_reduced()
+    {
+        col.get_core(original, ub - 1, false);
+
+        size_t stamp{0};
+        original.nodes.save(stamp);
+        original.nodes.clear();
+        original.nodeset.clear();
+
+        for (auto vp{begin(col.core)}; vp != end(col.core); ++vp) {
+            auto v{*vp};
+            original.add_node(v);
+        }
+
+        gc::graph<gc::bitset> g(original, vertex_map);
+
+        original.nodes.restore(stamp);
+        for (auto v : original.nodes)
+            original.nodeset.fast_add(v);
+
+        return g;
+    }
+
     void upper_bound()
     {
         if (options.sdsaturiter > 0 and !dsatur_sol and lb < ub) {
@@ -331,10 +354,10 @@ struct gc_model {
                 auto ncol{col.brelaz_color(original, ub - 1,
                     (1 << (options.sdsaturiter + 1 - niter)), 12345 + niter)};
 
-                std::cout << " ==> " << ncol << std::endl;
-                col.get_core(original, ub - 1, true);
-                col.get_core(original, ub - 1, false);
-								col.select();
+                //                 std::cout << " ==> " << ncol << std::endl;
+                //                 col.get_core(original, ub - 1, true);
+                //                 col.get_core(original, ub - 1, false);
+                // col.select();
 
                 if (ncol < ub) {
                     for (int i = 0; i < original.size(); ++i) {
@@ -644,6 +667,172 @@ struct gc_model {
         s.debug_solution = sol;
     }
 
+
+		void init_search(gc::dense_graph& g) {
+			
+      if (!options.dsatur) {
+          vars = gc::varmap(create_vars(g));
+          cons = gc::post_gc_constraint(s, g, fillin, vars,
+              reduction.constraints, vertex_map, options, statistics);
+
+          double vm_usage;
+          double resident_set;
+          gc::process_mem_usage(vm_usage, resident_set);
+
+          std::cout << "[modeling] created coloring constraint #nodes = "
+                    << original.size() << ", #vars = " << s.nVars()
+                    << ", memory = " << (long)resident_set << " \n";
+      }
+
+      if (!debug_sol.empty())
+          post_eqvar_debug_sol(s, debug_sol);
+
+      // g.tell_class();
+      // cons->g.tell_class();
+      // cons->cf.g.tell_class();
+      //
+
+      rewriter
+          = std::make_unique<gc::rewriter>(s, g, cons, vars, xvars);
+
+      setup_signal_handlers(&s);
+      s.trace = options.trace;
+      s.polarity_mode = options.polarity;
+      s.verbosity = options.verbosity;
+
+      if (options.learning == gc::options::NO_LEARNING)
+          s.learning = false;
+
+      if (cons) {
+
+          cons->bestlb = std::max(lb, cons->bestlb);
+          cons->ub = std::min(ub, cons->ub);
+
+          if (options.xvars) {
+              xvars = s.newCSPVarArray(g.capacity(), 0, cons->ub - 2);
+              for (size_t i = 0; i != xvars.size(); ++i) {
+                  if (!g.nodes.contain(i))
+                      continue;
+                  for (size_t j = i + 1; j != xvars.size(); ++j) {
+                      if (!g.nodes.contain(j))
+                          continue;
+                      if (g.matrix[i].fast_contain(j))
+                          minicsp::post_neq(s, xvars[i], xvars[j], 0);
+                      else
+                          minicsp::post_eq_re(s, xvars[i], xvars[j], 0,
+                              minicsp::Lit(vars[i][j]));
+                  }
+              }
+
+              // rewrite clauses to not use x literals
+              s.use_clause_callback(
+                  [this](vec<minicsp::Lit>& clause, int btlvl) {
+                      return rewriter->rewrite(clause, btlvl);
+                  });
+          }
+
+          auto sum = [](int x, int y) { return x + y; };
+          auto prod = [](int x, int y) { return x * y; };
+
+          switch (options.branching) {
+          case gc::options::VSIDS:
+              if (options.branching_low_degree) {
+                  brancher = std::make_unique<gc::VSIDSBrancher>(
+                      s, g, cons->fg, vars, xvars, *cons, options);
+                  brancher->use();
+              } else
+                  s.varbranch = minicsp::VAR_VSIDS;
+              break;
+          case gc::options::VSIDS_GUIDED:
+              if (options.branching_low_degree) {
+                  brancher = std::make_unique<gc::VSIDSBrancher>(
+                      s, g, cons->fg, vars, xvars, *cons, options);
+                  brancher->use();
+              } else
+                  s.varbranch = minicsp::VAR_VSIDS;
+              s.phase_saving = false;
+              s.solution_phase_saving = true;
+              break;
+          case gc::options::VSIDS_PHASED:
+              brancher = std::make_unique<gc::VSIDSPhaseBrancher>(s,
+                  g, cons->fg, vars, xvars, *cons, options, -1, -1);
+              brancher->use();
+              break;
+          case gc::options::VSIDS_CLIQUE:
+              brancher = std::make_unique<gc::VSIDSCliqueBrancher>(
+                  s, g, cons->fg, vars, xvars, *cons, options);
+              break;
+          case gc::options::VSIDS_COLORS_POSITIVE:
+              if (!options.xvars) {
+                  std::cout << "VSIDS_COLORS_"
+                               "POSITIVE needs "
+                               "--xvars\n";
+                  exit(1);
+              }
+              brancher = std::make_unique<gc::VSIDSColorBrancher>(
+                  s, g, cons->fg, vars, xvars, *cons, options);
+              brancher->use();
+              break;
+          case gc::options::BRELAZ:
+              brancher = std::make_unique<gc::BrelazBrancher>(
+                  s, g, cons->fg, vars, xvars, *cons, options);
+              brancher->use();
+              break;
+          case gc::options::PARTITION_SUM:
+              brancher = gc::make_partition_brancher<-1, -1>(
+                  s, g, cons->fg, vars, xvars, *cons, options, sum);
+              brancher->use();
+              break;
+          case gc::options::PARTITION_PRODUCT:
+              brancher = gc::make_partition_brancher<-1, -1>(
+                  s, g, cons->fg, vars, xvars, *cons, options, prod);
+              brancher->use();
+              break;
+          case gc::options::DEGREE_SUM:
+              brancher = gc::make_degree_brancher<-1, -1>(
+                  s, g, cons->fg, vars, xvars, *cons, options, sum);
+              brancher->use();
+              break;
+          case gc::options::DEGREE_PRODUCT:
+              brancher = gc::make_degree_brancher<-1, -1>(
+                  s, g, cons->fg, vars, xvars, *cons, options, prod);
+              brancher->use();
+              break;
+          case gc::options::DEGREE_UNION:
+              brancher
+                  = std::make_unique<gc::DegreeUnionBrancher<-1, -1>>(
+                      s, g, cons->fg, vars, xvars, *cons, options);
+              brancher->use();
+              break;
+          case gc::options::PARTITION_SUM_DYN:
+              brancher = gc::make_partition_brancher<2, 3>(
+                  s, g, cons->fg, vars, xvars, *cons, options, sum);
+              brancher->use();
+              break;
+          case gc::options::PARTITION_PRODUCT_DYN:
+              brancher = gc::make_partition_brancher<2, 3>(
+                  s, g, cons->fg, vars, xvars, *cons, options, prod);
+              brancher->use();
+              break;
+          case gc::options::DEGREE_SUM_DYN:
+              brancher = gc::make_degree_brancher<2, 3>(
+                  s, g, cons->fg, vars, xvars, *cons, options, sum);
+              brancher->use();
+              break;
+          case gc::options::DEGREE_PRODUCT_DYN:
+              brancher = gc::make_degree_brancher<2, 3>(
+                  s, g, cons->fg, vars, xvars, *cons, options, prod);
+              brancher->use();
+              break;
+          case gc::options::DEGREE_UNION_DYN:
+              brancher = std::make_unique<gc::DegreeUnionBrancher<2, 3>>(
+                  s, g, cons->fg, vars, xvars, *cons, options);
+              brancher->use();
+              break;
+          }
+      }
+  }
+
     gc_model(gc::graph<adjacency_struct>& ig, const gc::options& options,
         gc::statistics& statistics, std::pair<int, int> bounds,
         const std::vector<int>& debug_sol, const int k_core_threshold = -1)
@@ -666,178 +855,20 @@ struct gc_model {
             and lb < ub) {
 
             final = gc::dense_graph(original, vertex_map);
+						
+						init_search(final);
 
-            if (!options.dsatur) {
-                vars = gc::varmap(create_vars());
-                cons = gc::post_gc_constraint(s, final, fillin, vars,
-                    reduction.constraints, vertex_map, options, statistics);
-
-                double vm_usage;
-                double resident_set;
-                gc::process_mem_usage(vm_usage, resident_set);
-
-                std::cout << "[modeling] created coloring constraint #nodes = "
-                          << original.size() << ", #vars = " << s.nVars()
-                          << ", memory = " << (long)resident_set << " \n";
-            }
-
-            if (!debug_sol.empty())
-                post_eqvar_debug_sol(s, debug_sol);
-
-            // g.tell_class();
-            // cons->g.tell_class();
-            // cons->cf.g.tell_class();
-            //
-
-            rewriter
-                = std::make_unique<gc::rewriter>(s, final, cons, vars, xvars);
-
-            setup_signal_handlers(&s);
-            s.trace = options.trace;
-            s.polarity_mode = options.polarity;
-            s.verbosity = options.verbosity;
-
-            if (options.learning == gc::options::NO_LEARNING)
-                s.learning = false;
-
-            if (cons) {
-
-                cons->bestlb = std::max(lb, cons->bestlb);
-                cons->ub = std::min(ub, cons->ub);
-
-                if (options.xvars) {
-                    xvars = s.newCSPVarArray(final.capacity(), 0, cons->ub - 2);
-                    for (size_t i = 0; i != xvars.size(); ++i) {
-                        if (!final.nodes.contain(i))
-                            continue;
-                        for (size_t j = i + 1; j != xvars.size(); ++j) {
-                            if (!final.nodes.contain(j))
-                                continue;
-                            if (final.matrix[i].fast_contain(j))
-                                minicsp::post_neq(s, xvars[i], xvars[j], 0);
-                            else
-                                minicsp::post_eq_re(s, xvars[i], xvars[j], 0,
-                                    minicsp::Lit(vars[i][j]));
-                        }
-                    }
-
-                    // rewrite clauses to not use x literals
-                    s.use_clause_callback(
-                        [this](vec<minicsp::Lit>& clause, int btlvl) {
-                            return rewriter->rewrite(clause, btlvl);
-                        });
-                }
-
-                auto sum = [](int x, int y) { return x + y; };
-                auto prod = [](int x, int y) { return x * y; };
-
-                switch (options.branching) {
-                case gc::options::VSIDS:
-                    if (options.branching_low_degree) {
-                        brancher = std::make_unique<gc::VSIDSBrancher>(
-                            s, final, cons->fg, vars, xvars, *cons, options);
-                        brancher->use();
-                    } else
-                        s.varbranch = minicsp::VAR_VSIDS;
-                    break;
-                case gc::options::VSIDS_GUIDED:
-                    if (options.branching_low_degree) {
-                        brancher = std::make_unique<gc::VSIDSBrancher>(
-                            s, final, cons->fg, vars, xvars, *cons, options);
-                        brancher->use();
-                    } else
-                        s.varbranch = minicsp::VAR_VSIDS;
-                    s.phase_saving = false;
-                    s.solution_phase_saving = true;
-                    break;
-                case gc::options::VSIDS_PHASED:
-                    brancher = std::make_unique<gc::VSIDSPhaseBrancher>(s,
-                        final, cons->fg, vars, xvars, *cons, options, -1, -1);
-                    brancher->use();
-                    break;
-                case gc::options::VSIDS_CLIQUE:
-                    brancher = std::make_unique<gc::VSIDSCliqueBrancher>(
-                        s, final, cons->fg, vars, xvars, *cons, options);
-                    break;
-                case gc::options::VSIDS_COLORS_POSITIVE:
-                    if (!options.xvars) {
-                        std::cout << "VSIDS_COLORS_"
-                                     "POSITIVE needs "
-                                     "--xvars\n";
-                        exit(1);
-                    }
-                    brancher = std::make_unique<gc::VSIDSColorBrancher>(
-                        s, final, cons->fg, vars, xvars, *cons, options);
-                    brancher->use();
-                    break;
-                case gc::options::BRELAZ:
-                    brancher = std::make_unique<gc::BrelazBrancher>(
-                        s, final, cons->fg, vars, xvars, *cons, options);
-                    brancher->use();
-                    break;
-                case gc::options::PARTITION_SUM:
-                    brancher = gc::make_partition_brancher<-1, -1>(
-                        s, final, cons->fg, vars, xvars, *cons, options, sum);
-                    brancher->use();
-                    break;
-                case gc::options::PARTITION_PRODUCT:
-                    brancher = gc::make_partition_brancher<-1, -1>(
-                        s, final, cons->fg, vars, xvars, *cons, options, prod);
-                    brancher->use();
-                    break;
-                case gc::options::DEGREE_SUM:
-                    brancher = gc::make_degree_brancher<-1, -1>(
-                        s, final, cons->fg, vars, xvars, *cons, options, sum);
-                    brancher->use();
-                    break;
-                case gc::options::DEGREE_PRODUCT:
-                    brancher = gc::make_degree_brancher<-1, -1>(
-                        s, final, cons->fg, vars, xvars, *cons, options, prod);
-                    brancher->use();
-                    break;
-                case gc::options::DEGREE_UNION:
-                    brancher
-                        = std::make_unique<gc::DegreeUnionBrancher<-1, -1>>(
-                            s, final, cons->fg, vars, xvars, *cons, options);
-                    brancher->use();
-                    break;
-                case gc::options::PARTITION_SUM_DYN:
-                    brancher = gc::make_partition_brancher<2, 3>(
-                        s, final, cons->fg, vars, xvars, *cons, options, sum);
-                    brancher->use();
-                    break;
-                case gc::options::PARTITION_PRODUCT_DYN:
-                    brancher = gc::make_partition_brancher<2, 3>(
-                        s, final, cons->fg, vars, xvars, *cons, options, prod);
-                    brancher->use();
-                    break;
-                case gc::options::DEGREE_SUM_DYN:
-                    brancher = gc::make_degree_brancher<2, 3>(
-                        s, final, cons->fg, vars, xvars, *cons, options, sum);
-                    brancher->use();
-                    break;
-                case gc::options::DEGREE_PRODUCT_DYN:
-                    brancher = gc::make_degree_brancher<2, 3>(
-                        s, final, cons->fg, vars, xvars, *cons, options, prod);
-                    brancher->use();
-                    break;
-                case gc::options::DEGREE_UNION_DYN:
-                    brancher = std::make_unique<gc::DegreeUnionBrancher<2, 3>>(
-                        s, final, cons->fg, vars, xvars, *cons, options);
-                    brancher->use();
-                    break;
-                }
-            }
-        }
+				}
     }
 
-    void get_solution(std::vector<int>& col)
+    template <class graph_struct>
+    void get_solution(graph_struct& g, std::vector<int>& col)
     {
         // std::vector<int> col(original.capacity(), -1);
         int next{0};
 
-        for (auto u : final.nodes) {
-            for (auto v : final.partition[u]) {
+        for (auto u : g.nodes) {
+            for (auto v : g.partition[u]) {
                 col[original.nodes[v]] = next;
 
 #ifdef DEBUG_IS
@@ -885,27 +916,33 @@ struct gc_model {
     //
     // store the solution in model::solution and extends it w.r.t. the IS
     // only
-    void solve(const int ub_limit = -1)
+    template <class graph_struct>
+    void solve(graph_struct& g, const int ub_limit = -1,
+        const bool standard_extend = true)
     {
         using minicsp::l_False;
         using minicsp::l_True;
         using minicsp::l_Undef;
 
         minicsp::lbool sat{l_True};
+				
         while (sat != l_False and lb < ub) {
 
             std::cout << "[trace] solve in [" << cons->bestlb << ".."
                       << cons->ub << "[\n";
 
             sat = s.solveBudget();
+						
             if (sat == l_True) {
                 search_sol = true;
 
-                int solub = final.nodes.size();
+                int solub = g.nodes.size();
+								
+								std::cout << "sol\n";
 
                 if (options.fillin) {
 
-                    gc::degeneracy_finder<gc::dense_graph> df_leaf{final};
+                    gc::degeneracy_finder<gc::dense_graph> df_leaf{g};
                     df_leaf.degeneracy_ordering();
                     int degeneracy{0};
                     for (auto v : df_leaf.order)
@@ -921,7 +958,11 @@ struct gc_model {
 										assert(ncol == solub);
 
                 } else {
-                    get_solution(solution);
+									
+									
+									
+                    get_solution(final, solution);
+
                 }
 
 
@@ -935,20 +976,24 @@ struct gc_model {
                 std::cout << "[trace] SAT: " << cons->bestlb << ".." << solub
                           << ".." << ISub;
 
-                int actualub = reduction.extend_solution(solution, ub, true);
-
-                std::cout << ".." << actualub << std::endl;
+                int actualub{ub};
+                if (standard_extend) {
+                    actualub = reduction.extend_solution(solution, ub, true);
+                    std::cout << ".." << actualub << std::endl;
+                } else {
+                    std::cout << "TODO" << std::endl;
+                    exit(1);
+                }
 
                 statistics.notify_ub(actualub);
                 statistics.display(std::cout);
                 cons->ub = ub = ISub;
                 if (options.equalities) {
-                    auto m{mineq(final.capacity(), cons->ub - 1)};
+                    auto m{mineq(g.capacity(), cons->ub - 1)};
                     // mineq_constraint->set_lb(m);
                     std::cout
                         << "[modeling] update implied constraint #eq >= " << m
-                        << " / "
-                        << (final.capacity() * (final.capacity() - 1) / 2)
+                        << " / " << (g.capacity() * (g.capacity() - 1) / 2)
                         << "\n\n";
                 }
 
@@ -1300,7 +1345,10 @@ int color(gc::options& options, gc::graph<input_format>& g)
         std::pair<int, int> bounds{0, g.size()};
         gc_model<input_format> model(g, options, statistics, bounds, sol);
 
-        model.solve();
+				model.final.describe(std::cout);
+				std::cout << std::endl;
+
+        model.solve(model.final);
 
         model.finalize_solution(edges);
 
@@ -1313,37 +1361,49 @@ int color(gc::options& options, gc::graph<input_format>& g)
         // dense graph yet
         gc_model<input_format> model(g, options, statistics, bounds, sol);
 
-        exit(1);
+        model.original.describe(std::cout);
+        std::cout << std::endl;
 
-        model.minimal_core(model.reduction, model.ub, 500);
-        options.strategy = gc::options::CLEVER;
+        gc::dense_graph g{model.dsatur_reduced()};
 
-        std::vector<int> vmap(g.capacity(), -1);
-        gc::graph<gc::vertices_vec> gcopy(g, vmap);
+        model.original.describe(std::cout);
+        std::cout << std::endl;
+        g.describe(std::cout);
+        std::cout << std::endl;
 
-        options.preprocessing = gc::options::FULL;
-        gc_model<gc::vertices_vec> tmp_model(gcopy, options, statistics,
-            std::make_pair(model.lb, model.ub), sol);
-        // options.preprocessing == gc::options::FULL
+        // model.solve(g);
 
-        tmp_model.solve();
+        // std::cout << " ==> " << ncol << std::endl;
+        // col.get_core(original, ub - 1, true);
 
-        auto incumbent = tmp_model.reduction.extend_solution(
-            tmp_model.solution, model.ub, true);
-        // copy the tmp model solution into the init model
-        for (int v = 0; v < tmp_model.original.capacity(); ++v)
-            model.solution[model.original.nodes[v]] = tmp_model.solution[v];
-        assert(incumbent < model.ub);
-        model.ub = incumbent;
-
-        std::cout << " ==> " << incumbent << std::endl;
-
-        // statistics.notify_ub(init_model.ub);
-        // statistics.display(std::cout);
-
-        tmp_model.finalize_solution(edges);
-
-        tmp_model.print_stats();
+        // exit(1);
+        //
+        // model.minimal_core(model.reduction, model.ub, 500);
+        // options.strategy = gc::options::CLEVER;
+        //
+        // options.preprocessing = gc::options::FULL;
+        // gc_model<gc::vertices_vec> tmp_model(gcopy, options, statistics,
+        //     std::make_pair(model.lb, model.ub), sol);
+        // // options.preprocessing == gc::options::FULL
+        //
+        // tmp_model.solve();
+        //
+        // auto incumbent = tmp_model.reduction.extend_solution(
+        //     tmp_model.solution, model.ub, true);
+        // // copy the tmp model solution into the init model
+        // for (int v = 0; v < tmp_model.original.capacity(); ++v)
+        //     model.solution[model.original.nodes[v]] = tmp_model.solution[v];
+        // assert(incumbent < model.ub);
+        // model.ub = incumbent;
+        //
+        // std::cout << " ==> " << incumbent << std::endl;
+        //
+        // // statistics.notify_ub(init_model.ub);
+        // // statistics.display(std::cout);
+        //
+        // tmp_model.finalize_solution(edges);
+        //
+        // tmp_model.print_stats();
 
         // model.solve();
         //
@@ -1474,7 +1534,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
                 if (options.dsatur) {
                     tmp_model.solve_with_dsatur();
                 } else {
-                    tmp_model.solve(init_model.ub);
+                    tmp_model.solve(tmp_model.final, init_model.ub);
                 }
             }
 
@@ -1714,23 +1774,28 @@ int color(gc::options& options, gc::graph<input_format>& g)
 		std::cout << " tmp_model (and its preprocessing) OK \n";
 		
 		if (tmp_model.ub > tmp_model.lb and tmp_model.final.size() > 0)
-			tmp_model.solve(init_model.ub); // Maybe check if tmp_model.ub < init_model.ub
-		
-		    std::cout << "[search] tmp: [" << tmp_model.lb << "..";
-            if (tmp_model.ub < init_model.ub)
-                std::cout << tmp_model.ub << "..";
+                    tmp_model.solve(tmp_model.final,
+                        init_model
+                            .ub); // Maybe check if tmp_model.ub < init_model.ub
 
-            assert(tmp_model.solution.size() == tmp_model.original.capacity());
+                std::cout << "[search] tmp: [" << tmp_model.lb << "..";
+                if (tmp_model.ub < init_model.ub)
+                    std::cout << tmp_model.ub << "..";
 
-            auto incumbent{init_model.ub};
-            if (tmp_model.degeneracy_sol or tmp_model.dsatur_sol or tmp_model.search_sol) {
-                incumbent = tmp_model.reduction.extend_solution(tmp_model.solution, tmp_model.ub, true);
-                // copy the tmp model solution into the init model
-                for (int v = 0; v < tmp_model.original.capacity(); ++v)
-                    init_model.solution[init_model.original.nodes[v]]
-                        = tmp_model.solution[v];
-		            assert(incumbent < init_model.ub);
-		            init_model.ub = incumbent;
+                assert(
+                    tmp_model.solution.size() == tmp_model.original.capacity());
+
+                auto incumbent{init_model.ub};
+                if (tmp_model.degeneracy_sol or tmp_model.dsatur_sol
+                    or tmp_model.search_sol) {
+                    incumbent = tmp_model.reduction.extend_solution(
+                        tmp_model.solution, tmp_model.ub, true);
+                    // copy the tmp model solution into the init model
+                    for (int v = 0; v < tmp_model.original.capacity(); ++v)
+                        init_model.solution[init_model.original.nodes[v]]
+                            = tmp_model.solution[v];
+                    assert(incumbent < init_model.ub);
+                    init_model.ub = incumbent;
             }
 
 			std::cout << init_model.ub << "]\n";

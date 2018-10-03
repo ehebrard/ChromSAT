@@ -87,6 +87,9 @@ public:
     void safe_add(const int elt);
 
     int index(const int elt) const;
+
+    void save(size_t& stamp);
+    void restore(const size_t stamp);
     //@}
 
     /*!@name Miscellaneous*/

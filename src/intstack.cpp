@@ -17,6 +17,9 @@ void intstack::reserve(const size_t n)
     }
 }
 
+void intstack::save(size_t& stamp) { stamp = size_; }
+void intstack::restore(const size_t stamp) { size_ = stamp; }
+
 //@}
 
 /*!@name Accessors*/
