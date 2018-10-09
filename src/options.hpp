@@ -135,6 +135,13 @@ struct options {
     int samplebase;
 
     int probewidth;
+		
+    enum core_type {
+        ALL,
+        WITNESS,
+        LOWER
+    };
+    core_type core;
 };
 
 options parse(int argc, char* argv[]);

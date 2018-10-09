@@ -1,7 +1,7 @@
 #include <iostream>
 
 #include "graph.hpp"
-
+#include "options.hpp"
 
 #ifndef __DSATUR_HPP
 #define __DSATUR_HPP
@@ -10,11 +10,11 @@
 namespace gc
 {
 
-enum class core_type : uint8_t {
-    all,
-    witness,
-    lower,
-};
+// enum class core_type : uint8_t {
+//     all,
+//     witness,
+//     lower,
+// };
 
 struct colvector {
 
@@ -416,19 +416,19 @@ struct dsatur {
     }
 
     template <class graph_struct>
-    void get_core(graph_struct& g, const core_type t)
+    void get_core(graph_struct& g, const gc::options::core_type t)
     {
 
-        std::cout << "END DSATUR " << numcolors << std::endl;
-        std::cout << ncolor.size() << " " << order.size() << " " << g.size()
-                  << std::endl;
+        // std::cout << "END DSATUR " << numcolors << std::endl;
+        // std::cout << ncolor.size() << " " << order.size() << " " << g.size()
+        //           << std::endl;
 
         gc::bitset visited_vertex(0, g.capacity() - 1, gc::bitset::empt);
         // gc::bitset visited_color(0, numcolors - 1, gc::bitset::empt);
         std::vector<int> color_witness(numcolors, -1);
         // std::vector<int> core;
         core.clear();
-        if (t == core_type::all) {
+        if (t == gc::options::core_type::ALL) {
             copy(order.begin(), frontier + 1, back_inserter(core));
         } else {
 
@@ -436,11 +436,18 @@ struct dsatur {
             core.push_back(*frontier);
 
             for (auto vi{begin(core)}; vi != end(core); ++vi) {
+
+                // for(auto i{begin(core)}; i!=end(core); ++i) {
+                // 	std::cout << " " << *i;
+                // }
+                // std::cout << std::endl;
+
                 auto v{*vi};
                 auto r{rank[v]};
                 auto c{ncolor[r - begin(order)]};
 
                 assert(color[v] < c);
+								assert(color[v] >= 0);
 
                 // visited_color.clear();
                 color_witness.clear();
@@ -457,8 +464,7 @@ struct dsatur {
                 // prefer 1/ a witness already in the
                 // core, 2/ a witness with lower
                 // rank
-
-                auto maxc{(t == core_type::witness ? c : color[v])};
+                auto maxc{(t == gc::options::core_type::WITNESS ? c : color[v])};
                 for (auto u : g.matrix[v])
                     if (rank[u] < r and color[u] < maxc) {
                         if (visited_vertex.fast_contain(u))
@@ -477,64 +483,13 @@ struct dsatur {
                             // std::cout << " -> " << u
                             // << std::endl;
                         }
-                        // else {
-                        //                         std::cout
-                        //                         <<
-                        //                         "**\n";
-                        //                     }
                     }
                 }
-
-                //             for (auto u :
-                //             g.matrix[v])
-                //                 if (rank[u] < r and
-                //                 color[u] < color[v]
-                //                 //and
-                //                 neighbor_colors[u].size()
-                //                 == ncolor[rank[u] -
-                //                 begin(order)] - 1
-                // 			and
-                // (color_witness[color[u]] < 0
-                // 				or rank[u] <
-                // rank
-                //
-                // 				// and
-                // !visited_color.fast_contain(color[u]))
-                // {
-                //                     visited_color.fast_add(color[u]);
-                //
-                //                                        // std::cout << "  - "
-                //                                        <<
-                //                                        u << " (" <<
-                //                                        // color[u] << ") @"
-                //                                        <<
-                //                                        (rank[u] -
-                //                                        begin(order))
-                //                                        << " sat=" <<
-                //                                        neighbor_colors[u].size();
-                //
-                //                     if
-                //                     (!visited_vertex.fast_contain(u))
-                //                     {
-                //                         visited_vertex.fast_add(u);
-                //                         core.push_back(u);
-                //                                                // std::cout
-                //                                                << "
-                //                                                (add to
-                //                                                list)";
-                //                     }
-                //
-                //                                        // std::cout <<
-                //                                        std::endl;
-                //                 }
-                //
-                // // assert(visited_color.size() ==
-                // c-1);
             }
         }
 
-        std::cout << "core size = " << (frontier - begin(order) + 1) << " / "
-                  << core.size() << std::endl;
+        // std::cout << "core size = " << core.size() << " / "
+        //           << (frontier - begin(order) + 1) << std::endl;
     }
 
     void select()

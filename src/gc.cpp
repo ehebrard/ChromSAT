@@ -324,11 +324,11 @@ struct gc_model {
         // std::vector<int>& vmap
         )
     {
-        col.get_core(original, gc::core_type::all);
+        // col.get_core(original, gc::core_type::all);
+        col.get_core(original, options.core);
 
-        std::cout << "extract dsatur-core "
-                  << (col.frontier - begin(col.order) + 1) << " / "
-                  << original.size() << std::endl;
+        std::cout << "[search] extract dsatur-core " << col.core.size() << " / " << (col.frontier - begin(col.order) + 1) << " / "
+                  << original.size() << ", current ub = " << ub << std::endl;
 
         size_t stamp{0};
         original.nodes.save(stamp);
@@ -336,7 +336,7 @@ struct gc_model {
         original.nodeset.clear();
 
         // for (auto vp{begin(col.core)}; vp != end(col.core); ++vp) {
-        for (auto vp{begin(col.order)}; vp <= col.frontier; ++vp) {
+        for (auto vp{begin(col.core)}; vp < end(col.core); ++vp) {
             auto v{*vp};
             original.add_node(v);
         }
@@ -1386,14 +1386,14 @@ int color(gc::options& options, gc::graph<input_format>& g)
         std::pair<int, int> bounds{0, g.size()};
         gc_model<input_format> model(g, options, statistics, bounds, sol);
 
-				model.final.describe(std::cout);
-				std::cout << std::endl;
+        model.final.describe(std::cout);
+        std::cout << std::endl;
 
-                                model.solve(model.solver, model.final);
+        model.solve(model.solver, model.final);
 
-                                model.finalize_solution(edges);
+        model.finalize_solution(edges);
 
-                                model.print_stats();
+        model.print_stats();
     } break;
     case gc::options::IDSATUR: {
 
@@ -1403,24 +1403,30 @@ int color(gc::options& options, gc::graph<input_format>& g)
         // dense graph yet
         gc_model<input_format> model(g, options, statistics, bounds, sol);
 
-        model.original.describe(std::cout);
-        std::cout << std::endl;
+        // model.original.describe(std::cout);
+        // std::cout << std::endl;
 
+        // int limit{20};
         while (model.lb < model.ub) {
+
+            statistics.binds(NULL);
+            // model.cons = NULL;
+
             gc::dense_graph g{model.dsatur_reduced()};
 						
 						// std::cout << g.nodeset << std::endl;
 						// std::cout << g.nodes << std::endl;
-						
 
-            model.original.describe(std::cout);
-            std::cout << std::endl;
-            g.describe(std::cout);
-            std::cout << std::endl;
+            // model.original.describe(std::cout);
+            // std::cout << std::endl;
+            // g.describe(std::cout);
+            // std::cout << std::endl;
 
             minicsp::Solver s;
 
             model.init_search(s, g, model.original.nodes);
+
+            statistics.binds(model.cons);
 
             auto ncol{model.find_solution(s, g)};
 
@@ -1428,12 +1434,14 @@ int color(gc::options& options, gc::graph<input_format>& g)
                 model.ub = ncol;
 
                 statistics.notify_ub(model.ub);
-                statistics.notify_lb(model.lb);
+                // statistics.notify_lb(model.lb);
                 statistics.display(std::cout);
             }
 
             if (g.size() == model.original.size())
                 break;
+
+            // if(--limit == 0) break;
         }
 
         // std::cout << col.core.size() << std::endl;

@@ -160,6 +160,9 @@ options parse(int argc, char* argv[])
         "int");
     cmd.add<ValueArg<int>>(opt.probewidth, "", "probewidth",
         "size of the max probe width (default = 64)", false, 64, "int");
+    cmd.add<ValueArg<int>>(opt.core, "", "core",
+        "Core type []",
+        false, 0, "int");
 
     cmd.parse(argc, argv);
     return opt;

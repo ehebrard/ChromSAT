@@ -17,7 +17,7 @@ enum class vertex_status : uint8_t {
     low_degree_removed,
     indset_removed,
     dominated_removed,
-	dsatur_removed,
+    dsatur_removed,
 };
 
 template <class adjacency_struct> struct graph_reduction {
@@ -78,10 +78,6 @@ template <class adjacency_struct> struct graph_reduction {
             if (status[v] == vertex_status::dominated_removed) {
                 assert(nodeset.fast_contain(*d));
                 col[v] = col[*d];
-
-                std::cout << "col[" << v << "] <- col[" << (*d)
-                          << "] = " << col[v] << std::endl;
-
                 ++d;
             }
 
@@ -98,7 +94,6 @@ template <class adjacency_struct> struct graph_reduction {
             maxc = std::max(maxc, q);
             col[v] = q;
 
-            std::cout << "col[" << v << "] = " << col[v] << std::endl;
             nodeset.fast_add(v);
         }
 
