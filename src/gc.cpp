@@ -112,7 +112,7 @@ struct gc_model {
 
     boost::optional<gc::fillin_info> fillin;
 
-    minicsp::Solver s;
+    minicsp::Solver solver;
     gc::varmap vars;
     gc::cons_base* cons{NULL};
     std::vector<minicsp::cspvar> xvars;
@@ -122,7 +122,7 @@ struct gc_model {
 
     minicsp::cons_pb* mineq_constraint{NULL};
 
-    gc::varmap create_chord_vars(gc::dense_graph& g)
+    gc::varmap create_chord_vars(minicsp::Solver& s, gc::dense_graph& g)
     {
         gc::minfill_buffer<gc::dense_graph> mb{g};
         mb.minfill();
@@ -158,7 +158,7 @@ struct gc_model {
         return vars;
     }
 
-    gc::varmap create_all_vars(gc::dense_graph& g)
+    gc::varmap create_all_vars(minicsp::Solver& s, gc::dense_graph& g)
     {
         using std::begin;
         using std::end;
@@ -209,7 +209,8 @@ struct gc_model {
     }
 
     template <class map_struct>
-    gc::varmap create_vars(gc::dense_graph& g, map_struct& vmap)
+    gc::varmap create_vars(
+        minicsp::Solver& s, gc::dense_graph& g, map_struct& vmap)
     {
 
         if (g.size() > 0 and options.ddsaturiter > 0 and lb < ub) {
@@ -246,9 +247,9 @@ struct gc_model {
         }
 
         if (options.fillin)
-            return create_chord_vars(g);
+            return create_chord_vars(s, g);
         else
-            return create_all_vars(g);
+            return create_all_vars(s, g);
     }
 
     /*
@@ -676,11 +677,11 @@ struct gc_model {
     }
 
     template <class map_struct>
-    void init_search(gc::dense_graph& g, map_struct& vmap)
+    void init_search(minicsp::Solver& s, gc::dense_graph& g, map_struct& vmap)
     {
 
         if (!options.dsatur) {
-            vars = gc::varmap(create_vars(g, vmap));
+            vars = gc::varmap(create_vars(s, g, vmap));
             cons = gc::post_gc_constraint(s, g, fillin, vars,
                 reduction.constraints, vertex_map, options, statistics);
 
@@ -694,7 +695,7 @@ struct gc_model {
         }
 
         if (!debug_sol.empty())
-            post_eqvar_debug_sol(s, debug_sol);
+            post_eqvar_debug_sol(solver, debug_sol);
 
         // g.tell_class();
         // cons->g.tell_class();
@@ -861,7 +862,7 @@ struct gc_model {
 
             final = gc::dense_graph(original, vertex_map);
 
-            init_search(final, original.nodes);
+            init_search(solver, final, original.nodes);
         }
     }
 
@@ -907,11 +908,14 @@ struct gc_model {
     // color the residual graph
     //
     // stops at the first improving solution, return false when there is none
-    template <class graph_struct> bool find_solution(graph_struct& g)
+    template <class graph_struct>
+    int find_solution(minicsp::Solver& s, graph_struct& g)
     {
         using minicsp::l_False;
         using minicsp::l_True;
         using minicsp::l_Undef;
+
+        int actualub{ub};
 
         minicsp::lbool sat{s.solveBudget()};
 
@@ -925,8 +929,6 @@ struct gc_model {
 
             std::cout << "[trace] SAT: " << cons->bestlb << ".." << solub;
 
-            int actualub{ub};
-
             col.clear();
             auto ncol{col.brelaz_color_guided(original, ub - 1,
                 begin(original.nodes), begin(original.nodes) + col.core.size(),
@@ -937,10 +939,8 @@ struct gc_model {
             } else
                 actualub = ncol;
             std::cout << ".." << ncol << ".." << actualub << std::endl;
-
-        } else
-            return false;
-        return true;
+        }
+        return actualub;
     }
 
     // color the residual graph
@@ -951,7 +951,7 @@ struct gc_model {
     // store the solution in model::solution and extends it w.r.t. the IS
     // only
     template <class graph_struct>
-    void solve(graph_struct& g, const int ub_limit = -1,
+    void solve(minicsp::Solver& s, graph_struct& g, const int ub_limit = -1,
         const bool standard_extend = true)
     {
         using minicsp::l_False;
@@ -1177,7 +1177,7 @@ struct gc_model {
             else
                 std::cout << "Best bounds [" << statistics.best_lb << ", "
                           << statistics.best_ub << "]\n";
-            minicsp::printStats(s);
+            minicsp::printStats(solver);
             statistics.display(std::cout);
             std::cout << std::endl;
         }
@@ -1389,11 +1389,11 @@ int color(gc::options& options, gc::graph<input_format>& g)
 				model.final.describe(std::cout);
 				std::cout << std::endl;
 
-        model.solve(model.final);
+                                model.solve(model.solver, model.final);
 
-        model.finalize_solution(edges);
+                                model.finalize_solution(edges);
 
-        model.print_stats();
+                                model.print_stats();
     } break;
     case gc::options::IDSATUR: {
 
@@ -1418,9 +1418,22 @@ int color(gc::options& options, gc::graph<input_format>& g)
             g.describe(std::cout);
             std::cout << std::endl;
 
-            model.init_search(g, model.original.nodes);
+            minicsp::Solver s;
 
-            model.find_solution(g);
+            model.init_search(s, g, model.original.nodes);
+
+            auto ncol{model.find_solution(s, g)};
+
+            if (ncol < model.ub) {
+                model.ub = ncol;
+
+                statistics.notify_ub(model.ub);
+                statistics.notify_lb(model.lb);
+                statistics.display(std::cout);
+            }
+
+            if (g.size() == model.original.size())
+                break;
         }
 
         // std::cout << col.core.size() << std::endl;
@@ -1588,7 +1601,8 @@ int color(gc::options& options, gc::graph<input_format>& g)
                 if (options.dsatur) {
                     tmp_model.solve_with_dsatur();
                 } else {
-                    tmp_model.solve(tmp_model.final, init_model.ub);
+                    tmp_model.solve(
+                        tmp_model.solver, tmp_model.final, init_model.ub);
                 }
             }
 
@@ -1833,7 +1847,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
         std::cout << " tmp_model (and its preprocessing) OK \n";
 
         if (tmp_model.ub > tmp_model.lb and tmp_model.final.size() > 0)
-            tmp_model.solve(tmp_model.final,
+            tmp_model.solve(tmp_model.solver, tmp_model.final,
                 init_model.ub); // Maybe check if tmp_model.ub < init_model.ub
 
         std::cout << "[search] tmp: [" << tmp_model.lb << "..";

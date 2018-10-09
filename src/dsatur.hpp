@@ -234,6 +234,8 @@ struct dsatur {
             }
             c = color_map[c];
 
+            ncolor.push_back(numcolors);
+
             // std::cout << *first << " <- " << c << std::endl;
 
             // assert(*first == v);
