@@ -208,7 +208,8 @@ struct gc_model {
         return vars;
     }
 
-    gc::varmap create_vars(gc::dense_graph& g)
+    template <class map_struct>
+    gc::varmap create_vars(gc::dense_graph& g, map_struct& vmap)
     {
 
         if (g.size() > 0 and options.ddsaturiter > 0 and lb < ub) {
@@ -224,9 +225,9 @@ struct gc_model {
                 int ncol{*max_element(begin(sol), end(sol)) + 1};
 
                 if (ub > ncol) {
-                    assert(g.size() == original.size());
-                    for (int i = 0; i < original.size(); ++i) {
-                        solution[original.nodes[i]] = sol[i];
+                    assert(g.size() <= original.size());
+                    for (int i = 0; i < g.size(); ++i) {
+                        solution[vmap[i]] = sol[i];
                     }
 
                     auto actualncol = reduction.extend_solution(solution, ub, true);
@@ -318,16 +319,23 @@ struct gc_model {
         toremove.clear();
     }
 
-    gc::dense_graph dsatur_reduced()
+    gc::dense_graph dsatur_reduced(
+        // std::vector<int>& vmap
+        )
     {
-        col.get_core(original, ub - 1, false);
+        col.get_core(original, gc::core_type::all);
+
+        std::cout << "extract dsatur-core "
+                  << (col.frontier - begin(col.order) + 1) << " / "
+                  << original.size() << std::endl;
 
         size_t stamp{0};
         original.nodes.save(stamp);
         original.nodes.clear();
         original.nodeset.clear();
 
-        for (auto vp{begin(col.core)}; vp != end(col.core); ++vp) {
+        // for (auto vp{begin(col.core)}; vp != end(col.core); ++vp) {
+        for (auto vp{begin(col.order)}; vp <= col.frontier; ++vp) {
             auto v{*vp};
             original.add_node(v);
         }
@@ -667,170 +675,167 @@ struct gc_model {
         s.debug_solution = sol;
     }
 
+    template <class map_struct>
+    void init_search(gc::dense_graph& g, map_struct& vmap)
+    {
 
-		void init_search(gc::dense_graph& g) {
-			
-      if (!options.dsatur) {
-          vars = gc::varmap(create_vars(g));
-          cons = gc::post_gc_constraint(s, g, fillin, vars,
-              reduction.constraints, vertex_map, options, statistics);
+        if (!options.dsatur) {
+            vars = gc::varmap(create_vars(g, vmap));
+            cons = gc::post_gc_constraint(s, g, fillin, vars,
+                reduction.constraints, vertex_map, options, statistics);
 
-          double vm_usage;
-          double resident_set;
-          gc::process_mem_usage(vm_usage, resident_set);
+            double vm_usage;
+            double resident_set;
+            gc::process_mem_usage(vm_usage, resident_set);
 
-          std::cout << "[modeling] created coloring constraint #nodes = "
-                    << original.size() << ", #vars = " << s.nVars()
-                    << ", memory = " << (long)resident_set << " \n";
-      }
+            std::cout << "[modeling] created coloring constraint #nodes = "
+                      << g.size() << ", #vars = " << s.nVars()
+                      << ", memory = " << (long)resident_set << " \n";
+        }
 
-      if (!debug_sol.empty())
-          post_eqvar_debug_sol(s, debug_sol);
+        if (!debug_sol.empty())
+            post_eqvar_debug_sol(s, debug_sol);
 
-      // g.tell_class();
-      // cons->g.tell_class();
-      // cons->cf.g.tell_class();
-      //
+        // g.tell_class();
+        // cons->g.tell_class();
+        // cons->cf.g.tell_class();
+        //
 
-      rewriter
-          = std::make_unique<gc::rewriter>(s, g, cons, vars, xvars);
+        rewriter = std::make_unique<gc::rewriter>(s, g, cons, vars, xvars);
 
-      setup_signal_handlers(&s);
-      s.trace = options.trace;
-      s.polarity_mode = options.polarity;
-      s.verbosity = options.verbosity;
+        setup_signal_handlers(&s);
+        s.trace = options.trace;
+        s.polarity_mode = options.polarity;
+        s.verbosity = options.verbosity;
 
-      if (options.learning == gc::options::NO_LEARNING)
-          s.learning = false;
+        if (options.learning == gc::options::NO_LEARNING)
+            s.learning = false;
 
-      if (cons) {
+        if (cons) {
 
-          cons->bestlb = std::max(lb, cons->bestlb);
-          cons->ub = std::min(ub, cons->ub);
+            cons->bestlb = std::max(lb, cons->bestlb);
+            cons->ub = std::min(ub, cons->ub);
 
-          if (options.xvars) {
-              xvars = s.newCSPVarArray(g.capacity(), 0, cons->ub - 2);
-              for (size_t i = 0; i != xvars.size(); ++i) {
-                  if (!g.nodes.contain(i))
-                      continue;
-                  for (size_t j = i + 1; j != xvars.size(); ++j) {
-                      if (!g.nodes.contain(j))
-                          continue;
-                      if (g.matrix[i].fast_contain(j))
-                          minicsp::post_neq(s, xvars[i], xvars[j], 0);
-                      else
-                          minicsp::post_eq_re(s, xvars[i], xvars[j], 0,
-                              minicsp::Lit(vars[i][j]));
-                  }
-              }
+            if (options.xvars) {
+                xvars = s.newCSPVarArray(g.capacity(), 0, cons->ub - 2);
+                for (size_t i = 0; i != xvars.size(); ++i) {
+                    if (!g.nodes.contain(i))
+                        continue;
+                    for (size_t j = i + 1; j != xvars.size(); ++j) {
+                        if (!g.nodes.contain(j))
+                            continue;
+                        if (g.matrix[i].fast_contain(j))
+                            minicsp::post_neq(s, xvars[i], xvars[j], 0);
+                        else
+                            minicsp::post_eq_re(s, xvars[i], xvars[j], 0,
+                                minicsp::Lit(vars[i][j]));
+                    }
+                }
 
-              // rewrite clauses to not use x literals
-              s.use_clause_callback(
-                  [this](vec<minicsp::Lit>& clause, int btlvl) {
-                      return rewriter->rewrite(clause, btlvl);
-                  });
-          }
+                // rewrite clauses to not use x literals
+                s.use_clause_callback([this](vec<minicsp::Lit>& clause,
+                    int btlvl) { return rewriter->rewrite(clause, btlvl); });
+            }
 
-          auto sum = [](int x, int y) { return x + y; };
-          auto prod = [](int x, int y) { return x * y; };
+            auto sum = [](int x, int y) { return x + y; };
+            auto prod = [](int x, int y) { return x * y; };
 
-          switch (options.branching) {
-          case gc::options::VSIDS:
-              if (options.branching_low_degree) {
-                  brancher = std::make_unique<gc::VSIDSBrancher>(
-                      s, g, cons->fg, vars, xvars, *cons, options);
-                  brancher->use();
-              } else
-                  s.varbranch = minicsp::VAR_VSIDS;
-              break;
-          case gc::options::VSIDS_GUIDED:
-              if (options.branching_low_degree) {
-                  brancher = std::make_unique<gc::VSIDSBrancher>(
-                      s, g, cons->fg, vars, xvars, *cons, options);
-                  brancher->use();
-              } else
-                  s.varbranch = minicsp::VAR_VSIDS;
-              s.phase_saving = false;
-              s.solution_phase_saving = true;
-              break;
-          case gc::options::VSIDS_PHASED:
-              brancher = std::make_unique<gc::VSIDSPhaseBrancher>(s,
-                  g, cons->fg, vars, xvars, *cons, options, -1, -1);
-              brancher->use();
-              break;
-          case gc::options::VSIDS_CLIQUE:
-              brancher = std::make_unique<gc::VSIDSCliqueBrancher>(
-                  s, g, cons->fg, vars, xvars, *cons, options);
-              break;
-          case gc::options::VSIDS_COLORS_POSITIVE:
-              if (!options.xvars) {
-                  std::cout << "VSIDS_COLORS_"
-                               "POSITIVE needs "
-                               "--xvars\n";
-                  exit(1);
-              }
-              brancher = std::make_unique<gc::VSIDSColorBrancher>(
-                  s, g, cons->fg, vars, xvars, *cons, options);
-              brancher->use();
-              break;
-          case gc::options::BRELAZ:
-              brancher = std::make_unique<gc::BrelazBrancher>(
-                  s, g, cons->fg, vars, xvars, *cons, options);
-              brancher->use();
-              break;
-          case gc::options::PARTITION_SUM:
-              brancher = gc::make_partition_brancher<-1, -1>(
-                  s, g, cons->fg, vars, xvars, *cons, options, sum);
-              brancher->use();
-              break;
-          case gc::options::PARTITION_PRODUCT:
-              brancher = gc::make_partition_brancher<-1, -1>(
-                  s, g, cons->fg, vars, xvars, *cons, options, prod);
-              brancher->use();
-              break;
-          case gc::options::DEGREE_SUM:
-              brancher = gc::make_degree_brancher<-1, -1>(
-                  s, g, cons->fg, vars, xvars, *cons, options, sum);
-              brancher->use();
-              break;
-          case gc::options::DEGREE_PRODUCT:
-              brancher = gc::make_degree_brancher<-1, -1>(
-                  s, g, cons->fg, vars, xvars, *cons, options, prod);
-              brancher->use();
-              break;
-          case gc::options::DEGREE_UNION:
-              brancher
-                  = std::make_unique<gc::DegreeUnionBrancher<-1, -1>>(
-                      s, g, cons->fg, vars, xvars, *cons, options);
-              brancher->use();
-              break;
-          case gc::options::PARTITION_SUM_DYN:
-              brancher = gc::make_partition_brancher<2, 3>(
-                  s, g, cons->fg, vars, xvars, *cons, options, sum);
-              brancher->use();
-              break;
-          case gc::options::PARTITION_PRODUCT_DYN:
-              brancher = gc::make_partition_brancher<2, 3>(
-                  s, g, cons->fg, vars, xvars, *cons, options, prod);
-              brancher->use();
-              break;
-          case gc::options::DEGREE_SUM_DYN:
-              brancher = gc::make_degree_brancher<2, 3>(
-                  s, g, cons->fg, vars, xvars, *cons, options, sum);
-              brancher->use();
-              break;
-          case gc::options::DEGREE_PRODUCT_DYN:
-              brancher = gc::make_degree_brancher<2, 3>(
-                  s, g, cons->fg, vars, xvars, *cons, options, prod);
-              brancher->use();
-              break;
-          case gc::options::DEGREE_UNION_DYN:
-              brancher = std::make_unique<gc::DegreeUnionBrancher<2, 3>>(
-                  s, g, cons->fg, vars, xvars, *cons, options);
-              brancher->use();
-              break;
-          }
-      }
+            switch (options.branching) {
+            case gc::options::VSIDS:
+                if (options.branching_low_degree) {
+                    brancher = std::make_unique<gc::VSIDSBrancher>(
+                        s, g, cons->fg, vars, xvars, *cons, options);
+                    brancher->use();
+                } else
+                    s.varbranch = minicsp::VAR_VSIDS;
+                break;
+            case gc::options::VSIDS_GUIDED:
+                if (options.branching_low_degree) {
+                    brancher = std::make_unique<gc::VSIDSBrancher>(
+                        s, g, cons->fg, vars, xvars, *cons, options);
+                    brancher->use();
+                } else
+                    s.varbranch = minicsp::VAR_VSIDS;
+                s.phase_saving = false;
+                s.solution_phase_saving = true;
+                break;
+            case gc::options::VSIDS_PHASED:
+                brancher = std::make_unique<gc::VSIDSPhaseBrancher>(
+                    s, g, cons->fg, vars, xvars, *cons, options, -1, -1);
+                brancher->use();
+                break;
+            case gc::options::VSIDS_CLIQUE:
+                brancher = std::make_unique<gc::VSIDSCliqueBrancher>(
+                    s, g, cons->fg, vars, xvars, *cons, options);
+                break;
+            case gc::options::VSIDS_COLORS_POSITIVE:
+                if (!options.xvars) {
+                    std::cout << "VSIDS_COLORS_"
+                                 "POSITIVE needs "
+                                 "--xvars\n";
+                    exit(1);
+                }
+                brancher = std::make_unique<gc::VSIDSColorBrancher>(
+                    s, g, cons->fg, vars, xvars, *cons, options);
+                brancher->use();
+                break;
+            case gc::options::BRELAZ:
+                brancher = std::make_unique<gc::BrelazBrancher>(
+                    s, g, cons->fg, vars, xvars, *cons, options);
+                brancher->use();
+                break;
+            case gc::options::PARTITION_SUM:
+                brancher = gc::make_partition_brancher<-1, -1>(
+                    s, g, cons->fg, vars, xvars, *cons, options, sum);
+                brancher->use();
+                break;
+            case gc::options::PARTITION_PRODUCT:
+                brancher = gc::make_partition_brancher<-1, -1>(
+                    s, g, cons->fg, vars, xvars, *cons, options, prod);
+                brancher->use();
+                break;
+            case gc::options::DEGREE_SUM:
+                brancher = gc::make_degree_brancher<-1, -1>(
+                    s, g, cons->fg, vars, xvars, *cons, options, sum);
+                brancher->use();
+                break;
+            case gc::options::DEGREE_PRODUCT:
+                brancher = gc::make_degree_brancher<-1, -1>(
+                    s, g, cons->fg, vars, xvars, *cons, options, prod);
+                brancher->use();
+                break;
+            case gc::options::DEGREE_UNION:
+                brancher = std::make_unique<gc::DegreeUnionBrancher<-1, -1>>(
+                    s, g, cons->fg, vars, xvars, *cons, options);
+                brancher->use();
+                break;
+            case gc::options::PARTITION_SUM_DYN:
+                brancher = gc::make_partition_brancher<2, 3>(
+                    s, g, cons->fg, vars, xvars, *cons, options, sum);
+                brancher->use();
+                break;
+            case gc::options::PARTITION_PRODUCT_DYN:
+                brancher = gc::make_partition_brancher<2, 3>(
+                    s, g, cons->fg, vars, xvars, *cons, options, prod);
+                brancher->use();
+                break;
+            case gc::options::DEGREE_SUM_DYN:
+                brancher = gc::make_degree_brancher<2, 3>(
+                    s, g, cons->fg, vars, xvars, *cons, options, sum);
+                brancher->use();
+                break;
+            case gc::options::DEGREE_PRODUCT_DYN:
+                brancher = gc::make_degree_brancher<2, 3>(
+                    s, g, cons->fg, vars, xvars, *cons, options, prod);
+                brancher->use();
+                break;
+            case gc::options::DEGREE_UNION_DYN:
+                brancher = std::make_unique<gc::DegreeUnionBrancher<2, 3>>(
+                    s, g, cons->fg, vars, xvars, *cons, options);
+                brancher->use();
+                break;
+            }
+        }
   }
 
     gc_model(gc::graph<adjacency_struct>& ig, const gc::options& options,
@@ -855,31 +860,21 @@ struct gc_model {
             and lb < ub) {
 
             final = gc::dense_graph(original, vertex_map);
-						
-						init_search(final);
 
-				}
+            init_search(final, original.nodes);
+        }
     }
 
     template <class graph_struct>
     void get_solution(graph_struct& g, std::vector<int>& col)
     {
-        // std::vector<int> col(original.capacity(), -1);
         int next{0};
-
         for (auto u : g.nodes) {
             for (auto v : g.partition[u]) {
                 col[original.nodes[v]] = next;
-
-#ifdef DEBUG_IS
-                std::cout << original.nodes[v] << " <- " << next << std::endl;
-// assert(v == original.nodes[v]);
-// std::cout << v << " -> " << original.nodes[v] << std::endl;
-#endif
             }
             ++next;
         }
-        // return col;
     }
 
     // same as above expect that this is not a clique. "order" is the degeneracy
@@ -907,6 +902,45 @@ struct gc_model {
         }
 				
 				return maxc + 1;
+    }
+
+    // color the residual graph
+    //
+    // stops at the first improving solution, return false when there is none
+    template <class graph_struct> bool find_solution(graph_struct& g)
+    {
+        using minicsp::l_False;
+        using minicsp::l_True;
+        using minicsp::l_Undef;
+
+        minicsp::lbool sat{s.solveBudget()};
+
+        if (sat == l_True) {
+            int solub = g.nodes.size();
+
+            get_solution(g, solution);
+
+            assert(solub < cons->ub);
+            cons->sync_graph();
+
+            std::cout << "[trace] SAT: " << cons->bestlb << ".." << solub;
+
+            int actualub{ub};
+
+            col.clear();
+            auto ncol{col.brelaz_color_guided(original, ub - 1,
+                begin(original.nodes), begin(original.nodes) + col.core.size(),
+                solution, 100, 12345 + ub)};
+
+            if (ncol < ub) {
+                actualub = reduction.extend_solution(solution, ub, true);
+            } else
+                actualub = ncol;
+            std::cout << ".." << ncol << ".." << actualub << std::endl;
+
+        } else
+            return false;
+        return true;
     }
 
     // color the residual graph
@@ -938,8 +972,6 @@ struct gc_model {
 
                 int solub = g.nodes.size();
 								
-								std::cout << "sol\n";
-
                 if (options.fillin) {
 
                     gc::degeneracy_finder<gc::dense_graph> df_leaf{g};
@@ -958,31 +990,40 @@ struct gc_model {
 										assert(ncol == solub);
 
                 } else {
-									
-									
-									
-                    get_solution(final, solution);
 
+                    get_solution(g, solution);
                 }
-
 
                 assert(solub < cons->ub);
                 cons->sync_graph();
 
-                // extends to the IS
-                int ISub = reduction.extend_solution(solution, ub, false);
-                assert(ISub <= ub + (options.indset_constraints ? 1 : 0));
-
-                std::cout << "[trace] SAT: " << cons->bestlb << ".." << solub
-                          << ".." << ISub;
+                std::cout << "[trace] SAT: " << cons->bestlb << ".." << solub;
 
                 int actualub{ub};
+                int ISub{ub};
                 if (standard_extend) {
+                    // extends to the IS
+                    ISub = reduction.extend_solution(solution, ub, false);
+                    assert(ISub <= ub + (options.indset_constraints ? 1 : 0));
+
                     actualub = reduction.extend_solution(solution, ub, true);
-                    std::cout << ".." << actualub << std::endl;
+                    std::cout << ".." << ISub << ".." << actualub << std::endl;
                 } else {
-                    std::cout << "TODO" << std::endl;
-                    exit(1);
+
+                    col.clear();
+                    auto ncol{col.brelaz_color_guided(original, ub - 1,
+                        begin(original.nodes),
+                        begin(original.nodes) + col.core.size(), solution, 100,
+                        12345 + ub)};
+
+                    if (ncol < ub) {
+                        actualub
+                            = reduction.extend_solution(solution, ub, true);
+                    } else
+                        actualub = ncol;
+                    std::cout << ".." << ncol << ".." << actualub << std::endl;
+
+                    // exit(1);
                 }
 
                 statistics.notify_ub(actualub);
@@ -1355,6 +1396,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
         model.print_stats();
     } break;
     case gc::options::IDSATUR: {
+
         std::pair<int, int> bounds{0, g.size()};
 
         options.strategy = gc::options::BOUNDS; // so that we don't create the
@@ -1364,12 +1406,24 @@ int color(gc::options& options, gc::graph<input_format>& g)
         model.original.describe(std::cout);
         std::cout << std::endl;
 
-        gc::dense_graph g{model.dsatur_reduced()};
+        while (model.lb < model.ub) {
+            gc::dense_graph g{model.dsatur_reduced()};
+						
+						// std::cout << g.nodeset << std::endl;
+						// std::cout << g.nodes << std::endl;
+						
 
-        model.original.describe(std::cout);
-        std::cout << std::endl;
-        g.describe(std::cout);
-        std::cout << std::endl;
+            model.original.describe(std::cout);
+            std::cout << std::endl;
+            g.describe(std::cout);
+            std::cout << std::endl;
+
+            model.init_search(g, model.original.nodes);
+
+            model.find_solution(g);
+        }
+
+        // std::cout << col.core.size() << std::endl;
 
         // model.solve(g);
 
@@ -1676,27 +1730,26 @@ int color(gc::options& options, gc::graph<input_format>& g)
     } break;
 
     case gc::options::TEST: {
-		// Run DSAT, pick the vertices up to color max
-		// Run GC on them
-		// Extend solution to the rest
-		// How to loop ?
-		std::cout << "Test strategy" << std::endl;
-		
-		std::vector<int> vmap(g.capacity(), -1);
+        // Run DSAT, pick the vertices up to color max
+        // Run GC on them
+        // Extend solution to the rest
+        // How to loop ?
+        std::cout << "Test strategy" << std::endl;
 
-                // options.preprocessing = gc::options::NO_PREPROCESSING; //
-                // Avoid graph_reduction peeling ?
-                options.strategy = gc::options::BOUNDS; // so that we don't
-                // create the dense
-                // graph yet
+        std::vector<int> vmap(g.capacity(), -1);
 
-                std::pair<int, int> bounds{0, g.size()};
-                gc_model<input_format> init_model(
-                    g, options, statistics, bounds, sol);
+        // options.preprocessing = gc::options::NO_PREPROCESSING; //
+        // Avoid graph_reduction peeling ?
+        options.strategy = gc::options::BOUNDS; // so that we don't
+        // create the dense
+        // graph yet
 
-                // model.solve_with_dsatur(); Why this method ?
+        std::pair<int, int> bounds{0, g.size()};
+        gc_model<input_format> init_model(g, options, statistics, bounds, sol);
 
-                init_model.upper_bound(); // Set sdsaturiter to the desired
+        // model.solve_with_dsatur(); Why this method ?
+
+        init_model.upper_bound(); // Set sdsaturiter to the desired
 // number of iteration
 
 // DSATUR, once or several times ?
@@ -1711,39 +1764,42 @@ int color(gc::options& options, gc::graph<input_format>& g)
 //		std::cout << "\nColoration :\n";		
 //		init_model.col.print(g);
 #endif
-		
-		// Vertices selection upt to the one with colormax, remove others		
-		//std::cout << "Selected vertices for induced subgraph:" << std::endl;
 
-		int n_rem{0};
-		for (auto vptr{init_model.col.frontier + 1}; vptr != end(init_model.col.order); ++vptr) {
-			auto v{*vptr};
-#ifdef DEBUG_DSIT		 
-			std::cout << v << " " << init_model.col.color[v] << std::endl;
+        // Vertices selection upt to the one with colormax, remove others
+        // std::cout << "Selected vertices for induced subgraph:" << std::endl;
+
+        int n_rem{0};
+        for (auto vptr{init_model.col.frontier + 1};
+             vptr != end(init_model.col.order); ++vptr) {
+            auto v{*vptr};
+#ifdef DEBUG_DSIT
+            std::cout << v << " " << init_model.col.color[v] << std::endl;
 #endif
-			init_model.toremove.add(v);
-			init_model.reduction.removed_vertices.push_back(v);
-			++n_rem;
-		}
-		std::cout << n_rem << " vertices removed \n\n";
+            init_model.toremove.add(v);
+            init_model.reduction.removed_vertices.push_back(v);
+            ++n_rem;
+        }
+        std::cout << n_rem << " vertices removed \n\n";
 
+        //#ifdef DEBUG_DSIT
+        //		std::cout << "Printing coloration order : \n";
+        //		int n{0};
+        //		for (auto r{begin(init_model.col.order)}; r !=
+        //end(init_model.col.order); ++r) {
+        //			auto v{*r};
+        //			std::cout << "order: " << n << "		vertex :
+        //" << v << "		Color : " << init_model.col.color[v]
+        //						 << "		Rank : (" <<
+        //*init_model.col.rank[v] << ")" << std::endl;
+        //		++n;
+        //		}
+        //		std::cout << "Vf : "<< *init_model.col.frontier <<
+        //std::endl;
+        //#endif
 
-//#ifdef DEBUG_DSIT
-//		std::cout << "Printing coloration order : \n";
-//		int n{0};
-//		for (auto r{begin(init_model.col.order)}; r != end(init_model.col.order); ++r) {
-//			auto v{*r};
-//			std::cout << "order: " << n << "		vertex : " << v << "		Color : " << init_model.col.color[v] 
-//						 << "		Rank : (" << *init_model.col.rank[v] << ")" << std::endl;
-//		++n;
-//		}
-//		std::cout << "Vf : "<< *init_model.col.frontier << std::endl;
-//#endif
+        init_model.toremove.canonize();
 
-
-		init_model.toremove.canonize();
-
-		// reduction of g
+        // reduction of g
         init_model.original.remove(init_model.toremove);
 
         for (auto u : init_model.toremove) {
@@ -1755,81 +1811,86 @@ int color(gc::options& options, gc::graph<input_format>& g)
 #ifdef DEBUG_DSIT
         std::cout << "Induced subgraph :";
         init_model.original.describe(std::cout, -1);
-        std::cout << std::endl << std::endl;		
-#endif	
+        std::cout << std::endl << std::endl;
+#endif
 
-		// New model for gc on residual graph (g)		
-		vmap.clear();
+        // New model for gc on residual graph (g)
+        vmap.clear();
         vmap.resize(g.capacity(), -1);
 
         gc::graph<gc::vertices_vec> gcopy(g, vmap); // use dense_graph instead ?
 
-		// Set options for tmp_model
-		//options.preprocessing = gc::options::LOW_DEGREE; //  "FULL" & "LOW_DEGREE trigger bug
-		options.strategy = gc::options::CLEVER; // No effect ? (How to choose strategy for coloring the residual graph ?)
+        // Set options for tmp_model
+        // options.preprocessing = gc::options::LOW_DEGREE; //  "FULL" &
+        // "LOW_DEGREE trigger bug
+        options.strategy = gc::options::CLEVER; // No effect ? (How to choose
+                                                // strategy for coloring the
+                                                // residual graph ?)
 
-		gc_model<gc::vertices_vec> tmp_model(gcopy, options, statistics,
-        std::make_pair(init_model.lb, init_model.ub), sol,
-        (init_model.ub - 1));
-		std::cout << " tmp_model (and its preprocessing) OK \n";
-		
-		if (tmp_model.ub > tmp_model.lb and tmp_model.final.size() > 0)
-                    tmp_model.solve(tmp_model.final,
-                        init_model
-                            .ub); // Maybe check if tmp_model.ub < init_model.ub
+        gc_model<gc::vertices_vec> tmp_model(gcopy, options, statistics,
+            std::make_pair(init_model.lb, init_model.ub), sol,
+            (init_model.ub - 1));
+        std::cout << " tmp_model (and its preprocessing) OK \n";
 
-                std::cout << "[search] tmp: [" << tmp_model.lb << "..";
-                if (tmp_model.ub < init_model.ub)
-                    std::cout << tmp_model.ub << "..";
+        if (tmp_model.ub > tmp_model.lb and tmp_model.final.size() > 0)
+            tmp_model.solve(tmp_model.final,
+                init_model.ub); // Maybe check if tmp_model.ub < init_model.ub
 
-                assert(
-                    tmp_model.solution.size() == tmp_model.original.capacity());
+        std::cout << "[search] tmp: [" << tmp_model.lb << "..";
+        if (tmp_model.ub < init_model.ub)
+            std::cout << tmp_model.ub << "..";
 
-                auto incumbent{init_model.ub};
-                if (tmp_model.degeneracy_sol or tmp_model.dsatur_sol
-                    or tmp_model.search_sol) {
-                    incumbent = tmp_model.reduction.extend_solution(
-                        tmp_model.solution, tmp_model.ub, true);
-                    // copy the tmp model solution into the init model
-                    for (int v = 0; v < tmp_model.original.capacity(); ++v)
-                        init_model.solution[init_model.original.nodes[v]]
-                            = tmp_model.solution[v];
-                    assert(incumbent < init_model.ub);
-                    init_model.ub = incumbent;
-            }
+        assert(tmp_model.solution.size() == tmp_model.original.capacity());
 
-			std::cout << init_model.ub << "]\n";
-            init_model.lb = tmp_model.lb;
+        auto incumbent{init_model.ub};
+        if (tmp_model.degeneracy_sol or tmp_model.dsatur_sol
+            or tmp_model.search_sol) {
+            incumbent = tmp_model.reduction.extend_solution(
+                tmp_model.solution, tmp_model.ub, true);
+            // copy the tmp model solution into the init model
+            for (int v = 0; v < tmp_model.original.capacity(); ++v)
+                init_model.solution[init_model.original.nodes[v]]
+                    = tmp_model.solution[v];
+            assert(incumbent < init_model.ub);
+            init_model.ub = incumbent;
+        }
 
-            // iub may not be equal to ilb even if the solver wasn't stopped:
-            // coloring the removed vertices might have required extra colors
-            // either way, [ilb, iub] are correct bounds
-            statistics.notify_ub(init_model.ub);
-            statistics.notify_lb(init_model.lb);
-            statistics.display(std::cout);
-			
-			tmp_model.finalize_solution(edges);
-        	tmp_model.print_stats();
+        std::cout << init_model.ub << "]\n";
+        init_model.lb = tmp_model.lb;
 
-			//TODO
-			// Assign the coloring of tmp_model to init_model for the first vertex to the frontier			
-			// Extend with dsatur to the entire graph
-			
-			init_model.reduction.extend_solution(init_model.solution, init_model.ub, true);
-			init_model.print_stats();
+        // iub may not be equal to ilb even if the solver wasn't
+        // stopped:
+        // coloring the removed vertices might have required extra
+        // colors
+        // either way, [ilb, iub] are correct bounds
+        statistics.notify_ub(init_model.ub);
+        statistics.notify_lb(init_model.lb);
+        statistics.display(std::cout);
 
-			auto fcol{
-            *std::max_element(begin(init_model.solution), end(init_model.solution)) + 1};
-        	std::cout << "[solution] " << fcol << "-coloring computed at "
+        tmp_model.finalize_solution(edges);
+        tmp_model.print_stats();
+
+        // TODO
+        // Assign the coloring of tmp_model to init_model for the first
+        // vertex to the frontier
+        // Extend with dsatur to the entire graph
+
+        init_model.reduction.extend_solution(
+            init_model.solution, init_model.ub, true);
+        init_model.print_stats();
+
+        auto fcol{*std::max_element(
+                      begin(init_model.solution), end(init_model.solution))
+            + 1};
+        std::cout << "[solution] " << fcol << "-coloring computed at "
                   << minicsp::cpuTime() << std::endl
                   << std::endl;
-            statistics.unbinds();
-            vmap.clear();
-			
-			//TODO: iterate !				
+        statistics.unbinds();
+        vmap.clear();
 
-				
-    	} break;
+        // TODO: iterate !
+
+    } break;
     }
 
     return 0;

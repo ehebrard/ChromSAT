@@ -1213,7 +1213,8 @@ public:
     }
 
     void create_ordering()
-    {
+    {	
+			
         // recompute the degenracy order
         if (opt.ordering == options::DYNAMIC_DEGENERACY) {
             assert(false);
@@ -1223,13 +1224,18 @@ public:
         } else if (opt.ordering == options::PARTITION) {
 
             if (opt.ordering_low_degree == options::PREPROCESSING_ORDERING) {
+							
                 bool removed_some{false};
                 ordering_removed_bs.clear();
                 ordering_removed.clear();
                 do {
+																		
                     removed_some = false;
                     ordering_forbidden.clear();
                     for (auto v : g.nodes) {
+
+												std::cout << "failed assert after checking " << v << std::endl;
+
                         if (ordering_forbidden.fast_contain(v)
                             || ordering_removed_bs.fast_contain(v))
                             continue;
@@ -1245,7 +1251,7 @@ public:
                         ordering_forbidden.fast_add(v);
                     }
                 } while (removed_some);
-            } else if (opt.ordering_low_degree == options::DEGREE_ORDERING) {
+            } else if (opt.ordering_low_degree == options::DEGREE_ORDERING) {	
                 ordering_removed_bs.clear();
                 ordering_removed.clear();
                 for (auto v : g.nodes) {
@@ -1278,6 +1284,9 @@ public:
 
             assert(heuristic.size() == g.nodes.size());
         } else {
+					
+
+					
             // no ordering
             heuristic.clear();
             std::copy(
