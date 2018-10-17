@@ -163,6 +163,8 @@ options parse(int argc, char* argv[])
     cmd.add<ValueArg<int>>(opt.core, "", "core",
         "Core type []",
         false, 0, "int");
+    cmd.add<ValueArg<int>>(opt.idsaturlimit, "", "idsaturlimit",
+        "solve limit in idsatur", false, 0, "int");
 
     cmd.parse(argc, argv);
     return opt;

@@ -70,6 +70,7 @@ template <class adjacency_struct> struct graph_reduction {
 
         for (auto i = removed_vertices.rbegin(), iend = removed_vertices.rend();
              i != iend; ++i) {
+
             auto v = *i;
 
             if (!full and status[v] != vertex_status::indset_removed)
@@ -90,6 +91,12 @@ template <class adjacency_struct> struct graph_reduction {
             }
 
             int q{util_set.min()};
+
+            if (maxc < q) {
+                std::cout << "need new color for " << v << " ("
+                          << g.matrix[v].size() << ") " << g.matrix[v]
+                          << std::endl;
+            }
 
             maxc = std::max(maxc, q);
             col[v] = q;

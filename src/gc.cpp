@@ -320,12 +320,9 @@ struct gc_model {
         toremove.clear();
     }
 
-    gc::dense_graph dsatur_reduced(
-        // std::vector<int>& vmap
-        )
+    gc::dense_graph dsatur_reduced()
     {
-        // col.get_core(original, gc::core_type::all);
-        col.get_core(original, options.core);
+        col.get_core(original, options.core, lb, ub);
 
         std::cout << "[search] extract dsatur-core " << col.core.size() << " / " << (col.frontier - begin(col.order) + 1) << " / "
                   << original.size() << ", current ub = " << ub << std::endl;
@@ -905,42 +902,70 @@ struct gc_model {
 				return maxc + 1;
     }
 
+    template <class graph_struct> int dsat_extend(graph_struct& g)
+    {
+        col.clear();
+
+        auto actualub{ub};
+        auto ncol{col.brelaz_color_guided(g, ub - 1, begin(g.nodes),
+            begin(g.nodes) + col.core.size(), solution, 100, 12345 + ub)};
+
+        if (ncol < ub) {
+            actualub = reduction.extend_solution(solution, ub, true);
+        } else
+            actualub = ub;
+
+        return actualub;
+    }
+
     // color the residual graph
     //
-    // stops at the first improving solution, return false when there is none
+    // stops at the first improving solution, return ub when there is none
     template <class graph_struct>
-    int find_solution(minicsp::Solver& s, graph_struct& g)
+    bool find_solution(
+        minicsp::Solver& s, graph_struct& g, int& lower_bound, int& upper_bound)
     {
         using minicsp::l_False;
         using minicsp::l_True;
         using minicsp::l_Undef;
 
-        int actualub{ub};
+        // int r{ub};
 
         minicsp::lbool sat{s.solveBudget()};
 
+        assert(cons->ub >= upper_bound);
+        cons->ub = upper_bound;
+
         if (sat == l_True) {
-            int solub = g.nodes.size();
+            upper_bound = g.nodes.size();
+
+            // std::cout << "\n |nodes| = " << solub << std::endl;
 
             get_solution(g, solution);
 
-            assert(solub < cons->ub);
+            // assert(solub < cons->ub);
             cons->sync_graph();
 
-            std::cout << "[trace] SAT: " << cons->bestlb << ".." << solub;
+            // std::cout << "\n |nodes| = " << g.nodes.size() << std::endl;
 
-            col.clear();
-            auto ncol{col.brelaz_color_guided(original, ub - 1,
-                begin(original.nodes), begin(original.nodes) + col.core.size(),
-                solution, 100, 12345 + ub)};
-
-            if (ncol < ub) {
-                actualub = reduction.extend_solution(solution, ub, true);
-            } else
-                actualub = ncol;
-            std::cout << ".." << ncol << ".." << actualub << std::endl;
+            // r = cons->ub;
+            // std::cout << "[trace] SAT: " << cons->bestlb << ".." << solub;
+            //
+            // col.clear();
+            // auto ncol{col.brelaz_color_guided(original, ub - 1,
+            //     begin(original.nodes), begin(original.nodes) +
+            //     col.core.size(),
+            //     solution, 100, 12345 + ub)};
+            //
+            // if (ncol < ub) {
+            //     r = reduction.extend_solution(solution, ub, true);
+            // } else
+            //     r = ncol;
+            // std::cout << ".." << ncol << ".." << actualub << std::endl;
+            return true;
         }
-        return actualub;
+        lower_bound = upper_bound;
+        return false;
     }
 
     // color the residual graph
@@ -950,8 +975,14 @@ struct gc_model {
     //
     // store the solution in model::solution and extends it w.r.t. the IS
     // only
+    bool solve(int ub_limit = -1)
+    {
+        return solve(solver, final, lb, ub, ub_limit);
+    }
+
     template <class graph_struct>
-    void solve(minicsp::Solver& s, graph_struct& g, const int ub_limit = -1,
+    bool solve(minicsp::Solver& s, graph_struct& g, int& lower_bound,
+        int& upper_bound, const int ub_limit = -1,
         const bool standard_extend = true)
     {
         using minicsp::l_False;
@@ -959,8 +990,9 @@ struct gc_model {
         using minicsp::l_Undef;
 
         minicsp::lbool sat{l_True};
-				
-        while (sat != l_False and lb < ub) {
+
+        auto solution_found{false};
+        while (sat != l_False and lower_bound < upper_bound) {
 
             std::cout << "[trace] solve in [" << cons->bestlb << ".."
                       << cons->ub << "[\n";
@@ -968,6 +1000,7 @@ struct gc_model {
             sat = s.solveBudget();
 						
             if (sat == l_True) {
+                solution_found = true;
                 search_sol = true;
 
                 int solub = g.nodes.size();
@@ -999,36 +1032,53 @@ struct gc_model {
 
                 std::cout << "[trace] SAT: " << cons->bestlb << ".." << solub;
 
-                int actualub{ub};
-                int ISub{ub};
+                int actualub{upper_bound};
+                int ISub{solub};
                 if (standard_extend) {
                     // extends to the IS
-                    ISub = reduction.extend_solution(solution, ub, false);
-                    assert(ISub <= ub + (options.indset_constraints ? 1 : 0));
+                    ISub = reduction.extend_solution(
+                        solution, upper_bound, false);
+                    assert(ISub
+                        <= upper_bound + (options.indset_constraints ? 1 : 0));
 
-                    actualub = reduction.extend_solution(solution, ub, true);
+                    actualub = reduction.extend_solution(
+                        solution, upper_bound, true);
                     std::cout << ".." << ISub << ".." << actualub << std::endl;
+
                 } else {
 
                     col.clear();
-                    auto ncol{col.brelaz_color_guided(original, ub - 1,
+                    auto ncol{col.brelaz_color_guided(original, upper_bound - 1,
                         begin(original.nodes),
                         begin(original.nodes) + col.core.size(), solution, 100,
-                        12345 + ub)};
+                        12345 + upper_bound)};
+
+                    std::cout << ".." << ncol;
 
                     if (ncol < ub) {
-                        actualub
-                            = reduction.extend_solution(solution, ub, true);
-                    } else
-                        actualub = ncol;
-                    std::cout << ".." << ncol << ".." << actualub << std::endl;
 
-                    // exit(1);
+                        actualub = reduction.extend_solution(
+                            solution, upper_bound, true);
+
+                        std::cout << ".." << actualub << std::endl;
+
+                        assert(ncol == actualub);
+
+                        ub = actualub;
+                    } else {
+                        actualub = ncol;
+
+                        std::cout << ".." << actualub << std::endl;
+                    }
                 }
 
                 statistics.notify_ub(actualub);
                 statistics.display(std::cout);
-                cons->ub = ub = ISub;
+                cons->ub = upper_bound = ISub;
+
+                std::cout << "bounds = [" << lower_bound << ".." << upper_bound
+                          << "]" << std::endl;
+
                 if (options.equalities) {
                     auto m{mineq(g.capacity(), cons->ub - 1)};
                     // mineq_constraint->set_lb(m);
@@ -1043,7 +1093,6 @@ struct gc_model {
                         v.setmax(s, cons->ub - 2, minicsp::NO_REASON);
                 }
 
-                // cons->cf.clear();
 
                 if (actualub < ub_limit)
                     break;
@@ -1059,9 +1108,11 @@ struct gc_model {
 
                 statistics.notify_lb(cons->bestlb);
                 statistics.display(std::cout);
-                lb = cons->bestlb;
+                lower_bound = cons->bestlb;
             }
         }
+
+        return solution_found;
     }
 
     void solve_with_dsatur()
@@ -1389,7 +1440,8 @@ int color(gc::options& options, gc::graph<input_format>& g)
         model.final.describe(std::cout);
         std::cout << std::endl;
 
-        model.solve(model.solver, model.final);
+        // model.solve(model.solver, model.final);
+        model.solve();
 
         model.finalize_solution(edges);
 
@@ -1397,16 +1449,21 @@ int color(gc::options& options, gc::graph<input_format>& g)
     } break;
     case gc::options::IDSATUR: {
 
+        std::cout << "HELLO\n";
+
         std::pair<int, int> bounds{0, g.size()};
 
         options.strategy = gc::options::BOUNDS; // so that we don't create the
         // dense graph yet
+        options.ddsaturiter = 0;
         gc_model<input_format> model(g, options, statistics, bounds, sol);
 
         // model.original.describe(std::cout);
         // std::cout << std::endl;
 
-        // int limit{20};
+        int limit{-1};
+
+
         while (model.lb < model.ub) {
 
             statistics.binds(NULL);
@@ -1414,13 +1471,13 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
             gc::dense_graph g{model.dsatur_reduced()};
 						
-						// std::cout << g.nodeset << std::endl;
+						std::cout << g.nodeset << std::endl;
 						// std::cout << g.nodes << std::endl;
 
-            // model.original.describe(std::cout);
-            // std::cout << std::endl;
-            // g.describe(std::cout);
-            // std::cout << std::endl;
+            model.original.describe(std::cout);
+            std::cout << std::endl;
+            g.describe(std::cout);
+            std::cout << std::endl;
 
             minicsp::Solver s;
 
@@ -1428,20 +1485,40 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
             statistics.binds(model.cons);
 
-            auto ncol{model.find_solution(s, g)};
-
-            if (ncol < model.ub) {
-                model.ub = ncol;
-
-                statistics.notify_ub(model.ub);
-                // statistics.notify_lb(model.lb);
-                statistics.display(std::cout);
+						int nub{model.ub}, nlb{model.lb};
+            auto solution_found{false};
+            if (options.idsaturlimit == 0) {
+                solution_found = model.find_solution(s, g, nlb, nub);
+            } else {
+                solution_found = model.solve(s, g, nlb, nub, -1, false);
             }
+
+            model.lb = std::max(nlb, model.lb);
+            statistics.notify_lb(model.lb);
+
+            if (solution_found) {
+                // auto solub = model.cons->ub;
+
+                std::cout << "[trace] " << limit
+                          << " SAT: " << model.cons->bestlb << ".." << nub;
+
+                auto actualub{model.dsat_extend(model.original)};
+
+                std::cout << ".." << actualub << std::endl;
+
+                if (actualub < model.ub) {
+                    model.ub = actualub;
+                    statistics.notify_ub(model.ub);
+                }
+            }
+
+            statistics.display(std::cout);
 
             if (g.size() == model.original.size())
                 break;
 
-            // if(--limit == 0) break;
+            if (--limit == 0)
+                break;
         }
 
         // std::cout << col.core.size() << std::endl;
@@ -1609,8 +1686,9 @@ int color(gc::options& options, gc::graph<input_format>& g)
                 if (options.dsatur) {
                     tmp_model.solve_with_dsatur();
                 } else {
-                    tmp_model.solve(
-                        tmp_model.solver, tmp_model.final, init_model.ub);
+                    tmp_model.solve(init_model.ub);
+                    // tmp_model.solve(
+                    //     tmp_model.solver, tmp_model.final, init_model.ub);
                 }
             }
 
@@ -1855,8 +1933,11 @@ int color(gc::options& options, gc::graph<input_format>& g)
         std::cout << " tmp_model (and its preprocessing) OK \n";
 
         if (tmp_model.ub > tmp_model.lb and tmp_model.final.size() > 0)
-            tmp_model.solve(tmp_model.solver, tmp_model.final,
+            tmp_model.solve(
                 init_model.ub); // Maybe check if tmp_model.ub < init_model.ub
+
+        // tmp_model.solve(tmp_model.solver, tmp_model.final,
+        //     init_model.ub); // Maybe check if tmp_model.ub < init_model.ub
 
         std::cout << "[search] tmp: [" << tmp_model.lb << "..";
         if (tmp_model.ub < init_model.ub)

@@ -205,7 +205,7 @@ struct dsatur {
 
     template <class graph_struct, class RandomIt>
     int brelaz_color_guided(graph_struct& g, const int ub, RandomIt beg,
-        RandomIt stop, std::vector<int> coloring, const int limit = 1,
+        RandomIt stop, std::vector<int>& coloring, const int limit = 1,
         const int seed = 1)
     {
 
@@ -236,10 +236,6 @@ struct dsatur {
 
             ncolor.push_back(numcolors);
 
-            // std::cout << *first << " <- " << c << std::endl;
-
-            // assert(*first == v);
-
             color[v] = c;
 
             // update the saturation degree of x's neighbors
@@ -251,9 +247,6 @@ struct dsatur {
 
             ++first;
 
-            // for(auto j{begin(order)}; j!=end(order); ++j) {
-            // 	assert(rank[*j] == j);
-            // }
         }
 
         std::sort(first, end(order), [&](const int x_, const int y_) {
@@ -323,9 +316,6 @@ struct dsatur {
         for (auto vptr{start}; vptr != end(order); ++vptr)
             rank[*vptr] = vptr;
 
-        // last_vertex.resize(ub + 1, start);
-        // *begin(last_vertex) = end(order);
-
         std::vector<int>::iterator candidate{start};
 
         while (candidate != end(order)) {
@@ -371,6 +361,9 @@ struct dsatur {
                 color[*candidate] = c;
                 // get_core(g, numcolors);
 
+                std::cout << " [fail short of " << (end(order) - candidate)
+                          << " assignments] ";
+
                 return g.size();
             }
 
@@ -387,14 +380,6 @@ struct dsatur {
 
             ++candidate;
         }
-
-        assert(ncolor.size() == order.size());
-        for (int i = 0; i < ncolor.size(); ++i) {
-            assert(ncolor[i] >= 0);
-            assert(rank[order[i]] == begin(order) + i);
-        }
-
-        // get_core(g, numcolors);
 
         return numcolors;
     }
@@ -416,7 +401,8 @@ struct dsatur {
     }
 
     template <class graph_struct>
-    void get_core(graph_struct& g, const gc::options::core_type t)
+    void get_core(graph_struct& g, const gc::options::core_type t, const int lb,
+        const int ub)
     {
 
         // std::cout << "END DSATUR " << numcolors << std::endl;
@@ -430,6 +416,14 @@ struct dsatur {
         core.clear();
         if (t == gc::options::core_type::ALL) {
             copy(order.begin(), frontier + 1, back_inserter(core));
+        } else if (t == gc::options::core_type::LB) {
+            for (int i = 0; i < order.size(); ++i) {
+                std::cout << " " << ncolor[i];
+                core.push_back(order[i]);
+                if (ncolor[i] > lb)
+                    break;
+            }
+            std::cout << std::endl;
         } else {
 
             core.reserve(g.size());
