@@ -109,8 +109,6 @@ struct options {
 
     std::string format;
 
-    int verbosity;
-
     bool checksolution;
     bool printsolution;
 
@@ -135,6 +133,14 @@ struct options {
     int samplebase;
 
     int probewidth;
+
+    enum core_type { ALL, WITNESS, LOWER, LB };
+    core_type core;
+
+    int idsaturlimit;
+
+    enum verbosity { SILENT = 0, QUIET, NORMAL, YACKING, SOLVERINFO };
+    int verbosity;
 };
 
 options parse(int argc, char* argv[]);

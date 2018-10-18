@@ -128,8 +128,6 @@ options parse(int argc, char* argv[])
         "compute IS-based lower bound", false);
     cmd.add<ValueArg<std::string>>(opt.format, "", "format",
         "File format", false, "dimacs", "string");
-    cmd.add<ValueArg<int>>(
-        opt.verbosity, "", "verbosity", "Verbosity level", false, 0, "int");
     cmd.add<SwitchArg>(
         opt.checksolution, "", "checksolution", "checks the coloring", false);
     cmd.add<SwitchArg>(
@@ -160,6 +158,14 @@ options parse(int argc, char* argv[])
         "int");
     cmd.add<ValueArg<int>>(opt.probewidth, "", "probewidth",
         "size of the max probe width (default = 64)", false, 64, "int");
+    cmd.add<ValueArg<int>>(opt.core, "", "core",
+        "Core type []",
+        false, 0, "int");
+    cmd.add<ValueArg<int>>(opt.idsaturlimit, "", "idsaturlimit",
+        "solve limit in idsatur", false, 0, "int");
+    cmd.add<ValueArg<int>>(opt.verbosity, "", "verbosity",
+        "verbosity level (0:silent,1:quiet,2:improvements only,3:verbose",
+        false, 2, "int");
 
     cmd.parse(argc, argv);
     return opt;
