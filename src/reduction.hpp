@@ -17,6 +17,7 @@ enum class vertex_status : uint8_t {
     low_degree_removed,
     indset_removed,
     dominated_removed,
+	dsatur_removed,
 };
 
 template <class adjacency_struct> struct graph_reduction {
@@ -61,10 +62,12 @@ template <class adjacency_struct> struct graph_reduction {
             maxc = std::max(maxc, col[v]);
 
         auto d{dominator.rbegin()};
-				
-				
-				// std::cout << "\n |removed| = " << removed_vertices.size() << " " << nodeset << std::endl;
-				
+
+        // std::cout << "maxc = " << maxc << std::endl;
+        //
+        // std::cout << "\n |removed| = " << removed_vertices.size() << " "
+        //           << nodeset.size() << " " << nodeset << std::endl;
+
         for (auto i = removed_vertices.rbegin(), iend = removed_vertices.rend();
              i != iend; ++i) {
             auto v = *i;
@@ -75,9 +78,10 @@ template <class adjacency_struct> struct graph_reduction {
             if (status[v] == vertex_status::dominated_removed) {
                 assert(nodeset.fast_contain(*d));
                 col[v] = col[*d];
-								
-								// std::cout << "col[" << v << "] <- col[" << (*d) << "] = " << col[v] << std::endl;
-								
+
+                std::cout << "col[" << v << "] <- col[" << (*d)
+                          << "] = " << col[v] << std::endl;
+
                 ++d;
             }
 
@@ -94,17 +98,7 @@ template <class adjacency_struct> struct graph_reduction {
             maxc = std::max(maxc, q);
             col[v] = q;
 
-            // for (int q = 0; q != g.capacity(); ++q) {
-            //     if (util_set.fast_contain(q))
-            //         continue;
-            //     // assert(q <= statistics.best_ub);
-            //     maxc = std::max(maxc, q);
-            //     col[v] = q;
-            //
-            //     // std::cout << "col[" << v << "] = " << col[v] << std::endl;
-            //
-            //     break;
-            // }
+            std::cout << "col[" << v << "] = " << col[v] << std::endl;
             nodeset.fast_add(v);
         }
 

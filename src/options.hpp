@@ -83,7 +83,16 @@ struct options {
 
     int cliquelimit;
 
-    enum solution_strategy { BNB, BOTTOMUP, TOPDOWN, BOUNDS, CLEVER, COLOR };
+    enum solution_strategy {
+        BNB,
+        BOTTOMUP,
+        TOPDOWN,
+        BOUNDS,
+        CLEVER,
+        COLOR,
+        TEST,
+        IDSATUR
+    };
     solution_strategy strategy;
 
     enum preprocessing_types { NO_PREPROCESSING, LOW_DEGREE, FULL };
