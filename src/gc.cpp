@@ -371,6 +371,10 @@ struct gc_model {
             col.clear();
             int niter{options.sdsaturiter};
             do {
+                if (options.verbosity >= gc::options::YACKING) {
+                    std::cout << ".";
+                    std::cout.flush();
+                }
                 auto ncol{col.brelaz_color(original, ub - 1,
                     (1 << (options.sdsaturiter + 1 - niter)), 12345 + niter)};
 
@@ -392,8 +396,11 @@ struct gc_model {
                         ub = actualncol;
                         statistics.notify_ub(ub);
 
-                        if (options.verbosity >= gc::options::NORMAL)
+                        if (options.verbosity >= gc::options::NORMAL) {
+                            if (options.verbosity >= gc::options::YACKING)
+                                std::cout << std::endl;
                             statistics.display(std::cout);
+                        }
 
                         // auto n_rel{1 + col.frontier - begin(col.order)};
 
@@ -405,6 +412,8 @@ struct gc_model {
                 	col.clear();
             } while (niter > 0);
         }
+        if (options.verbosity >= gc::options::YACKING)
+            std::cout << std::endl;
     }
 
     bool peeling(
@@ -1298,7 +1307,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
 {
     options.describe(std::cout);
 
-    if (options.verbosity >= gc::options::YACKING)
+    if (options.verbosity >= gc::options::NORMAL)
         std::cout << "[reading] ";
 
     std::vector<std::pair<int, int>> edges;
@@ -1366,7 +1375,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
         }
     }
 
-    if (options.verbosity >= gc::options::YACKING) {
+    if (options.verbosity >= gc::options::NORMAL) {
         g.describe(std::cout, num_edges);
         std::cout << " at " << minicsp::cpuTime() << std::endl;
     }
