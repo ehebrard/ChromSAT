@@ -246,6 +246,11 @@ struct dsatur {
             rank[v] = first;
 
             auto c{coloring[v]};
+
+            // std::cout << c << " " << color_map.size() << " " << ub <<
+            // std::endl;
+            assert(c < color_map.size());
+
             if (color_map[c] < 0) {
                 color_map[c] = numcolors++;
             }

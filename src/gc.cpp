@@ -1412,8 +1412,8 @@ int color(gc::options& options, gc::graph<input_format>& g)
         options.ddsaturiter = 0;
         gc_model<input_format> model(g, options, statistics, bounds, sol);
 
-        // model.original.describe(std::cout);
-        // std::cout << std::endl;
+        model.original.describe(std::cout);
+        std::cout << std::endl;
 
         int limit{-1};
 
@@ -1422,7 +1422,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
             statistics.binds(NULL);
             // model.cons = NULL;
 
-            // std::cout << "model.lb: " << model.lb << std::endl;
+            std::cout << "model.lb: " << model.lb << " / model.ub: " << model.ub << std::endl;
             gc::dense_graph g{model.dsatur_reduced()};
 
             minicsp::Solver s;
@@ -1441,14 +1441,17 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
             model.lb = std::max(nlb, model.lb);
             statistics.notify_lb(model.lb);
-
-            if (solution_found) {
+						
+						
+						// we need to check lb < ub because the solution is already extended in 
+            if (solution_found and model.lb < model.ub) { 
                 // auto solub = model.cons->ub;
 
                 if (options.verbosity >= gc::options::YACKING)
                     std::cout << "[trace] " << limit
                               << " SAT: " << model.cons->bestlb << ".." << nub;
 
+								// std::cout << "DSAT EXTEND UB = " << model.ub << std::endl;
                 auto actualub{model.dsat_extend(model.original)};
 
                 if (options.verbosity >= gc::options::YACKING)
