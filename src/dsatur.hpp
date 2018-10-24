@@ -178,7 +178,8 @@ struct dsatur {
 // std::cout << " recolor " << w << " <- " << a << " to free up " << b <<
 // std::endl;
 // for(auto z{begin(order)}; z!=rx; ++z) {
-// 	std::cout << std::setw(3) << *z << " " << std::setw(3) << color[*z] << "
+// 	std::cout << std::std::setw(3) << *z << " " << std::std::setw(3) <<
+// color[*z] << "
 // [" ;
 // 	for(auto colz{0}; colz<=col; ++colz) {
 // 		if(neighbor_colors[*z].contain(colz)) {
@@ -247,6 +248,8 @@ struct dsatur {
 
             auto c{coloring[v]};
 
+            // std::cout << " " << v << ":" << c;
+
             // std::cout << c << " " << color_map.size() << " " << ub <<
             // std::endl;
             assert(c < color_map.size());
@@ -271,6 +274,16 @@ struct dsatur {
 
         }
 
+        // std::cout << "GUIDE";
+        // for (auto it{beg}; it != stop; ++it) {
+        //     std::cout << " " << std::setw(3) << (*it);
+        // }
+        // std::cout << "\nCOLOR";
+        // for (auto it{beg}; it != stop; ++it) {
+        //     std::cout << " " << std::setw(3) << color_map[coloring[*it]];
+        // }
+        // std::cout << "\n";
+
         std::sort(first, end(order), [&](const int x_, const int y_) {
             return (neighbor_colors[x_].size() > neighbor_colors[y_].size()
                 or (neighbor_colors[x_].size() == neighbor_colors[y_].size()
@@ -290,7 +303,7 @@ struct dsatur {
                 last_vertex[d++] = it + 1;
         }
 
-        auto ncol{brelaz_greedy(g, ub, first, limit, false)};
+        auto ncol{brelaz_greedy(g, ub, first, limit, true)};
 
         for (auto v : g.nodes) {
             coloring[v] = color[v];
@@ -440,20 +453,58 @@ struct dsatur {
         if (t == gc::options::core_type::ALL) {
             copy(order.begin(), frontier + 1, back_inserter(core));
         } else if (t == gc::options::core_type::LB) {
-					// int num_colors = 0;
+            // int num_colors = 0;
+            //
+            // std::cout << "LCORE";
+            // for (int i = 0; i < order.size(); ++i) {
+            //     std::cout << " " << std::setw(3)
+            //               << order[i];
+            //     if (ncolor[i] > lb)
+            //         break;
+            // }
+            // std::cout << "\nCOLOR";
+            // for (int i = 0; i < order.size(); ++i) {
+            //     std::cout << " " << std::setw(3)
+            //               << color[order[i]];
+            //     if (ncolor[i] > lb)
+            //         break;
+            // }
+            // std::cout << "\nN_COL";
+            // for (int i = 0; i < order.size(); ++i) {
+            //     std::cout << " " << std::setw(3)
+            //               << ncolor[i];
+            //     if (ncolor[i] > lb)
+            //         break;
+            // }
+            // std::cout << "\n";
+
             for (int i = 0; i < order.size(); ++i) {
-							// std::cout << std::setw(3) << order[i] << " " << std::setw(3) << color[order[i]] << " " << std::setw(3) << ncolor[i] << std::endl;
-								
+                // std::cout << std::std::setw(3) <<
+                // order[i] << " " <<
+                // std::std::setw(3) <<
+                // color[order[i]] << " " <<
+                // std::std::setw(3) << ncolor[i] <<
+                // std::endl;
+
                 core.push_back(order[i]);
-								
-								// if(color_witness[color[order[i]]] < 0)
-								// 	color_witness[color[order[i]]] = num_colors++;
-								//
-								// if(num_colors > lb)
-								// 	break;
+
+                // std::cout << " " << order[i] <<
+                // ":" << color[order[i]] ; //<< " "
+                // << ncolor[i];
+
+                // if(color_witness[color[order[i]]]
+                // < 0)
+                // 	color_witness[color[order[i]]] =
+                // num_colors++;
+                //
+                // if(num_colors > lb)
+                // 	break;
                 if (ncolor[i] > lb)
                     break;
             }
+
+            // std::cout << std::endl;
+
             // std::cout << std::endl;
         } else {
 

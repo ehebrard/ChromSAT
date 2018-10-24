@@ -73,18 +73,18 @@ void statistics::notify_bound_delta(const int b1, const int b2)
 
 void statistics::notify_lb(const int l) 
 {
-		if(best_lb < l) {
-				best_lb = l;
-				changed = true;
-		}
+    if (best_lb < l) {
+        best_lb = l;
+        changed = true;
+    }
 }
 
 void statistics::notify_ub(const int u) 
 {
-		if(best_ub > u) {
-				best_ub = u;
-				changed = true;
-		}
+    if (best_ub > u) {
+        best_ub = u;
+        changed = true;
+    }
 }
 
 void statistics::notify_removals(const int n)
