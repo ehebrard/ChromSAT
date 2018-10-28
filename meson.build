@@ -3,6 +3,7 @@ project('gc', ['c', 'cpp'],
 compiler = meson.get_compiler('cpp')
 
 basic_lib = static_library('basic', ['src/intstack.cpp',
+						 'src/sparseset.cpp',
 				     'src/options.cpp',
 				     'src/vertices_vec.cpp',
 						 'src/interval_list.cpp',

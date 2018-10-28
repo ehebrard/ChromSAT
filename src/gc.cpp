@@ -488,7 +488,7 @@ struct gc_model {
             degeneracy_sol = true;
 
             assert(maxc <= df.degeneracy + 1);
-            assert(maxc >= lb);
+            // assert(maxc >= lb);
 
             ub = maxc;
             // if (ub_safe) {
@@ -544,8 +544,8 @@ struct gc_model {
     void minimal_core(gc::graph_reduction<adjacency_struct>& gr,
         const int k_core_threshold, const int size_threshold)
     {
-        // std::cout << "[search] search for minimal core (n=" << size_threshold
-        // << ", k=" << k_core_threshold << ")\n";
+        std::cout << "[search] search for minimal core (n=" << size_threshold
+                  << ", k=" << k_core_threshold << ")\n";
 
         auto vi{end(df.order)};
         bool is_k_core{false};
@@ -1627,7 +1627,33 @@ int color(gc::options& options, gc::graph<input_format>& g)
     } break;
     case gc::options::TOPDOWN: {
 
-        std::cout << "NOT IMPLEMENTED!\n";
+        std::pair<int, int> bounds{1, g.size()};
+
+        options.strategy = gc::options::BOUNDS; // so that we don't create the
+        // dense graph yet
+        options.ddsaturiter = 0;
+        gc_model<input_format> model(g, options, statistics, bounds, sol);
+
+        // std::cout << model.lb << ".." << model.ub << std::endl;
+
+        model.col.local_search(model.original);
+
+        exit(1);
+
+        model.col.full = true;
+
+        for (int i = 0; i < options.idsaturlimit and model.lb < model.ub; ++i) {
+            model.col.clear();
+            model.ub = std::min(
+                model.ub, model.col.brelaz_color(model.original, model.ub - 1,
+                              (1 << (i + 1)), 12345 + i));
+
+            statistics.notify_ub(model.ub);
+            if (options.verbosity >= gc::options::NORMAL)
+                statistics.display(std::cout);
+
+            // std::cout << model.lb << ".." << model.ub << std::endl;
+        }
 
     } break;
     case gc::options::CLEVER: {

@@ -3,17 +3,22 @@
 
 #include <vector>
 
-#ifndef __INTSTACK_HPP
-#define __INTSTACK_HPP
+#ifndef __SPARSESET_HPP
+#define __SPARSESET_HPP
 
 /**********************************************
- * intstack
+ * sparseset
  **********************************************/
 /// Sparse set representation
 
-class intstack
+#define NOINDEX 0xfffffff
+
+class sparseset
 {
-private:
+
+public:
+    // static const size_t NOVAL{0xfffffff};
+
     /*!@name Parameters*/
     //@{
     /// list of values
@@ -21,16 +26,18 @@ private:
     size_t size_;
 
     /// values' indices
-    std::vector<size_t> index_;
+    std::vector<size_t>* index_;
     //@}
 
-public:
     /*!@name Constructors*/
     //@{
-    explicit intstack(const size_t n = 0);
-    explicit intstack(std::vector<size_t>& common);
+    explicit sparseset();
+    void binds(std::vector<size_t>* index);
 
-    void reserve(const size_t n);
+    //     explicit sparseset(std::vector<size_t> *i, const size_t n);
+    // explicit sparseset(sparseset& s);
+    //
+    //     void reserve(const size_t n);
 
     /*!@name Accessors*/
     //@{
@@ -98,6 +105,6 @@ public:
     std::ostream& display(std::ostream& os) const;
 };
 
-std::ostream& operator<<(std::ostream& os, const intstack& x);
+std::ostream& operator<<(std::ostream& os, const sparseset& x);
 
-#endif // __INTSTACK_HPP
+#endif // __SPARSESET_HPP
