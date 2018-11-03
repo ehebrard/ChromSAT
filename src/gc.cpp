@@ -1636,7 +1636,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
         // std::cout << model.lb << ".." << model.ub << std::endl;
 
-        model.col.local_search(model.original);
+        model.col.local_search(model.original, model.solution, statistics);
 
         exit(1);
 

@@ -11,6 +11,8 @@
  **********************************************/
 /// Sparse set representation
 
+#define NOTIN 0xfffffff
+
 class partition
 {
 private:
@@ -26,18 +28,20 @@ public:
 
     /*!@name Constructors*/
     //@{
-    explicit partition(const size_t n = 0, const size_t m = 1);
+    explicit partition();
 
-    void resize(const size_t n);
+    void resize(const size_t n, const size_t m);
 
-		size_t size();
-		
-		/*!@name List Manipulation*/
+    int size();
+
+    const std::vector<int>& operator[](const int i) const;
+
+    /*!@name List Manipulation*/
     //@{
     void move(const int elt, const int from, const int to);
-		void add(const int elt, const int to);
-		void swap(const int a, const int b);
-		void remove(const int a);
+    void add_elt(const int elt, const int to);
+    void swap(const int a, const int b);
+    void remove(const int a);
     //@}
 
     /*!@name Miscellaneous*/

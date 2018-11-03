@@ -2,21 +2,15 @@
 
 #include "graph.hpp"
 #include "options.hpp"
-#include "sparseset.hpp"
+#include "partition.hpp"
 
 #ifndef __DSATUR_HPP
 #define __DSATUR_HPP
 
-#define _DEBUG_DSATUR
+// #define _DEBUG_DSATUR
 
 namespace gc
 {
-
-// enum class core_type : uint8_t {
-//     all,
-//     witness,
-//     lower,
-// };
 
 struct colvector {
 
@@ -31,6 +25,8 @@ struct colvector {
     {
         size_ = 0;
     }
+
+    void resize(const size_t s) { b.resize(s, 0); }
 
     bool add(const int x)
     {
@@ -127,14 +123,15 @@ struct dsatur {
     bool full{false};
     bool use_recolor{true};
 
-    std::vector<size_t> bag_idx;
-    std::vector<sparseset> color_bag;
+    // std::vector<size_t> bag_idx;
+    // std::vector<sparseset> color_bag;
+    partition color_bag;
 
-    void swap_colors(const int a, const int b)
-    {
-        std::swap(color_bag[a].list_, color_bag[b].list_);
-        std::swap(color_bag[a].size_, color_bag[b].size_);
-    }
+    // void swap_colors(const int a, const int b)
+    // {
+    //     std::swap(color_bag[a].list_, color_bag[b].list_);
+    //     std::swap(color_bag[a].size_, color_bag[b].size_);
+    // }
 
     std::vector<int> first_of_color;
     std::vector<int> col_bag;
@@ -304,16 +301,6 @@ struct dsatur {
 
         }
 
-        // std::cout << "GUIDE";
-        // for (auto it{beg}; it != stop; ++it) {
-        //     std::cout << " " << std::setw(3) << (*it);
-        // }
-        // std::cout << "\nCOLOR";
-        // for (auto it{beg}; it != stop; ++it) {
-        //     std::cout << " " << std::setw(3) << color_map[coloring[*it]];
-        // }
-        // std::cout << "\n";
-
         std::sort(first, end(order), [&](const int x_, const int y_) {
             return (neighbor_colors[x_].size() > neighbor_colors[y_].size()
                 or (neighbor_colors[x_].size() == neighbor_colors[y_].size()
@@ -347,6 +334,9 @@ struct dsatur {
     void brelaz_init(
         graph_struct& g, const int ub, const int limit, const int seed)
     {
+
+        // std::cout << "INIT (" << ub << ")\n";
+
         numcolors = 0;
         rank.resize(g.capacity());
         color.resize(g.capacity(), -1);
@@ -367,6 +357,7 @@ struct dsatur {
 
         neighbor_colors.resize(g.capacity(), colvector(ub));
 
+        // std::cout << (ub + 1) << std::endl;
         last_vertex.resize(ub + 1, begin(order));
         *begin(last_vertex) = end(order);
     }
@@ -375,7 +366,6 @@ struct dsatur {
     int brelaz_greedy(graph_struct& g, const int ub,
         std::vector<int>::iterator start, const int limit)
     {
-        std::cout << "DSATUR\n";
 
         int c, d;
 
@@ -421,6 +411,9 @@ struct dsatur {
 
             if (numcolors > ub) {
                 color[*candidate] = c;
+
+                // std::cout << "CANNOT IMPROVE ON " << (ub + 1) << std::endl;
+
                 return g.size();
             }
 
@@ -439,108 +432,9 @@ struct dsatur {
             ++candidate;
         }
 
-        //        for (auto it{rbegin(order)}; it != rend(order); ++it) {
-        //             auto v{*it};
-        //
-        //
-        // std::cout << "update " << v << std::endl;
-        //
-        //             // for (auto u : g.matrix[v]) {
-        //             //     if (rank[u] < rank[v]) {
-        //             //         neighbor_colors[u].add(color[v]);
-        //             //     }
-        //             // }
-        //         }
-
         return numcolors;
     }
 
-    //     template <class graph_struct>
-    //     int brelaz_greedy(graph_struct& g, const int ub,
-    //         std::vector<int>::iterator start, const int limit)
-    //     {
-    //
-    //         int c, d;
-    //
-    //         for (auto vptr{start}; vptr != end(order); ++vptr)
-    //             rank[*vptr] = vptr;
-    //
-    //         std::vector<int>::iterator candidate{start};
-    //
-    //         while (candidate != end(order)) {
-    //
-    // 						check_full_consistency(g);
-    // #ifdef _DEBUG_DSATUR
-    //             check_consistency(g);
-    // #endif
-    //
-    // 						assert(color[*candidate] < 0);
-    //
-    //             // get the highest saturation degree
-    //             d = neighbor_colors[*candidate].size();
-    //
-    //             if (limit > 1) {
-    //                 auto best{std::max_element(candidate,
-    //                     std::min(last_vertex[d], candidate + limit),
-    //                     [&](const int x_, const int y_) {
-    //                         return (degree[x_] < degree[y_]);
-    //                     })};
-    //                 std::swap(
-    //                     rank[*best], rank[*candidate]); // not sure this is
-    //                     useful
-    //                 std::swap(*best, *candidate);
-    //             }
-    //
-    //             // use the first possible color for x
-    //             c = neighbor_colors[*candidate].get_first_allowed();
-    //
-    //             if (c == numcolors) {
-    //                 if (!use_recolor or (last_vertex[d] - last_vertex[d + 1])
-    //                 > 2
-    //                     or !recolor(g, *candidate, c)) {
-    //                     ++numcolors;
-    //                     frontier = candidate;
-    //                 } else {
-    //                     --d;
-    //                 }
-    //             }
-    //
-    //             ncolor.push_back(numcolors);
-    //
-    //             if (numcolors > ub) {
-    //                 color[*candidate] = c;
-    //                 return g.size();
-    //             }
-    //
-    //             // // move all the pointers >= d
-    //             // while (++d < last_vertex.size())
-    //             //     ++last_vertex[d];
-    //
-    //
-    // 						assert(color[*candidate] < 0);
-    //
-    //             assign_color(g, *candidate, c);
-    // 						std::cout << "vertex " <<
-    // *candidate
-    // <<
-    // "
-    // <-
-    // "
-    // <<
-    // c
-    // <<
-    // std::endl;
-    //
-    //             // update degrees
-    //             if (limit > 1)
-    //                 for (auto y : g.matrix[*candidate])
-    //                     --degree[y];
-    //
-    //             ++candidate;
-    //         }
-    //
-    //         return numcolors;
-    //     }
 
     template <class graph_struct>
     int brelaz_color(
@@ -657,10 +551,6 @@ struct dsatur {
     {
         color[x] = c;
 
-        // #ifdef _DEBUG_DSATUR
-        //         std::cout << "assigns " << c << " to " << x << "\n";
-        // #endif
-
         // update the saturation degree of x's neighbors
         for (auto y : g.matrix[x])
             if (color[y] < 0 or full) {
@@ -676,11 +566,6 @@ struct dsatur {
     template <class graph_struct>
     void unassign_color(graph_struct& g, const int x, const int c)
     {
-
-        // #ifdef _DEBUG_DSATUR
-        //         std::cout << "unassigns " << x << " (" << c << ")\n";
-        // #endif
-
         color[x] = -1;
 
         // update the saturation degree of x's neighbors
@@ -692,15 +577,12 @@ struct dsatur {
                     move_down(y, neighbor_colors[y].size() + 1);
                 }
             }
-        // else
-        //                 assert(color[y] != c);
     }
 
     template <class graph_struct>
     void re_assign(graph_struct& g, const int x, const int c)
     {
-        color_bag[color[x]].remove(x);
-        color_bag[c].add(x);
+        color_bag.move(x, color[x], c);
 
         unassign_color(g, x, color[x]);
         assign_color(g, x, c);
@@ -742,23 +624,34 @@ struct dsatur {
             neighbor_colors[v].clear();
         order.clear();
         ncolor.clear();
-
-        std::cout << "CLEAR\n";
     }
 
-    template <class graph_struct> void init_local_search(graph_struct& g)
+    template <class graph_struct>
+    void init_local_search(graph_struct& g, std::vector<int>& isol)
     {
         full = true;
 
-        if (use_recolor)
-            for (auto v : order)
+        auto colored{true};
+        for (auto it{rbegin(order)}; colored and it != rend(order); ++it)
+            colored = (color[*it] >= 0);
+
+				int ub{0};
+        for (auto v : order) {
+            color[v] = isol[v];
+						ub = std::max(ub, color[v]);
+        }
+				++ub;
+        if (use_recolor or !colored)
+            for (auto v : order) {
+								neighbor_colors[v].resize(ub);
                 neighbor_colors[v].clear();
+						}
 
         // update the color neighborhood ()
         for (auto it{rbegin(order)}; it != rend(order); ++it) {
             auto v{*it};
             for (auto u : g.matrix[v]) {
-                if (rank[u] < rank[v] or use_recolor) {
+                if (rank[u] < rank[v] or use_recolor or !colored) {
                     neighbor_colors[u].add(color[v]);
                 }
             }
@@ -771,13 +664,24 @@ struct dsatur {
                        and degree[x_] > degree[y_]));
         });
 
+        // for (auto v : order)
+        // std::cout << v << " " << color[v] << " " << degree[v] <<
+        // neighbor_colors[v] << std::endl;
+
         for (auto vptr{begin(order)}; vptr != end(order); ++vptr)
             rank[*vptr] = vptr;
 
-        auto d{last_vertex.size()};
+        // std::cout << "size = " << last_vertex.size() << std::endl;
+
+				last_vertex.resize(ub + 1);
+        auto d{last_vertex.size() - 1};
         for (auto it{begin(order)}; it != end(order); ++it) {
             auto v{*it};
-            while (d and neighbor_colors[v].size() < d) {
+            // std::cout << "v = " << v << std::endl;
+            while (d > 0 and neighbor_colors[v].size() < d) {
+
+                // std::cout << "d = " << d << std::endl;
+
                 last_vertex[d--] = it;
             }
         }
@@ -788,41 +692,44 @@ struct dsatur {
         visited.initialise(0, g.capacity() - 1, gc::bitset::empt);
         prev.resize(g.capacity(), -1);
 
-        color_bag.resize(numcolors);
+        color_bag.resize(g.capacity(), numcolors);
         // std::vector<size_t> idx(order.size(), sparseset::NOVAL);
-        bag_idx.resize(order.size(), NOINDEX);
+        // bag_idx.resize(order.size(), NOINDEX);
         // std::vector<sparseset> bags(numcolors);
-        for (auto it{begin(color_bag)}; it != end(color_bag); ++it)
-            it->binds(&bag_idx);
+        // for (auto it{begin(color_bag)}; it != end(color_bag); ++it)
+        //     it->binds(&bag_idx);
 
         for (auto it{begin(order)}; it != end(order); ++it) {
-            bags[color[*it]].add(*it);
+            assert(color[*it] >= 0);
+            color_bag.add_elt(*it, color[*it]);
         }
+
+        // std::cout << color_bag << std::endl;
     }
 
-    template <class graph_struct> void percolate(graph_struct& g)
-    {
-        compute_color_bags();
-        for (auto r{begin(col_bag)}; r != end(col_bag); ++r) {
-            auto v{*r};
-            auto c{color[v]};
-            auto b{neighbor_colors[v].get_first_allowed()};
-            if (b < c) {
-                unassign_color(g, v, c);
-                assign_color(g, v, b);
-            }
-        }
-        compute_color_bags();
-    }
+    // template <class graph_struct> void percolate(graph_struct& g)
+    // {
+    //     compute_color_bags();
+    //     for (auto r{begin(col_bag)}; r != end(col_bag); ++r) {
+    //         auto v{*r};
+    //         auto c{color[v]};
+    //         auto b{neighbor_colors[v].get_first_allowed()};
+    //         if (b < c) {
+    //             unassign_color(g, v, c);
+    //             assign_color(g, v, b);
+    //         }
+    //     }
+    //     compute_color_bags();
+    // }
 
     // explore randomly a path from x
-    template <class graph_struct> bool randpath(graph_struct& g, const int x)
+    template <class graph_struct>
+    bool randpath_out(
+        graph_struct& g, const int x, const int taboo, const int depth_limit)
     {
-
         // check_full_consistency(g);
-
         single.clear();
-        single.resize(numcolors, -1);
+        single.resize(color_bag.size(), -1);
         for (auto y : g.matrix[x]) {
             if (single[color[y]] == -1)
                 single[color[y]] = y;
@@ -833,36 +740,29 @@ struct dsatur {
 
         auto success{-1};
         stack.clear();
-        for (int b{0}; b < numcolors and success < 0; ++b)
-            // if (b == numcolors - 1 and single[b] == -1)
-            if (single[b] >= 0)
+        for (int b{0}; b < color_bag.size() and success < 0; ++b)
+            if (single[b] >= 0 
+							// and (!visited.fast_contain(single[b]) or prev[single[b]] != x)
+								)
                 stack.push_back(single[b]);
-            else if (single[b] == -1 and b < numcolors - 1)
+            else if (single[b] == -1 and b != taboo)
                 success = b;
+						
+						// assert(depth_limit > 0);
+							
 
-        if (stack.size() == 0) {
-            // auto y{x};
-
-            // std::cout << " -> :(\n";
-
+        if (stack.size() == 0 or depth_limit == 0) {
             while (trail.size() > 0) {
-
                 auto y{trail.back()};
                 trail.pop_back();
-
-                // std::cout << "unroll " << y << " <- " << trail.back()
-                //           << std::endl;
-
                 re_assign(g, y, trail.back());
                 trail.pop_back();
-                // y = prev[y];
             }
 
             return false;
 
         } else if (success >= 0) {
             re_assign(g, x, success);
-            // std::cout << " -> " << success << "!\n";
             trail.clear();
             return true;
 
@@ -879,13 +779,10 @@ struct dsatur {
             auto y{stack[r]};
             auto c{color[y]};
             re_assign(g, x, c);
-            // std::cout << " -> (" << r << "|" << stack.size() << ") " << y <<
-            // ":"
-            //           << c;
 
             prev[y] = x;
 
-            return randpath(g, y);
+            return randpath_out(g, y, taboo, depth_limit - 1);
         }
     }
 
@@ -893,8 +790,13 @@ struct dsatur {
     template <class graph_struct>
     bool findpath_out(graph_struct& g, const int col)
     {
-        trail.clear();
-        visited.clear();
+			
+			// check_full_consistency(g);
+			
+        assert(trail.size() == 0);
+        assert(visited.empty());
+        assert(stack.size() == 1);
+
         for (auto x : stack) {
             visited.fast_add(x);
             prev[x] = x;
@@ -904,55 +806,56 @@ struct dsatur {
             auto x = stack.back();
             stack.pop_back();
 
+						// std::cout << "backtrack\n";
+            // unroll that branch
+            while (trail.size() > 0 and trail.back() != prev[prev[x]]) {
+                auto p{trail.back()};
+                trail.pop_back();
+                auto c{trail.back()};
+                trail.pop_back();
+                re_assign(g, p, c);
+            }
+						// std::cout << "ok\n";
+						
+						// std::cout << "[";
+						// for(int i=0; i<trail.size(); i+=2)
+						// 	std::cout << " " << trail[i+1] << ":" << trail[i];
+						// std::cout << " ] - " << x << " |";
+						// for(auto x_ : stack)
+						// std::cout << " " << x_ ;
+						// 	std::cout << std::endl;
+
+
             if (neighbor_colors[x].size() - neighbor_colors[x].contain(col)
-                < numcolors - 2) {
+                < color_bag.size() - 2) {
+									// std::cout << "success\n";
+									
                 auto a{neighbor_colors[x].get_first_allowed()};
                 while (a == col or a == color[x])
                     a = neighbor_colors[x].get_first_allowed(a);
                 assert(a != col);
                 assert(a != color[x]);
+                re_assign(g, prev[x], color[x]);
 
-                if (x != prev[x])
-                    re_assign(g, prev[x], color[x]);
                 re_assign(g, x, a);
+                trail.clear();
+                visited.clear();
+								// std::cout << "ok\n";
 
                 return true;
             }
 
-            // unroll that branch
-            while (trail.size() > 0 and trail.back() != prev[prev[x]]) {
-                auto p{trail.back()};
-                trail.pop_back();
-                auto c{trail.back()};
-                trail.pop_back();
 
-                // std::cout << "b";
-
-                // std::cout << p << " <-b- " << c << std::endl;
-
-                re_assign(g, p, c);
-            }
-
-            // std::cout << "(" << trail.size() << ")[";
-            // for(int i=0; i<trail.size(); i+=2) {
-            // 	std::cout << " " << trail[i] << ":" << trail[i+1] ;
-            // }
-            // std::cout << " ]\n";
-
-            // px = x;
-
-            // for (int i = 0; i < trail.size(); ++i)
-            //     std::cout << " ";
-            // std::cout << x << " (" << color[x] << "):"; //<< std::end;
-
+						// std::cout << "branches (1)\n";
             single.clear();
-            single.resize(numcolors, -1);
+            single.resize(color_bag.size(), -1);
             for (auto y : g.matrix[x]) {
                 if (single[(color)[y]] == -1)
                     single[(color)[y]] = y;
                 else
                     single[(color)[y]] = -2;
             }
+						// std::cout << "branches (2)\n";
 
             // find a color bag where x has only one neighbor
             auto backtrack{true};
@@ -967,693 +870,191 @@ struct dsatur {
                         backtrack = false;
                         prev[w] = x;
 
-                        // std::cout << " " << w << "(" << color[w] << ")";
-
                         assert(color[w] == b);
-
-                        // if (neighbor_colors[w].b[b] > 0) {
-                        //     std::cout << std::endl
-                        //               << w << " " << neighbor_colors[w]
-                        //               << std::endl;
-                        // }
-
                         assert(neighbor_colors[w].b[b] == 0);
 
                         stack.push_back(w);
+												
+												// std::cout << " + " << w;
                     }
                 }
             }
-            // std::cout << std::endl;
+						// std::cout << std::endl;
 
             if (!backtrack and prev[x] != x) {
-                // std::cout << prev[x] << " <-f- " << color[x] << std::endl;
-                // 	<< " store " << prev[x] << " = " << color[prev[x]] <<
-                // "(" << (trail.size() == 0) << " or " << (trail.size() ?
-                // trail.back() != prev[x] : 0) << ")\n";
-
+							
+							// std::cout << "assign predecessor of " << x << ": " << prev[x] << " <- " << color[x] << std::endl;
+							
+							// std::cout << prev[x] << " was " << color[prev[x]] << std::endl;
                 if (trail.size() == 0
                     or trail.back()
                         != prev[x]) { // store only at the first change
                     trail.push_back(color[prev[x]]);
                     trail.push_back(prev[x]);
                 }
+								// std::cout << "here\n";
+								
                 re_assign(g, prev[x], color[x]);
+								
+								// std::cout << "ok\n";
             }
-            // std::cout << "trail.size() = " << trail.size() << std::endl;
         }
 
+				// std::cout << "fail\n";
         while (trail.size() > 0) {
             auto p{trail.back()};
             trail.pop_back();
             auto c{trail.back()};
             trail.pop_back();
-
-            // std::cout << "b";
-
-            // std::cout << p << " <-b- " << c << std::endl;
-
             re_assign(g, p, c);
         }
-
-        return false;
-    }
-
-    // find a path from the vertex in stack to a free vertex
-    template <class graph_struct> bool findpath(graph_struct& g)
-    {
-        // branch_color.clear();
-        // std::copy(color.begin(),color.end(),back_inserter(branch_color));
-
-        // std::cout << std::endl;
-
-        trail.clear();
         visited.clear();
-        for (auto x : stack) {
-            visited.fast_add(x);
-            prev[x] = x;
-        }
-
-        // auto px{*begin(stack)};
-        while (stack.size() > 0) {
-            auto x = stack.back();
-            stack.pop_back();
-
-            // std::cout << " " << x << " " << prev[x] << " " << prev[prev[x]]
-            // << " " << (trail.size() ? trail.back() : -1) << std::endl;
-
-            // unroll that branch
-            while (trail.size() > 0 and trail.back() != prev[prev[x]]) {
-                auto p{trail.back()};
-                trail.pop_back();
-                auto c{trail.back()};
-                trail.pop_back();
-
-                // std::cout << "b";
-
-                // std::cout << p << " <-b- " << c << std::endl;
-
-                re_assign(g, p, c);
-            }
-
-            // std::cout << "(" << trail.size() << ")[";
-            // for(int i=0; i<trail.size(); i+=2) {
-            // 	std::cout << " " << trail[i] << ":" << trail[i+1] ;
-            // }
-            // std::cout << " ]\n";
-
-            // px = x;
-
-            // for (int i = 0; i < trail.size(); ++i)
-            //     std::cout << " ";
-            // std::cout << x << " (" << color[x] << "):"; //<< std::end;
-
-            single.clear();
-            single.resize(numcolors, -1);
-            for (auto y : g.matrix[x]) {
-                if (single[(color)[y]] == -1)
-                    single[(color)[y]] = y;
-                else
-                    single[(color)[y]] = -2;
-            }
-
-            // find a color bag where x has only one neighbor
-            auto backtrack{true};
-            for (int b{0}; b < numcolors; ++b) {
-                if (single[b] >= 0) {
-                    auto w{single[b]};
-                    // w is the only neighbor of x colored with c
-
-                    // auto c{color[x]};
-                    if (!visited.fast_contain(w)) {
-                        visited.fast_add(w);
-                        backtrack = false;
-                        prev[w] = x;
-
-                        // std::cout << " " << w << "(" << color[w] << ")";
-
-                        assert(color[w] == b);
-
-                        // if (neighbor_colors[w].b[b] > 0) {
-                        //     std::cout << std::endl
-                        //               << w << " " << neighbor_colors[w]
-                        //               << std::endl;
-                        // }
-
-                        assert(neighbor_colors[w].b[b] == 0);
-
-                        auto Nsize{neighbor_colors[w].size()};
-
-                        // if (Nsize == numcolors - 2
-                        //     and neighbor_colors[w].get_first_allowed(b)
-                        //         != numcolors - 1) {
-                        //     std::cout << std::endl
-                        //               << w << " " << neighbor_colors[w]
-                        //               << std::endl;
-                        // }
-                        //
-                        // assert((Nsize == numcolors - 2) <=
-                        // (neighbor_colors[w].get_first_allowed(b) == numcolors
-                        // - 1));
-
-                        if (Nsize > numcolors - 3
-                                + neighbor_colors[w].contain(numcolors - 1)) {
-                            stack.push_back(w);
-                        } else {
-                            auto a{neighbor_colors[w].get_first_allowed(b)};
-
-                            assert(a != b);
-
-                            assert(a < numcolors - 1);
-
-                            // std::cout << " -> " << a << " whoohoo!\n";
-                            //
-                            // if (prev[w] != prev[prev[w]])
-                            //     std::cout << prev[prev[w]] << " <-f- "
-                            //               << color[prev[w]] << std::endl;
-                            // std::cout << prev[w] << " <-f- " << b <<
-                            // std::endl;
-                            // std::cout << w << " <-f- " << a << std::endl;
-
-                            if (prev[w] != prev[prev[w]])
-                                re_assign(g, prev[prev[w]], color[prev[w]]);
-
-                            re_assign(g, prev[w], b);
-
-                            // whoohoo!
-                            unassign_color(g, w, b);
-                            assign_color(g, w, a);
-
-                            return true;
-                        }
-                    }
-                }
-            }
-            // std::cout << std::endl;
-
-            if (!backtrack and prev[x] != x) {
-                // std::cout << prev[x] << " <-f- " << color[x] << std::endl;
-                // 	<< " store " << prev[x] << " = " << color[prev[x]] <<
-                // "(" << (trail.size() == 0) << " or " << (trail.size() ?
-                // trail.back() != prev[x] : 0) << ")\n";
-
-                if (trail.size() == 0
-                    or trail.back()
-                        != prev[x]) { // store only at the first change
-                    trail.push_back(color[prev[x]]);
-                    trail.push_back(prev[x]);
-                }
-                re_assign(g, prev[x], color[x]);
-            }
-            // std::cout << "trail.size() = " << trail.size() << std::endl;
-        }
-
-        while (trail.size() > 0) {
-            auto p{trail.back()};
-            trail.pop_back();
-            auto c{trail.back()};
-            trail.pop_back();
-
-            // std::cout << "b";
-
-            // std::cout << p << " <-b- " << c << std::endl;
-
-            re_assign(g, p, c);
-        }
+				// std::cout << "ok\n";
 
         return false;
     }
 
-    template <class graph_struct> bool descent(graph_struct& g)
+    template <class graph_struct>
+    void remove_color(graph_struct& g, const int c)
     {
-        percolate(g);
-
-        int nmax{
-            static_cast<int>(col_bag.size()) - first_of_color[numcolors - 1]};
-        int ith = first_of_color[numcolors - 1];
-
-        int improvements{0};
-        while (ith < col_bag.size()) {
-            if (color[col_bag[ith++]] < numcolors - 1)
-                continue;
-
-            stack.clear();
-            stack.push_back(col_bag[ith - 1]);
-            improvements += findpath(g);
+        const std::vector<int>& bag(color_bag[color_bag.size() - 1]);
+        while (!bag.empty()) {
+            re_assign(g, bag.back(), c);
         }
-
-        trail.clear();
-
-        int rnmax = 0;
-        for (auto it{begin(order)}; it != end(order); ++it) {
-            rnmax += (color[*it] == numcolors - 1);
-        }
-        assert(rnmax == nmax - improvements);
-
-        if (improvements == nmax) {
-            --numcolors;
-            return true;
-        }
-
-        return false;
+        color_bag.remove(color_bag.size() - 1);
+        --numcolors;
     }
 
-    template <class graph_struct> void descents(graph_struct& g)
+    template <class graph_struct> bool descent(graph_struct& g, int& npath)
     {
-        auto improvement{true};
-        while (improvement) {
-            improvement = false;
-            int c{numcolors - 1};
+        auto improvement{false};
+				auto progress{true};
+        while (progress) {
+            progress = false;
+            int c{color_bag.size() - 1};
             while (c >= 0) {
+
+                // check_full_consistency(g);
+
                 while (!color_bag[c].empty()) {
+
                     stack.clear();
                     stack.push_back(color_bag[c].back());
                     if (!findpath_out(g, c))
                         break;
+
+                    ++npath;
+                    // check_full_consistency(g);
                 }
-            }
-            if (c < 0) {
-                swap_colors(c, --numcolors);
-                improvement = true;
+
+                if (color_bag[c].empty()) {
+                    remove_color(g, c);
+                    improvement = progress = true;
+
+                    assert(numcolors == color_bag.size());
+
+                    // std::cout << "ub = " << color_bag.size() << " (descent)\n";
+                    // std::cout << "\ndescent:\n" << color_bag << std::endl;
+                }
+
+                --c;
             }
         }
+				
+				return improvement;
     }
 
     template <class graph_struct>
-    bool randomwalk(graph_struct& g, const int limit)
+    bool randomwalk(
+        graph_struct& g, const int limit, const int target, int& npath)
     {
-        percolate(g);
-
-        int nmax{
-            static_cast<int>(col_bag.size()) - first_of_color[numcolors - 1]};
-
-        // print_col();
-
-        int rnmax = 0;
-        for (auto it{begin(order)}; it != end(order); ++it) {
-            rnmax += (color[*it] == numcolors - 1);
-            // if (color[*it] == numcolors - 1)
-            // std::cout << " " << *it ;
-        }
-
-        assert(nmax == rnmax);
-
         int iter{0};
-        int improvements{0};
-        int successes{0};
-        while (iter < limit and improvements < nmax) {
-            auto x{rand() % order.size()};
+        while (iter < limit) {
+            auto x{(rand() % 2
+                    ? order[rand() % order.size()]
+                    : color_bag[target][rand() % color_bag[target].size()])};
 
-            int improve{color[x] == numcolors - 1};
-            // assert(visited.empty());
             assert(trail.size() == 0);
 
             visited.clear();
-            int success{randpath(g, x)};
+            randpath_out(g, x, target, 100);
 
-            successes += success;
-            improvements += (improve & success);
             ++iter;
+
+            if (color_bag[target].size() == 0) {
+                remove_color(g, target);
+
+                // std::cout << "ub = " << color_bag.size() << " (descent)\n";
+                // std::cout << "\nrandwalk:\n" << color_bag << std::endl;
+                npath += iter;
+
+                return true;
+            }
         }
 
-        rnmax = 0;
-        for (auto it{begin(order)}; it != end(order); ++it) {
-            rnmax += (color[*it] == numcolors - 1);
-        }
-        assert(rnmax == nmax - improvements);
-
-        // std::cout << nmax << " - " << improvements << " = " << rnmax <<
-        // std::endl;
-
-        // print_col();
-
-        if (improvements == nmax) {
-            --numcolors;
-            return true;
-        }
+        npath += iter;
 
         return false;
     }
 
-    template <class graph_struct> void local_search(graph_struct& g)
+    template <class graph_struct>
+    void local_search(graph_struct& g, std::vector<int>& isol, gc::statistics& stat)
     {
 
-        // std::vector<size_t> idx(order.size(), sparseset::NOVAL);
-        // std::vector<sparseset> bags(numcolors);
-        // for(auto it{begin(bags)}; it!=end(bags); ++it)
-        // 	it->binds(&idx);
+        init_local_search(g, isol);
+				
+				assert(stat.best_ub == color_bag.size());
 
-        // std::vector<sparseset> bags;
-        // sparseset s(idx, order.size());
-        // bags.push_back(s);
-        // for(int i=1; i<numcolors; ++i) {
-        // 	sparseset t(s);
-        // 	bags.push_back(t);
-        // }
+        int num_rw_iter = 100, num_iter = 100000;
 
-        // sparseset* bags = new sparseset[numcolors];
-        // bags[i] = new sparseset(idx, order.size());
+        // std::cout << color_bag << std::endl;
 
-        // for(auto it{begin(order)}; it!=end(order); ++it) {
-        // 	bags[color[*it]].add(*it);
-        // }
-        //
-        // for(int i=0; i<numcolors; ++i) {
-        // 	std::cout << bags[i] << std::endl;
-        // }
-        //
-        //
-        // exit(1);
+        int num_rp{0};
+        int num_fp{0};
 
-        init_local_search(g);
+        for (int i = 0; stat.best_lb < stat.best_ub and i < num_iter; ++i) {
 
-        print_col();
+            visited.clear();
+            if(descent(g, num_fp)) {
+            	stat.notify_ub(color_bag.size());
+							stat.display(std::cout);
+            }
 
-        descents(g);
+            auto t{rand() % color_bag.size()};
 
-        exit(1);
+            if(randomwalk(g, num_rw_iter, t, num_rp)) {
+            	stat.notify_ub(color_bag.size());
+							stat.display(std::cout);
+            }							
 
-        // int limit{100000};
-        // while (limit--) {
-        //
-        //     // std::cout << "descent " << numcolors << std::endl;
-        //     //
-        //     // while (descent(g)) {
-        //     //     std::cout << " -- " << numcolors << std::endl;
-        //     //     print_col();
-        //     // }
-        //
-        //     // std::cout << "randwalk " << numcolors << std::endl;
-        //
-        //     if (randomwalk(g, 1000)) {
-        //         std::cout << " -- " << numcolors << std::endl;
-        //         print_col();
-        //     }
-        //     // visited.clear();
-        // }
-
-        //
-        //
-        // percolate(g);
-        //
-        // check_full_consistency(g);
-        //
-        // print_col();
-        //
-        // percolate(g);
-        //
-        // // int prev=-1;
-        // int ith = first_of_color[numcolors - 1];
-        // // int x = 0;
-        // // auto x{col_bag[first_of_color[numcolors - 1]]};
-        //
-        // do {
-        //     check_full_consistency(g);
-        //
-        //     while (color[col_bag[ith]] < numcolors - 1)
-        //         ++ith;
-        //     if (ith >= col_bag.size())
-        //         break;
-        //
-        //     stack.clear();
-        //     stack.push_back(col_bag[ith]);
-        // } while (findpath(g));
-        //
-        // check_full_consistency(g);
-        //
-        // percolate(g);
-        //
-        // print_col();
-        //
-        // ith = first_of_color[numcolors - 1];
-        // // int x = 0;
-        // // auto x{col_bag[first_of_color[numcolors - 1]]};
-        //
-        // do {
-        //     check_full_consistency(g);
-        //
-        //     while (color[col_bag[ith]] < numcolors - 1)
-        //         ++ith;
-        //     if (ith >= col_bag.size())
-        //         break;
-        //
-        //     stack.clear();
-        //     stack.push_back(col_bag[ith]);
-        // } while (findpath(g));
-        //
-        // check_full_consistency(g);
-        //
-        // percolate(g);
-        //
-        // print_col();
-        //
-        // ith = first_of_color[numcolors - 2];
-        // // int x = 0;
-        // // auto x{col_bag[first_of_color[numcolors - 1]]};
-        //
-        // do {
-        //     check_full_consistency(g);
-        //
-        //     while (color[col_bag[ith]] < numcolors - 2)
-        //         ++ith;
-        //     if (ith >= first_of_color[numcolors - 1])
-        //         break;
-        //
-        //     stack.clear();
-        //     stack.push_back(col_bag[ith]);
-        // } while (findpath(g));
-        //
-        // check_full_consistency(g);
-        //
-        // percolate(g);
-        //
-        // print_col();
-        //
-        // // std::mt19937 s(1234);
-        //
-        // int count{0};
-        // int improvements{0};
-        // int successes{0};
-        // while (count < 1000) {
-        //     auto x{rand() % order.size()};
-        //
-        //     int improve{color[x] == numcolors - 1};
-        //
-        //     std::cout << x << ":" << color[x];
-        //
-        //     prev[x] = x;
-        //
-        //     // assert(visited.empty());
-        //     assert(trail.size() == 0);
-        //
-        //     visited.clear();
-        //     int success{randpath(g, x)};
-        //
-        //     successes += success;
-        //     improvements += (improve & success);
-        //
-        //     check_full_consistency(g);
-        //
-        //     ++count;
-        // }
-        //
-        // std::cout << improvements << " " << successes << " " << count
-        //           << std::endl;
-        //
-        // percolate(g);
-        //
-        // print_col();
-        //
-        // --numcolors;
-        // ith = first_of_color[numcolors - 1];
-        // // int x = 0;
-        // // auto x{col_bag[first_of_color[numcolors - 1]]};
-        //
-        // do {
-        //     check_full_consistency(g);
-        //
-        //     while (color[col_bag[ith]] < numcolors - 1)
-        //         ++ith;
-        //     if (ith >= col_bag.size())
-        //         break;
-        //
-        //     stack.clear();
-        //     stack.push_back(col_bag[ith]);
-        // } while (findpath(g));
-        //
-        // check_full_consistency(g);
-        //
-        // percolate(g);
-        //
-        // print_col();
-        // // auto d{rand() % (n * n)};
-        // //
-        // //
-        // //         auto x{col_bag[col_bag.size() / 2]};
-        // //
-        // //         std::cout << x;
-        // //
-        // //         assert(trail.size() == 0);
-        // //         randpath(g, x);
-        // //
-        // //         print_col();
-        // //
-        // //         x = col_bag[col_bag.size() / 3];
-        // //
-        // //         std::cout << x;
-        // //         assert(trail.size() == 0);
-        // //         randpath(g, x);
-        // //
-        // //         print_col();
-        //
-        // // findpath(g);
-        //
-        // //         int iter{100};
-        // //         while (iter--) {
-        // //             check_full_consistency(g);
-        // //
-        // //             std::cout << std::endl;
-        // //
-        // //             print_col();
-        // //
-        // //             std::cout << "pick the " << ith << "-th element of the
-        // //             last bag: ";
-        // //
-        // //             // pick a vertex of the last color
-        // //             while (
-        // //                 ith < col_bag.size() and color[col_bag[ith]] <
-        // //                 numcolors - 1) {
-        // //                 std::cout << "(" << col_bag[ith] << ") ";
-        // //                 ++ith;
-        // //             }
-        // //             if (ith < col_bag.size())
-        // //                 x = col_bag[ith++];
-        // //             else { // if there is none, decrease the number of
-        // //             colors,
-        // //                 // percolate
-        // //                 // and continue
-        // //
-        // //                 std::cout << " improvement!n\n";
-        // //                 print_col();
-        // //                 std::cout << "pick: ";
-        // //
-        // //                 --numcolors;
-        // //                 percolate(g);
-        // //                 ith = first_of_color[numcolors - 1];
-        // //                 x = col_bag[ith++];
-        // //             }
-        // //
-        // //             std::cout << x << "\n";
-        // //
-        // //             // count the number of x's neighbors in each color bag
-        // //             single.clear();
-        // //             single.resize(numcolors, -1);
-        // //             for (auto y : g.matrix[x]) {
-        // //                 if (single[color[y]] == -1)
-        // //                     single[color[y]] = y;
-        // //                 else
-        // //                     single[color[y]] = -2;
-        // //             }
-        // //
-        // //             // find a color bag where x has only one neighbor
-        // //             for (int b{0}; b < numcolors; ++b) {
-        // //                 if (single[b] >= 0) {
-        // //                     auto w{single[b]};
-        // //                     // w is the only neighbor of x colored with c
-        // //
-        // //                     std::cout << x << " has a single neighbor in
-        // bag
-        // //                     " << b
-        // //                               << ": " << w; //<< std::endl;
-        // //
-        // //                     if (neighbor_colors[w].size() < numcolors - 1)
-        // {
-        // //                         auto a{colorbag.get_first_allowed()};
-        // //
-        // //                         std::cout << " -> " << a << "\n";
-        // //
-        // //                         unassign_color(g, w, b);
-        // //                         assign_color(g, w, a);
-        // //
-        // // #ifdef _DEBUG_DSATUR
-        // //                         check_full_consistency(g);
-        // // #endif
-        // //
-        // //                         unassign_color(g, x, numcolors - 1);
-        // //                         assign_color(g, x, b);
-        // //
-        // // #ifdef _DEBUG_DSATUR
-        // //                         check_full_consistency(g);
-        // // #endif
-        // //
-        // //                         // NEED TO UPDATE THE COLOR BAGS
-        // //                         // w goes from b to a, and x from
-        // numcolors-1
-        // //                         to
-        // //                         // b
-        // //
-        // //                         break;
-        // //
-        // //                     }
-        // //
-        // //                     else {
-        // //                         std::cout << " (too constrained: " <<
-        // //                         neighbor_colors[w]
-        // //                                   << ")\n";
-        // //                     }
-        // //                 }
-        // //             }
-        // //         }
+            // if (i % 10 == 0) {
+            //     std::cout << std::setw(10) << num_fp << std::setw(10) << num_rp
+            //               << std::setw(10) << color_bag.size() << std::endl;
+            // }
+        }
     }
 
-    void compute_color_bags()
-    {
-        first_of_color.clear();
-        first_of_color.resize(last_vertex.size(), 0);
-        col_bag.resize(order.size());
-
-        for (auto r{begin(order)}; r != end(order); ++r) {
-            auto v{*r};
-            ++first_of_color[color[v]];
-        }
-
-        for (auto d{begin(first_of_color) + 1}; d != end(first_of_color); ++d) {
-            *d += *(d - 1);
-        }
-
-        for (auto r{begin(order)}; r != end(order); ++r) {
-            auto v{*r};
-            col_bag[--first_of_color[color[v]]] = v;
-        }
-
-        // for(int c=0; c<numcolors; ++c) {
-        // 	std::cout << " " << first_of_color[c];
-        // }
-        // std::cout << " " << col_bag.size() << std::endl;
-    }
-
-    void print_col()
-    {
-        for (auto it{begin(color_bag)}; it != end(color_bag); ++it)
-            std::cout << *it << std::endl;
-
-        // gc::bitset is(0, order.size() - 1, gc::bitset::empt);
-        //
-        // compute_color_bags();
-        //
-        // auto it{begin(col_bag)};
-        // for (auto c{color[*begin(col_bag)]}; c <= color[*rbegin(col_bag)];
-        //      ++c) {
-        //     std::cout << c << ": ";
-        //
-        //     while (it != end(col_bag) and color[*it] == c) {
-        //         is.add(*it);
-        //         ++it;
-        //     }
-        //
-        //     std::cout << is << std::endl;
-        //     is.clear();
-        // }
-    }
+    // void compute_color_bags()
+    // {
+    //     first_of_color.clear();
+    //     first_of_color.resize(last_vertex.size(), 0);
+    //     col_bag.resize(order.size());
+    //
+    //     for (auto r{begin(order)}; r != end(order); ++r) {
+    //         auto v{*r};
+    //         ++first_of_color[color[v]];
+    //     }
+    //
+    //     for (auto d{begin(first_of_color) + 1}; d != end(first_of_color);
+    //     ++d) {
+    //         *d += *(d - 1);
+    //     }
+    //
+    //     for (auto r{begin(order)}; r != end(order); ++r) {
+    //         auto v{*r};
+    //         col_bag[--first_of_color[color[v]]] = v;
+    //     }
+    // }
 
     template <class graph_struct> void print(graph_struct& g)
     {
@@ -1683,19 +1084,6 @@ struct dsatur {
             }
 
             std::cout << std::endl;
-
-            // if (color[v] >= 0) {
-            //      std::cout << color[v] << " | N(" << v << ")";
-            //      for (auto u : g.matrix[v]) {
-            //          if (color[u] < 0)
-            //              std::cout << " " << u;
-            //      }
-            //      std::cout << std::endl;
-            //  } else {
-            //      std::cout << " (" << neighbor_colors[v].size() <<
-            //      ")"
-            //                << neighbor_colors[v] << std::endl;
-            //  }
         }
     }
 
@@ -1791,8 +1179,14 @@ struct dsatur {
                     }
                 }
             } else {
+							
+							// std::cout << d << "/" << last_vertex.size() << ": "
+							// 	<< (last_vertex[d + 1] - begin(order)) << ".."
+							// 		<< (r - begin(order)) << ".."
+							// 		<< (last_vertex[d] - begin(order)) << "\n";
+							
                 assert(last_vertex[d] > r);
-                assert(last_vertex[d + 1] <= r);
+                assert(d+1 == last_vertex.size() or last_vertex[d + 1] <= r);
             }
         }
     }
