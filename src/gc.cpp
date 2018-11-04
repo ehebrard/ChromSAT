@@ -1638,22 +1638,9 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
         model.col.local_search(model.original, model.solution, statistics);
 
-        exit(1);
 
-        model.col.full = true;
 
-        for (int i = 0; i < options.idsaturlimit and model.lb < model.ub; ++i) {
-            model.col.clear();
-            model.ub = std::min(
-                model.ub, model.col.brelaz_color(model.original, model.ub - 1,
-                              (1 << (i + 1)), 12345 + i));
 
-            statistics.notify_ub(model.ub);
-            if (options.verbosity >= gc::options::NORMAL)
-                statistics.display(std::cout);
-
-            // std::cout << model.lb << ".." << model.ub << std::endl;
-        }
 
     } break;
     case gc::options::CLEVER: {

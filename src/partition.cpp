@@ -21,6 +21,10 @@
     /*!@name List Manipulation*/
     //@{
     void partition::move(const int elt, const int from, const int to) {
+
+        // std::cout << "move " << elt  << " from " << from << " to " << to <<
+        // "\n";
+
         bag[from][index_[elt]] = bag[from].back();
         index_[bag[from].back()] = index_[elt];
         bag[from].pop_back();
