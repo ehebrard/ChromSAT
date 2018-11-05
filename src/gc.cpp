@@ -220,9 +220,6 @@ struct gc_model {
     {
 
         if (g.size() > 0 and options.ddsaturiter > 0 and lb < ub) {
-
-					std::cout << "HERE\n";
-
             if (options.verbosity >= gc::options::YACKING)
                 std::cout << "[modeling] launch dense dsatur ("
                           << options.ddsaturiter << " times) at "
