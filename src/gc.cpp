@@ -221,6 +221,8 @@ struct gc_model {
 
         if (g.size() > 0 and options.ddsaturiter > 0 and lb < ub) {
 
+					std::cout << "HERE\n";
+
             if (options.verbosity >= gc::options::YACKING)
                 std::cout << "[modeling] launch dense dsatur ("
                           << options.ddsaturiter << " times) at "
@@ -342,6 +344,9 @@ struct gc_model {
         size_t stamp{0};
         original.nodes.save(stamp);
         original.nodes.clear();
+
+        gc::bitset utilset(original.nodeset);
+
         original.nodeset.clear();
 
         // for (auto vp{begin(col.core)}; vp != end(col.core); ++vp) {
@@ -353,8 +358,43 @@ struct gc_model {
         gc::graph<gc::bitset> g(original, vertex_map);
 
         original.nodes.restore(stamp);
-        for (auto v : original.nodes)
-            original.nodeset.fast_add(v);
+        // for (auto v : original.nodes)
+        //     original.nodeset.fast_add(v);
+        original.nodeset.copy(utilset);
+
+        return g;
+    }
+
+    gc::graph<gc::vertices_vec> dsatur_sparse_reduced()
+    {
+        col.get_core(original, options.core, lb, ub);
+
+        if (options.verbosity >= gc::options::YACKING)
+            std::cout << "[search] extract dsatur-core " << col.core.size()
+                      << " / " << (col.frontier - begin(col.order) + 1) << " / "
+                      << original.size() << ", current ub = " << ub
+                      << std::endl;
+
+        size_t stamp{0};
+        original.nodes.save(stamp);
+        original.nodes.clear();
+
+        gc::bitset utilset(original.nodeset);
+
+        original.nodeset.clear();
+
+        // for (auto vp{begin(col.core)}; vp != end(col.core); ++vp) {
+        for (auto vp{begin(col.core)}; vp < end(col.core); ++vp) {
+            auto v{*vp};
+            original.add_node(v);
+        }
+
+        gc::graph<gc::vertices_vec> g(original, vertex_map);
+
+        original.nodes.restore(stamp);
+        // for (auto v : original.nodes)
+        //     original.nodeset.fast_add(v);
+        original.nodeset.copy(utilset);
 
         return g;
     }
@@ -425,8 +465,6 @@ struct gc_model {
 
         auto threshold = std::max(lb, k_core_threshold);
 
-        assert(!original.matrix[31].fast_contain(-1));
-
         // bool ub_safe{(threshold <= lb)};
         if (options.verbosity >= gc::options::YACKING)
             std::cout << "[preprocessing] compute degeneracy ordering\n";
@@ -441,6 +479,8 @@ struct gc_model {
                           << *(df.core[i] - 1) << "]\n";
         }
 
+        // std::cout << ub << " <= " << (df.degeneracy + 1) << std::endl;
+
         if (ub > df.degeneracy + 1) {
 
             int maxc{gr.greedy_solution(
@@ -448,10 +488,12 @@ struct gc_model {
             degeneracy_sol = true;
 
             assert(maxc <= df.degeneracy + 1);
-            assert(maxc >= lb);
+            // assert(maxc >= lb);
 
             ub = maxc;
             // if (ub_safe) {
+
+            std::cout << "DEGENERACY UB = " << ub << std::endl;
             statistics.notify_ub(ub);
 
             if (options.verbosity >= gc::options::NORMAL)
@@ -481,14 +523,10 @@ struct gc_model {
             threshold = std::max(lb, threshold);
             reduce(gr, threshold, k);
 
-            assert(!original.matrix[31].fast_contain(-1));
-
             if (prev_size > original.size() or prev_size == original_size) {
                 if (options.preprocessing == gc::options::FULL)
                     neighborhood_dominance(gr);
             }
-
-            assert(!original.matrix[31].fast_contain(-1));
         }
 
         // for(auto vi{df.core[k]}; vi!=end(df.order); ++vi) {
@@ -506,8 +544,8 @@ struct gc_model {
     void minimal_core(gc::graph_reduction<adjacency_struct>& gr,
         const int k_core_threshold, const int size_threshold)
     {
-        // std::cout << "[search] search for minimal core (n=" << size_threshold
-        // << ", k=" << k_core_threshold << ")\n";
+        std::cout << "[search] search for minimal core (n=" << size_threshold
+                  << ", k=" << k_core_threshold << ")\n";
 
         auto vi{end(df.order)};
         bool is_k_core{false};
@@ -722,9 +760,8 @@ struct gc_model {
     template <class map_struct>
     void init_search(minicsp::Solver& s, gc::dense_graph& g, map_struct& vmap)
     {
-
         if (!options.dsatur) {
-            vars = gc::varmap(create_vars(s, g, vmap));
+            vars = gc::varmap(create_vars(s, g, vmap));						
             cons = gc::post_gc_constraint(s, g, fillin, vars,
                 reduction.constraints, vertex_map, options, statistics);
 
@@ -904,6 +941,8 @@ struct gc_model {
         if (options.strategy != gc::options::BOUNDS and original.size() > 0
             and lb < ub) {
 
+            std::cout << "create dense graph\n";
+
             final = gc::dense_graph(original, vertex_map);
 
             init_search(solver, final, original.nodes);
@@ -965,6 +1004,8 @@ struct gc_model {
         return actualub;
     }
 
+    bool find_solution() { return find_solution(solver, final, lb, ub); }
+
     // color the residual graph
     //
     // stops at the first improving solution, return ub when there is none
@@ -985,30 +1026,25 @@ struct gc_model {
 
         if (sat == l_True) {
             upper_bound = g.nodes.size();
-
-            // std::cout << "\n |nodes| = " << solub << std::endl;
-
             get_solution(g, solution);
 
             // assert(solub < cons->ub);
             cons->sync_graph();
 
-            // std::cout << "\n |nodes| = " << g.nodes.size() << std::endl;
+            if (options.verbosity >= gc::options::YACKING)
+                std::cout << "[trace] SAT: " << cons->bestlb << ".."
+                          << upper_bound;
 
-            // r = cons->ub;
-            // std::cout << "[trace] SAT: " << cons->bestlb << ".." << solub;
-            //
-            // col.clear();
-            // auto ncol{col.brelaz_color_guided(original, ub - 1,
-            //     begin(original.nodes), begin(original.nodes) +
-            //     col.core.size(),
-            //     solution, 100, 12345 + ub)};
-            //
-            // if (ncol < ub) {
-            //     r = reduction.extend_solution(solution, ub, true);
-            // } else
-            //     r = ncol;
-            // std::cout << ".." << ncol << ".." << actualub << std::endl;
+            auto actualub{dsat_extend(original)};
+
+            if (options.verbosity >= gc::options::YACKING)
+                std::cout << ".." << actualub << std::endl;
+
+            if (actualub < ub) {
+                ub = actualub;
+                statistics.notify_ub(ub);
+            }
+
             return true;
         }
         lower_bound = upper_bound;
@@ -1100,6 +1136,8 @@ struct gc_model {
 
                 } else {
 
+                    // std::cout << "SOL EXTEND UB = " << solub << std::endl;
+
                     col.clear();
                     auto ncol{col.brelaz_color_guided(original, upper_bound - 1,
                         begin(original.nodes),
@@ -1128,6 +1166,7 @@ struct gc_model {
                     }
                 }
 
+                // std::cout << "SOLVE UB = " << actualub << std::endl;
                 statistics.notify_ub(actualub);
                 if (options.verbosity >= gc::options::NORMAL)
                     statistics.display(std::cout);
@@ -1413,6 +1452,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
             model.print_stats();
     } break;
     case gc::options::IDSATUR: {
+			
 
         std::pair<int, int> bounds{0, g.size()};
 
@@ -1421,17 +1461,10 @@ int color(gc::options& options, gc::graph<input_format>& g)
         options.ddsaturiter = 0;
         gc_model<input_format> model(g, options, statistics, bounds, sol);
 
-        model.original.describe(std::cout);
-        std::cout << std::endl;
-
         int limit{-1};
 
         while (model.lb < model.ub) {
-
             statistics.binds(NULL);
-            // model.cons = NULL;
-
-            std::cout << "model.lb: " << model.lb << " / model.ub: " << model.ub << std::endl;
             gc::dense_graph g{model.dsatur_reduced()};
 
             minicsp::Solver s;
@@ -1439,6 +1472,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
             model.init_search(s, g, model.original.nodes);
 
             statistics.binds(model.cons);
+						
 
 						int nub{model.ub}, nlb{model.lb};
             auto solution_found{false};
@@ -1447,30 +1481,32 @@ int color(gc::options& options, gc::graph<input_format>& g)
             } else {
                 solution_found = model.solve(s, g, nlb, nub, -1, false);
             }
+						
 
             model.lb = std::max(nlb, model.lb);
             statistics.notify_lb(model.lb);
-						
-						
-						// we need to check lb < ub because the solution is already extended in 
-            if (solution_found and model.lb < model.ub) { 
-                // auto solub = model.cons->ub;
 
-                if (options.verbosity >= gc::options::YACKING)
-                    std::cout << "[trace] " << limit
-                              << " SAT: " << model.cons->bestlb << ".." << nub;
-
-								// std::cout << "DSAT EXTEND UB = " << model.ub << std::endl;
-                auto actualub{model.dsat_extend(model.original)};
-
-                if (options.verbosity >= gc::options::YACKING)
-                    std::cout << ".." << actualub << std::endl;
-
-                if (actualub < model.ub) {
-                    model.ub = actualub;
-                    statistics.notify_ub(model.ub);
-                }
-            }
+            // // we need to check lb < ub because the solution is already
+            // extended in
+            //             if (solution_found and model.lb < model.ub) {
+            //                 // auto solub = model.cons->ub;
+            //
+            //                 if (options.verbosity >= gc::options::YACKING)
+            //                     std::cout << "[trace] " << limit
+            //                               << " SAT: " << model.cons->bestlb
+            //                               << ".." << nub;
+            //
+            // 		std::cout << "DSAT EXTEND UB = " << nub << std::endl;
+            //                 auto actualub{model.dsat_extend(model.original)};
+            //
+            //                 if (options.verbosity >= gc::options::YACKING)
+            //                     std::cout << ".." << actualub << std::endl;
+            //
+            //                 if (actualub < model.ub) {
+            //                     model.ub = actualub;
+            //                     statistics.notify_ub(model.ub);
+            //                 }
+            //             }
 
             if (options.verbosity >= gc::options::NORMAL)
                 statistics.display(std::cout);
@@ -1485,12 +1521,127 @@ int color(gc::options& options, gc::graph<input_format>& g)
     } break;
     case gc::options::BOTTOMUP: {
 
-        std::cout << "NOT IMPLEMENTED!\n";
+        // gc::statistics& sub_statistics(g.capacity());
+
+        std::pair<int, int> bounds{0, g.size()};
+
+        options.strategy = gc::options::BOUNDS; // so that we don't create the
+        // dense graph yet
+        options.ddsaturiter = 0;
+        gc_model<input_format> model(g, options, statistics, bounds, sol);
+
+        // model.original.describe(std::cout);
+        // std::cout << std::endl;
+
+        int limit{-1};
+
+        options.strategy = gc::options::BNB;
+        while (model.lb < model.ub) {
+
+            statistics.binds(NULL);
+            // model.cons = NULL;
+
+            // std::cout << "model.lb: " << model.lb << " / model.ub: " <<
+            // model.ub << std::endl;
+            gc::graph<input_format> g{model.dsatur_sparse_reduced()};
+            // g.describe(std::cout);
+            // std::cout << std::endl;
+
+            // std::cout << "----\n";
+            // std::cout << g.nodes << std::endl;
+            // std::cout << g.nodeset << std::endl;
+            // for( auto v : g.nodes ) {
+            // 	std::cout << g.matrix[v] << std::endl;
+            // }
+
+            std::pair<int, int> bounds{model.lb, model.ub};
+
+            statistics.update_ub = false;
+            gc_model<input_format> tmp_model(
+                g, options, statistics, bounds, sol);
+            statistics.update_ub = true;
+
+            // std::cout << "tmp_model.lb: " << tmp_model.lb << " /
+            // tmp_model.ub: " << tmp_model.ub << std::endl;
+            // std::cout << "model.lb: " << model.lb << " / model.ub: " <<
+            // model.ub << std::endl;
+
+            // minicsp::Solver s;
+            //
+            // model.init_search(s, g, model.original.nodes);
+            //
+            // statistics.binds(model.cons);
+
+            auto solution_found{tmp_model.ub < model.ub};
+            if (options.idsaturlimit == 0) {
+                solution_found |= model.find_solution(tmp_model.solver,
+                    tmp_model.final, tmp_model.lb, tmp_model.ub);
+            } else {
+                solution_found |= model.solve(tmp_model.solver, tmp_model.final,
+                    tmp_model.lb, tmp_model.ub, -1, false);
+                //     solution_found = model.find_solution();
+                // } else {
+                //     solution_found = model.solve(-1);
+            }
+
+            model.lb = std::max(tmp_model.lb, model.lb);
+            statistics.notify_lb(model.lb);
+
+            // we need to check lb < ub because the solution is already extended
+            // in
+            if (solution_found and model.lb < model.ub) {
+                // auto solub = model.cons->ub;
+
+                // std::cout << 11 << std::endl;
+
+                if (options.verbosity >= gc::options::YACKING)
+                    std::cout << "[trace] " << limit << " SAT: " << tmp_model.lb
+                              << ".." << tmp_model.ub;
+
+                // std::cout << 22 << std::endl;
+
+                // std::cout << "DSAT EXTEND UB = " << model.ub << std::endl;
+                auto actualub{model.dsat_extend(model.original)};
+
+                if (options.verbosity >= gc::options::YACKING)
+                    std::cout << ".." << actualub << std::endl;
+
+                if (actualub < model.ub) {
+                    model.ub = actualub;
+                    statistics.notify_ub(model.ub);
+                }
+            }
+
+            // exit(1);
+
+            if (options.verbosity >= gc::options::NORMAL)
+                statistics.display(std::cout);
+
+            if (g.size() == model.original.size())
+                break;
+
+            if (--limit == 0)
+                break;
+        }
 
     } break;
     case gc::options::TOPDOWN: {
 
-        std::cout << "NOT IMPLEMENTED!\n";
+        std::pair<int, int> bounds{1, g.size()};
+
+        options.strategy = gc::options::BOUNDS; // so that we don't create the
+        // dense graph yet
+        options.ddsaturiter = 0;
+        gc_model<input_format> model(g, options, statistics, bounds, sol);
+
+        // std::cout << model.lb << ".." << model.ub << std::endl;
+
+				if(model.lb < model.ub) {
+					model.col.local_search(model.original, model.solution, statistics);
+				}
+
+
+
 
     } break;
     case gc::options::CLEVER: {

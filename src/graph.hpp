@@ -947,9 +947,6 @@ void degeneracy_finder<graph_struct>::clear()
 template <class graph_struct>
 void degeneracy_finder<graph_struct>::degeneracy_ordering()
 {
-
-    assert(!g.matrix[31].fast_contain(-1));
-
     order.reserve(g.size());
     // if (g.size() == g.capacity()) {
     for (auto v : g.nodes) {

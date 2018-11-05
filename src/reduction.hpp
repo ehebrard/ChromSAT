@@ -58,12 +58,13 @@ template <class adjacency_struct> struct graph_reduction {
 
         int maxc{0};
         nodeset.copy(g.nodeset);
-        for (auto v : g.nodes)
+
+        for (auto v : g.nodes) {
             maxc = std::max(maxc, col[v]);
+        }
 
         auto d{dominator.rbegin()};
 
-        // std::cout << "maxc = " << maxc << std::endl;
         //
         // std::cout << "\n |removed| = " << removed_vertices.size() << " "
         //           << nodeset.size() << " " << nodeset << std::endl;
@@ -133,7 +134,6 @@ template <class adjacency_struct> struct graph_reduction {
             col[v] = q;
 
             assert(q <= ub);
-
             nodeset.fast_add(v);
         }
 
