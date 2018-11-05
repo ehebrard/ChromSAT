@@ -1125,12 +1125,16 @@ struct dsatur {
 				// assert(g.size() == isol.size());
 
 				if (options.verbosity >= gc::options::YACKING)
-					std::cout << "[search] start local search\n";
+					std::cout << "[search] init local search (" << order.size() << " nodes)\n";
 
 
         assert(isol.size() == color.size());
 
         init_local_search(g, isol);
+				
+				if (options.verbosity >= gc::options::YACKING)
+					std::cout << "[search] start local search\n";
+				
 
         assert(stat.best_ub == color_bag.size());
 
@@ -1143,6 +1147,10 @@ struct dsatur {
 
         for (int i = 0; stat.best_lb < stat.best_ub and i < num_iter; ++i) {
 
+
+					if (options.verbosity > gc::options::YACKING)
+						std::cout << "[search] start descent\n";
+
             if (descent(g, num_fp)) {
                 stat.notify_ub(color_bag.size());
 								
@@ -1154,6 +1162,9 @@ struct dsatur {
                 isol = color;
             }
 						
+						
+						if (options.verbosity > gc::options::YACKING)
+							std::cout << "[search] start random walk\n";
 
             auto t{rand() % color_bag.size()};
 
@@ -1168,6 +1179,8 @@ struct dsatur {
                 isol = color;
             }
 						
+						if (options.verbosity > gc::options::YACKING)
+							std::cout << "[search] start dsat moves\n";
 						
             if (dsat_move(g, 1000)) {
                 stat.notify_ub(color_bag.size());
@@ -1180,9 +1193,9 @@ struct dsatur {
                 isol = color;
             }
 						
-						if(i % 1000 == 0) {
+						if(i % 10 == 0) {
 							if (options.verbosity >= gc::options::YACKING)
-								std::cout << "[search] " << std::setw(10) << i << " local search iterations\n";
+								std::cout << "[search] " << std::setw(10) << num_reassign << " moves\n";
 						}
 
             // if(i % 100 == 0) {
