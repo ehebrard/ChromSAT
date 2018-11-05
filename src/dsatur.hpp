@@ -1120,9 +1120,12 @@ struct dsatur {
 
     template <class graph_struct>
     void local_search(
-        graph_struct& g, std::vector<int>& isol, gc::statistics& stat)
+        graph_struct& g, std::vector<int>& isol, gc::statistics& stat, gc::options& options)
     {
 				// assert(g.size() == isol.size());
+
+				if (options.verbosity >= gc::options::YACKING)
+					std::cout << "[search] start local search\n";
 
 
         assert(isol.size() == color.size());
@@ -1142,6 +1145,10 @@ struct dsatur {
 
             if (descent(g, num_fp)) {
                 stat.notify_ub(color_bag.size());
+								
+								if (options.verbosity >= gc::options::YACKING)
+									std::cout << "[search] new best ub found during descent after " << std::setw(10) << i << " local search iterations\n";
+								if (options.verbosity >= gc::options::NORMAL) 
                 stat.display(std::cout);
 
                 isol = color;
@@ -1152,6 +1159,10 @@ struct dsatur {
 
             if (randomwalk(g, num_rw_iter, t, num_rp)) {
                 stat.notify_ub(color_bag.size());
+								
+								if (options.verbosity >= gc::options::YACKING)
+									std::cout << "[search] new best ub found during random walks after " << std::setw(10) << i << " local search iterations\n";
+								if (options.verbosity >= gc::options::NORMAL) 
                 stat.display(std::cout);
 
                 isol = color;
@@ -1160,14 +1171,19 @@ struct dsatur {
 						
             if (dsat_move(g, 1000)) {
                 stat.notify_ub(color_bag.size());
+								
+								if (options.verbosity >= gc::options::YACKING)
+									std::cout << "[search] new best ub found during dsat moves after " << std::setw(10) << i << " local search iterations\n";
+								if (options.verbosity >= gc::options::NORMAL) 
                 stat.display(std::cout);
 
                 isol = color;
             }
 						
-						// if(i % 100 == 0) {
-						// std::cout << "-- " << num_reassign << "\n";
-						// }
+						if(i % 1000 == 0) {
+							if (options.verbosity >= gc::options::YACKING)
+								std::cout << "[search] " << std::setw(10) << i << " local search iterations\n";
+						}
 
             // if(i % 100 == 0) {
             // 	dsat_order = order;

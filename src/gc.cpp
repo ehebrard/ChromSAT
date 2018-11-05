@@ -493,7 +493,6 @@ struct gc_model {
             ub = maxc;
             // if (ub_safe) {
 
-            std::cout << "DEGENERACY UB = " << ub << std::endl;
             statistics.notify_ub(ub);
 
             if (options.verbosity >= gc::options::NORMAL)
@@ -1637,10 +1636,10 @@ int color(gc::options& options, gc::graph<input_format>& g)
         // std::cout << model.lb << ".." << model.ub << std::endl;
 
 				if(model.lb < model.ub) {
-					model.col.local_search(model.original, model.solution, statistics);
+					model.col.local_search(model.original, model.solution, statistics, options);
 				}
 
-
+        model.finalize_solution(edges);
 
 
     } break;
