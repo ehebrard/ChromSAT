@@ -1122,6 +1122,8 @@ struct dsatur {
     void local_search(
         graph_struct& g, std::vector<int>& isol, gc::statistics& stat)
     {
+				// assert(g.size() == isol.size());
+
 
         assert(isol.size() == color.size());
 
