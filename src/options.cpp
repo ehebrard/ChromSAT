@@ -144,6 +144,8 @@ options parse(int argc, char* argv[])
         opt.dsatur, "", "dsatur", "use dsatur instead of minicsp", false);
     cmd.add<SwitchArg>(opt.ubfocus, "", "ubfocus",
         "do not try hard to get lb's [default=false]", false);
+    cmd.add<SwitchArg>(opt.maxclique, "", "maxclique",
+        "use dOmega maximum clique in preprocessing [default=false]", false);
     cmd.add<ValueArg<int>>(opt.memlimit, "", "memlimit",
         "does not compute dense graph above this limit and downgrade reasoning "
         "on large instances (default: no limit)",
@@ -252,8 +254,8 @@ void options::describe(std::ostream& os)
     case BOTTOMUP:
         os << "bottom-up";
         break;
-    case TOPDOWN:
-        os << "top-down";
+    case LOCALSEARCH:
+        os << "local search";
         break;
     case BOUNDS:
         os << "bounds";
