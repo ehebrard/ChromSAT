@@ -26,7 +26,85 @@
 #include "./sota/Segundo/DSATUR/dsatur_algo.h"
 #include "./sota/Segundo/DSATUR/graphe.h"
 
+#include "./sota/dOmega/LS/src/Clique.h"
+#include "./sota/dOmega/LS/src/Graph.h"
+
 // #define DEBUG_DSIT
+
+template <class graph_struct> void convert(graph_struct& g, dOmega::Graph& o)
+{
+    o.n = g.size();
+
+    o.EdgesBegin = std::vector<int>(o.n, 0);
+    o.degree = std::vector<int>(o.n, 0);
+    o.alias = std::vector<int>(o.n, 0);
+
+    for (auto ru : g.nodes) {
+        auto u{g.nodes.index(ru)};
+        o.degree[u] = g.matrix[u].size();
+
+        o.m += o.degree[u];
+    }
+
+    o.m /= 2; // g.count_edges();
+
+    //   int real_m = 0;
+    // std::vector<std::set<int> >adjLists(o.n, std::set<int>());
+    //
+    // for(auto ru : g.nodes) {
+
+    // }
+    // 	for(auto rv : g.matrix[ru]) if(rv > ru) {
+    // 		auto u{g.nodes.index(ru)};
+    // 		auto v{g.nodes.index(rv)};
+    //
+    // 		assert( u != v );
+    //
+    // 		o.alias[u] = ru;
+    // 		o.alias[v] = rv;
+    //
+    //       if (adjLists[u].insert(v).second) {
+    //           o.degree[u]++;
+    //           real_m++;
+    //       }
+    //
+    //       if (adjLists[v].insert(u).second) {
+    //           o.degree[v]++;
+    //       }
+    // 	}
+    // }
+
+    // assert( o.m == real_m );
+
+    o.EdgeTo = std::vector<int>(2 * o.m);
+    o.delta = o.n;
+    o.Delta = 0;
+
+    int counter = 0;
+    for (int u = 0; u < o.n; u++) {
+        if (o.degree[u] < o.delta) {
+            o.delta = o.degree[u];
+        }
+
+        if (o.degree[u] > o.Delta) {
+            o.Delta = o.degree[u];
+        }
+        o.EdgesBegin[u] = counter;
+
+        auto ru{g.nodes[u]};
+        assert(g.nodes.index(ru) == u);
+
+        for (auto rv : g.matrix[ru]) {
+            o.EdgeTo[counter++] = g.nodes.index(rv);
+        }
+    }
+
+    assert(counter == 2 * o.m);
+
+    o.rightDegree = std::vector<int>(o.n, 0);
+    o.position = std::vector<int>(o.n, 0);
+    o.ordering = std::vector<int>(o.n, 0);
+}
 
 template <class graph_struct> void print(graph_struct& g)
 {
@@ -220,9 +298,6 @@ struct gc_model {
     {
 
         if (g.size() > 0 and options.ddsaturiter > 0 and lb < ub) {
-
-					std::cout << "HERE\n";
-
             if (options.verbosity >= gc::options::YACKING)
                 std::cout << "[modeling] launch dense dsatur ("
                           << options.ddsaturiter << " times) at "
@@ -274,6 +349,15 @@ struct gc_model {
 
 
     */
+
+    void maximum_clique()
+    {
+        dOmega::Graph g;
+        convert(original, g);
+
+        std::cout << "hello\n";
+        exit(1);
+    }
 
     void probe_lb(const int samplebase_)
     {
@@ -511,22 +595,33 @@ struct gc_model {
         int prev_size{original_size + 1};
         int k{0};
 
-        while (original.size() and prev_size > original.size() and lb < ub) {
-
-            prev_size = original.size();
+        if (options.maxclique) {
 
             if (options.verbosity >= gc::options::YACKING)
-                std::cout << "[preprocessing] compute lower bound\n";
-            probe_lb(samplebase);
+                std::cout << "[preprocessing] compute maximum clique\n";
 
+            maximum_clique();
             threshold = std::max(lb, threshold);
             reduce(gr, threshold, k);
+        } else
+            while (
+                original.size() and prev_size > original.size() and lb < ub) {
 
-            if (prev_size > original.size() or prev_size == original_size) {
-                if (options.preprocessing == gc::options::FULL)
-                    neighborhood_dominance(gr);
+                prev_size = original.size();
+
+                if (options.verbosity >= gc::options::YACKING)
+                    std::cout << "[preprocessing] compute lower bound\n";
+
+                probe_lb(samplebase);
+
+                threshold = std::max(lb, threshold);
+                reduce(gr, threshold, k);
+
+                if (prev_size > original.size() or prev_size == original_size) {
+                    if (options.preprocessing == gc::options::FULL)
+                        neighborhood_dominance(gr);
+                }
             }
-        }
 
         // for(auto vi{df.core[k]}; vi!=end(df.order); ++vi) {
         // 	std::cout << (end(df.order) - vi) << ": " << df.degrees[*vi] <<
@@ -1383,6 +1478,10 @@ int color(gc::options& options, gc::graph<input_format>& g)
     g.canonize();
     long num_edges{g.count_edges()};
 
+    if (options.verbosity >= gc::options::NORMAL) {
+        g.describe(std::cout, num_edges);
+        std::cout << " at " << minicsp::cpuTime() << std::endl;
+    }
 
     if (options.convert != "") {
         std::ofstream outfile(options.convert.c_str(), std::ios_base::out);
@@ -1395,7 +1494,14 @@ int color(gc::options& options, gc::graph<input_format>& g)
                 }
             }
         } else {
+
             gc::dyngraph dg(g);
+
+            if (options.verbosity >= gc::options::NORMAL) {
+                std::cout << "[info] Dyn graph: " << dg.capacity << " / "
+                          << dg.num_edges << std::endl;
+            }
+
             dg.print_dimacs(outfile);
         }
         return 1;
@@ -1413,10 +1519,6 @@ int color(gc::options& options, gc::graph<input_format>& g)
         }
     }
 
-    if (options.verbosity >= gc::options::NORMAL) {
-        g.describe(std::cout, num_edges);
-        std::cout << " at " << minicsp::cpuTime() << std::endl;
-    }
 
     gc::statistics statistics(g.capacity());
     if (options.preprocessing != gc::options::NO_PREPROCESSING)
@@ -1624,7 +1726,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
         }
 
     } break;
-    case gc::options::TOPDOWN: {
+    case gc::options::LOCALSEARCH: {
 
         std::pair<int, int> bounds{1, g.size()};
 
@@ -1758,7 +1860,12 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
     case gc::options::TEST: {
 
-        std::cout << "NOT IMPLEMENTED!\n";
+        std::pair<int, int> bounds{1, g.size()};
+
+        options.strategy = gc::options::BOUNDS; // so that we don't create the
+        // dense graph yet
+        options.ddsaturiter = 0;
+        gc_model<input_format> model(g, options, statistics, bounds, sol);
 
     } break;
     }

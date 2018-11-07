@@ -86,7 +86,7 @@ struct options {
     enum solution_strategy {
         BNB,
         BOTTOMUP,
-        TOPDOWN,
+        LOCALSEARCH,
         BOUNDS,
         CLEVER,
         COLOR,
@@ -138,6 +138,8 @@ struct options {
     core_type core;
 
     int idsaturlimit;
+
+    bool maxclique;
 
     enum verbosity { SILENT = 0, QUIET, NORMAL, YACKING, SOLVERINFO };
     int verbosity;
