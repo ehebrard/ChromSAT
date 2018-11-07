@@ -190,15 +190,15 @@ int Clique::findMaxClique() {
             clq = cliqueUB;
         }
     }
-    end_time  = std::chrono::high_resolution_clock::now();
-    runningTime = std::chrono::duration_cast<std::chrono::duration<double> >(end_time - begin_time);
+    // end_time  = std::chrono::high_resolution_clock::now();
+    // runningTime = std::chrono::duration_cast<std::chrono::duration<double> >(end_time - begin_time);
 
-    std::clog << "Number of threads used: " << numThreads << "\n";
-    std::clog << "Degeneracy: " << graph.d << "\n";
-    std::clog << "Lower bound from degeneracy: " << graph.cliqueLB << "\n";
-    std::clog << "Maximum clique size: " << cliqueUB << "\n";
-    std::clog << "Total running time: " << runningTime.count() << " \n";
-    std::clog << "-------------------------------------------------------------\n";
+    // std::clog << "Number of threads used: " << numThreads << "\n";
+    // std::clog << "Degeneracy: " << graph.d << "\n";
+    // std::clog << "Lower bound from degeneracy: " << graph.cliqueLB << "\n";
+    // std::clog << "Maximum clique size: " << cliqueUB << "\n";
+    // std::clog << "Total running time: " << runningTime.count() << " \n";
+    // std::clog << "-------------------------------------------------------------\n";
 
     return 0;
 }

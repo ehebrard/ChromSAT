@@ -36,9 +36,18 @@ segundo_lib = static_library('segundo',
 		      ])
 segundo_dep = declare_dependency(link_with: segundo_lib)
 
+domega_lib = static_library('domega',
+		      ['sota/dOmega/LS/src/Buss.cpp',
+		       'sota/dOmega/LS/src/Clique.cpp',
+		       'sota/dOmega/LS/src/Graph.cpp',
+				   'sota/dOmega/LS/src/NemhauserTrotter.cpp',
+					 'sota/dOmega/LS/src/VertexCover.cpp',
+		      ])
+domega_dep = declare_dependency(link_with: domega_lib)
+
 executable('gc', ['src/gc.cpp'],
 	   dependencies: [minicsp_dep, basic_dep, prop_dep,
-			  segundo_dep])
+			  segundo_dep, domega_dep])
 
 
 use_gecode = get_option('use_gecode')
