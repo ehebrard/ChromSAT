@@ -27,92 +27,60 @@
 #include "./sota/Segundo/DSATUR/dsatur_algo.h"
 #include "./sota/Segundo/DSATUR/graphe.h"
 
-#include "./sota/dOmega/LS/src/Clique.h"
-#include "./sota/dOmega/LS/src/Graph.h"
+// #include "./sota/dOmega/LS/src/Clique.h"
+// #include "./sota/dOmega/LS/src/Graph.h"
 
 // #define DEBUG_DSIT
 
-template <class graph_struct> void convert(graph_struct& g, dOmega::Graph& o)
-{
-    o.n = g.size();
-
-    o.EdgesBegin = std::vector<int>(o.n, 0);
-    o.degree = std::vector<int>(o.n, 0);
-    o.alias = std::vector<int>(o.n, 0);
-		
-		
-		o.m = 0;
-    for (auto ru : g.nodes) {
-        auto u{g.nodes.index(ru)};
-        o.degree[u] = g.matrix[ru].size();
-
-        o.m += o.degree[u];
-    }
-
-
-    //   int real_m = 0;
-    // std::vector<std::set<int> >adjLists(o.n, std::set<int>());
-    //
-    // for(auto ru : g.nodes) {
-
-    // }
-    // 	for(auto rv : g.matrix[ru]) if(rv > ru) {
-    // 		auto u{g.nodes.index(ru)};
-    // 		auto v{g.nodes.index(rv)};
-    //
-    // 		assert( u != v );
-    //
-    // 		o.alias[u] = ru;
-    // 		o.alias[v] = rv;
-    //
-    //       if (adjLists[u].insert(v).second) {
-    //           o.degree[u]++;
-    //           real_m++;
-    //       }
-    //
-    //       if (adjLists[v].insert(u).second) {
-    //           o.degree[v]++;
-    //       }
-    // 	}
-    // }
-
-    // assert( o.m == real_m );
-		
-		
-		
-
-    o.EdgeTo = std::vector<int>(o.m);
-    o.delta = o.n;
-    o.Delta = 0;
-
-    int counter = 0;
-    for (int u = 0; u < o.n; u++) {
-        if (o.degree[u] < o.delta) {
-            o.delta = o.degree[u];
-        }
-
-        if (o.degree[u] > o.Delta) {
-            o.Delta = o.degree[u];
-        }
-        o.EdgesBegin[u] = counter;
-
-        auto ru{g.nodes[u]};
-        assert(g.nodes.index(ru) == u);
-
-        for (auto rv : g.matrix[ru]) {
-            o.EdgeTo[counter++] = g.nodes.index(rv);
-        }
-    }
-		
-		// std::cout << g.count_edges() << " " << o.m << " " << counter << std::endl;
-
-    assert(counter == o.m);
-		o.m /= 2; 
-
-    o.rightDegree = std::vector<int>(o.n, 0);
-    o.position = std::vector<int>(o.n, 0);
-    o.ordering = std::vector<int>(o.n, 0);
-}
+// template <class graph_struct> void convert(graph_struct& g, dOmega::Graph& o)
+// {
+//     o.n = g.size();
+//
+//     o.EdgesBegin = std::vector<int>(o.n, 0);
+//     o.degree = std::vector<int>(o.n, 0);
+//     o.alias = std::vector<int>(o.n, 0);
+//
+//
+// 		o.m = 0;
+//     for (auto ru : g.nodes) {
+//         auto u{g.nodes.index(ru)};
+//         o.degree[u] = g.matrix[ru].size();
+//
+//         o.m += o.degree[u];
+//     }
+//
+//     o.EdgeTo = std::vector<int>(o.m);
+//     o.delta = o.n;
+//     o.Delta = 0;
+//
+//     int counter = 0;
+//     for (int u = 0; u < o.n; u++) {
+//         if (o.degree[u] < o.delta) {
+//             o.delta = o.degree[u];
+//         }
+//
+//         if (o.degree[u] > o.Delta) {
+//             o.Delta = o.degree[u];
+//         }
+//         o.EdgesBegin[u] = counter;
+//
+//         auto ru{g.nodes[u]};
+//         assert(g.nodes.index(ru) == u);
+//
+//         for (auto rv : g.matrix[ru]) {
+//             o.EdgeTo[counter++] = g.nodes.index(rv);
+//         }
+//     }
+//
+// 		// std::cout << g.count_edges() << " " << o.m << " " << counter << std::endl;
+//
+//     assert(counter == o.m);
+// 		o.m /= 2;
+//
+//     o.rightDegree = std::vector<int>(o.n, 0);
+//     o.position = std::vector<int>(o.n, 0);
+//     o.ordering = std::vector<int>(o.n, 0);
+// }
 
 template <class graph_struct> void print(graph_struct& g)
 {
@@ -358,19 +326,19 @@ struct gc_model {
 
     */
 
-    void maximum_clique()
-    {
-        dOmega::Graph graph;
-        convert(original, graph);
-				
-        dOmega::Clique clique(graph, 1);
-        clique.findMaxClique();
-				
-				lb = std::max(lb, static_cast<int>(clique.cliqueUB));
-				
-        statistics.notify_lb(lb);
-        statistics.display(std::cout);
-    }
+    // void maximum_clique()
+    // {
+    //     dOmega::Graph graph;
+    //     convert(original, graph);
+    //
+    //     dOmega::Clique clique(graph, 1);
+    //     clique.findMaxClique();
+    //
+    // 				lb = std::max(lb, static_cast<int>(clique.cliqueUB));
+    //
+    //     statistics.notify_lb(lb);
+    //     statistics.display(std::cout);
+    // }
 
     void probe_lb(const int samplebase_)
     {
@@ -610,13 +578,13 @@ struct gc_model {
 
         if (options.maxclique) {
 
-            if (options.verbosity >= gc::options::YACKING)
-                std::cout << "[preprocessing] compute maximum clique\n";
-
-            maximum_clique();
-						
-            threshold = std::max(lb, threshold);
-            reduce(gr, threshold, k);
+            // if (options.verbosity >= gc::options::YACKING)
+            //     std::cout << "[preprocessing] compute maximum clique\n";
+            //
+            // maximum_clique();
+            //
+            // threshold = std::max(lb, threshold);
+            // reduce(gr, threshold, k);
         } else
             while (
                 original.size() and prev_size > original.size() and lb < ub) {
