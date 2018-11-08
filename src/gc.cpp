@@ -3,6 +3,8 @@
 #include "brancher.hpp"
 #include "dimacs.hpp"
 #include "edgeformat.hpp"
+#include "snap.hpp"
+#include "csv.hpp"
 #include "fillin.hpp"
 #include "graph.hpp"
 #include "mycielski.hpp"
@@ -10,7 +12,6 @@
 #include "prop.hpp"
 #include "reduction.hpp"
 #include "rewriter.hpp"
-#include "snap.hpp"
 #include "sparse_dynamic_graph.hpp"
 #include "statistics.hpp"
 #include "utils.hpp"
@@ -1463,6 +1464,15 @@ int color(gc::options& options, gc::graph<input_format>& g)
                     // num_edges += 1 - g.matrix[u].fast_contain(v);
                     g.add_edge(u, v);
                     // ++num_edges;
+                }
+            },
+            [&](int, gc::weight) {});
+    else if (options.format == "csv")
+        csv::read_graph(options.instance_file.c_str(),
+            [&](int nv, int) { g = gc::graph<input_format>{nv}; },
+            [&](int u, int v) {
+                if (u != v) {
+                    g.add_edge(u, v);
                 }
             },
             [&](int, gc::weight) {});
