@@ -143,6 +143,11 @@ struct options {
 
     enum verbosity { SILENT = 0, QUIET, NORMAL, YACKING, SOLVERINFO };
     int verbosity;
+
+    bool switchdescent;
+    int randwalkiter;
+    int lsiter;
+    int dsatlimit;
 };
 
 options parse(int argc, char* argv[]);
