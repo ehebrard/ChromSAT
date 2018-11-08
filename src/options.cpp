@@ -169,6 +169,16 @@ options parse(int argc, char* argv[])
         "verbosity level (0:silent,1:quiet,2:improvements only,3:verbose",
         false, 2, "int");
 
+    cmd.add<ValueArg<int>>(opt.randwalkiter, "", "randwalkiter",
+        "number of random walk iterations during local search", false, 100,
+        "int");
+    cmd.add<ValueArg<int>>(opt.lsiter, "", "lsiter",
+        "number of local search iterations", false, 100000, "int");
+    cmd.add<ValueArg<int>>(opt.dsatlimit, "", "dsatlimit",
+        "iteration limit during dsat moves", false, 50, "int");
+    cmd.add<SwitchArg>(opt.switchdescent, "", "switchdescent",
+        "do (not) use descent move in LS", true);
+
     cmd.parse(argc, argv);
     return opt;
 }

@@ -1138,7 +1138,7 @@ struct dsatur {
 
         assert(stat.best_ub == color_bag.size());
 
-        int num_rw_iter = 100, num_iter = 100000;
+        int num_rw_iter = options.randwalkiter, num_iter = options.lsiter;
 
         int num_rp{0};
         int num_fp{0};
@@ -1147,56 +1147,65 @@ struct dsatur {
 
         for (int i = 0; stat.best_lb < stat.best_ub and i < num_iter; ++i) {
 
+            if (options.verbosity > gc::options::YACKING)
+                std::cout << "[search] start descent\n";
 
-					if (options.verbosity > gc::options::YACKING)
-						std::cout << "[search] start descent\n";
-
-            if (descent(g, num_fp)) {
+            if (options.switchdescent and descent(g, num_fp)) {
                 stat.notify_ub(color_bag.size());
-								
-								if (options.verbosity >= gc::options::YACKING)
-									std::cout << "[search] new best ub found during descent after " << std::setw(10) << i << " local search iterations\n";
-								if (options.verbosity >= gc::options::NORMAL) 
-                stat.display(std::cout);
+
+                if (options.verbosity >= gc::options::YACKING)
+                    std::cout << "[search] new best ub "
+                                 "found during descent "
+                                 "after "
+                              << std::setw(10) << i << " local search "
+                                                       "iterations\n";
+                if (options.verbosity >= gc::options::NORMAL)
+                    stat.display(std::cout);
 
                 isol = color;
             }
-						
-						
-						if (options.verbosity > gc::options::YACKING)
-							std::cout << "[search] start random walk\n";
+
+            if (options.verbosity > gc::options::YACKING)
+                std::cout << "[search] start random walk\n";
 
             auto t{rand() % color_bag.size()};
 
             if (randomwalk(g, num_rw_iter, t, num_rp)) {
                 stat.notify_ub(color_bag.size());
-								
-								if (options.verbosity >= gc::options::YACKING)
-									std::cout << "[search] new best ub found during random walks after " << std::setw(10) << i << " local search iterations\n";
-								if (options.verbosity >= gc::options::NORMAL) 
-                stat.display(std::cout);
+
+                if (options.verbosity >= gc::options::YACKING)
+                    std::cout << "[search] new best ub found during random "
+                                 "walks after "
+                              << std::setw(10) << i
+                              << " local search iterations\n";
+                if (options.verbosity >= gc::options::NORMAL)
+                    stat.display(std::cout);
 
                 isol = color;
             }
-						
-						if (options.verbosity > gc::options::YACKING)
-							std::cout << "[search] start dsat moves\n";
-						
-            if (dsat_move(g, 1000)) {
+
+            if (options.verbosity > gc::options::YACKING)
+                std::cout << "[search] start dsat moves\n";
+
+            if (dsat_move(g, options.dsatlimit)) {
                 stat.notify_ub(color_bag.size());
-								
-								if (options.verbosity >= gc::options::YACKING)
-									std::cout << "[search] new best ub found during dsat moves after " << std::setw(10) << i << " local search iterations\n";
-								if (options.verbosity >= gc::options::NORMAL) 
-                stat.display(std::cout);
+
+                if (options.verbosity >= gc::options::YACKING)
+                    std::cout << "[search] new "
+                                 "best ub found "
+                                 "during dsat "
+                                 "moves after "
+                              << std::setw(10) << i << " local search "
+                                                       "iterations\n";
+                if (options.verbosity >= gc::options::NORMAL)
+                    stat.display(std::cout);
 
                 isol = color;
             }
-						
-						if(i % 10 == 0) {
-							if (options.verbosity >= gc::options::YACKING)
-								std::cout << "[search] " << std::setw(10) << num_reassign << " moves\n";
-						}
+
+            if (options.verbosity >= gc::options::YACKING and i % 10 == 0)
+                std::cout << "[search] " << std::setw(10) << num_reassign
+                          << " moves\n";
 
             // if(i % 100 == 0) {
             // 	dsat_order = order;
