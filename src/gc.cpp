@@ -3,6 +3,8 @@
 #include "brancher.hpp"
 #include "dimacs.hpp"
 #include "edgeformat.hpp"
+#include "snap.hpp"
+#include "csv.hpp"
 #include "fillin.hpp"
 #include "graph.hpp"
 #include "mycielski.hpp"
@@ -10,7 +12,6 @@
 #include "prop.hpp"
 #include "reduction.hpp"
 #include "rewriter.hpp"
-#include "snap.hpp"
 #include "sparse_dynamic_graph.hpp"
 #include "statistics.hpp"
 #include "utils.hpp"
@@ -38,15 +39,16 @@ template <class graph_struct> void convert(graph_struct& g, dOmega::Graph& o)
     o.EdgesBegin = std::vector<int>(o.n, 0);
     o.degree = std::vector<int>(o.n, 0);
     o.alias = std::vector<int>(o.n, 0);
-
+		
+		
+		o.m = 0;
     for (auto ru : g.nodes) {
         auto u{g.nodes.index(ru)};
-        o.degree[u] = g.matrix[u].size();
+        o.degree[u] = g.matrix[ru].size();
 
         o.m += o.degree[u];
     }
 
-    o.m /= 2; // g.count_edges();
 
     //   int real_m = 0;
     // std::vector<std::set<int> >adjLists(o.n, std::set<int>());
@@ -75,8 +77,11 @@ template <class graph_struct> void convert(graph_struct& g, dOmega::Graph& o)
     // }
 
     // assert( o.m == real_m );
+		
+		
+		
 
-    o.EdgeTo = std::vector<int>(2 * o.m);
+    o.EdgeTo = std::vector<int>(o.m);
     o.delta = o.n;
     o.Delta = 0;
 
@@ -98,8 +103,11 @@ template <class graph_struct> void convert(graph_struct& g, dOmega::Graph& o)
             o.EdgeTo[counter++] = g.nodes.index(rv);
         }
     }
+		
+		// std::cout << g.count_edges() << " " << o.m << " " << counter << std::endl;
 
-    assert(counter == 2 * o.m);
+    assert(counter == o.m);
+		o.m /= 2; 
 
     o.rightDegree = std::vector<int>(o.n, 0);
     o.position = std::vector<int>(o.n, 0);
@@ -352,11 +360,16 @@ struct gc_model {
 
     void maximum_clique()
     {
-        dOmega::Graph g;
-        convert(original, g);
-
-        std::cout << "hello\n";
-        exit(1);
+        dOmega::Graph graph;
+        convert(original, graph);
+				
+        dOmega::Clique clique(graph, 1);
+        clique.findMaxClique();
+				
+				lb = std::max(lb, static_cast<int>(clique.cliqueUB));
+				
+        statistics.notify_lb(lb);
+        statistics.display(std::cout);
     }
 
     void probe_lb(const int samplebase_)
@@ -601,6 +614,7 @@ struct gc_model {
                 std::cout << "[preprocessing] compute maximum clique\n";
 
             maximum_clique();
+						
             threshold = std::max(lb, threshold);
             reduce(gr, threshold, k);
         } else
@@ -1035,8 +1049,6 @@ struct gc_model {
         if (options.strategy != gc::options::BOUNDS and original.size() > 0
             and lb < ub) {
 
-            std::cout << "create dense graph\n";
-
             final = gc::dense_graph(original, vertex_map);
 
             init_search(solver, final, original.nodes);
@@ -1452,6 +1464,15 @@ int color(gc::options& options, gc::graph<input_format>& g)
                     // num_edges += 1 - g.matrix[u].fast_contain(v);
                     g.add_edge(u, v);
                     // ++num_edges;
+                }
+            },
+            [&](int, gc::weight) {});
+    else if (options.format == "csv")
+        csv::read_graph(options.instance_file.c_str(),
+            [&](int nv, int) { g = gc::graph<input_format>{nv}; },
+            [&](int u, int v) {
+                if (u != v) {
+                    g.add_edge(u, v);
                 }
             },
             [&](int, gc::weight) {});
