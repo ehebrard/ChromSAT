@@ -133,7 +133,7 @@ struct dsatur {
     //     std::swap(color_bag[a].size_, color_bag[b].size_);
     // }
 
-    std::vector<int> first_of_color;
+    // std::vector<int> first_of_color;
     std::vector<int> col_bag;
 
     // std::vector<int> branch_color;
@@ -335,6 +335,81 @@ struct dsatur {
         return ncol;
     }
 
+    template <class graph_struct>
+    int brelaz_from_ls(graph_struct& g, std::vector<int>& coloring)
+    {
+
+        numcolors = 0;
+
+        assert(rank.size() == g.capacity());
+        assert(degree.size() == g.capacity());
+
+        coloring = color;
+        color.clear();
+        color.resize(g.capacity(), -1);
+
+        for (auto v : g.nodes) {
+            degree[v] = g.matrix[v].size();
+        }
+				
+        auto ub{color_bag.size()};
+        std::vector<int> color_map(ub, -1);
+
+        neighbor_colors.clear();
+        neighbor_colors.resize(g.capacity(), colvector(ub));
+
+        last_vertex.clear();
+        last_vertex.resize(ub + 1, begin(order));
+        *begin(last_vertex) = end(order);
+
+
+
+        auto candidate(begin(order));
+        int d;
+
+        for (auto vptr{candidate}; vptr != end(order); ++vptr)
+            assert(rank[*vptr] == vptr);
+
+        while (candidate != end(order)) {
+
+#ifdef _DEBUG_DSATUR
+            check_consistency(g);
+#endif
+
+            // get the highest saturation degree
+            d = neighbor_colors[*candidate].size();
+
+            auto c{coloring[*candidate]};
+
+            assert(c < color_map.size());
+
+            if (color_map[c] < 0) {
+                color_map[c] = numcolors++;
+            }
+            c = color_map[c];
+						assert(!neighbor_colors[*candidate].contain(c));
+
+            ncolor.push_back(numcolors);
+
+            assert(numcolors <= ub);
+
+            // move all the pointers >= d
+            while (++d < last_vertex.size())
+                ++last_vertex[d];
+
+            assign_color(g, *candidate, c);
+            std::cout << "vertex " << *candidate << " <- " << c << std::endl;
+
+            ++candidate;
+        }
+
+        for (auto v : g.nodes) {
+            coloring[v] = color[v];
+        }
+				
+				return numcolors;
+    }
+
     //
     template <class graph_struct>
     void brelaz_init(
@@ -471,6 +546,9 @@ struct dsatur {
         if (t == gc::options::core_type::ALL) {
             copy(order.begin(), frontier + 1, back_inserter(core));
         } else if (t == gc::options::core_type::LB) {
+
+            std::cout << "EXTRACT LB-CORE\n";
+
             for (int i = 0; i < order.size(); ++i) {
                 core.push_back(order[i]);
                 if (ncolor[i] > lb)
@@ -1203,7 +1281,7 @@ struct dsatur {
                 isol = color;
             }
 
-            if (options.verbosity >= gc::options::YACKING and i % 10 == 0)
+            if (options.verbosity >= gc::options::YACKING and i % 10000 == 0)
                 std::cout << "[search] " << std::setw(10) << num_reassign
                           << " moves\n";
 
@@ -1225,6 +1303,13 @@ struct dsatur {
             // 	std::cout << std::endl;
             // }
         }
+
+        for (auto v : order) {
+            std::cout << std::setw(3) << v << " <- " << color[v] << " ("
+                      << neighbor_colors[v].size() << ")\n";
+        }
+
+        // exit(1);
     }
 
     // void compute_color_bags()
