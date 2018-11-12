@@ -27,60 +27,60 @@
 #include "./sota/Segundo/DSATUR/dsatur_algo.h"
 #include "./sota/Segundo/DSATUR/graphe.h"
 
-// #include "./sota/dOmega/LS/src/Clique.h"
-// #include "./sota/dOmega/LS/src/Graph.h"
+#include "./sota/dOmega/LS/src/Clique.h"
+#include "./sota/dOmega/LS/src/Graph.h"
 
 // #define DEBUG_DSIT
 
-// template <class graph_struct> void convert(graph_struct& g, dOmega::Graph& o)
-// {
-//     o.n = g.size();
-//
-//     o.EdgesBegin = std::vector<int>(o.n, 0);
-//     o.degree = std::vector<int>(o.n, 0);
-//     o.alias = std::vector<int>(o.n, 0);
-//
-//
-// 		o.m = 0;
-//     for (auto ru : g.nodes) {
-//         auto u{g.nodes.index(ru)};
-//         o.degree[u] = g.matrix[ru].size();
-//
-//         o.m += o.degree[u];
-//     }
-//
-//     o.EdgeTo = std::vector<int>(o.m);
-//     o.delta = o.n;
-//     o.Delta = 0;
-//
-//     int counter = 0;
-//     for (int u = 0; u < o.n; u++) {
-//         if (o.degree[u] < o.delta) {
-//             o.delta = o.degree[u];
-//         }
-//
-//         if (o.degree[u] > o.Delta) {
-//             o.Delta = o.degree[u];
-//         }
-//         o.EdgesBegin[u] = counter;
-//
-//         auto ru{g.nodes[u]};
-//         assert(g.nodes.index(ru) == u);
-//
-//         for (auto rv : g.matrix[ru]) {
-//             o.EdgeTo[counter++] = g.nodes.index(rv);
-//         }
-//     }
-//
-// 		// std::cout << g.count_edges() << " " << o.m << " " << counter << std::endl;
-//
-//     assert(counter == o.m);
-// 		o.m /= 2;
-//
-//     o.rightDegree = std::vector<int>(o.n, 0);
-//     o.position = std::vector<int>(o.n, 0);
-//     o.ordering = std::vector<int>(o.n, 0);
-// }
+template <class graph_struct> void convert(graph_struct& g, dOmega::Graph& o)
+{
+    o.n = g.size();
+
+    o.EdgesBegin = std::vector<int>(o.n, 0);
+    o.degree = std::vector<int>(o.n, 0);
+    o.alias = std::vector<int>(o.n, 0);
+		
+		
+		o.m = 0;
+    for (auto ru : g.nodes) {
+        auto u{g.nodes.index(ru)};
+        o.degree[u] = g.matrix[ru].size();
+
+        o.m += o.degree[u];
+    }
+
+    o.EdgeTo = std::vector<int>(o.m);
+    o.delta = o.n;
+    o.Delta = 0;
+
+    int counter = 0;
+    for (int u = 0; u < o.n; u++) {
+        if (o.degree[u] < o.delta) {
+            o.delta = o.degree[u];
+        }
+
+        if (o.degree[u] > o.Delta) {
+            o.Delta = o.degree[u];
+        }
+        o.EdgesBegin[u] = counter;
+
+        auto ru{g.nodes[u]};
+        assert(g.nodes.index(ru) == u);
+
+        for (auto rv : g.matrix[ru]) {
+            o.EdgeTo[counter++] = g.nodes.index(rv);
+        }
+    }
+		
+		// std::cout << g.count_edges() << " " << o.m << " " << counter << std::endl;
+
+    assert(counter == o.m);
+		o.m /= 2; 
+
+    o.rightDegree = std::vector<int>(o.n, 0);
+    o.position = std::vector<int>(o.n, 0);
+    o.ordering = std::vector<int>(o.n, 0);
+}
 
 template <class graph_struct> void print(graph_struct& g)
 {
@@ -326,19 +326,19 @@ struct gc_model {
 
     */
 
-    // void maximum_clique()
-    // {
-    //     dOmega::Graph graph;
-    //     convert(original, graph);
-    //
-    //     dOmega::Clique clique(graph, 1);
-    //     clique.findMaxClique();
-    //
-    // 				lb = std::max(lb, static_cast<int>(clique.cliqueUB));
-    //
-    //     statistics.notify_lb(lb);
-    //     statistics.display(std::cout);
-    // }
+    void maximum_clique()
+    {
+        dOmega::Graph graph;
+        convert(original, graph);
+
+        dOmega::Clique clique(graph, 1);
+        clique.findMaxClique();
+
+    				lb = std::max(lb, static_cast<int>(clique.cliqueUB));
+
+        statistics.notify_lb(lb);
+        statistics.display(std::cout);
+    }
 
     void probe_lb(const int samplebase_)
     {
@@ -578,13 +578,13 @@ struct gc_model {
 
         if (options.maxclique) {
 
-            // if (options.verbosity >= gc::options::YACKING)
-            //     std::cout << "[preprocessing] compute maximum clique\n";
-            //
-            // maximum_clique();
-            //
-            // threshold = std::max(lb, threshold);
-            // reduce(gr, threshold, k);
+            if (options.verbosity >= gc::options::YACKING)
+                std::cout << "[preprocessing] compute maximum clique\n";
+
+            maximum_clique();
+						
+            threshold = std::max(lb, threshold);
+            reduce(gr, threshold, k);
         } else
             while (
                 original.size() and prev_size > original.size() and lb < ub) {
@@ -1414,6 +1414,65 @@ struct gc_model {
         }
 };
 
+template <class input_format>
+void extend_dsat_lb_core(gc_model<input_format>& model, gc::options& options,
+    gc::statistics& statistics, const std::vector<int>& debug_sol)
+{
+    int limit{-1};
+
+    options.strategy = gc::options::BNB;
+    while (model.lb < model.ub) {
+
+        statistics.binds(NULL);
+        gc::graph<input_format> g{model.dsatur_sparse_reduced()};
+
+        std::pair<int, int> bounds{model.lb, model.ub};
+
+        statistics.update_ub = false;
+        gc_model<input_format> tmp_model(
+            g, options, statistics, bounds, debug_sol);
+        statistics.update_ub = true;
+
+        auto solution_found{tmp_model.ub < model.ub};
+        if (options.idsaturlimit == 0) {
+            solution_found |= model.find_solution(
+                tmp_model.solver, tmp_model.final, tmp_model.lb, tmp_model.ub);
+        } else {
+            solution_found |= model.solve(tmp_model.solver, tmp_model.final,
+                tmp_model.lb, tmp_model.ub, -1, false);
+        }
+
+        model.lb = std::max(tmp_model.lb, model.lb);
+        statistics.notify_lb(model.lb);
+
+        // we need to check lb < ub because the solution is already extended
+        // in
+        if (solution_found and model.lb < model.ub) {
+            if (options.verbosity >= gc::options::YACKING)
+                std::cout << "[trace] " << limit << " SAT: " << tmp_model.lb
+                          << ".." << tmp_model.ub;
+
+            auto actualub{model.dsat_extend(model.original)};
+
+            if (options.verbosity >= gc::options::YACKING)
+                std::cout << ".." << actualub << std::endl;
+
+            if (actualub < model.ub) {
+                model.ub = actualub;
+                statistics.notify_ub(model.ub);
+            }
+        }
+
+        if (options.verbosity >= gc::options::NORMAL)
+            statistics.display(std::cout);
+
+        if (g.size() == model.original.size())
+            break;
+
+        if (--limit == 0)
+            break;
+    }
+}
 
 template <class input_format>
 int color(gc::options& options, gc::graph<input_format>& g)
@@ -1620,99 +1679,66 @@ int color(gc::options& options, gc::graph<input_format>& g)
         options.ddsaturiter = 0;
         gc_model<input_format> model(g, options, statistics, bounds, sol);
 
-        // model.original.describe(std::cout);
-        // std::cout << std::endl;
+        // extend_dsat_lb_core(model, options, statistics, sol);
 
-        int limit{-1};
-
-        options.strategy = gc::options::BNB;
-        while (model.lb < model.ub) {
-
-            statistics.binds(NULL);
-            // model.cons = NULL;
-
-            // std::cout << "model.lb: " << model.lb << " / model.ub: " <<
-            // model.ub << std::endl;
-            gc::graph<input_format> g{model.dsatur_sparse_reduced()};
-            // g.describe(std::cout);
-            // std::cout << std::endl;
-
-            // std::cout << "----\n";
-            // std::cout << g.nodes << std::endl;
-            // std::cout << g.nodeset << std::endl;
-            // for( auto v : g.nodes ) {
-            // 	std::cout << g.matrix[v] << std::endl;
-            // }
-
-            std::pair<int, int> bounds{model.lb, model.ub};
-
-            statistics.update_ub = false;
-            gc_model<input_format> tmp_model(
-                g, options, statistics, bounds, sol);
-            statistics.update_ub = true;
-
-            // std::cout << "tmp_model.lb: " << tmp_model.lb << " /
-            // tmp_model.ub: " << tmp_model.ub << std::endl;
-            // std::cout << "model.lb: " << model.lb << " / model.ub: " <<
-            // model.ub << std::endl;
-
-            // minicsp::Solver s;
-            //
-            // model.init_search(s, g, model.original.nodes);
-            //
-            // statistics.binds(model.cons);
-
-            auto solution_found{tmp_model.ub < model.ub};
-            if (options.idsaturlimit == 0) {
-                solution_found |= model.find_solution(tmp_model.solver,
-                    tmp_model.final, tmp_model.lb, tmp_model.ub);
-            } else {
-                solution_found |= model.solve(tmp_model.solver, tmp_model.final,
-                    tmp_model.lb, tmp_model.ub, -1, false);
-                //     solution_found = model.find_solution();
-                // } else {
-                //     solution_found = model.solve(-1);
-            }
-
-            model.lb = std::max(tmp_model.lb, model.lb);
-            statistics.notify_lb(model.lb);
-
-            // we need to check lb < ub because the solution is already extended
-            // in
-            if (solution_found and model.lb < model.ub) {
-                // auto solub = model.cons->ub;
-
-                // std::cout << 11 << std::endl;
-
-                if (options.verbosity >= gc::options::YACKING)
-                    std::cout << "[trace] " << limit << " SAT: " << tmp_model.lb
-                              << ".." << tmp_model.ub;
-
-                // std::cout << 22 << std::endl;
-
-                // std::cout << "DSAT EXTEND UB = " << model.ub << std::endl;
-                auto actualub{model.dsat_extend(model.original)};
-
-                if (options.verbosity >= gc::options::YACKING)
-                    std::cout << ".." << actualub << std::endl;
-
-                if (actualub < model.ub) {
-                    model.ub = actualub;
-                    statistics.notify_ub(model.ub);
-                }
-            }
-
-            // exit(1);
-
-            if (options.verbosity >= gc::options::NORMAL)
-                statistics.display(std::cout);
-
-            if (g.size() == model.original.size())
-                break;
-
-            if (--limit == 0)
-                break;
-        }
+        // int limit{-1};
+        //
+        // options.strategy = gc::options::BNB;
+        // while (model.lb < model.ub) {
+        //
+        //     statistics.binds(NULL);
+        //     gc::graph<input_format> g{model.dsatur_sparse_reduced()};
+        //
+        //     std::pair<int, int> bounds{model.lb, model.ub};
+        //
+        //     statistics.update_ub = false;
+        //     gc_model<input_format> tmp_model(g, options, statistics, bounds,
+        //     sol);
+        //     statistics.update_ub = true;
+        //
+        //     auto solution_found{tmp_model.ub < model.ub};
+        //     if (options.idsaturlimit == 0) {
+        //         solution_found |= model.find_solution(
+        //             tmp_model.solver, tmp_model.final, tmp_model.lb,
+        //             tmp_model.ub);
+        //     } else {
+        //         solution_found |= model.solve(tmp_model.solver,
+        //         tmp_model.final,
+        //             tmp_model.lb, tmp_model.ub, -1, false);
+        //     }
+        //
+        //     model.lb = std::max(tmp_model.lb, model.lb);
+        //     statistics.notify_lb(model.lb);
+        //
+        //     // we need to check lb < ub because the solution is already
+        //     extended
+        //     // in
+        //     if (solution_found and model.lb < model.ub) {
+        //         if (options.verbosity >= gc::options::YACKING)
+        //             std::cout << "[trace] " << limit << " SAT: " <<
+        //             tmp_model.lb
+        //                       << ".." << tmp_model.ub;
+        //
+        //         auto actualub{model.dsat_extend(model.original)};
+        //
+        //         if (options.verbosity >= gc::options::YACKING)
+        //             std::cout << ".." << actualub << std::endl;
+        //
+        //         if (actualub < model.ub) {
+        //             model.ub = actualub;
+        //             statistics.notify_ub(model.ub);
+        //         }
+        //     }
+        //
+        //     if (options.verbosity >= gc::options::NORMAL)
+        //         statistics.display(std::cout);
+        //
+        //     if (g.size() == model.original.size())
+        //         break;
+        //
+        //     if (--limit == 0)
+        //         break;
+        // }
 
     } break;
     case gc::options::LOCALSEARCH: {
@@ -1726,12 +1752,25 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
         // std::cout << model.lb << ".." << model.ub << std::endl;
 
-				if(model.lb < model.ub) {
-					model.col.local_search(model.original, model.solution, statistics, options);
-				}
+        if (model.lb < model.ub) {
+            model.col.local_search(
+                model.original, model.solution, statistics, options);
+        }
+
+				exit(1);
+
+
+        if (model.lb < model.ub) {
+					//
+					// for(auto v : model.original) {
+					// 	assert(model.solution[v] == )
+					// }
+					
+						model.col.brelaz_from_ls(model.original, model.solution);
+            extend_dsat_lb_core(model, options, statistics, sol);
+        }
 
         model.finalize_solution(edges);
-
 
     } break;
     case gc::options::CLEVER: {
