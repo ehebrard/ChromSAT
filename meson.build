@@ -45,9 +45,11 @@ domega_lib = static_library('domega',
 		      ])
 domega_dep = declare_dependency(link_with: domega_lib)
 
+thread_dep = dependency('threads')
+
 executable('gc', ['src/gc.cpp'],
 	   dependencies: [minicsp_dep, basic_dep, prop_dep,
-			  segundo_dep, domega_dep])
+			  segundo_dep, domega_dep, thread_dep])
 
 
 use_gecode = get_option('use_gecode')
