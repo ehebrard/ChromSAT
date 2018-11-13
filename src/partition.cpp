@@ -7,6 +7,7 @@
 
     int partition::size() { return bag.size(); }
 
+    void partition::clear() { bag.clear(); }
     void partition::resize(const size_t n, const size_t m)
     {
         bag.resize(m);
@@ -42,6 +43,11 @@
 
         index_[elt] = bag[to].size();
         bag[to].push_back(elt);
+    }
+    bool partition::contain(const int elt, const int c)
+    {
+        auto i{index_[elt]};
+        return (i < bag[c].size() and bag[c][i] == elt);
     }
     void partition::swap(const int a, const int b)
     {

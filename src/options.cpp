@@ -179,6 +179,9 @@ options parse(int argc, char* argv[])
     cmd.add<SwitchArg>(opt.switchdescent, "", "switchdescent",
         "do (not) use descent move in LS", true);
 
+    cmd.add<ValueArg<int>>(
+        opt.seed, "", "seed", "random seed", false, 12345, "int");
+
     cmd.parse(argc, argv);
     return opt;
 }

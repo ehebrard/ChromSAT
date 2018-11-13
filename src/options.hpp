@@ -148,6 +148,8 @@ struct options {
     int randwalkiter;
     int lsiter;
     int dsatlimit;
+
+    int seed;
 };
 
 options parse(int argc, char* argv[]);
