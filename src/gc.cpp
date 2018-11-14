@@ -1530,7 +1530,7 @@ void extend_dsat_lb_core(gc_model<input_format>& model, gc::options& options,
         minicsp::Solver s;
 
         model.init_search(s, g, model.original.nodes);
-				
+
         statistics.binds(model.cons);
 
         int nub{model.ub}, nlb{model.lb};
@@ -1545,8 +1545,10 @@ void extend_dsat_lb_core(gc_model<input_format>& model, gc::options& options,
         statistics.notify_lb(model.lb);
 
         if (solution_found and options.strategy == gc::options::LOCALSEARCH) {
-            model.col.local_search(
-                model.original, model.solution, statistics, options);
+            model.col.local_search(model.original, model.solution, statistics,
+                options,
+                begin(model.original.nodes) + (options.focus ? g.size() : 0),
+                end(model.original.nodes));
         }
 
         if (options.verbosity >= gc::options::NORMAL)
@@ -1811,7 +1813,8 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
         std::pair<int, int> bounds{1, g.size()};
 
-        std::cout << "PREPROCESSING\n";
+        if (options.verbosity >= gc::options::NORMAL)
+            std::cout << "PREPROCESSING\n";
 
         options.strategy = gc::options::BOUNDS; // so that we don't create the
         // dense graph yet
@@ -1820,13 +1823,15 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
         // std::cout << model.lb << ".." << model.ub << std::endl;
 
-        std::cout << "INITIAL LS\n";
+        if (options.verbosity >= gc::options::NORMAL)
+            std::cout << "INITIAL LS\n";
 
         options.strategy = gc::options::LOCALSEARCH;
 
         if (model.lb < model.ub) {
-            model.col.local_search(
-                model.original, model.solution, statistics, options);
+            model.col.local_search(model.original, model.solution, statistics,
+                options, begin(model.original.nodes),
+                end(model.original.nodes));
         }
 
         // exit(1);
@@ -1837,7 +1842,8 @@ int color(gc::options& options, gc::graph<input_format>& g)
             // 	assert(model.solution[v] == )
             // }
 
-            std::cout << "I-DSATUR + LS\n";
+            if (options.verbosity >= gc::options::NORMAL)
+                std::cout << "I-DSATUR + LS\n";
 
             model.col.full = false;
             model.col.brelaz_from_ls(model.original, model.solution);

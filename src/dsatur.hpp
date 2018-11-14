@@ -9,6 +9,8 @@
 
 // #define _DEBUG_DSATUR
 
+// #define GAHHH
+
 namespace gc
 {
 
@@ -123,28 +125,19 @@ struct dsatur {
     bool full{false};
     bool use_recolor{true};
 
-    // std::vector<size_t> bag_idx;
-    // std::vector<sparseset> color_bag;
     partition color_bag;
 
-    // void swap_colors(const int a, const int b)
-    // {
-    //     std::swap(color_bag[a].list_, color_bag[b].list_);
-    //     std::swap(color_bag[a].size_, color_bag[b].size_);
-    // }
 
-    // std::vector<int> first_of_color;
     std::vector<int> col_bag;
 
-    // std::vector<int> branch_color;
     gc::bitset visited;
+
+    intstack search_vertices;
+    intstack search_colors;
+
     std::vector<int> prev;
     std::vector<int> stack;
     std::vector<int> trail;
-
-    //     std::vector<int> last_update;
-    //     std::vector<double> avg_dsatur;
-    // double decay{.99};
 
     long long int num_reassign{0};
 
@@ -755,8 +748,9 @@ struct dsatur {
         ncolor.clear();
     }
 
-    template <class graph_struct>
-    void init_local_search(graph_struct& g, std::vector<int>& isol)
+    template <class graph_struct, class RandomIt>
+    void init_local_search(graph_struct& g, std::vector<int>& isol,
+        RandomIt begin_search, RandomIt end_search)
     {
         // full = true;
 
@@ -833,21 +827,21 @@ struct dsatur {
 
         color_bag.clear();
         color_bag.resize(g.capacity(), ub);
-        // color_bag.resize(g.capacity(), numcolors);
-        // std::vector<size_t> idx(order.size(), sparseset::NOVAL);
-        // bag_idx.resize(order.size(), NOINDEX);
-        // std::vector<sparseset> bags(numcolors);
-        // for (auto it{begin(color_bag)}; it != end(color_bag); ++it)
-        //     it->binds(&bag_idx);
-        // for (auto it{begin(color_bag.bag)}; it != end(color_bag.bag); ++it)
-        //     assert(it->size() == 0);
 
         for (auto it{begin(order)}; it != end(order); ++it) {
-            // assert(color[*it] >= 0);
             color_bag.add_elt(*it, color[*it]);
         }
 
-        // std::cout << color_bag << std::endl;
+        search_vertices.reserve(g.capacity());
+        search_vertices.clear();
+        search_colors.reserve(ub);
+        search_colors.clear();
+
+        for (auto vptr{begin_search}; vptr != end_search; ++vptr) {
+            auto v{*vptr};
+            search_vertices.add(v);
+            search_colors.add(color[v]);
+        }
     }
 
     // template <class graph_struct> void percolate(graph_struct& g)
@@ -873,7 +867,9 @@ struct dsatur {
 				int iter{0};
         while (progress and iter < limit) {
             progress = false;
-            for (auto xp{rbegin(order)}; xp != rend(order); ++xp) {
+
+            for (auto xp{search_vertices.begin()}; xp != search_vertices.end();
+                 ++xp) {
                 auto x{*xp};
                 int c{0};
 								
@@ -939,7 +935,7 @@ struct dsatur {
         auto success{-1};
         stack.clear();
         for (int b{0}; b < color_bag.size() and success < 0; ++b)
-            if (single[b] >= 0
+            if (single[b] >= 0 and search_vertices.contain(single[b])
                 // and (!visited.fast_contain(single[b]) or prev[single[b]]
                 // != x)
                 )
@@ -1079,7 +1075,8 @@ struct dsatur {
                     // w is the only neighbor of x colored with c
 
                     // auto c{color[x]};
-                    if (!visited.fast_contain(w)) {
+                    if (!visited.fast_contain(w)
+                        and search_vertices.contain(w)) {
                         visited.fast_add(w);
                         backtrack = false;
                         prev[w] = x;
@@ -1142,6 +1139,14 @@ struct dsatur {
         }
         color_bag.remove(color_bag.size() - 1);
         --numcolors;
+
+        assert(search_colors.contain(c));
+        assert(numcolors == color_bag.size());
+        if (search_colors.contain(numcolors)) {
+            search_colors.remove(numcolors);
+        } else {
+            search_colors.remove(c);
+        }
     }
 
     template <class graph_struct> bool descent(graph_struct& g, int& npath)
@@ -1154,51 +1159,50 @@ struct dsatur {
             progress = false;
             int c{color_bag.size() - 1};
             while (c >= 0) {
+                if (search_colors.contain(c)) {
 
 #ifdef _DEBUG_DSATUR
-                check_full_consistency(g, "start findpath loop");
+                    check_full_consistency(g, "start findpath loop");
 #endif
 
-                int problem = color_bag[c].size();
-                while (!color_bag[c].empty()) {
+                    int problem = color_bag[c].size();
+                    while (!color_bag[c].empty()) {
 
-                    stack.clear();
-                    stack.push_back(color_bag[c].back());
+                        stack.clear();
+                        stack.push_back(color_bag[c].back());
 
-                    if (!findpath_out(g, c))
-                        break;
+                        if (!findpath_out(g, c))
+                            break;
 
-                    ++npath;
+                        ++npath;
 
 #ifdef _DEBUG_DSATUR
-                    check_full_consistency(g, "successful findpath");
+                        check_full_consistency(g, "successful findpath");
 #endif
 
-                    if (problem-- < 0)
-                        exit(1);
+                        assert(problem-- >= 0);
+                    }
+
+                    if (color_bag[c].empty()) {
+
+#ifdef _DEBUG_DSATUR
+                        check_full_consistency(g, "before rm color (d)");
+#endif
+
+                        remove_color(g, c);
+
+#ifdef _DEBUG_DSATUR
+                        check_full_consistency(g, "after rm color (d)");
+#endif
+
+                        improvement = progress = true;
+
+                        assert(numcolors == color_bag.size());
+                    }
                 }
-
-                if (color_bag[c].empty()) {
-
-#ifdef _DEBUG_DSATUR
-                    check_full_consistency(g, "before rm color (d)");
-#endif
-
-                    remove_color(g, c);
-
-#ifdef _DEBUG_DSATUR
-                    check_full_consistency(g, "after rm color (d)");
-#endif
-
-                    improvement = progress = true;
-
-                    assert(numcolors == color_bag.size());
-                }
-
                 --c;
             }
         }
-
         return improvement;
     }
 
@@ -1207,14 +1211,24 @@ struct dsatur {
         graph_struct& g, const int limit, const int target, int& npath)
     {
         int iter{0};
+
+        if (color_bag[target].size() == 0) {
+            std::cout << target << std::endl << color_bag << std::endl;
+        }
+
+        assert(color_bag[target].size() > 0);
+        assert(search_vertices.size() > 0);
+
         while (iter < limit) {
-            // auto x{(rand() % 2
-            //         ? order[rand() % order.size()]
-            //         : color_bag[target][rand() % color_bag[target].size()])};
-            auto x{(random_generator() % 2
-                    ? order[random_generator() % order.size()]
-                    : color_bag[target][random_generator()
-                          % color_bag[target].size()])};
+
+            assert(color_bag[target].size() > 0);
+            assert(search_vertices.size() > 0);
+
+            auto x{
+                (random_generator() % 2 ? search_vertices[random_generator()
+                                              % search_vertices.size()]
+                                        : color_bag[target][random_generator()
+                                              % color_bag[target].size()])};
 
             assert(trail.size() == 0);
 
@@ -1258,9 +1272,10 @@ struct dsatur {
         return false;
     }
 
-    template <class graph_struct>
+    template <class graph_struct, class RandomIt>
     void local_search(graph_struct& g, std::vector<int>& isol,
-        gc::statistics& stat, gc::options& options)
+        gc::statistics& stat, gc::options& options, RandomIt begin_search,
+        RandomIt end_search)
     {
         // assert(g.size() == isol.size());
 
@@ -1272,7 +1287,7 @@ struct dsatur {
 
         assert(isol.size() == color.size());
 
-        init_local_search(g, isol);
+        init_local_search(g, isol, begin_search, end_search);
 
         if (options.verbosity >= gc::options::YACKING)
             std::cout << "[search] start local search\n";
@@ -1314,8 +1329,9 @@ struct dsatur {
             if (options.verbosity > gc::options::YACKING)
                 std::cout << "[search] start random walk\n";
 
-            // auto t{rand() % color_bag.size()};
-            auto t{random_generator() % color_bag.size()};
+            auto t{search_colors[random_generator() % search_colors.size()]};
+
+            assert(color_bag[t].size() > 0);
 
             if (randomwalk(g, num_rw_iter, t, num_rp)) {
                 stat.notify_ub(color_bag.size());

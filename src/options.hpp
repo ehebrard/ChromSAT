@@ -145,6 +145,7 @@ struct options {
     int verbosity;
 
     bool switchdescent;
+    bool focus;
     int randwalkiter;
     int lsiter;
     int dsatlimit;

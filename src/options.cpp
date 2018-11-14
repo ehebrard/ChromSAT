@@ -178,6 +178,8 @@ options parse(int argc, char* argv[])
         "iteration limit during dsat moves", false, 50, "int");
     cmd.add<SwitchArg>(opt.switchdescent, "", "switchdescent",
         "do (not) use descent move in LS", true);
+    cmd.add<SwitchArg>(
+        opt.focus, "", "focus", "do not move the core in LS", false);
 
     cmd.add<ValueArg<int>>(
         opt.seed, "", "seed", "random seed", false, 12345, "int");

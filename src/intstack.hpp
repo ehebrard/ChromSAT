@@ -63,13 +63,23 @@ public:
     std::vector<int>::const_iterator end() const;
     std::vector<int>::const_reverse_iterator rend() const;
 
+    std::vector<int>::iterator begin_not_in();
+    std::vector<int>::reverse_iterator rbegin_not_in();
+
+    std::vector<int>::iterator end_not_in();
+    std::vector<int>::reverse_iterator rend_not_in();
+
+    std::vector<int>::const_iterator begin_not_in() const;
+    std::vector<int>::const_reverse_iterator rbegin_not_in() const;
+
+    std::vector<int>::const_iterator end_not_in() const;
+    std::vector<int>::const_reverse_iterator rend_not_in() const;
+
     void fill();
 
     void clear();
 
     void resize(const size_t n);
-
-    void remove(const int elt);
 
     void move_up(const int elt, const int idx);
 
@@ -82,10 +92,12 @@ public:
     int back() const;
 
     void push(const int elt);
-
     void add(const int elt);
-
     void safe_add(const int elt);
+
+    void pull(const int elt);
+    void remove(const int elt);
+    void safe_remove(const int elt);
 
     int index(const int elt) const;
 
