@@ -17,6 +17,21 @@ void intstack::reserve(const size_t n)
     }
 }
 
+// void intstack::resize(const size_t n)
+// {
+//     while (list_.size() < n) {
+//         index_.push_back(list_.size());
+//         list_.push_back(list_.size());
+//     }
+// 		// while (list_.size() > n) {
+// 		// 	    auto last = list_.back();
+// 		// 	list_.pop_back();
+// 		// 	auto idmax = index_[list_.size()];
+// 		// 	list_[idmax] = last;
+// 		// 	index_.pop_back();
+// 		// }
+// }
+
 void intstack::save(size_t& stamp) { stamp = size_; }
 void intstack::restore(const size_t stamp) { size_ = stamp; }
 
@@ -83,11 +98,56 @@ std::vector<int>::const_reverse_iterator intstack::rend() const
     return list_.rend();
 }
 
+std::vector<int>::iterator intstack::begin_not_in() { return end(); }
+std::vector<int>::reverse_iterator intstack::rbegin_not_in()
+{
+    return list_.rend();
+}
+
+std::vector<int>::iterator intstack::end_not_in() { return list_.end(); }
+std::vector<int>::reverse_iterator intstack::rend_not_in() { return rbegin(); }
+
+std::vector<int>::const_iterator intstack::begin_not_in() const
+{
+    return end();
+}
+std::vector<int>::const_reverse_iterator intstack::rbegin_not_in() const
+{
+    return list_.rend();
+}
+
+std::vector<int>::const_iterator intstack::end_not_in() const
+{
+    return list_.end();
+}
+std::vector<int>::const_reverse_iterator intstack::rend_not_in() const
+{
+    return rend();
+}
+
 void intstack::fill() { size_ = list_.size(); }
 
 void intstack::clear() { size_ = 0; }
 
+// void intstack::set_size(const int s) { size_ = s; }
+
+void intstack::safe_remove(const int elt)
+{
+    if (elt >= 0) {
+        if (static_cast<size_t>(elt) >= list_.size()) {
+            reserve(elt + 1);
+        }
+        remove(elt);
+    }
+}
+
 void intstack::remove(const int elt)
+{
+    if (index_[elt] < size_)
+        pull(elt);
+}
+
+void intstack::pull(const int elt)
 {
     auto last = list_[--size_];
     index_[last] = index_[elt];

@@ -30,6 +30,7 @@ public:
     //@{
     explicit partition();
 
+    void clear();
     void resize(const size_t n, const size_t m);
 
     int size();
@@ -42,6 +43,7 @@ public:
     void add_elt(const int elt, const int to);
     void swap(const int a, const int b);
     void remove(const int a);
+    bool contain(const int elt, const int c);
     //@}
 
     /*!@name Miscellaneous*/

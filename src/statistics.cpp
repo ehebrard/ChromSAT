@@ -81,7 +81,7 @@ void statistics::notify_lb(const int l)
 
 void statistics::notify_ub(const int u) 
 {
-    if (best_ub > u) {
+    if (ub_safe and best_ub > u) {
         best_ub = u;
         changed = true;
     }
@@ -107,37 +107,37 @@ void statistics::describe(std::ostream& os)
 }
 
 void statistics::display(std::ostream& os)
-{	
-		if(update_lb && cons && best_lb < cons->bestlb) {
-				changed = true;
-				best_lb = cons->bestlb;
-		}
-		if(update_ub && cons && best_ub > cons->ub) {
-				changed = true;
-				best_ub = cons->ub;
-		}
-		
-		
-		
-		if(changed) {
-			
-			double vm_usage;
-			double resident_set;
-			
-			process_mem_usage(vm_usage, resident_set);
-			
-				os.setf(std::ios_base::fixed, std::ios_base::floatfield);
-		    os << "[data] lb = " << std::setw(4) << std::left << best_lb
-					 << "| ub = " << std::setw(4) << std::left << best_ub
-					 << "| time = " << std::setw(10) << std::left << std::setprecision(4) << minicsp::cpuTime()
-					 << "| conflicts = " << std::setw(10) << std::left << (cons ? total_conflicts + cons->s.conflicts : total_conflicts)
-					 << "| delta = " << std::setw(8) << std::left << std::setprecision(4) << get_bound_increase() 
-					 << "| #vert = " << std::setw(10) << std::left << num_vertices
-					 << "| memory = " << std::setw(8) << std::left << (long)resident_set 
-		    	 << std::endl;
-		}
-		
-		changed = false;
+{
+    if (update_lb and cons and best_lb < cons->bestlb) {
+        changed = true;
+        best_lb = cons->bestlb;
+    }
+    if (ub_safe and update_ub and cons and best_ub > cons->ub) {
+        changed = true;
+        best_ub = cons->ub;
+    }
+
+    if (changed) {
+
+        double vm_usage;
+        double resident_set;
+
+        process_mem_usage(vm_usage, resident_set);
+
+        os.setf(std::ios_base::fixed, std::ios_base::floatfield);
+        os << "[data] lb = " << std::setw(4) << std::left << best_lb
+           << "| ub = " << std::setw(4) << std::left << best_ub
+           << "| time = " << std::setw(10) << std::left << std::setprecision(4)
+           << minicsp::cpuTime() << "| conflicts = " << std::setw(10)
+           << std::left
+           << (cons ? total_conflicts + cons->s.conflicts : total_conflicts)
+           << "| delta = " << std::setw(8) << std::left << std::setprecision(4)
+           << get_bound_increase() << "| #vert = " << std::setw(10) << std::left
+           << num_vertices << "| memory = " << std::setw(8) << std::left
+           << (long)resident_set << std::endl;
+    }
+
+    changed = false;
 }
 
 void statistics::binds( gc::cons_base* c ) {
