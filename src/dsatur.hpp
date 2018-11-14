@@ -412,6 +412,8 @@ struct dsatur {
         numcolors = 0;
         ncolor.clear();
 
+				// int potential_colors = begin(neighbor_colors)->b.size();
+
         assert(rank.size() == g.capacity());
         assert(degree.size() == g.capacity());
 
@@ -422,6 +424,8 @@ struct dsatur {
                 assert(color[v] == c);
             }
         }
+
+        // std::cout << color_bag << std::endl;
 
         coloring = color;
         color.clear();
@@ -434,14 +438,21 @@ struct dsatur {
             core[v] = neighbor_colors[v].size();
         }
 
-        auto ub{color_bag.size()};
-        // std::vector<int> color_map(ub, -1);
+				auto lsncol{color_bag.size()};
+				auto potential_colors{std::max(color_bag.size(), static_cast<int>(begin(neighbor_colors)->b.size()))};
+        // auto ub{color_bag.size()};
+        // std::vector<int> color_map;
+        // // std::vector<int> new2old;
+        // for (auto i{0}; i < ub; ++i) {
+        //     color_map.push_back(i);
+        //     // new2old.push_back(i);
+        // }
 
         neighbor_colors.clear();
-        neighbor_colors.resize(g.capacity(), colvector(ub));
+        neighbor_colors.resize(g.capacity(), colvector(potential_colors));
 
         last_vertex.clear();
-        last_vertex.resize(ub + 1, begin(order));
+        last_vertex.resize(potential_colors + 1, begin(order));
 
         *begin(last_vertex) = end(order);
 
@@ -458,23 +469,43 @@ struct dsatur {
             check_consistency(g);
 #endif
 
+            // print(g);
+
             // get the highest saturation degree
             d = neighbor_colors[*candidate].size();
 
             auto best{candidate};
             auto c{-1};
+            auto ok{false};
             for (auto vptr{candidate}; vptr != last_vertex[d]; ++vptr) {
                 auto q{coloring[*vptr]};
                 auto f{neighbor_colors[*vptr].get_first_allowed()};
-                if (q == f
-                    and (c < q
-                            or (c == q and (core[*vptr] > core[*best]
+								
+								// std::cout << ok << " -- " << *vptr << ": " << q << " == " << f << " " << core[*vptr] << " " << degree[*vptr] ;
+									
+								
+                if ((q == f
+                        and (!ok
+                                or (c < q
+                                       or (c == q
+                                              and (core[*vptr] > core[*best]
+                                                      or (core[*vptr]
+                                                                 == core[*best]
+                                                             and degree[*vptr]
+                                                                 > degree
+                                                                       [*best]))))))
+                    or (!ok and q != f and (core[*vptr] > core[*best]
                                                or (core[*vptr] == core[*best]
                                                       and degree[*vptr]
-                                                          > degree[*best]))))) {
-                    c = q;
+                                                          >= degree[*best])))) {
+                    if (q == f)
+                        ok = true;
+                    c = f;
                     best = vptr;
+										// std::cout << ""
                 }
+								
+								// std::cout << " [" << *best << "|" << c << "|" << core[*best] << "|" << degree[*best] << "]" ;
             }
 
             assert(c >= 0);
@@ -486,13 +517,18 @@ struct dsatur {
 
             if (c >= numcolors) {
                 ++numcolors;
+								
+                if (c == potential_colors) {
+                    add_potential_color(candidate);
+                    ++potential_colors;
+                }
             }
 
             assert(!neighbor_colors[*candidate].contain(c));
 
             ncolor.push_back(numcolors);
 
-            assert(numcolors <= ub);
+            assert(numcolors <= potential_colors);
 
             // move all the pointers >= d
             while (++d < last_vertex.size())
@@ -508,6 +544,10 @@ struct dsatur {
             coloring[v] = color[v];
         }
         core.clear();
+
+
+
+				// std::cout << "RESULT: " << numcolors << " / " << lsncol << std::endl;
 
         return numcolors;
     }
@@ -1550,8 +1590,11 @@ struct dsatur {
 
             std::cout << std::setw(3) << v << ": ";
 
-            std::cout << "(" << neighbor_colors[v].size() << ") "
-                      << neighbor_colors[v];
+            std::cout << "(" << neighbor_colors[v].size();
+            if (core.size() == order.size())
+                std::cout << "|" << core[v];
+
+            std::cout << "|" << degree[v] << ") " << neighbor_colors[v];
 
             if (color[v] >= 0) {
                 std::cout << " ** " << color[v] << " **";

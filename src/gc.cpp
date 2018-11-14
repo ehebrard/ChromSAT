@@ -545,8 +545,6 @@ struct gc_model {
                           << *(df.core[i] - 1) << "]\n";
         }
 
-        std::cout << ub << " <= " << (df.degeneracy + 1) << std::endl;
-
         if (ub > df.degeneracy + 1) {
 
             int maxc{gr.greedy_solution(
