@@ -331,7 +331,7 @@ struct dsatur {
     }
 
     template <class graph_struct>
-    int brelaz_from_ls(graph_struct& g, std::vector<int>& coloring)
+    int old_brelaz_from_ls(graph_struct& g, std::vector<int>& coloring)
     {
 
         numcolors = 0;
@@ -403,6 +403,113 @@ struct dsatur {
         }
 				
 				return numcolors;
+    }
+
+    template <class graph_struct>
+    int brelaz_from_ls(graph_struct& g, std::vector<int>& coloring)
+    {
+
+        numcolors = 0;
+        ncolor.clear();
+
+        assert(rank.size() == g.capacity());
+        assert(degree.size() == g.capacity());
+
+        percolate(g);
+
+        for (auto c{0}; c < color_bag.size(); ++c) {
+            for (auto v : color_bag[c]) {
+                assert(color[v] == c);
+            }
+        }
+
+        coloring = color;
+        color.clear();
+        color.resize(g.capacity(), -1);
+
+        core.clear();
+        core.resize(g.capacity(), 0);
+        for (auto v : g.nodes) {
+            degree[v] = g.matrix[v].size();
+            core[v] = neighbor_colors[v].size();
+        }
+
+        auto ub{color_bag.size()};
+        // std::vector<int> color_map(ub, -1);
+
+        neighbor_colors.clear();
+        neighbor_colors.resize(g.capacity(), colvector(ub));
+
+        last_vertex.clear();
+        last_vertex.resize(ub + 1, begin(order));
+
+        *begin(last_vertex) = end(order);
+
+        auto candidate(begin(order));
+        int d;
+
+        // for (auto vptr{candidate}; vptr != end(order); ++vptr)
+        //     assert(rank[*vptr] == vptr);
+        //
+
+        while (candidate != end(order)) {
+
+#ifdef _DEBUG_DSATUR
+            check_consistency(g);
+#endif
+
+            // get the highest saturation degree
+            d = neighbor_colors[*candidate].size();
+
+            auto best{candidate};
+            auto c{-1};
+            for (auto vptr{candidate}; vptr != last_vertex[d]; ++vptr) {
+                auto q{coloring[*vptr]};
+                auto f{neighbor_colors[*vptr].get_first_allowed()};
+                if (q == f
+                    and (c < q
+                            or (c == q and (core[*vptr] > core[*best]
+                                               or (core[*vptr] == core[*best]
+                                                      and degree[*vptr]
+                                                          > degree[*best]))))) {
+                    c = q;
+                    best = vptr;
+                }
+            }
+
+            assert(c >= 0);
+
+            if (best != candidate) {
+                std::swap(rank[*best], rank[*candidate]);
+                std::swap(*best, *candidate);
+            }
+
+            if (c >= numcolors) {
+                ++numcolors;
+            }
+
+            assert(!neighbor_colors[*candidate].contain(c));
+
+            ncolor.push_back(numcolors);
+
+            assert(numcolors <= ub);
+
+            // move all the pointers >= d
+            while (++d < last_vertex.size())
+                ++last_vertex[d];
+
+            assign_color(g, *candidate, c);
+            // std::cout << "vertex " << *candidate << " <- " << c << std::endl;
+
+            ++candidate;
+        }
+
+        for (auto v : g.nodes) {
+            coloring[v] = color[v];
+        }
+        core.clear();
+
+        return numcolors;
     }
 
     //
@@ -858,6 +965,31 @@ struct dsatur {
     //     }
     //     compute_color_bags();
     // }
+
+    template <class graph_struct> void percolate(graph_struct& g)
+    {
+        for (auto col{1}; col < color_bag.size(); ++col) {
+            // std::cout << "percolate " << col << std::endl << color_bag <<
+            // std::endl;
+            for (auto xp{color_bag[col].rbegin()}; xp != color_bag[col].rend();
+                 ++xp) {
+
+                auto x{*xp};
+                auto c{neighbor_colors[x].get_first_allowed()};
+
+                // std::cout << " " << x ;
+                if (c < col) {
+                    // std::cout << ":" << c;
+                    re_assign(g, x, c);
+                }
+                // else std::cout << ".";
+                // std::cout << std::endl;
+            }
+            if (color_bag[col].size() == 0) {
+                remove_color(g, col);
+            }
+        }
+    }
 
     template <class graph_struct> bool dsat_move(graph_struct& g, const int limit)
     {
