@@ -31,21 +31,27 @@ using namespace std;
 
 int verifyColoring(Graph & g, int * coloring, int k) {
 
-  for (int i=0; i<g.n; i++) {
-    if (coloring[i] < 1 || coloring[i] > k) {
+	for (int i=0; i<g.n; i++) {
+		if (coloring[i] < 1 || coloring[i] > k) {
 
-      cout << ERROR("color out of range") << " for node " 
-	   << NODE(i) << " (" << COLOR(coloring[i]) << ")\n";
-      return 0;
-    }
-    for (int j=i+1; j<g.n; j++) {
-      if (g[i][j]) {
-	if (coloring[i] == coloring[j]) {
-	  cout << ERROR("Conflict!") << " between node " << NODE(i) << " and " << NODE(j) << endl;
-	  return 0;
+			cout << ERROR("color out of range") << " for node " 
+				<< NODE(i) << " (" << COLOR(coloring[i]) << ")\n";
+			return 0;
+		}
+		for(std::vector<int>::iterator j = g.neighbor[i].begin(); j != g.neighbor[i].end(); ++j) {
+			if (coloring[i] == coloring[*j]) {
+				cout << ERROR("Conflict!") << " between node " << NODE(i) << " and " << NODE(*j) << endl;
+				return 0;
+			}
+		}
+		// for (int j=i+1; j<g.n; j++) {
+		// 	if (g[i][j]) {
+		// 		if (coloring[i] == coloring[j]) {
+		// 			cout << ERROR("Conflict!") << " between node " << NODE(i) << " and " << NODE(j) << endl;
+		// 			return 0;
+		// 		}
+		// 	}
+		// }
 	}
-      }
-    }
-  }
-  return 1;
+	return 1;
 }

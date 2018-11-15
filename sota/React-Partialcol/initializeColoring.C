@@ -27,56 +27,61 @@
 
 void initializeColoring(Graph & g, int * c, int k, Random & r) {
 
-  // A simple greedy algorithm that leaves the assigned color
-  // if possible, gives another legal color or 
-  // assigns color 0 if nothing
-  // else is available.
+    // A simple greedy algorithm that leaves the assigned color
+    // if possible, gives another legal color or
+    // assigns color 0 if nothing
+    // else is available.
 
-  // First produce a random permutation for the vertex order
-  int perm[g.n];
-  for (int i=0; i<g.n; i++) {
-    perm[i] = i;
-  }
-  for (int i=0; i<g.n; i++) {
-    int p = r.getInt(0,g.n-1);
-    int h = perm[i];
-    perm[i] = perm[p];
-    perm[p] = h;
-  }  
-
-  int taken[k+1];
-
-  // Insure all colors are in the range [0, ... ,k]
-  for (int i=0; i<g.n; i++) {
-    if (c[i]<0 || c[i]>k) c[i]=0;
-  }
-
-  // Go through all nodes
-  for (int ii=0; ii<g.n; ii++) {
-    int i = perm[ii];
-    // Build a list of used colors in the nodes neighborhood
-    for (int j=0; j<=k; j++) {
-      taken[j]=0;
+    // First produce a random permutation for the vertex order
+    int perm[g.n];
+    for (int i = 0; i < g.n; i++) {
+        perm[i] = i;
     }
-    for (int j=0; j<g.n; j++) {
-      if (i!=j && g[i][j]) {
-	taken[c[j]]++;
-      }
+    for (int i = 0; i < g.n; i++) {
+        int p = r.getInt(0, g.n - 1);
+        int h = perm[i];
+        perm[i] = perm[p];
+        perm[p] = h;
     }
-    // if the currently assigned color is legal and not 0, leave it
-    // otherwise find a new legal color, and if not possible
-    // set it to zero.
-    if (c[i]==0 || taken[c[i]]>0) {
-      int color=0;
-      for (int j=0; j<=k; j++) {
-	if (taken[j] == 0) {
-	  color = j;
-	  break;
-	}
-      }
-      c[i] = color;
+
+    int taken[k + 1];
+
+    // Insure all colors are in the range [0, ... ,k]
+    for (int i = 0; i < g.n; i++) {
+        if (c[i] < 0 || c[i] > k)
+            c[i] = 0;
     }
-  }
+
+    // Go through all nodes
+    for (int ii = 0; ii < g.n; ii++) {
+        int i = perm[ii];
+        // Build a list of used colors in the nodes neighborhood
+        for (int j = 0; j <= k; j++) {
+            taken[j] = 0;
+        }
+        // for (int j = 0; j < g.n; j++) {
+        //     if (i != j && g[i][j]) {
+        //         taken[c[j]]++;
+        //     }
+        // }
+        for (std::vector<int>::iterator j = g.neighbor[i].begin();
+             j != g.neighbor[i].end(); j++) {
+            taken[c[*j]]++;
+        }
+        // if the currently assigned color is legal and not 0, leave it
+        // otherwise find a new legal color, and if not possible
+        // set it to zero.
+        if (c[i] == 0 || taken[c[i]] > 0) {
+            int color = 0;
+            for (int j = 0; j <= k; j++) {
+                if (taken[j] == 0) {
+                    color = j;
+                    break;
+                }
+            }
+            c[i] = color;
+        }
+    }
 }
 
 
@@ -87,56 +92,61 @@ void initializeColoring(Graph & g, int * c, int k, Random & r) {
 
 void initializeColoringForTabu(Graph & g, int * c, int k, Random & r) {
 
-  // A simple greedy algorithm that leaves the assigned color
-  // if possible, gives another legal color or 
-  // assigns a random color if nothing
-  // else is available.
+    // A simple greedy algorithm that leaves the assigned color
+    // if possible, gives another legal color or
+    // assigns a random color if nothing
+    // else is available.
 
-  // First produce a random permutation for the vertex order
-  int perm[g.n];
-  for (int i=0; i<g.n; i++) {
-    perm[i] = i;
-  }
-  for (int i=0; i<g.n; i++) {
-    int p = r.getInt(0,g.n-1);
-    int h = perm[i];
-    perm[i] = perm[p];
-    perm[p] = h;
-  }  
-
-  int taken[k+1];
-
-  // Insure all colors are in the range [1, ... ,k]
-  for (int i=0; i<g.n; i++) {
-    if (c[i]<1 || c[i]>k) c[i] = 1;
-  }
-
-  // Go through all nodes
-  for (int ii=0; ii<g.n; ii++) {
-    int i = perm[ii];
-    // Build a list of used colors in the nodes neighborhood
-    for (int j=1; j<=k; j++) {
-      taken[j]=0;
+    // First produce a random permutation for the vertex order
+    int perm[g.n];
+    for (int i = 0; i < g.n; i++) {
+        perm[i] = i;
     }
-    for (int j=0; j<g.n; j++) {
-      if (i!=j && g[i][j]) {
-	taken[c[j]]++;
-      }
+    for (int i = 0; i < g.n; i++) {
+        int p = r.getInt(0, g.n - 1);
+        int h = perm[i];
+        perm[i] = perm[p];
+        perm[p] = h;
     }
-    // if the currently assigned color is legal, leave it
-    // otherwise find a new legal color, and if not possible
-    // set it to a random color.
-    if (taken[c[i]]>0) {
-      int color=r.getInt(1,k);
-      for (int j=1; j<=k; j++) {
-	if (taken[j] == 0) {
-	  color = j;
-	  break;
-	}
-      }
-      c[i] = color;
+
+    int taken[k + 1];
+
+    // Insure all colors are in the range [1, ... ,k]
+    for (int i = 0; i < g.n; i++) {
+        if (c[i] < 1 || c[i] > k)
+            c[i] = 1;
     }
-  }
+
+    // Go through all nodes
+    for (int ii = 0; ii < g.n; ii++) {
+        int i = perm[ii];
+        // Build a list of used colors in the nodes neighborhood
+        for (int j = 1; j <= k; j++) {
+            taken[j] = 0;
+        }
+        // for (int j = 0; j < g.n; j++) {
+        //     if (i != j && g[i][j]) {
+        //         taken[c[j]]++;
+        //     }
+        // }
+        for (std::vector<int>::iterator j = g.neighbor[i].begin();
+             j != g.neighbor[i].end(); j++) {
+            taken[c[*j]]++;
+        }
+        // if the currently assigned color is legal, leave it
+        // otherwise find a new legal color, and if not possible
+        // set it to a random color.
+        if (taken[c[i]] > 0) {
+            int color = r.getInt(1, k);
+            for (int j = 1; j <= k; j++) {
+                if (taken[j] == 0) {
+                    color = j;
+                    break;
+                }
+            }
+            c[i] = color;
+        }
+    }
 }
 
 

@@ -32,24 +32,24 @@
 using namespace std;
 
 Graph::Graph() {
-  matrix=NULL;
-  n=0;
-  nbEdges=0;
+    // matrix=NULL;
+    n = 0;
+    nbEdges = 0;
 }
 
 Graph::Graph(int m) {
-  matrix=NULL;
-  resize(m);
+    // matrix=NULL;
+    resize(m);
 }
 
-int * Graph::operator[](int index) {
-  if (index<0 || index >= this->n) {
-    cerr << "First node index out of range: " << index << "\n";
-    // Look for a proper way of treating this error...
-    matrix[-1]=0; //Make it crash.
-  }
-  return matrix+this->n*index;  
-}
+// int * Graph::operator[](int index) {
+//   if (index<0 || index >= this->n) {
+//     cerr << "First node index out of range: " << index << "\n";
+//     // Look for a proper way of treating this error...
+//     matrix[-1]=0; //Make it crash.
+//   }
+//   return matrix+this->n*index;
+// }
 
 //  Graph::Graph(char * file) {
 //    matrix=NULL;
@@ -135,16 +135,22 @@ int * Graph::operator[](int index) {
 //  }
 
 void Graph::resize(int m) {
-  if (matrix != NULL) {
-    delete[] matrix;
-  }
-  if (m>0) {
-    n=m;
-    nbEdges=0;
-    matrix = new int[m*m];
-    for (int i=0; i<m*m; i++) {
-      matrix[i]=0;
-    }
+
+    // std::cout << "resize " << m << std::endl;
+    if (m > 0) {
+        neighbor.clear();
+        neighbor.resize(m);
+
+        //   if (matrix != NULL) {
+        //       delete[] matrix;
+        // }
+
+        n = m;
+        nbEdges = 0;
+        // matrix = new int[m*m];
+        // for (int i=0; i<m*m; i++) {
+        //   matrix[i]=0;
+        // }
   }
 }
 
