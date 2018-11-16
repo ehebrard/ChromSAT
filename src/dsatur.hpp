@@ -139,7 +139,10 @@ struct dsatur {
     std::vector<int> stack;
     std::vector<int> trail;
 
+    std::vector<std::vector<long int>> tabuStatus;
+
     long long int num_reassign{0};
+    long int total_iteration{0};
 
     std::mt19937 random_generator;
 
@@ -438,8 +441,9 @@ struct dsatur {
             core[v] = neighbor_colors[v].size();
         }
 
-				auto lsncol{color_bag.size()};
-				auto potential_colors{std::max(color_bag.size(), static_cast<int>(begin(neighbor_colors)->b.size()))};
+        // auto lsncol{color_bag.size()};
+        auto potential_colors{std::max(color_bag.size(),
+            static_cast<int>(begin(neighbor_colors)->b.size()))};
         // auto ub{color_bag.size()};
         // std::vector<int> color_map;
         // // std::vector<int> new2old;
@@ -989,6 +993,12 @@ struct dsatur {
             search_vertices.add(v);
             search_colors.add(color[v]);
         }
+
+        tabuStatus.resize(g.capacity());
+        for (auto ts{begin(tabuStatus)}; ts != end(tabuStatus); ++ts) {
+            ts->clear();
+            ts->resize(color_bag.size(), 0);
+        }
     }
 
     // template <class graph_struct> void percolate(graph_struct& g)
@@ -1031,12 +1041,180 @@ struct dsatur {
         }
     }
 
-    template <class graph_struct> bool dsat_move(graph_struct& g, const int limit)
+    // use react_color moves to try to get rid of color 'col'
+    // beware the moves may make the coloring inconsistent
+    template <class graph_struct>
+    bool react_color(
+        graph_struct& g, gc::options& options, gc::statistics& stat)
+    {
+        int num_rand{0};
+        // std::cout << color_bag << std::endl;
+
+        int tabuTenure
+            = options.tenure; // std::min(std::max(g.size() / 20, 10), 10000);
+
+#ifdef _DEBUG_TABU
+        std::cout << "TENURE = " << tabuTenure << " #iter = " << total_iteration
+                  << std::endl;
+#endif
+
+        long int iter{0};
+        while (iter < options.lsiter) {
+
+#ifdef _DEBUG_DSATUR
+            check_full_consistency(g, "start react_color loop");
+#endif
+
+            int numBest{1}, col{-1};
+						// int sz{g.capacity()};
+            // for (auto c{0}; c < color_bag.size(); ++c) {
+            //     if (color_bag[c].size() <= sz) {
+            //         if (color_bag[c].size() < sz) {
+            //             numBest = 1;
+            //             sz = color_bag[c].size();
+            //         }
+            //
+            //         if (random_generator() % numBest == 0) {
+            //             col = c;
+            //         }
+            //
+            //         ++numBest;
+            //     }
+            // }
+
+						col = random_generator() % color_bag.size();
+
+#ifdef _DEBUG_TABU
+            std::cout << "SELECT COLOR " << col << std::endl;
+#endif
+            auto bestSolutionValue{color_bag[col].size()};
+
+            while (iter < options.lsiter and color_bag[col].size() > 0) {
+                if (iter % 1000000 == 0) {
+                    std::cout
+                        << std::setw(10) << bestSolutionValue << std::setw(10)
+                        << color_bag[col].size() << std::setw(10)
+                        << (double)num_rand / (double)iter << std::endl;
+                }
+
+                ++iter;
+                ++total_iteration;
+
+                // assert(iter == total_iteration);
+
+                numBest = 0;
+                int bestNode = -1, bestColor = -1, minConflict{g.capacity()};
+
+#ifdef _DEBUG_TABU
+                std::cout << "# " << iter << " (" << color_bag[col].size()
+                          << ")" << std::endl;
+#endif
+
+                for (auto v : color_bag[col]) {
+
+                    for (auto c{0}; c < color_bag.size(); ++c)
+                        if (c != col) {
+
+                            auto nConflict{
+                                neighbor_colors[v].num_neighbors_of_color(c)};
+                            if (nConflict <= minConflict) {
+                                if (nConflict < minConflict) {
+                                    numBest = 0;
+                                }
+
+                                if (tabuStatus[v][c] <= total_iteration
+                                    or (nConflict == 0
+                                           and bestSolutionValue
+                                               == color_bag[col].size())) {
+
+#ifdef _DEBUG_TABU
+                                    std::cout << " " << v << ":" << c << "|"
+                                              << nConflict;
+#endif
+
+                                    if (numBest <= 1
+                                        or random_generator() % numBest == 0) {
+                                        bestNode = v;
+                                        bestColor = c;
+                                        minConflict = nConflict;
+
+#ifdef _DEBUG_TABU
+                                        std::cout << "*";
+#endif
+                                    }
+                                    ++numBest;
+                                }
+                            }
+                        }
+                }
+
+#ifdef _DEBUG_TABU
+                std::cout << std::endl;
+#endif
+
+                if (bestNode == -1) {
+
+                    // std::cout << "random\n";
+                    ++num_rand;
+
+                    bestNode = color_bag[col][random_generator()
+                        % color_bag[col].size()];
+                    bestColor = (col + 1 + (random_generator()
+                                               % (color_bag.size() - 1)))
+                        % color_bag.size();
+                    assert(bestColor != col);
+                    minConflict
+                        = neighbor_colors[bestNode].num_neighbors_of_color(
+                            bestColor);
+                }
+
+#ifdef _DEBUG_TABU
+                std::cout << bestNode << " <- " << bestColor << " (";
+#endif
+
+                re_assign(g, bestNode, bestColor);
+                for (auto v : g.matrix[bestNode]) {
+                    tabuStatus[v][bestColor] = total_iteration + tabuTenure;
+                    if (color[v] == bestColor) {
+                        re_assign(g, v, col);
+
+#ifdef _DEBUG_TABU
+                        std::cout << " " << v;
+#endif
+                    }
+                }
+
+#ifdef _DEBUG_TABU
+                std::cout << " )\n";
+#endif
+
+                if (color_bag[col].size() < bestSolutionValue)
+                    bestSolutionValue = color_bag[col].size();
+
+                ++iter;
+            }
+
+            if (color_bag[col].size() == 0) {
+                remove_color(g, col);
+
+                stat.notify_ub(color_bag.size());
+                if (options.verbosity >= gc::options::NORMAL)
+                    stat.display(std::cout);
+
+                // return true;
+            }
+        }
+
+        return false;
+    }
+
+    template <class graph_struct>
+    bool dsat_move(graph_struct& g, const int limit)
     {
         int moves{0};
         auto progress{true}, improvement{false};
         int change;
-				int iter{0};
+        int iter{0};
         while (progress and iter < limit) {
             progress = false;
 
@@ -1044,8 +1222,9 @@ struct dsatur {
                  ++xp) {
                 auto x{*xp};
                 int c{0};
-								
-								++iter;
+
+                ++iter;
+                ++total_iteration;
 
                 for (; c < color_bag.size(); ++c) {
                     if (c != color[x] and !neighbor_colors[x].contain(c)) {
@@ -1083,8 +1262,8 @@ struct dsatur {
                 }
             }
         }
-				
-				// std::cout << moves << " / " << iter << std::endl;
+
+        // std::cout << moves << " / " << iter << std::endl;
 
         return improvement;
     }
@@ -1347,6 +1526,7 @@ struct dsatur {
                             break;
 
                         ++npath;
+                        ++total_iteration;
 
 #ifdef _DEBUG_DSATUR
                         check_full_consistency(g, "successful findpath");
@@ -1416,6 +1596,7 @@ struct dsatur {
             check_full_consistency(g, "after randpath");
 #endif
 
+            ++total_iteration;
             ++iter;
 
             if (color_bag[target].size() == 0) {
@@ -1464,11 +1645,10 @@ struct dsatur {
         if (options.verbosity >= gc::options::YACKING)
             std::cout << "[search] start local search\n";
 
-        // std::cout << "stat.best_ub = " <<
-        // stat.best_ub << " color_bag.size() = " <<
-        // color_bag.size() << std::endl;
+        while (react_color(g, options, stat))
+            ;
 
-        // assert(stat.best_ub == color_bag.size());
+        exit(1);
 
         int num_rw_iter = options.randwalkiter, num_iter = options.lsiter;
 
@@ -1477,24 +1657,36 @@ struct dsatur {
 
         std::vector<int> dsat_order;
 
-        for (int i = 0; stat.best_lb < stat.best_ub and i < num_iter; ++i) {
+        for (int i = 0;
+             stat.best_lb < stat.best_ub and total_iteration < num_iter; ++i) {
 
             if (options.verbosity > gc::options::YACKING)
                 std::cout << "[search] start descent\n";
 
             if (options.switchdescent and descent(g, num_fp)) {
-                stat.notify_ub(color_bag.size());
-
                 if (options.verbosity >= gc::options::YACKING)
                     std::cout << "[search] improving "
                                  "solution "
                                  "found during descent "
                                  "after "
-                              << std::setw(10) << i << " local search "
-                                                       "iterations\n";
-                if (options.verbosity >= gc::options::NORMAL)
-                    stat.display(std::cout);
+                              << std::setw(10) << total_iteration
+                              << " local search "
+                                 "iterations\n";
+                isol = color;
+            }
 
+            if (options.verbosity > gc::options::YACKING)
+                std::cout << "[search] start react-color\n";
+
+            if (react_color(g, options, stat)) {
+                if (options.verbosity >= gc::options::YACKING)
+                    std::cout << "[search] improving "
+                                 "solution "
+                                 "found during react_color "
+                                 "after "
+                              << std::setw(10) << total_iteration
+                              << " local search "
+                                 "iterations\n";
                 isol = color;
             }
 
@@ -1513,7 +1705,7 @@ struct dsatur {
                                  "solution found during "
                                  "random "
                                  "walks after "
-                              << std::setw(10) << i
+                              << std::setw(10) << total_iteration
                               << " local search iterations\n";
                 if (options.verbosity >= gc::options::NORMAL)
                     stat.display(std::cout);
@@ -1532,15 +1724,16 @@ struct dsatur {
                                  "solution found "
                                  "during dsat "
                                  "moves after "
-                              << std::setw(10) << i << " local search "
-                                                       "iterations\n";
+                              << std::setw(10) << total_iteration
+                              << " local search "
+                                 "iterations\n";
                 if (options.verbosity >= gc::options::NORMAL)
                     stat.display(std::cout);
 
                 isol = color;
             }
 
-            if (options.verbosity >= gc::options::YACKING and i % 1000 == 0)
+            if (options.verbosity >= gc::options::YACKING and i % 100 == 0)
                 std::cout << "[search] " << std::setw(10) << num_reassign
                           << " moves\n";
         }

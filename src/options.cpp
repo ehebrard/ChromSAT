@@ -183,6 +183,8 @@ options parse(int argc, char* argv[])
 
     cmd.add<ValueArg<int>>(
         opt.seed, "", "seed", "random seed", false, 12345, "int");
+    cmd.add<ValueArg<int>>(
+        opt.tenure, "", "tenure", "tabu tenure", false, 10, "int");
 
     cmd.parse(argc, argv);
     return opt;

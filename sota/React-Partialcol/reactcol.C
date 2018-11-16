@@ -104,8 +104,6 @@ int reactcol(Graph& g, int* c, int k, Random& r, int maxIterations,
     int maxSolutionValue = 0;
 		
 		
-		std::cout << "START LOOP\n";
-
     while (currentIterations < maxIterations && checkCPUtime() < maxTime) {
 
         currentIterations++;

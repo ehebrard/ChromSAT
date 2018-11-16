@@ -149,6 +149,7 @@ struct options {
     int randwalkiter;
     int lsiter;
     int dsatlimit;
+    int tenure;
 
     int seed;
 };

@@ -142,13 +142,16 @@ void inputDimacsGraph(Graph & g, char * file) {
     if (multiple) {
         cerr << multiple << " multiple edges encountered\n";
     }
-		
-		for(int i=0; i<g.n; ++i) {
-			std::sort(g.neighbor[i].begin(), g.neighbor[i].end());
-			for(int j=1; j<g.neighbor[i].size(); ++j) {
-				assert(g.neighbor[i][j-1] != g.neighbor[i][j]);
-			}
-		}
-		
+
+    int count = 0;
+    for (int i = 0; i < g.n; ++i) {
+        std::sort(g.neighbor[i].begin(), g.neighbor[i].end());
+        count += g.neighbor[i].size();
+        for (int j = 1; j < g.neighbor[i].size(); ++j) {
+            assert(g.neighbor[i][j - 1] != g.neighbor[i][j]);
+        }
+    }
+
+    std::cout << count / 2 << " / " << g.nbEdges << std::endl;
 }
 
