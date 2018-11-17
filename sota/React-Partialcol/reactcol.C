@@ -102,8 +102,9 @@ int reactcol(Graph& g, int* c, int k, Random& r, int maxIterations,
 
     int minSolutionValue = g.n;
     int maxSolutionValue = 0;
-		
-		
+
+    int numRandDec = 0;
+
     while (currentIterations < maxIterations && checkCPUtime() < maxTime) {
 
         currentIterations++;
@@ -145,6 +146,7 @@ int reactcol(Graph& g, int* c, int k, Random& r, int maxIterations,
         }
         // If no non tabu moves have been found, take any random move
         if (bestNode == -1) {
+            ++numRandDec;
             bestNode = nodesByColor[0][r.getInt(1, nodesByColor[0][0])];
             bestColor = r.getInt(1, k);
             bestValue = conflicts[bestColor][bestNode];

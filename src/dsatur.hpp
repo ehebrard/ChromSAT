@@ -1047,9 +1047,11 @@ struct dsatur {
     bool react_color(
         graph_struct& g, gc::options& options, gc::statistics& stat)
     {
+        long int verbose_frequency{10000};
         int num_rand{0};
         // std::cout << color_bag << std::endl;
 
+        int tabuFrequency{10000};
         int tabuTenure
             = options.tenure; // std::min(std::max(g.size() / 20, 10), 10000);
 
@@ -1058,46 +1060,50 @@ struct dsatur {
                   << std::endl;
 #endif
 
-        long int iter{0};
-        while (iter < options.lsiter) {
+        long int current_iteration{0};
+        while (total_iteration < options.lsiter) {
 
 #ifdef _DEBUG_DSATUR
             check_full_consistency(g, "start react_color loop");
 #endif
 
             int numBest{1}, col{-1};
-						// int sz{g.capacity()};
-            // for (auto c{0}; c < color_bag.size(); ++c) {
-            //     if (color_bag[c].size() <= sz) {
-            //         if (color_bag[c].size() < sz) {
-            //             numBest = 1;
-            //             sz = color_bag[c].size();
-            //         }
-            //
-            //         if (random_generator() % numBest == 0) {
-            //             col = c;
-            //         }
-            //
-            //         ++numBest;
-            //     }
-            // }
+            int sz{g.capacity()};
+            for (auto c{0}; c < color_bag.size(); ++c) {
+                if (color_bag[c].size() <= sz) {
+                    if (color_bag[c].size() < sz) {
+                        numBest = 1;
+                        sz = color_bag[c].size();
+                    }
 
-						col = random_generator() % color_bag.size();
+                    if (random_generator() % numBest == 0) {
+                        col = c;
+                    }
+
+                    ++numBest;
+                }
+            }
+
+// col = random_generator() % color_bag.size();
 
 #ifdef _DEBUG_TABU
             std::cout << "SELECT COLOR " << col << std::endl;
 #endif
             auto bestSolutionValue{color_bag[col].size()};
+            auto minSolutionValue{g.size()};
+            auto maxSolutionValue{0};
 
-            while (iter < options.lsiter and color_bag[col].size() > 0) {
-                if (iter % 1000000 == 0) {
-                    std::cout
-                        << std::setw(10) << bestSolutionValue << std::setw(10)
-                        << color_bag[col].size() << std::setw(10)
-                        << (double)num_rand / (double)iter << std::endl;
-                }
+            while (total_iteration < options.lsiter
+                and color_bag[col].size() > 0) {
+                // if (iter % 1000000 == 0) {
+                //     std::cout
+                //         << std::setw(10) << bestSolutionValue <<
+                //         std::setw(10)
+                //         << color_bag[col].size() << std::setw(10)
+                //         << (double)num_rand / (double)iter << std::endl;
+                // }
 
-                ++iter;
+                ++current_iteration;
                 ++total_iteration;
 
                 // assert(iter == total_iteration);
@@ -1122,7 +1128,7 @@ struct dsatur {
                                     numBest = 0;
                                 }
 
-                                if (tabuStatus[v][c] <= total_iteration
+                                if (tabuStatus[v][c] < total_iteration
                                     or (nConflict == 0
                                            and bestSolutionValue
                                                == color_bag[col].size())) {
@@ -1133,7 +1139,8 @@ struct dsatur {
 #endif
 
                                     if (numBest <= 1
-                                        or random_generator() % numBest == 0) {
+                                        or (random_generator() % (numBest + 1))
+                                            == 0) {
                                         bestNode = v;
                                         bestColor = c;
                                         minConflict = nConflict;
@@ -1188,10 +1195,48 @@ struct dsatur {
                 std::cout << " )\n";
 #endif
 
-                if (color_bag[col].size() < bestSolutionValue)
-                    bestSolutionValue = color_bag[col].size();
+                if (color_bag[col].size() < minSolutionValue)
+                    minSolutionValue = color_bag[col].size();
+                if (color_bag[col].size() > maxSolutionValue)
+                    maxSolutionValue = color_bag[col].size();
 
-                ++iter;
+                int Delta = maxSolutionValue - minSolutionValue;
+
+                if (current_iteration % tabuFrequency == 0) {
+                    // Adjust the tabuTenure every frequency iterations
+                    if (Delta < 2 || tabuTenure == 0) {
+                        tabuTenure += options.tenure;
+                    } else if (tabuTenure) {
+                        tabuTenure--;
+                    }
+
+                    minSolutionValue = g.size();
+                    maxSolutionValue = 0;
+                }
+
+                auto improvement{false};
+                if (color_bag[col].size() < bestSolutionValue) {
+                    bestSolutionValue = color_bag[col].size();
+                    improvement = true;
+                    current_iteration = 0;
+
+                    minSolutionValue = g.size();
+                    maxSolutionValue = 0;
+                }
+
+                if (options.verbosity >= gc::options::YACKING
+                    and (total_iteration % verbose_frequency == 0
+                            or improvement)) {
+                    std::cout
+                        << std::right << std::setw(9) << total_iteration
+                        << std::setw(9) << current_iteration
+                        << "   obj =" << std::setw(4) << color_bag[col].size()
+                        << "   best =" << std::setw(4) << bestSolutionValue
+                        << "   tenure =" << std::setw(4) << tabuTenure
+                        << "   Delta =" << std::setw(4) << Delta << std::endl;
+                    // << color_bag[col].size() << std::setw(10)
+                    // << (double)num_rand / (double)iter << std::endl;
+                }
             }
 
             if (color_bag[col].size() == 0) {
