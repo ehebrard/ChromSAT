@@ -1524,6 +1524,16 @@ void extend_dsat_lb_core(gc_model<input_format>& model, gc::options& options,
     while (model.lb < model.ub) {
         statistics.binds(NULL);
         gc::dense_graph g{model.dsatur_reduced()};
+				
+				for(auto vi{begin(model.original.nodes)}; vi!=(begin(model.original.nodes)+g.size()); ++vi) {
+					std::cout << " " << std::setw(3) << (*vi);
+				}
+				std::cout << std::endl;
+				for(auto vi{begin(model.original.nodes)}; vi!=(begin(model.original.nodes)+g.size()); ++vi) {
+					std::cout << " " << std::setw(3) << model.solution[*vi];
+				}
+				std::cout << std::endl;
+				
 
         minicsp::Solver s;
 
@@ -1812,7 +1822,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
         std::pair<int, int> bounds{1, g.size()};
 
         if (options.verbosity >= gc::options::NORMAL)
-            std::cout << "PREPROCESSING\n";
+            std::cout << "[info] preprocessing\n";
 
         options.strategy = gc::options::BOUNDS; // so that we don't create the
         // dense graph yet
@@ -1822,7 +1832,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
         // std::cout << model.lb << ".." << model.ub << std::endl;
 
         if (options.verbosity >= gc::options::NORMAL)
-            std::cout << "INITIAL LS\n";
+            std::cout << "[info] initial local search\n";
 
         options.strategy = gc::options::LOCALSEARCH;
 
@@ -1831,22 +1841,23 @@ int color(gc::options& options, gc::graph<input_format>& g)
                 options, begin(model.original.nodes),
                 end(model.original.nodes));
         }
-
-        // exit(1);
+				
+				std::vector<int> saved_sol(model.solution);
+				auto saved_ub(model.ub);
+				
 
         if (model.lb < model.ub) {
-            //
-            // for(auto v : model.original) {
-            // 	assert(model.solution[v] == )
-            // }
-
             if (options.verbosity >= gc::options::NORMAL)
-                std::cout << "I-DSATUR + LS\n";
+                std::cout << "[info] I-Dsatur + LS\n";
 
             model.col.full = false;
             model.col.brelaz_from_ls(model.original, model.solution);
             extend_dsat_lb_core(model, options, statistics, sol);
         }
+				
+				if(saved_ub <= model.ub) {
+					model.solution = saved_sol;
+				}
 
         model.finalize_solution(edges);
 

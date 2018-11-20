@@ -103,7 +103,7 @@ double statistics::get_bound_increase() const {
 
 void statistics::describe(std::ostream& os)
 {	
-		os << "[statistics] lb ub time conflicts delta #vert memory\n";
+		os << "[statistics] lb ub time conflicts moves memory\n";
 }
 
 void statistics::display(std::ostream& os)
@@ -127,13 +127,16 @@ void statistics::display(std::ostream& os)
         os.setf(std::ios_base::fixed, std::ios_base::floatfield);
         os << "[data] lb = " << std::setw(4) << std::left << best_lb
            << "| ub = " << std::setw(4) << std::left << best_ub
-           << "| time = " << std::setw(10) << std::left << std::setprecision(4)
-           << minicsp::cpuTime() << "| conflicts = " << std::setw(10)
+           << "| time = " << std::setw(9) << std::left << std::setprecision(4)
+           << minicsp::cpuTime() << "| conflicts = " << std::setw(8)
            << std::left
            << (cons ? total_conflicts + cons->s.conflicts : total_conflicts)
-           << "| delta = " << std::setw(8) << std::left << std::setprecision(4)
-           << get_bound_increase() << "| #vert = " << std::setw(10) << std::left
-           << num_vertices << "| memory = " << std::setw(8) << std::left
+           // << "| delta = " << std::setw(8) << std::left << std::setprecision(4)
+           // << get_bound_increase()
+	           << "| moves = " << std::setw(10) << total_iteration
+						 // << "| #vert = " << std::setw(10) << std::left
+						 //            << num_vertices
+							 << "| memory = " << std::setw(8) << std::left
            << (long)resident_set << std::endl;
     }
 

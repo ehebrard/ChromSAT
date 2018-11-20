@@ -15,64 +15,67 @@ namespace gc
 void process_mem_usage(double& vm_usage, double& resident_set);
 
 struct statistics {
-	
-		statistics(const int size) {
-			
-				changed = true;
-				cons= NULL;
-			
-				// total_time = 0;
-				total_conflicts = 0;
-				best_lb = 0;
-				best_ub = size;
-				
-				update_lb = true;
-				update_ub = true;
 
-                                ub_safe = true;
+    statistics(const int size)
+    {
 
-                                total_bound_1 = 0;
-                                total_bound_2 = 0;
+        changed = true;
+        cons = NULL;
 
-                                num_vertices = size;
-                                // num_neighborhood_contractions = 0;
-                                // num_vertex_removals = 0;
-                }
+        // total_time = 0;
+        total_conflicts = 0;
+				total_iteration = 0;
+        best_lb = 0;
+        best_ub = size;
 
-                // outputs a nice description of all statistics
-                void describe(std::ostream&);
-                void display(std::ostream&);
+        update_lb = true;
+        update_ub = true;
 
-                void binds(cons_base* c);
-                void unbinds();
+        ub_safe = true;
 
-                cons_base* cons;
+        total_bound_1 = 0;
+        total_bound_2 = 0;
 
-                bool changed;
+        num_vertices = size;
+        // num_neighborhood_contractions = 0;
+        // num_vertex_removals = 0;
+    }
 
-                int best_lb;
-                void notify_lb(const int l);
-                int best_ub;
-                void notify_ub(const int u);
+    // outputs a nice description of all statistics
+    void describe(std::ostream&);
+    void display(std::ostream&);
 
-                bool update_lb;
-		bool update_ub;
+    void binds(cons_base* c);
+    void unbinds();
 
-                bool ub_safe;
+    cons_base* cons;
 
-                // double total_time;
-                uint64_t total_conflicts;
+    bool changed;
 
-                // the actual statistics
-                uint64_t num_neighborhood_contractions;
-                // uint64_t num_vertex_removals;
-                int num_vertices;
-                void notify_removals(const int n);
+    int best_lb;
+    void notify_lb(const int l);
+    int best_ub;
+    void notify_ub(const int u);
 
-                uint64_t total_bound_1;
-                uint64_t total_bound_2;
-                void notify_bound_delta(const int b1, const int b2);
-                double get_bound_increase() const;
+    bool update_lb;
+    bool update_ub;
+
+    bool ub_safe;
+
+    // double total_time;
+    uint64_t total_conflicts;
+		uint64_t total_iteration;
+
+    // the actual statistics
+    uint64_t num_neighborhood_contractions;
+    // uint64_t num_vertex_removals;
+    int num_vertices;
+    void notify_removals(const int n);
+
+    uint64_t total_bound_1;
+    uint64_t total_bound_2;
+    void notify_bound_delta(const int b1, const int b2);
+    double get_bound_increase() const;
 };
 
 } // namespace gc
