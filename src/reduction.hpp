@@ -93,11 +93,11 @@ template <class adjacency_struct> struct graph_reduction {
 
             int q{util_set.min()};
 
-            if (maxc < q) {
-                std::cout << "need new color for " << v << " ("
-                          << g.matrix[v].size() << ") " << g.matrix[v]
-                          << std::endl;
-            }
+            // if (maxc < q) {
+            //     std::cout << "need new color for " << v << " ("
+            //               << g.matrix[v].size() << ") " << g.matrix[v]
+            //               << std::endl;
+            // }
 
             maxc = std::max(maxc, q);
             col[v] = q;
