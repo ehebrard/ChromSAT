@@ -1525,20 +1525,20 @@ void extend_dsat_lb_core(gc_model<input_format>& model, gc::options& options,
         statistics.binds(NULL);
         gc::dense_graph g{model.dsatur_reduced()};
 
-        // for(auto vi{begin(model.original.nodes)};
-        // vi!=(begin(model.original.nodes)+g.size()+3); ++vi) {
-        // 	std::cout << " " << std::setw(3) << (*vi);
+        // for (auto vi{begin(model.original.nodes)};
+        //      vi != (begin(model.original.nodes) + g.size() + 3); ++vi) {
+        //     std::cout << " " << std::setw(3) << (*vi);
         // }
         // std::cout << std::endl;
-        // for(auto vi{begin(model.original.nodes)};
-        // vi!=(begin(model.original.nodes)+g.size()+3); ++vi) {
-        // 	std::cout << " " << std::setw(3) << model.solution[*vi];
+        // for (auto vi{begin(model.original.nodes)};
+        //      vi != (begin(model.original.nodes) + g.size() + 3); ++vi) {
+        //     std::cout << " " << std::setw(3) << model.solution[*vi];
         // }
         // std::cout << std::endl;
-        // for(auto vi{begin(model.original.nodes)};
-        // vi!=(begin(model.original.nodes)+g.size()+3); ++vi) {
-        // 	std::cout << " " << std::setw(3) <<
-        // model.col.ncolor[vi-begin(model.original.nodes)];
+        // for (auto vi{begin(model.original.nodes)};
+        //      vi != (begin(model.original.nodes) + g.size() + 3); ++vi) {
+        //     std::cout << " " << std::setw(3)
+        //               << model.col.ncolor[vi - begin(model.original.nodes)];
         // }
         // std::cout << std::endl;
 
@@ -1561,24 +1561,27 @@ void extend_dsat_lb_core(gc_model<input_format>& model, gc::options& options,
 
         if (solution_found and options.strategy == gc::options::LOCALSEARCH) {
 
-            // for(auto vi{begin(model.original.nodes)};
-            // vi!=(begin(model.original.nodes)+g.size()+3); ++vi) {
-            // 	std::cout << " " << std::setw(3) << model.solution[*vi];
+            // for (auto vi{begin(model.original.nodes)};
+            //      vi != (begin(model.original.nodes) + g.size() + 3); ++vi) {
+            //     std::cout << " " << std::setw(3) << model.solution[*vi];
             // }
             // std::cout << std::endl;
-            // for(auto vi{begin(model.original.nodes)};
-            // vi!=(begin(model.original.nodes)+g.size()+3); ++vi) {
-            // 	std::cout << " " << std::setw(3) <<
-            // model.col.ncolor[vi-begin(model.original.nodes)];
+            // for (auto vi{begin(model.original.nodes)};
+            //      vi != (begin(model.original.nodes) + g.size() + 3); ++vi) {
+            //     std::cout << " " << std::setw(3)
+            //               << model.col.ncolor[vi -
+            //               begin(model.original.nodes)];
             // }
             // std::cout << std::endl;
             // std::cout << std::endl;
 
-            options.lsiter += options.lsextra;
-            model.col.local_search(model.original, model.solution, statistics,
-                options,
-                begin(model.original.nodes) + (options.focus ? g.size() : 0),
-                end(model.original.nodes));
+            if (options.lsextra >= 0) {
+                options.lsiter += options.lsextra;
+                model.col.local_search(model.original, model.solution,
+                    statistics, options, begin(model.original.nodes)
+                        + (options.focus ? g.size() : 0),
+                    end(model.original.nodes));
+            }
         }
 
         if (options.verbosity >= gc::options::NORMAL)

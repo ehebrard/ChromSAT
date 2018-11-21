@@ -164,7 +164,7 @@ options parse(int argc, char* argv[])
         "Core type []",
         false, 0, "int");
     cmd.add<ValueArg<int>>(opt.idsaturlimit, "", "idsaturlimit",
-        "solve limit in idsatur", false, 0, "int");
+        "solve limit in idsatur", false, -1, "int");
     cmd.add<ValueArg<int>>(opt.verbosity, "", "verbosity",
         "verbosity level (0:silent,1:quiet,2:improvements only,3:verbose",
         false, 2, "int");
@@ -185,6 +185,8 @@ options parse(int argc, char* argv[])
         "do (not) use react move in LS", true);
     cmd.add<SwitchArg>(
         opt.focus, "", "focus", "do not move the core in LS", false);
+    cmd.add<ValueArg<int>>(
+        opt.rw, "", "rw", "frequency of path exploration", false, 2, "int");
 
     cmd.add<ValueArg<int>>(
         opt.seed, "", "seed", "random seed", false, 12345, "int");

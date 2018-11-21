@@ -1070,7 +1070,21 @@ struct dsatur {
 
             int numBest{1}, col{-1};
             int sz{g.capacity()};
-            for (auto c{0}; c < color_bag.size(); ++c) {
+            // for (auto c{0}; c < color_bag.size(); ++c) {
+            //     if (color_bag[c].size() <= sz) {
+            //         if (color_bag[c].size() < sz) {
+            //             numBest = 1;
+            //             sz = color_bag[c].size();
+            //         }
+            //
+            //         if (random_generator() % numBest == 0) {
+            //             col = c;
+            //         }
+            //
+            //         ++numBest;
+            //     }
+            // }
+            for (auto c : search_colors) {
                 if (color_bag[c].size() <= sz) {
                     if (color_bag[c].size() < sz) {
                         numBest = 1;
@@ -1134,28 +1148,32 @@ struct dsatur {
                                     numBest = 0;
                                 }
 
-                                if (tabuStatus[v][c] < total_iteration
-                                    or (nConflict == 0
-                                           and bestSolutionValue
-                                               == color_bag[col].size())) {
+                                if (nConflict == 0
+                                    or search_colors.contain(c)) {
+                                    if (tabuStatus[v][c] < total_iteration
+                                        or (nConflict == 0
+                                               and bestSolutionValue
+                                                   == color_bag[col].size())) {
 
 #ifdef _DEBUG_TABU
-                                    std::cout << " " << v << ":" << c << "|"
-                                              << nConflict;
+                                        std::cout << " " << v << ":" << c << "|"
+                                                  << nConflict;
 #endif
 
-                                    if (numBest <= 1
-                                        or (random_generator() % (numBest + 1))
-                                            == 0) {
-                                        bestNode = v;
-                                        bestColor = c;
-                                        minConflict = nConflict;
+                                        if (numBest <= 1
+                                            or (random_generator()
+                                                   % (numBest + 1))
+                                                == 0) {
+                                            bestNode = v;
+                                            bestColor = c;
+                                            minConflict = nConflict;
 
 #ifdef _DEBUG_TABU
-                                        std::cout << "*";
+                                            std::cout << "*";
 #endif
+                                        }
+                                        ++numBest;
                                     }
-                                    ++numBest;
                                 }
                             }
                         }
@@ -1185,7 +1203,8 @@ struct dsatur {
                 std::cout << bestNode << " <- " << bestColor << " (";
 #endif
 
-                if (minConflict == 1 and (random_generator() % 2)) {
+                if (minConflict == 1 and options.rw > 0
+                    and (random_generator() % options.rw == 0)) {
                     auto end_node{
                         randpath(g, bestNode, bestColor, col, tabuTenure)};
 
@@ -1860,7 +1879,6 @@ struct dsatur {
             if (options.verbosity > gc::options::YACKING)
                 std::cout << "[search] start random walk\n";
 
-            assert(search_colors.size() == color_bag.size());
 
             auto t{search_colors[random_generator() % search_colors.size()]};
 
