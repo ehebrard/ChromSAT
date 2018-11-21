@@ -146,6 +146,7 @@ struct options {
 
     bool switchdescent;
     bool switchreact;
+    int rw;
     bool focus;
     int randwalkiter;
     int lsiter;
