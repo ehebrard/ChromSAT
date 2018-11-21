@@ -1574,6 +1574,7 @@ void extend_dsat_lb_core(gc_model<input_format>& model, gc::options& options,
             // std::cout << std::endl;
             // std::cout << std::endl;
 
+            options.lsiter += options.lsextra;
             model.col.local_search(model.original, model.solution, statistics,
                 options,
                 begin(model.original.nodes) + (options.focus ? g.size() : 0),

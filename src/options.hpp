@@ -149,6 +149,7 @@ struct options {
     bool focus;
     int randwalkiter;
     int lsiter;
+    int lsextra;
     int dsatlimit;
     int tenure;
 

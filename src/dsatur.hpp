@@ -259,7 +259,6 @@ struct dsatur {
         RandomIt stop, std::vector<int>& coloring, const int limit = 1,
         const int seed = 1)
     {
-
         if (beg == stop)
             return 0;
 
@@ -1846,9 +1845,10 @@ struct dsatur {
             if (options.switchreact and react_color(g, options, stat)) {
                 if (options.verbosity >= gc::options::YACKING)
                     std::cout << "[search] improving "
-                                 "solution "
-                                 "found during react_color "
-                                 "after "
+                                 "solution ("
+                              << color_bag.size() << ")"
+                                                     "found during react_color "
+                                                     "after "
                               << std::setw(10) << total_iteration
                               << " local search "
                                  "iterations\n";
@@ -1916,6 +1916,30 @@ struct dsatur {
                 std::cout << "[search] " << std::setw(10) << num_reassign
                           << " moves\n";
         }
+
+        // color = isol;
+        //
+        // for (auto v : order) {
+        // 		neighbor_colors[v].resize(stat.best_ub);
+        //             neighbor_colors[v].clear();
+        // }
+        //
+        //         // update the color neighborhood ()
+        //         for (auto it{rbegin(order)}; it != rend(order); ++it) {
+        //             auto v{*it};
+        //             for (auto u : g.matrix[v]) {
+        //                     neighbor_colors[u].add(color[v]);
+        //             }
+        //             degree[v] = g.matrix[v].size();
+        //         }
+        //         std::sort(begin(order), end(order), [&](const int x_, const
+        //         int y_) {
+        //             return (neighbor_colors[x_].size() >
+        //             neighbor_colors[y_].size()
+        //                 or (neighbor_colors[x_].size() ==
+        //                 neighbor_colors[y_].size()
+        //                        and degree[x_] > degree[y_]));
+        //         });
 
         full = false;
     }
