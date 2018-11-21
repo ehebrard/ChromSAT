@@ -145,10 +145,13 @@ struct options {
     int verbosity;
 
     bool switchdescent;
+    bool switchreact;
     bool focus;
     int randwalkiter;
     int lsiter;
+    int lsextra;
     int dsatlimit;
+    int tenure;
 
     int seed;
 };

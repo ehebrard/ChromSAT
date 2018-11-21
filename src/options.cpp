@@ -173,16 +173,23 @@ options parse(int argc, char* argv[])
         "number of random walk iterations during local search", false, 100,
         "int");
     cmd.add<ValueArg<int>>(opt.lsiter, "", "lsiter",
-        "number of local search iterations", false, 100000, "int");
+        "number of local search iterations", false, 10000000, "int");
+    cmd.add<ValueArg<int>>(opt.lsextra, "", "lsextra",
+        "number of local search extra iterations during the i-dsatur phase",
+        false, 100000, "int");
     cmd.add<ValueArg<int>>(opt.dsatlimit, "", "dsatlimit",
         "iteration limit during dsat moves", false, 50, "int");
     cmd.add<SwitchArg>(opt.switchdescent, "", "switchdescent",
         "do (not) use descent move in LS", true);
+    cmd.add<SwitchArg>(opt.switchreact, "", "switchreact",
+        "do (not) use react move in LS", true);
     cmd.add<SwitchArg>(
         opt.focus, "", "focus", "do not move the core in LS", false);
 
     cmd.add<ValueArg<int>>(
         opt.seed, "", "seed", "random seed", false, 12345, "int");
+    cmd.add<ValueArg<int>>(
+        opt.tenure, "", "tenure", "tabu tenure", false, 10, "int");
 
     cmd.parse(argc, argv);
     return opt;
