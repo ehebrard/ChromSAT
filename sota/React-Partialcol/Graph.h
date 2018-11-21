@@ -26,6 +26,8 @@
 #ifndef GraphIncluded
 #define GraphIncluded
 
+#include <vector>
+
 class Graph {
 
  public:
@@ -37,13 +39,13 @@ class Graph {
 
   void resize(int n);
 
-  int *matrix;
+  std::vector<std::vector<int> > neighbor;
+
+  // int *matrix;
   int n;        // number of nodes
   int nbEdges;  // number of edges
-  
-  int * operator[](int index);
 
-
+  // int * operator[](int index);
 };
 
 #endif

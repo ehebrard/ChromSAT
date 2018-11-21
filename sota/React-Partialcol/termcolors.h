@@ -27,20 +27,17 @@
 
 #include <iomanip>
 
-#define RED "\e[1;37;41m"
-#define REDBLINK "\e[5;37;41m"
-#define YELLOW "\e[1;37;42m"
-#define WHITE "\e[0;37;40m\e[1;37;40m"
-#define MANGENTA "\e[1;35;40m"
-#define CYAN "\e[1;36;40m"
+// #define RED "\e[1;37;41m"
+// #define REDBLINK "\e[5;37;41m"
+// #define YELLOW "\e[1;37;42m"
+// #define WHITE "\e[0;37;40m\e[1;37;40m"
+// #define MANGENTA "\e[1;35;40m"
+// #define CYAN "\e[1;36;40m"
 
-
-#define NODE(X) RED << setw(4) << X << WHITE
-#define ERROR(X) REDBLINK << X << WHITE
-#define COLOR(X) YELLOW << setw(3) << X << WHITE
-#define NUMBER(X) MANGENTA << setw(9) << X << WHITE
-#define NUM(X) CYAN << setw(4) << X << WHITE
-
-
+#define NODE(X) setw(4) << X
+#define ERROR(X) X
+#define COLOR(X) setw(3) << X
+#define NUMBER(X) setw(9) << X
+#define NUM(X) setw(4) << X
 
 #endif
