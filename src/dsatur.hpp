@@ -366,8 +366,8 @@ struct dsatur {
         auto candidate(begin(order));
         int d;
 
-        for (auto vptr{candidate}; vptr != end(order); ++vptr)
-            assert(rank[*vptr] == vptr);
+        // for (auto vptr{candidate}; vptr != end(order); ++vptr)
+        //     assert(rank[*vptr] == vptr);
 
         while (candidate != end(order)) {
 
@@ -795,13 +795,13 @@ struct dsatur {
             rank[v] = first++;
         }
 
-        int x{0};
-        for (auto it{begin(order)}; it != end(order); ++it) {
-            assert(it == rank[*it]);
-            assert(x >= core.size() or core[x] == *it);
-
-            ++x;
-        }
+        // int x{0};
+        // for (auto it{begin(order)}; it != end(order); ++it) {
+        //     assert(it == rank[*it]);
+        //     assert(x >= core.size() or core[x] == *it);
+        //
+        //     ++x;
+        // }
     }
 
     template <class graph_struct>
@@ -1048,7 +1048,7 @@ struct dsatur {
     bool react_color(
         graph_struct& g, gc::options& options, gc::statistics& stat)
     {
-        long int verbose_frequency{100000};
+        long int verbose_frequency{10000};
         int num_rand{0};
         // std::cout << color_bag << std::endl;
 
@@ -2023,10 +2023,10 @@ struct dsatur {
 
         assert(!full);
 
-        // print(g);
-        for (auto r{begin(order)}; r != end(order); ++r) {
-            assert(rank[*r] == r);
-        }
+        // // print(g);
+        // for (auto r{begin(order)}; r != end(order); ++r) {
+        //     assert(rank[*r] == r);
+        // }
 
         for (size_t d{last_vertex.size() - 1}; d > 0; --d) {
             assert(last_vertex[d] <= last_vertex[d - 1]);
