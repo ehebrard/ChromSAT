@@ -4,6 +4,8 @@
 #include "options.hpp"
 #include "partition.hpp"
 
+#include <minicsp/core/utils.hpp>
+
 #ifndef __DSATUR_HPP
 #define __DSATUR_HPP
 
@@ -1057,6 +1059,7 @@ struct dsatur {
             = options.tenure; // std::min(std::max(g.size() / 20, 10), 10000);
 
 #ifdef _DEBUG_TABU
+        double prev, now;
         std::cout << "TENURE = " << tabuTenure << " #iter = " << total_iteration
                   << std::endl;
 #endif
@@ -1132,14 +1135,18 @@ struct dsatur {
                 int bestNode = -1, bestColor = -1, minConflict{g.capacity()};
 
 #ifdef _DEBUG_TABU
+                prev = minicsp::cpuTime();
                 std::cout << "# " << current_iteration << " ("
-                          << color_bag[col].size() << ")" << std::endl;
+                          << color_bag[col].size() << ") " << prev << std::endl;
 #endif
 
+                int Nsize{0};
                 for (auto v : color_bag[col]) {
 
                     for (auto c{0}; c < color_bag.size(); ++c)
                         if (c != col) {
+
+                            ++Nsize;
 
                             auto nConflict{
                                 neighbor_colors[v].num_neighbors_of_color(c)};
@@ -1180,7 +1187,11 @@ struct dsatur {
                 }
 
 #ifdef _DEBUG_TABU
-                std::cout << std::endl;
+                now = minicsp::cpuTime();
+                std::cout << std::endl
+                          << "Neighbor size = " << Nsize << " (" << (now - prev)
+                          << " | " << now << ")" << std::endl;
+                prev = now;
 #endif
 
                 if (bestNode == -1) {
@@ -1205,8 +1216,11 @@ struct dsatur {
 
                 if (minConflict == 1 and options.rw > 0
                     and (random_generator() % options.rw == 0)) {
+
+                    // auto nrb{num_reassign};
                     auto end_node{
-                        randpath(g, bestNode, bestColor, col, tabuTenure)};
+                        randpath(g, bestNode, bestColor, col, tabuTenure, 100)};
+                    // std::cout << (num_reassign - nrb) << std::endl;
 
                     if (end_node >= 0)
                         re_assign(g, end_node, col);
@@ -1229,7 +1243,9 @@ struct dsatur {
                 }
 
 #ifdef _DEBUG_TABU
-                std::cout << " )\n";
+                now = minicsp::cpuTime();
+                std::cout << " ) (" << (now - prev) << " | " << now << ")\n";
+                prev = now;
 #endif
 
                 if (color_bag[col].size() < minSolutionValue)
@@ -1274,6 +1290,12 @@ struct dsatur {
                     // << color_bag[col].size() << std::setw(10)
                     // << (double)num_rand / (double)iter << std::endl;
                 }
+
+#ifdef _DEBUG_TABU
+                now = minicsp::cpuTime();
+                std::cout << " END: " << (now - prev) << " | " << now << "\n";
+                prev = now;
+#endif
             }
 
             if (color_bag[col].size() == 0) {
@@ -1422,8 +1444,10 @@ struct dsatur {
     // explore randomly a path from x
     template <class graph_struct>
     int randpath(graph_struct& g, const int x, const int cx, const int tabu,
-        const int tabuTenure)
+        const int tabuTenure, const int depth_limit)
     {
+			if(depth_limit == 0)
+				return x;
 
         auto success{-1};
         stack.clear();
@@ -1470,7 +1494,7 @@ struct dsatur {
 
         } else if (success >= 0) {
             re_assign(g, x, success);
-            trail.clear();
+            // trail.clear();
 
             // std::cout << "-ok!";
 
@@ -1497,7 +1521,7 @@ struct dsatur {
             // std::cout << "-" << x << ":" << c;
             // std::cout.flush();
 
-            return randpath(g, y, -1, tabu, tabuTenure);
+            return randpath(g, y, -1, tabu, tabuTenure, depth_limit - 1);
         }
     }
 

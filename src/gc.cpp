@@ -350,8 +350,13 @@ struct gc_model {
 
         size_t width{1};
         while (width <= options.probewidth) {
+
+            // std::cout << "probe. base=" << samplebase << " width=" << width
+            // << " lb=" << lb << " |V|=" << original.size() << std::endl;
+
             auto nlb{cs.find_clique(
                 original, lb, end(df.order), end(df.order), samplebase, width)};
+
             if (nlb > lb) {
                 lb = nlb;
 
@@ -525,6 +530,9 @@ struct gc_model {
     bool peeling(
         gc::graph_reduction<adjacency_struct>& gr, const int k_core_threshold)
     {
+        if (options.preprocessing == gc::options::NO_PREPROCESSING)
+            return false;
+
         int original_size{original.size()};
         // std::cout << "[preprocessing] start peeling (" << k_core_threshold
         //           << ")\n";
@@ -812,11 +820,11 @@ struct gc_model {
             }
         }
 
-        if (options.verbosity >= gc::options::YACKING) {
+        if (options.verbosity >= gc::options::NORMAL) {
             std::cout << "[preprocessing] finished at " << minicsp::cpuTime()
-                      << "\n\n[modeling] preprocessed graph: ";
+                      << "\n[modeling] preprocessed graph: ";
             original.describe(std::cout, -1);
-            std::cout << std::endl << std::endl;
+            std::cout << std::endl;
         }
 
         return gr;
@@ -1857,8 +1865,26 @@ int color(gc::options& options, gc::graph<input_format>& g)
         options.strategy = gc::options::BOUNDS; // so that we don't create the
         // dense graph yet
         options.ddsaturiter = 0;
-        gc_model<input_format> model(g, options, statistics, bounds, sol);
+        gc_model<input_format> init_model(g, options, statistics, bounds, sol);
 
+        std::vector<int> vmap(g.capacity(), -1);
+        gc::graph<input_format> pg(g, vmap);
+
+        // std::cout << g.nodeset << std::endl << pg.nodeset << std::endl;
+        // exit(1);
+
+        options.preprocessing = gc::options::NO_PREPROCESSING;
+        gc_model<input_format> model(pg, options, statistics, bounds, sol);
+        for (auto v : pg.nodes) {
+            model.solution[v]
+                = init_model.solution[init_model.original.nodes[v]];
+        }
+        model.ub = init_model.ub;
+        model.lb = init_model.lb;
+        model.col.brelaz_color_guided(
+            pg, model.ub, begin(pg.nodes), end(pg.nodes), model.solution, 0, 0);
+
+        options.preprocessing = gc::options::LOW_DEGREE;
         // std::cout << model.lb << ".." << model.ub << std::endl;
 
         if (options.verbosity >= gc::options::NORMAL)
