@@ -1860,27 +1860,27 @@ int color(gc::options& options, gc::graph<input_format>& g)
         options.strategy = gc::options::BOUNDS; // so that we don't create the
         // dense graph yet
         options.ddsaturiter = 0;
-        gc_model<input_format> init_model(g, options, statistics, bounds, sol);
+        gc_model<input_format> model(g, options, statistics, bounds, sol);
 
-        std::vector<int> vmap(g.capacity(), -1);
-        gc::graph<input_format> pg(g, vmap);
-
-        // std::cout << g.nodeset << std::endl << pg.nodeset << std::endl;
-        // exit(1);
-
-        options.preprocessing = gc::options::NO_PREPROCESSING;
-        gc_model<input_format> model(pg, options, statistics, bounds, sol);
-        for (auto v : pg.nodes) {
-            model.solution[v]
-                = init_model.solution[init_model.original.nodes[v]];
-        }
-        model.ub = init_model.ub;
-        model.lb = init_model.lb;
-        model.col.brelaz_color_guided(
-            pg, model.ub, begin(pg.nodes), end(pg.nodes), model.solution, 0, 0);
-
-        options.preprocessing = gc::options::LOW_DEGREE;
-        // std::cout << model.lb << ".." << model.ub << std::endl;
+        // std::vector<int> vmap(g.capacity(), -1);
+        // gc::graph<input_format> pg(g, vmap);
+        //
+        // // std::cout << g.nodeset << std::endl << pg.nodeset << std::endl;
+        // // exit(1);
+        //
+        // options.preprocessing = gc::options::NO_PREPROCESSING;
+        // gc_model<input_format> model(pg, options, statistics, bounds, sol);
+        // for (auto v : pg.nodes) {
+        //     model.solution[v]
+        //         = init_model.solution[init_model.original.nodes[v]];
+        // }
+        // model.ub = init_model.ub;
+        // model.lb = init_model.lb;
+        // model.col.brelaz_color_guided(
+        //     pg, model.ub, begin(pg.nodes), end(pg.nodes), model.solution, 0, 0);
+        //
+        // options.preprocessing = gc::options::LOW_DEGREE;
+        // // std::cout << model.lb << ".." << model.ub << std::endl;
 
         if (options.verbosity >= gc::options::NORMAL)
             std::cout << "[info] initial local search\n";
