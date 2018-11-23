@@ -849,7 +849,7 @@ struct gc_model {
     void init_search(minicsp::Solver& s, gc::dense_graph& g, map_struct& vmap)
     {
         if (!options.dsatur) {
-            vars = gc::varmap(create_vars(s, g, vmap));						
+            vars = gc::varmap(create_vars(s, g, vmap));	
             cons = gc::post_gc_constraint(s, g, fillin, vars,
                 reduction.constraints, vertex_map, options, statistics);
 
@@ -1166,8 +1166,10 @@ struct gc_model {
             if (options.verbosity >= gc::options::YACKING)
                 std::cout << "[trace] solve in [" << cons->bestlb << ".."
                           << cons->ub << "[\n";
-
+						
+						
             sat = s.solveBudget();
+						lower_bound = cons->bestlb;
 						
             if (sat == l_True) {
                 solution_found = true;
@@ -1297,7 +1299,7 @@ struct gc_model {
 
                 if (options.verbosity >= gc::options::NORMAL)
                     statistics.display(std::cout);
-                lower_bound = cons->bestlb;
+                // lower_bound = cons->bestlb;
             }
         }
 
@@ -1651,9 +1653,18 @@ int color(gc::options& options, gc::graph<input_format>& g)
                 }
             },
             [&](int, gc::weight) {});
+						
+						
+		// std::cout << 	g.count_edges() << std::endl;
+		
 
     g.canonize();
     long num_edges{g.count_edges()};
+		
+		// std::cout << 	num_edges << std::endl;
+		//
+		// exit(1);
+		
 
     if (options.verbosity >= gc::options::NORMAL) {
         g.describe(std::cout, num_edges);
@@ -1860,27 +1871,29 @@ int color(gc::options& options, gc::graph<input_format>& g)
         options.strategy = gc::options::BOUNDS; // so that we don't create the
         // dense graph yet
         options.ddsaturiter = 0;
-        gc_model<input_format> model(g, options, statistics, bounds, sol);
+        gc_model<input_format> init_model(g, options, statistics, bounds, sol);
 
-        // std::vector<int> vmap(g.capacity(), -1);
-        // gc::graph<input_format> pg(g, vmap);
-        //
-        // // std::cout << g.nodeset << std::endl << pg.nodeset << std::endl;
-        // // exit(1);
-        //
-        // options.preprocessing = gc::options::NO_PREPROCESSING;
-        // gc_model<input_format> model(pg, options, statistics, bounds, sol);
-        // for (auto v : pg.nodes) {
-        //     model.solution[v]
-        //         = init_model.solution[init_model.original.nodes[v]];
-        // }
-        // model.ub = init_model.ub;
-        // model.lb = init_model.lb;
-        // model.col.brelaz_color_guided(
-        //     pg, model.ub, begin(pg.nodes), end(pg.nodes), model.solution, 0, 0);
-        //
-        // options.preprocessing = gc::options::LOW_DEGREE;
-        // // std::cout << model.lb << ".." << model.ub << std::endl;
+        std::vector<int> vmap(g.capacity(), -1);
+        gc::graph<input_format> pg(g, vmap);
+
+        // std::cout << g.nodeset << std::endl << pg.nodeset << std::endl;
+        // exit(1);
+
+        options.preprocessing = gc::options::NO_PREPROCESSING;
+        gc_model<input_format> model(pg, options, statistics, bounds, sol);
+        for (auto v : pg.nodes) {
+            model.solution[v]
+                = init_model.solution[init_model.original.nodes[v]];
+        }
+        model.ub = init_model.ub;
+        model.lb = init_model.lb;
+
+
+
+        model.col.brelaz_color_guided(
+            pg, model.ub, begin(pg.nodes), end(pg.nodes), model.solution, 0, 0);
+
+        options.preprocessing = gc::options::LOW_DEGREE;
 
         if (options.verbosity >= gc::options::NORMAL)
             std::cout << "[info] initial local search\n";
@@ -1905,6 +1918,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
             model.col.full = false;
             model.col.brelaz_from_ls(model.original, model.solution);
+						
             extend_dsat_lb_core(model, options, statistics, sol);
         }
 

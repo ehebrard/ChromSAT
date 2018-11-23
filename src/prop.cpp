@@ -264,7 +264,8 @@ public:
             isrep[i].initialise(0, g.capacity() - 1, gc::bitset::empt);
 
         stat.binds(this);
-        ub = g.capacity();
+        ub = g.capacity()+1;
+				
         for (int i = 0; i != g.capacity(); ++i) {
             if (!g.nodes.contain(i))
                 continue;
@@ -330,6 +331,7 @@ public:
             });
 
         DO_OR_THROW(propagate(s));
+
     }
 
     std::ostream& print(Solver&, std::ostream& os) const
