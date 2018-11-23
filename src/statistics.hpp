@@ -39,6 +39,8 @@ struct statistics {
         num_vertices = size;
         // num_neighborhood_contractions = 0;
         // num_vertex_removals = 0;
+				
+				start_time = minicsp::cpuTime();
     }
 
     // outputs a nice description of all statistics
@@ -76,6 +78,9 @@ struct statistics {
     uint64_t total_bound_2;
     void notify_bound_delta(const int b1, const int b2);
     double get_bound_increase() const;
+		
+		// in order to ignor reading time
+		double start_time;
 };
 
 } // namespace gc
