@@ -82,8 +82,17 @@ struct clique_sampler {
 
         domain.resize(probewidth);
 
+				// int count{0};
         for (auto vp{first}; vp != last; ++vp) {
             start_set.push_back(*vp);
+
+						// if(count >= g.size()) {
+						// 	if(g.nodes.contain(*vp)) {
+						// 		std::cout << "GRR\n";
+						// 		exit(1);
+						// 	}
+						// }
+						// ++count;
 
 #ifdef _DEBUG_SAMPLE
             std::cout << " " << (*vp);

@@ -602,11 +602,16 @@ struct gc_model {
                 prev_size = original.size();
 
                 if (options.verbosity >= gc::options::YACKING)
-                    std::cout << "[preprocessing] compute lower bound\n";
+                    std::cout << "[preprocessing] compute lower bound (|V| = " << original.size() << ")\n";
 
                 probe_lb(samplebase);
 
                 threshold = std::max(lb, threshold);
+								
+                if (options.verbosity >= gc::options::YACKING)
+                    std::cout << "[preprocessing] reduce graph w.r.t. " << threshold << ")\n";
+								
+								
                 reduce(gr, threshold, k);
 
                 if (prev_size > original.size() or prev_size == original_size) {

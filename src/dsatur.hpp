@@ -368,8 +368,8 @@ struct dsatur {
         auto candidate(begin(order));
         int d;
 
-        for (auto vptr{candidate}; vptr != end(order); ++vptr)
-            assert(rank[*vptr] == vptr);
+        // for (auto vptr{candidate}; vptr != end(order); ++vptr)
+        //     assert(rank[*vptr] == vptr);
 
         while (candidate != end(order)) {
 
@@ -415,7 +415,6 @@ struct dsatur {
     int brelaz_from_ls(graph_struct& g, std::vector<int>& coloring)
     {
 
-        numcolors = 0;
         ncolor.clear();
 
 				// int potential_colors = begin(neighbor_colors)->b.size();
@@ -433,6 +432,7 @@ struct dsatur {
 
         // std::cout << color_bag << std::endl;
 
+				numcolors = 0;
         coloring = color;
         color.clear();
         color.resize(g.capacity(), -1);
@@ -797,13 +797,13 @@ struct dsatur {
             rank[v] = first++;
         }
 
-        int x{0};
-        for (auto it{begin(order)}; it != end(order); ++it) {
-            assert(it == rank[*it]);
-            assert(x >= core.size() or core[x] == *it);
-
-            ++x;
-        }
+        // int x{0};
+        // for (auto it{begin(order)}; it != end(order); ++it) {
+        //     assert(it == rank[*it]);
+        //     assert(x >= core.size() or core[x] == *it);
+        //
+        //     ++x;
+        // }
     }
 
     template <class graph_struct>
@@ -1002,6 +1002,8 @@ struct dsatur {
             ts->clear();
             ts->resize(color_bag.size(), 0);
         }
+				
+				numcolors = color_bag.size();
     }
 
     // template <class graph_struct> void percolate(graph_struct& g)
@@ -1687,6 +1689,7 @@ struct dsatur {
         while (!bag.empty()) {
             re_assign(g, bag.back(), c);
         }
+
         color_bag.remove(color_bag.size() - 1);
         --numcolors;
 
@@ -2047,10 +2050,10 @@ struct dsatur {
 
         assert(!full);
 
-        // print(g);
-        for (auto r{begin(order)}; r != end(order); ++r) {
-            assert(rank[*r] == r);
-        }
+        // // print(g);
+        // for (auto r{begin(order)}; r != end(order); ++r) {
+        //     assert(rank[*r] == r);
+        // }
 
         for (size_t d{last_vertex.size() - 1}; d > 0; --d) {
             assert(last_vertex[d] <= last_vertex[d - 1]);
