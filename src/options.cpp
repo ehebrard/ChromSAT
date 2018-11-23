@@ -193,6 +193,9 @@ options parse(int argc, char* argv[])
     cmd.add<ValueArg<int>>(
         opt.tenure, "", "tenure", "tabu tenure", false, 10, "int");
 
+    cmd.add<SwitchArg>(opt.dynamiclimit, "", "dynamiclimit",
+        "update the LS iteration limit dynamically", false);
+
     cmd.parse(argc, argv);
     return opt;
 }

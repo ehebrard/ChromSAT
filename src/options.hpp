@@ -154,6 +154,8 @@ struct options {
     int dsatlimit;
     int tenure;
 
+    bool dynamiclimit;
+
     int seed;
 };
 

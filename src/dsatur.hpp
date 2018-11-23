@@ -1067,6 +1067,9 @@ struct dsatur {
 #endif
 
         long int current_iteration{0};
+        long int prev_iteration{total_iteration};
+        long int num_randpath_move{0};
+        long int length_randpath_move{0};
         while (total_iteration < options.lsiter) {
 
 #ifdef _DEBUG_DSATUR
@@ -1219,10 +1222,20 @@ struct dsatur {
                 if (minConflict == 1 and options.rw > 0
                     and (random_generator() % options.rw == 0)) {
 
-                    // auto nrb{num_reassign};
+                    auto nrb{num_reassign};
                     auto end_node{
-                        randpath(g, bestNode, bestColor, col, tabuTenure, 100)};
+                        randpath(g, bestNode, bestColor, col, tabuTenure, -1)};
+                    ++num_randpath_move;
+                    length_randpath_move += (num_reassign - nrb);
                     // std::cout << (num_reassign - nrb) << std::endl;
+										
+										auto avg_length = length_randpath_move / (total_iteration - prev_iteration);
+										if(avg_length > 20) {
+												options.rw *= 3;
+												options.rw /= 2;
+										} else if(avg_length < 3 and options.rw > 1) {
+												--options.rw;
+										}
 
                     if (end_node >= 0)
                         re_assign(g, end_node, col);
@@ -1288,7 +1301,15 @@ struct dsatur {
                         << "   obj =" << std::setw(4) << color_bag[col].size()
                         << "   best =" << std::setw(4) << bestSolutionValue
                         << "   tenure =" << std::setw(4) << tabuTenure
-                        << "   Delta =" << std::setw(4) << Delta << std::endl;
+                        << "   Delta =" << std::setw(4) << Delta
+                        << "   num rp =" << std::setw(8) << std::setprecision(4)
+                        << (double)(num_randpath_move)
+                            / (double)(total_iteration - prev_iteration)
+                        << "   length rp =" << std::setw(5)
+                        << (num_randpath_move ? (int)((double)(length_randpath_move)
+                               / (double)(num_randpath_move)) : 0)
+												<< "   ratio rp =" << std::setw(4) << options.rw
+                        << std::endl;
                     // << color_bag[col].size() << std::setw(10)
                     // << (double)num_rand / (double)iter << std::endl;
                 }
@@ -1853,15 +1874,18 @@ struct dsatur {
         //
         // exit(1);
 
-        int num_rw_iter = options.randwalkiter, num_iter = options.lsiter;
+        int num_rw_iter = options.randwalkiter, limit = options.lsiter;
 
         int num_rp{0};
         int num_fp{0};
 
         std::vector<int> dsat_order;
 
-        for (int i = 0;
-             stat.best_lb < stat.best_ub and total_iteration < num_iter; ++i) {
+        auto prev_num_colors{color_bag.size()};
+        auto iter_increment{options.lsiter};
+
+        for (int i = 0; stat.best_lb < stat.best_ub and total_iteration < limit;
+             ++i) {
 
             if (options.verbosity > gc::options::YACKING)
                 std::cout << "[search] start descent\n";
@@ -1960,31 +1984,22 @@ struct dsatur {
             if (options.verbosity >= gc::options::YACKING and i % 100000 == 0)
                 std::cout << "[search] " << std::setw(10) << num_reassign
                           << " moves\n";
-        }
 
-        // color = isol;
-        //
-        // for (auto v : order) {
-        // 		neighbor_colors[v].resize(stat.best_ub);
-        //             neighbor_colors[v].clear();
-        // }
-        //
-        //         // update the color neighborhood ()
-        //         for (auto it{rbegin(order)}; it != rend(order); ++it) {
-        //             auto v{*it};
-        //             for (auto u : g.matrix[v]) {
-        //                     neighbor_colors[u].add(color[v]);
-        //             }
-        //             degree[v] = g.matrix[v].size();
-        //         }
-        //         std::sort(begin(order), end(order), [&](const int x_, const
-        //         int y_) {
-        //             return (neighbor_colors[x_].size() >
-        //             neighbor_colors[y_].size()
-        //                 or (neighbor_colors[x_].size() ==
-        //                 neighbor_colors[y_].size()
-        //                        and degree[x_] > degree[y_]));
-        //         });
+            if (options.dynamiclimit and total_iteration >= limit) {
+                if (prev_num_colors > color_bag.size()) {
+                    iter_increment *= 2;
+
+                    if (options.verbosity >= gc::options::NORMAL)
+                        std::cout << "[search] increase limit by "
+                                  << std::setw(10) << iter_increment
+                                  << " moves\n";
+
+                    limit += iter_increment;
+										options.lsiter += iter_increment;
+										prev_num_colors = color_bag.size();
+                }
+            }
+        }
 
         full = false;
     }
