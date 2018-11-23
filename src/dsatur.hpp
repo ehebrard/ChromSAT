@@ -1230,10 +1230,9 @@ struct dsatur {
                     // std::cout << (num_reassign - nrb) << std::endl;
 										
 										auto avg_length = length_randpath_move / (total_iteration - prev_iteration);
-										if(avg_length > 20) {
-												options.rw *= 3;
-												options.rw /= 2;
-										} else if(avg_length < 3 and options.rw > 1) {
+										if(avg_length >= 20) {
+												options.rw *= 2;
+										} else if(avg_length <= 3 and options.rw > 1) {
 												--options.rw;
 										}
 

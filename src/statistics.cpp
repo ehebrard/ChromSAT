@@ -128,7 +128,7 @@ void statistics::display(std::ostream& os)
         os << "[data] lb = " << std::setw(4) << std::left << best_lb
            << "| ub = " << std::setw(4) << std::left << best_ub
            << "| time = " << std::setw(9) << std::left << std::setprecision(4)
-           << minicsp::cpuTime() << "| conflicts = " << std::setw(8)
+           << (minicsp::cpuTime() - start_time) << "| conflicts = " << std::setw(8)
            << std::left
            << (cons ? total_conflicts + cons->s.conflicts : total_conflicts)
            // << "| delta = " << std::setw(8) << std::left << std::setprecision(4)
