@@ -31,8 +31,9 @@
 #ifndef _VERTEXCOVER_H_
 #define _VERTEXCOVER_H_
 
-#include <vector>
 #include "Graph.h"
+#include <thread>
+#include <vector>
 
 namespace dOmega {
 
@@ -112,11 +113,9 @@ public:
      * @param[in] vertices : vertices of the graph.
      * @param[in] adjLists : Adjacency lists of the graphs.
      */
-    bool kVertexCover(
-        int n,
-        int k,
-        std::vector<vertex>& vertices,
-        std::vector<std::vector<int> >& adjLists);
+    bool kVertexCover(int n, int k, std::vector<vertex>& vertices,
+        std::vector<std::vector<int>>& adjLists, std::atomic<bool>& interrupted,
+        double timeout = -1.0);
 };
 
 }

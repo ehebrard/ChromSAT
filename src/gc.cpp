@@ -39,9 +39,8 @@ template <class graph_struct> void convert(graph_struct& g, dOmega::Graph& o)
     o.EdgesBegin = std::vector<int>(o.n, 0);
     o.degree = std::vector<int>(o.n, 0);
     o.alias = std::vector<int>(o.n, 0);
-		
-		
-		o.m = 0;
+
+    o.m = 0;
     for (auto ru : g.nodes) {
         auto u{g.nodes.index(ru)};
         o.degree[u] = g.matrix[ru].size();
@@ -71,11 +70,12 @@ template <class graph_struct> void convert(graph_struct& g, dOmega::Graph& o)
             o.EdgeTo[counter++] = g.nodes.index(rv);
         }
     }
-		
-		// std::cout << g.count_edges() << " " << o.m << " " << counter << std::endl;
+
+    // std::cout << g.count_edges() << " " << o.m << " " << counter <<
+    // std::endl;
 
     assert(counter == o.m);
-		o.m /= 2; 
+    o.m /= 2;
 
     o.rightDegree = std::vector<int>(o.n, 0);
     o.position = std::vector<int>(o.n, 0);
@@ -196,7 +196,7 @@ struct gc_model {
             vars.vars[i][j] = v;
             vars.vars[j][i] = v;
             if (options.trace) {
-							
+
                 using namespace std::string_literals;
                 using std::to_string;
                 auto n = "e"s + to_string(i) + "-"s + to_string(j);
@@ -294,7 +294,7 @@ struct gc_model {
                     auto actualncol = reduction.extend_solution(solution, ub, true);
 
                     if (ub > actualncol) {
-												dsatur_sol = true;
+                        dsatur_sol = true;
                         ub = actualncol;
                         statistics.notify_ub(ub);
                         statistics.display(std::cout);
@@ -326,18 +326,28 @@ struct gc_model {
 
     */
 
-    void maximum_clique()
+    // returns true if it computed the maximum clique, false if it timed out
+    bool maximum_clique()
     {
+        std::cout << "[info] Computing maximum clique\n";
         dOmega::Graph graph;
         convert(original, graph);
 
         dOmega::Clique clique(graph, 1);
-        clique.findMaxClique();
 
-    				lb = std::max(lb, static_cast<int>(clique.cliqueUB));
+        clique.findMaxClique(options.domegatime > 0
+                ? minicsp::cpuTime() + options.domegatime
+                : -1.0);
+
+        lb = std::max(lb, static_cast<int>(clique.cliqueLB));
 
         statistics.notify_lb(lb);
         statistics.display(std::cout);
+
+        if (clique.interrupted)
+            std::cout << "[info] Interrupted\n";
+
+        return !clique.interrupted;
     }
 
     void probe_lb(const int samplebase_)
@@ -519,8 +529,8 @@ struct gc_model {
                         //           << std::endl;
                     }
                 }
-				if (--niter > 0) // Do not clear last col
-                	col.clear();
+                if (--niter > 0) // Do not clear last col
+                    col.clear();
             } while (niter > 0);
         }
         if (options.verbosity >= gc::options::YACKING)
@@ -586,16 +596,19 @@ struct gc_model {
         int prev_size{original_size + 1};
         int k{0};
 
+        bool havemax = false;
         if (options.maxclique) {
 
             if (options.verbosity >= gc::options::YACKING)
                 std::cout << "[preprocessing] compute maximum clique\n";
 
-            maximum_clique();
-						
+            havemax = maximum_clique();
+
             threshold = std::max(lb, threshold);
             reduce(gr, threshold, k);
-        } else
+        }
+
+        if (!havemax)
             while (
                 original.size() and prev_size > original.size() and lb < ub) {
 
@@ -607,11 +620,10 @@ struct gc_model {
                 probe_lb(samplebase);
 
                 threshold = std::max(lb, threshold);
-								
+
                 if (options.verbosity >= gc::options::YACKING)
                     std::cout << "[preprocessing] reduce graph w.r.t. " << threshold << ")\n";
-								
-								
+
                 reduce(gr, threshold, k);
 
                 if (prev_size > original.size() or prev_size == original_size) {
@@ -621,7 +633,7 @@ struct gc_model {
             }
 
         // for(auto vi{df.core[k]}; vi!=end(df.order); ++vi) {
-        // 	std::cout << (end(df.order) - vi) << ": " << df.degrees[*vi] <<
+        //      std::cout << (end(df.order) - vi) << ": " << df.degrees[*vi] <<
         // std::endl;
         // }
 
@@ -854,7 +866,7 @@ struct gc_model {
     void init_search(minicsp::Solver& s, gc::dense_graph& g, map_struct& vmap)
     {
         if (!options.dsatur) {
-            vars = gc::varmap(create_vars(s, g, vmap));	
+            vars = gc::varmap(create_vars(s, g, vmap));
             cons = gc::post_gc_constraint(s, g, fillin, vars,
                 reduction.constraints, vertex_map, options, statistics);
 
@@ -1075,8 +1087,8 @@ struct gc_model {
                 col[original.nodes[u]] = q;
             nodeset.push_back(v);
         }
-				
-				return maxc + 1;
+
+        return maxc + 1;
     }
 
     template <class graph_struct> int dsat_extend(graph_struct& g)
@@ -1171,17 +1183,16 @@ struct gc_model {
             if (options.verbosity >= gc::options::YACKING)
                 std::cout << "[trace] solve in [" << cons->bestlb << ".."
                           << cons->ub << "[\n";
-						
-						
+
             sat = s.solveBudget();
-						lower_bound = cons->bestlb;
-						
+            lower_bound = cons->bestlb;
+
             if (sat == l_True) {
                 solution_found = true;
                 search_sol = true;
 
                 int solub = g.nodes.size();
-								
+
                 if (options.fillin) {
 
                     gc::degeneracy_finder<gc::dense_graph> df_leaf{g};
@@ -1195,9 +1206,9 @@ struct gc_model {
 
                     assert(solub < cons->ub);
 
-										int ncol{get_chordal_solution(solution, df_leaf.order)};
-										
-										assert(ncol == solub);
+                    int ncol{get_chordal_solution(solution, df_leaf.order)};
+
+                    assert(ncol == solub);
 
                 } else {
 
@@ -1658,18 +1669,15 @@ int color(gc::options& options, gc::graph<input_format>& g)
                 }
             },
             [&](int, gc::weight) {});
-						
-						
-		// std::cout << 	g.count_edges() << std::endl;
-		
+
+    // std::cout <<         g.count_edges() << std::endl;
 
     g.canonize();
     long num_edges{g.count_edges()};
-		
-		// std::cout << 	num_edges << std::endl;
-		//
-		// exit(1);
-		
+
+    // std::cout <<         num_edges << std::endl;
+    //
+    // exit(1);
 
     if (options.verbosity >= gc::options::NORMAL) {
         g.describe(std::cout, num_edges);
@@ -1746,7 +1754,6 @@ int color(gc::options& options, gc::graph<input_format>& g)
             model.print_stats();
     } break;
     case gc::options::IDSATUR: {
-			
 
         std::pair<int, int> bounds{0, g.size()};
 
@@ -1923,7 +1930,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
             model.col.full = false;
             model.col.brelaz_from_ls(model.original, model.solution);
-						
+
             extend_dsat_lb_core(model, options, statistics, sol);
         }
 
@@ -1969,10 +1976,10 @@ int color(gc::options& options, gc::graph<input_format>& g)
             gc_model<gc::vertices_vec> tmp_model(gcopy, options, statistics,
                 std::make_pair(init_model.lb, init_model.ub), sol,
                 (init_model.ub - 1));
-								
 
-								// std::cout << "[" << tmp_model.lb << ".." << tmp_model.ub << "]\n";
-								// assert(tmp_model.g.size() > 0 or tmp_model.ub > tmp_model.lb);
+            // std::cout << "[" << tmp_model.lb << ".." << tmp_model.ub <<
+            // "]\n"; assert(tmp_model.g.size() > 0 or tmp_model.ub >
+            // tmp_model.lb);
 
             if (tmp_model.ub > tmp_model.lb and tmp_model.final.size() > 0) {
                 if (options.dsatur) {
@@ -2001,8 +2008,8 @@ int color(gc::options& options, gc::graph<input_format>& g)
                 for (int v = 0; v < tmp_model.original.capacity(); ++v)
                     init_model.solution[init_model.original.nodes[v]]
                         = tmp_model.solution[v];
-		            assert(incumbent < init_model.ub);
-		            init_model.ub = incumbent;
+                assert(incumbent < init_model.ub);
+                init_model.ub = incumbent;
             }
 
             if (options.verbosity >= gc::options::YACKING)

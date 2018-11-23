@@ -35,16 +35,19 @@
 #include "Buss.h"
 #include "VertexCover.h"
 
+namespace minicsp
+{
+double cpuTime();
+}
+using minicsp::cpuTime;
+
 using namespace dOmega;
 
-void processSubgraphs(
-    Graph& graph,
-    std::vector<int>& sortedList,
-    std::vector<subgraph>& subgraphs,
-    std::atomic<bool>& cliqueFlag,
-    int threadNumber,
-    int numberOfThreads,
-    int clq) {
+void processSubgraphs(Graph& graph, std::vector<int>& sortedList,
+    std::vector<subgraph>& subgraphs, std::atomic<bool>& cliqueFlag,
+    std::atomic<bool>& interrupted, int threadNumber, int numberOfThreads,
+    int clq, double timeout = -1)
+{
     VertexCover VC;
     int i = threadNumber;
 
@@ -58,6 +61,10 @@ void processSubgraphs(
              * If the subgraph of vertex v has not been created, it does it.
              */
             if (subgraphs[v].created == false) {
+                if (timeout > 0 && cpuTime() > timeout) {
+                    interrupted = true;
+                    return;
+                }
                 graph.generateCompGraphRightNeighbors(v, subgraphs);
             }
 
@@ -102,11 +109,16 @@ void processSubgraphs(
 
             k = k - numInVC;
 
+            if (timeout > 0 && cpuTime() > timeout) {
+                interrupted = true;
+                return;
+            }
 
             /**
              * Solves the resulting k vertex cover problem.
              */
-            if (VC.kVertexCover(kernel2.n, k, kernel2.vertices, kernel2.adjLists)) {
+            if (VC.kVertexCover(kernel2.n, k, kernel2.vertices,
+                    kernel2.adjLists, interrupted, timeout)) {
                 cliqueFlag = true;
                 break;
             }
@@ -123,7 +135,8 @@ Clique::Clique(
     this->numThreads = numThreads;
 }
 
-int Clique::findMaxClique() {
+int Clique::findMaxClique(double timeout)
+{
     subgraphs = std::vector<subgraph>(graph.n);
     std::chrono::high_resolution_clock::time_point begin_time = std::chrono::high_resolution_clock::now();
     graph.degeneracyOrdering(subgraphs);
@@ -164,22 +177,23 @@ int Clique::findMaxClique() {
 
         while (cliqueLB < cliqueUB) {
             cliqueFlag = false;
+            interrupted = false;
 
             for (int i = 0; i < numThreads; i++) {
-                std::thread th(&processSubgraphs,
-                               std::ref(graph),
-                               std::ref(sortedList),
-                               std::ref(subgraphs),
-                               std::ref(cliqueFlag),
-                               i,
-                               numThreads,
-                               clq);
+                std::thread th(&processSubgraphs, std::ref(graph),
+                    std::ref(sortedList), std::ref(subgraphs),
+                    std::ref(cliqueFlag), std::ref(interrupted), i, numThreads,
+                    clq, timeout);
                 threads[i] = std::move(th);
             }
 
 
             for (std::thread& th : threads) {
                 th.join();
+            }
+
+            if (interrupted) {
+                break;
             }
 
             if (cliqueFlag) {

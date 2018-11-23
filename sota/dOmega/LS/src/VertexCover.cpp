@@ -28,11 +28,18 @@
  * Copyright (C) 2018 Jose L. Walteros. All rights reserved.
  *
  *---+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----*/
-#include <vector>
-#include <iostream>
-#include <algorithm>
 #include "VertexCover.h"
 #include "Graph.h"
+#include <algorithm>
+#include <atomic>
+#include <iostream>
+#include <vector>
+
+namespace minicsp
+{
+double cpuTime();
+}
+using minicsp::cpuTime;
 
 using namespace dOmega;
 
@@ -381,11 +388,10 @@ void VertexCover::subgraphUpdate(
     sG.created = true;
 }
 
-bool VertexCover::kVertexCover(
-    int n,
-    int k,
-    std::vector<vertex>& vertices,
-    std::vector<std::vector<int> >& adjLists) {
+bool VertexCover::kVertexCover(int n, int k, std::vector<vertex>& vertices,
+    std::vector<std::vector<int>>& adjLists, std::atomic<bool>& interrupted,
+    double timeout)
+{
     /**
      * Creates tha kernel based on the procedure that preprocess that vertices
      * based on their degree (@see VertexCover::degreePreprocessing).
@@ -438,7 +444,14 @@ bool VertexCover::kVertexCover(
         }
     }
 
-    if (kVertexCover(sG.n - 1, newK - 1, verticesUp, adjListsUp) == true) {
+    if (timeout > 0 && cpuTime() > timeout) {
+        interrupted = true;
+        return false;
+    }
+
+    if (kVertexCover(
+            sG.n - 1, newK - 1, verticesUp, adjListsUp, interrupted, timeout)
+        == true) {
         return true;
     }
 
@@ -485,7 +498,6 @@ bool VertexCover::kVertexCover(
     }
 
     return kVertexCover(sG.n - 1 - sG.vertices[sG.largestDegreeVertex].degree,
-                        newK - sG.vertices[sG.largestDegreeVertex].degree,
-                        verticesDown,
-                        adjListsDown);
+        newK - sG.vertices[sG.largestDegreeVertex].degree, verticesDown,
+        adjListsDown, interrupted, timeout);
 }

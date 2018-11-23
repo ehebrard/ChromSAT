@@ -146,6 +146,8 @@ options parse(int argc, char* argv[])
         "do not try hard to get lb's [default=false]", false);
     cmd.add<SwitchArg>(opt.maxclique, "", "maxclique",
         "use dOmega maximum clique in preprocessing [default=false]", false);
+    cmd.add<ValueArg<double>>(opt.domegatime, "", "domegatime",
+        "timeout for maxclique algorithm", false, -1.0, "double");
     cmd.add<ValueArg<int>>(opt.memlimit, "", "memlimit",
         "does not compute dense graph above this limit and downgrade reasoning "
         "on large instances (default: no limit)",

@@ -42,6 +42,7 @@ public:
     std::atomic<int>cliqueLB;  /**< Lower bound of max clique */
     std::atomic<int>cliqueUB; /**< Upper bound of max clique */
     std::atomic<bool>cliqueFlag; /**< Whether a thread has found a clique */
+    std::atomic<bool> interrupted;
     std::atomic<int>subgraphClique; /**< subgraph that has a maximum clique */
     std::vector<int>sortedList; /**< List of vertices sorted by their right degree */
     Graph& graph; /**< Graph */
@@ -62,7 +63,7 @@ public:
     /**
      * findMaxClique: The procedure finds the size of the max clique of the graph
      */
-    int findMaxClique();
+    int findMaxClique(double timeout = -1.0);
 };
 
 }

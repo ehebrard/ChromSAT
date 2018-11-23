@@ -140,6 +140,7 @@ struct options {
     int idsaturlimit;
 
     bool maxclique;
+    double domegatime;
 
     enum verbosity { SILENT = 0, QUIET, NORMAL, YACKING, SOLVERINFO };
     int verbosity;
