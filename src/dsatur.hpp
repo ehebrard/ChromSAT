@@ -415,7 +415,6 @@ struct dsatur {
     int brelaz_from_ls(graph_struct& g, std::vector<int>& coloring)
     {
 
-        numcolors = 0;
         ncolor.clear();
 
 				// int potential_colors = begin(neighbor_colors)->b.size();
@@ -433,6 +432,7 @@ struct dsatur {
 
         // std::cout << color_bag << std::endl;
 
+				numcolors = 0;
         coloring = color;
         color.clear();
         color.resize(g.capacity(), -1);
@@ -1002,6 +1002,8 @@ struct dsatur {
             ts->clear();
             ts->resize(color_bag.size(), 0);
         }
+				
+				numcolors = color_bag.size();
     }
 
     // template <class graph_struct> void percolate(graph_struct& g)
@@ -1687,6 +1689,7 @@ struct dsatur {
         while (!bag.empty()) {
             re_assign(g, bag.back(), c);
         }
+
         color_bag.remove(color_bag.size() - 1);
         --numcolors;
 

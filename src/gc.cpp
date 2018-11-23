@@ -1910,6 +1910,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
             model.col.full = false;
             model.col.brelaz_from_ls(model.original, model.solution);
+						
             extend_dsat_lb_core(model, options, statistics, sol);
         }
 
