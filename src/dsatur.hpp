@@ -1225,16 +1225,23 @@ struct dsatur {
                     auto nrb{num_reassign};
                     auto end_node{
                         randpath(g, bestNode, bestColor, col, tabuTenure, -1)};
-                    ++num_randpath_move;
-                    length_randpath_move += (num_reassign - nrb);
+
                     // std::cout << (num_reassign - nrb) << std::endl;
-										
-										auto avg_length = length_randpath_move / (total_iteration - prev_iteration);
-										if(avg_length >= 20) {
-												options.rw *= 2;
-										} else if(avg_length <= 3 and options.rw > 1) {
-												--options.rw;
-										}
+
+                    if (options.dynrandpath and end_node >= 0) {
+                        ++num_randpath_move;
+                        length_randpath_move += (num_reassign - nrb);
+                        auto avg_length = length_randpath_move
+                            / (total_iteration - prev_iteration);
+
+                        if (avg_length >= options.rpmax) {
+                            options.rw *= options.rpfactor;
+														options.rw /= options.rpdiv;
+                        } else if (avg_length <= options.rpmin
+                            and options.rw > 1) {
+                            --options.rw;
+                        }
+                    }
 
                     if (end_node >= 0)
                         re_assign(g, end_node, col);
@@ -1986,7 +1993,8 @@ struct dsatur {
 
             if (options.dynamiclimit and total_iteration >= limit) {
                 if (prev_num_colors > color_bag.size()) {
-                    iter_increment *= 2;
+                    iter_increment *= options.dynfactor;
+										iter_increment /= options.dyndiv;
 
                     if (options.verbosity >= gc::options::NORMAL)
                         std::cout << "[search] increase limit by "

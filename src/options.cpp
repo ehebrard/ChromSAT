@@ -197,6 +197,22 @@ options parse(int argc, char* argv[])
 
     cmd.add<SwitchArg>(opt.dynamiclimit, "", "dynamiclimit",
         "update the LS iteration limit dynamically", false);
+    cmd.add<SwitchArg>(opt.dynrandpath, "", "dynrandpath",
+        "update the randpath ratio dynamically", false);
+
+    cmd.add<ValueArg<int>>(opt.dynfactor, "", "dynfactor",
+        "geometric factor for iter limit", false, 2, "int");
+    cmd.add<ValueArg<int>>(opt.dyndiv, "", "dyndiv",
+        "geometric divisor for iter limit", false, 1, "int");
+
+    cmd.add<ValueArg<int>>(opt.rpfactor, "", "rpfactor",
+        "factor for randpath ratio update", false, 2, "int");
+    cmd.add<ValueArg<int>>(opt.rpdiv, "", "rpdiv",
+        "divisor for randpath ratio update", false, 1, "int");
+    cmd.add<ValueArg<int>>(opt.rpmin, "", "rpmin",
+        "min for randpath ratio update", false, 1, "int");
+    cmd.add<ValueArg<int>>(opt.rpmax, "", "rpmax",
+        "max for randpath ratio update", false, 1, "int");
 
     cmd.parse(argc, argv);
     return opt;

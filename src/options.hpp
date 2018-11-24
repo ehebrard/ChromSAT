@@ -156,6 +156,14 @@ struct options {
     int tenure;
 
     bool dynamiclimit;
+    int dynfactor;
+    int dyndiv;
+
+    bool dynrandpath;
+    int rpfactor;
+    int rpdiv;
+    int rpmin;
+    int rpmax;
 
     int seed;
 };
