@@ -174,7 +174,7 @@ options parse(int argc, char* argv[])
     cmd.add<ValueArg<int>>(opt.randwalkiter, "", "randwalkiter",
         "number of random walk iterations during local search", false, 100,
         "int");
-    cmd.add<ValueArg<int>>(opt.lsiter, "", "lsiter",
+    cmd.add<ValueArg<long int>>(opt.lsiter, "", "lsiter",
         "number of local search iterations", false, 10000000, "int");
     cmd.add<ValueArg<int>>(opt.lsextra, "", "lsextra",
         "number of local search extra iterations during the i-dsatur phase",
@@ -195,8 +195,8 @@ options parse(int argc, char* argv[])
     cmd.add<ValueArg<int>>(
         opt.tenure, "", "tenure", "tabu tenure", false, 10, "int");
 
-    cmd.add<SwitchArg>(opt.dynamiclimit, "", "dynamiclimit",
-        "update the LS iteration limit dynamically", false);
+    cmd.add<ValueArg<int>>(opt.dynamiclimit, "", "dynamiclimit",
+        "update the LS iteration limit dynamically [0=static, 1=geometric, 2=backoff]", false, 2, "int");
     cmd.add<SwitchArg>(opt.dynrandpath, "", "dynrandpath",
         "update the randpath ratio dynamically", false);
 

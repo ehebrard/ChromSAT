@@ -147,6 +147,8 @@ struct dsatur {
 
     long long int num_reassign{0};
     long int total_iteration{0};
+    // long int iter_increment{0};
+    long int iter_limit{0};
 
     std::mt19937 random_generator;
 
@@ -1070,7 +1072,9 @@ struct dsatur {
         long int prev_iteration{total_iteration};
         long int num_randpath_move{0};
         long int length_randpath_move{0};
-        while (total_iteration < options.lsiter) {
+        auto iter_allowance{iter_limit - total_iteration};
+
+        while (total_iteration < iter_limit) {
 
 #ifdef _DEBUG_DSATUR
             check_full_consistency(g, "start react_color loop");
@@ -1115,9 +1119,9 @@ struct dsatur {
             auto bestSolutionValue{color_bag[col].size()};
             auto minSolutionValue{g.size()};
             auto maxSolutionValue{0};
+            auto prevSolutionValue{bestSolutionValue};
 
-            while (total_iteration < options.lsiter
-                and color_bag[col].size() > 0) {
+            while (total_iteration < iter_limit and color_bag[col].size() > 0) {
                 // if (iter % 1000000 == 0) {
                 //     std::cout
                 //         << std::setw(10) << bestSolutionValue <<
@@ -1142,7 +1146,9 @@ struct dsatur {
 #ifdef _DEBUG_TABU
                 prev = minicsp::cpuTime();
                 std::cout << "# " << current_iteration << " ("
-                          << color_bag[col].size() << ") " << prev << std::endl;
+                          << color_bag[col].size() << ") " << prev << "  "
+                          << total_iteration << " / " << iter_limit
+                          << std::endl;
 #endif
 
                 int Nsize{0};
@@ -1318,6 +1324,25 @@ struct dsatur {
                         << std::endl;
                     // << color_bag[col].size() << std::setw(10)
                     // << (double)num_rand / (double)iter << std::endl;
+                }
+
+                if (options.dynamiclimit == gc::options::BACKOFF
+                    and total_iteration >= iter_limit) {
+                    if (prevSolutionValue <= bestSolutionValue)
+                        iter_allowance /= 2;
+
+                    if (options.verbosity >= gc::options::YACKING)
+                        std::cout
+                            << "[search] progress = "
+                            << (prevSolutionValue - bestSolutionValue)
+                            << ": postpone limit of " << std::setw(10)
+                            << iter_allowance << " moves -> "
+                            << (iter_limit + iter_allowance - total_iteration)
+                            << "\n";
+
+                    prevSolutionValue = bestSolutionValue;
+
+                    iter_limit += iter_allowance;
                 }
 
 #ifdef _DEBUG_TABU
@@ -1880,7 +1905,9 @@ struct dsatur {
         //
         // exit(1);
 
-        int num_rw_iter = options.randwalkiter, limit = options.lsiter;
+        int num_rw_iter = options.randwalkiter;
+
+        iter_limit = options.lsiter;
 
         int num_rp{0};
         int num_fp{0};
@@ -1888,9 +1915,11 @@ struct dsatur {
         std::vector<int> dsat_order;
 
         auto prev_num_colors{color_bag.size()};
-        auto iter_increment{options.lsiter};
+        auto iter_increment{iter_limit};
+        auto prev_iteration{total_iteration};
 
-        for (int i = 0; stat.best_lb < stat.best_ub and total_iteration < limit;
+        for (int i = 0;
+             stat.best_lb < stat.best_ub and total_iteration < iter_limit;
              ++i) {
 
             if (options.verbosity > gc::options::YACKING)
@@ -1991,19 +2020,38 @@ struct dsatur {
                 std::cout << "[search] " << std::setw(10) << num_reassign
                           << " moves\n";
 
-            if (options.dynamiclimit and total_iteration >= limit) {
-                if (prev_num_colors > color_bag.size()) {
-                    iter_increment *= options.dynfactor;
-										iter_increment /= options.dyndiv;
+            if (total_iteration >= iter_limit) {
+                if (options.dynamiclimit != gc::options::STATIC) {
+                    if (prev_num_colors > color_bag.size()) {
+                        prev_num_colors = color_bag.size();
 
-                    if (options.verbosity >= gc::options::NORMAL)
-                        std::cout << "[search] increase limit by "
-                                  << std::setw(10) << iter_increment
-                                  << " moves\n";
+                        if (options.dynamiclimit == gc::options::BACKOFF) {
+                            iter_increment = std::max(options.lsiter,
+                                (total_iteration - prev_iteration));
+                            if (options.verbosity >= gc::options::NORMAL)
+                                std::cout << "[search] increase limit by "
+                                          << std::setw(10) << iter_increment
+                                          << " moves -> "
+                                          << (iter_limit - prev_iteration)
+                                          << "\n";
 
-                    limit += iter_increment;
-										options.lsiter += iter_increment;
-										prev_num_colors = color_bag.size();
+                            iter_limit += iter_increment;
+                            prev_iteration = total_iteration;
+                        } else {
+                            iter_increment *= options.dynfactor;
+                            iter_increment /= options.dyndiv;
+
+                            if (options.verbosity >= gc::options::NORMAL)
+                                std::cout << "[search] increase limit by "
+                                          << std::setw(10) << iter_increment
+                                          << " moves -> "
+                                          << (iter_limit + iter_increment
+                                                 - total_iteration)
+                                          << "\n";
+
+                            iter_limit += iter_increment;
+                        }
+                    }
                 }
             }
         }

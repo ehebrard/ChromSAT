@@ -150,12 +150,13 @@ struct options {
     int rw;
     bool focus;
     int randwalkiter;
-    int lsiter;
+    long int lsiter;
     int lsextra;
     int dsatlimit;
     int tenure;
 
-    bool dynamiclimit;
+    enum limit_policy { STATIC = 0, GEOM, BACKOFF };
+    int dynamiclimit;
     int dynfactor;
     int dyndiv;
 
