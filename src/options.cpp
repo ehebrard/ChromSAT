@@ -210,9 +210,9 @@ options parse(int argc, char* argv[])
     cmd.add<ValueArg<int>>(opt.rpdiv, "", "rpdiv",
         "divisor for randpath ratio update", false, 1, "int");
     cmd.add<ValueArg<int>>(opt.rpmin, "", "rpmin",
-        "min for randpath ratio update", false, 1, "int");
+        "min for randpath ratio update", false, 3, "int");
     cmd.add<ValueArg<int>>(opt.rpmax, "", "rpmax",
-        "max for randpath ratio update", false, 1, "int");
+        "max for randpath ratio update", false, 20, "int");
 
     cmd.parse(argc, argv);
     return opt;
