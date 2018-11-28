@@ -604,7 +604,7 @@ struct gc_model {
 
             havemax = maximum_clique();
 
-            threshold = std::max(lb, threshold);
+            threshold = std::max(lb-1, threshold);
             reduce(gr, threshold, k);
         }
 
@@ -619,7 +619,7 @@ struct gc_model {
 
                 probe_lb(samplebase);
 
-                threshold = std::max(lb, threshold);
+                threshold = std::max(lb-1, threshold);
 
                 if (options.verbosity >= gc::options::YACKING)
                     std::cout << "[preprocessing] reduce graph w.r.t. " << threshold << ")\n";
