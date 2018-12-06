@@ -172,23 +172,23 @@ options parse(int argc, char* argv[])
         false, 2, "int");
 
     cmd.add<ValueArg<int>>(opt.randwalkiter, "", "randwalkiter",
-        "number of random walk iterations during local search", false, 100,
+        "number of random walk iterations during local search", false, 0,
         "int");
     cmd.add<ValueArg<long int>>(opt.lsiter, "", "lsiter",
-        "number of local search iterations", false, 10000000, "int");
+        "number of local search iterations", false, 0, "int");
     cmd.add<ValueArg<int>>(opt.lsextra, "", "lsextra",
         "number of local search extra iterations during the i-dsatur phase",
-        false, 100000, "int");
+        false, 0, "int");
     cmd.add<ValueArg<int>>(opt.dsatlimit, "", "dsatlimit",
-        "iteration limit during dsat moves", false, 50, "int");
+        "iteration limit during dsat moves", false, 0, "int");
     cmd.add<SwitchArg>(opt.switchdescent, "", "switchdescent",
-        "do (not) use descent move in LS", true);
+        "use descent move in LS", false);
     cmd.add<SwitchArg>(opt.switchreact, "", "switchreact",
         "do (not) use react move in LS", true);
     cmd.add<SwitchArg>(
         opt.focus, "", "focus", "do not move the core in LS", false);
     cmd.add<ValueArg<int>>(
-        opt.rw, "", "rw", "frequency of path exploration", false, 2, "int");
+        opt.rw, "", "rw", "frequency of path exploration", false, 1, "int");
 
     cmd.add<ValueArg<int>>(
         opt.seed, "", "seed", "random seed", false, 12345, "int");
@@ -198,7 +198,7 @@ options parse(int argc, char* argv[])
     cmd.add<ValueArg<int>>(opt.dynamiclimit, "", "dynamiclimit",
         "update the LS iteration limit dynamically [0=static, 1=geometric, 2=backoff]", false, 2, "int");
     cmd.add<SwitchArg>(opt.dynrandpath, "", "dynrandpath",
-        "update the randpath ratio dynamically", false);
+        "update the randpath ratio dynamically", true);
 
     cmd.add<ValueArg<int>>(opt.dynfactor, "", "dynfactor",
         "geometric factor for iter limit", false, 2, "int");

@@ -481,6 +481,7 @@ struct gc_model {
 
     void upper_bound()
     {
+        bool dsatur_solution{false};
         if (options.sdsaturiter > 0 and !dsatur_sol and lb < ub) {
 
             if (options.verbosity >= gc::options::YACKING)
@@ -490,12 +491,16 @@ struct gc_model {
 
             col.clear();
             int niter{options.sdsaturiter};
-            do {
+
+            while (niter-- > 0) {
                 if (options.verbosity >= gc::options::YACKING) {
                     std::cout << ".";
                     std::cout.flush();
                 }
                 col.clear();
+                // if (niter == 1 and options.lsiter > 0)
+                //     col.full = true;
+
                 auto ncol{col.brelaz_color(original, ub - 1,
                     (1 << (options.sdsaturiter + 1 - niter)), 12345 + niter)};
 
@@ -523,6 +528,7 @@ struct gc_model {
                             statistics.display(std::cout);
                         }
 
+                        dsatur_solution = true;
                         // auto n_rel{1 + col.frontier - begin(col.order)};
 
                         // std::cout << "relevant vertices: " << n_rel
@@ -531,10 +537,27 @@ struct gc_model {
                 }
                 if (--niter > 0) // Do not clear last col
                     col.clear();
-            } while (niter > 0);
+            }
         }
         if (options.verbosity >= gc::options::YACKING)
             std::cout << std::endl;
+        if (options.lsiter > 0 and lb < ub) {
+
+            if (!dsatur_solution) {
+                col.clear();
+                col.brelaz_color_guided(original, ub, begin(original.nodes),
+                    end(original.nodes), solution, 0, 0);
+            }
+
+            if (options.verbosity >= gc::options::NORMAL)
+                std::cout << "[info] local search (limit=" << options.lsiter
+                          << ")\n";
+
+            col.local_search(original, solution, statistics, options,
+                begin(original.nodes), end(original.nodes));
+            assert(ub >= statistics.best_ub);
+            ub = statistics.best_ub;
+        }
     }
 
     bool peeling(
@@ -707,8 +730,9 @@ struct gc_model {
         }
     }
 
-
-    bool neighborhood_dominance(gc::graph_reduction<adjacency_struct>& gr)
+    bool neighborhood_dominance(gc::graph_reduction<adjacency_struct>& gr
+        //, const int limit
+        )
     {
 
         int size_before{original.size()};
@@ -806,8 +830,6 @@ struct gc_model {
 
     gc::graph_reduction<adjacency_struct> preprocess(const int k_core_threshold)
     {
-        // auto gr{degeneracy_peeling(original)};
-
         col.random_generator.seed(options.seed);
 
         gc::graph_reduction<adjacency_struct> gr(
@@ -1730,6 +1752,16 @@ int color(gc::options& options, gc::graph<input_format>& g)
         std::cout << std::endl;
     }
 
+    /*
+
+    [preprocess] <lb> + <peeling> + <neighborhood>
+    +
+    [heuristic] <dsatur * x> + <LS>
+    +
+    [algorithm] <BNB, VERMA, IDSATUR, BOTTOM-UP>
+
+    */
+
     // std::cout << "MAIN (READ): " << g.size() << "(" << (int*)(&g) << ")"
     //           << std::endl;
     switch (options.strategy) {
@@ -1763,41 +1795,6 @@ int color(gc::options& options, gc::graph<input_format>& g)
         gc_model<input_format> model(g, options, statistics, bounds, sol);
 
         extend_dsat_lb_core(model, options, statistics, sol);
-
-        //         int limit{options.idsaturlimit};
-        //
-        //         while (model.lb < model.ub) {
-        //             statistics.binds(NULL);
-        //             gc::dense_graph g{model.dsatur_reduced()};
-        //
-        //             minicsp::Solver s;
-        //
-        //             model.init_search(s, g, model.original.nodes);
-        //
-        //             statistics.binds(model.cons);
-        //
-        //
-        // int nub{model.ub}, nlb{model.lb};
-        //             auto solution_found{false};
-        //             if (options.idsaturlimit == 0) {
-        //                 solution_found = model.find_solution(s, g, nlb, nub);
-        //             } else {
-        //                 solution_found = model.solve(s, g, nlb, nub, -1,
-        //                 false);
-        //             }
-        //
-        //             model.lb = std::max(nlb, model.lb);
-        //             statistics.notify_lb(model.lb);
-        //
-        //             if (options.verbosity >= gc::options::NORMAL)
-        //                 statistics.display(std::cout);
-        //
-        //             if (g.size() == model.original.size())
-        //                 break;
-        //
-        //             if (--limit == 0)
-        //                 break;
-        //         }
 
     } break;
     case gc::options::BOTTOMUP: {
@@ -1888,9 +1885,6 @@ int color(gc::options& options, gc::graph<input_format>& g)
         std::vector<int> vmap(g.capacity(), -1);
         gc::graph<input_format> pg(g, vmap);
 
-        // std::cout << g.nodeset << std::endl << pg.nodeset << std::endl;
-        // exit(1);
-
         options.preprocessing = gc::options::NO_PREPROCESSING;
         gc_model<input_format> model(pg, options, statistics, bounds, sol);
         for (auto v : pg.nodes) {
@@ -1899,8 +1893,6 @@ int color(gc::options& options, gc::graph<input_format>& g)
         }
         model.ub = init_model.ub;
         model.lb = init_model.lb;
-
-
 
         model.col.brelaz_color_guided(
             pg, model.ub, begin(pg.nodes), end(pg.nodes), model.solution, 0, 0);
@@ -1951,12 +1943,6 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
         options.strategy = gc::options::CLEVER;
         statistics.update_lb = false;
-
-        // std::vector<std::pair<int, int>> tmp_edges;
-        // for (auto u : init_model.g.nodes)
-        //     for (auto v : init_model.g.matrix[u])
-        //         if (u < v)
-        //             tmp_edges.push_back(std::pair<int, int>{u, v});
 
         while (init_model.lb < init_model.ub) {
 
