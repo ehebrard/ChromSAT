@@ -1799,75 +1799,76 @@ int color(gc::options& options, gc::graph<input_format>& g)
     } break;
     case gc::options::BOTTOMUP: {
 
-        // gc::statistics& sub_statistics(g.capacity());
+      std::pair<int, int> bounds{0, g.size()};
+      gc_model<input_format> init_model(g, options, statistics, bounds, sol);
 
-        std::pair<int, int> bounds{0, g.size()};
 
-        options.strategy = gc::options::BOUNDS; // so that we don't create the
-        // dense graph yet
-        options.ddsaturiter = 0;
-        gc_model<input_format> model(g, options, statistics, bounds, sol);
+			std::vector<int> vmap(g.capacity(), -1);
 
-        // extend_dsat_lb_core(model, options, statistics, sol);
 
-        // int limit{-1};
-        //
-        // options.strategy = gc::options::BNB;
-        // while (model.lb < model.ub) {
-        //
-        //     statistics.binds(NULL);
-        //     gc::graph<input_format> g{model.dsatur_sparse_reduced()};
-        //
-        //     std::pair<int, int> bounds{model.lb, model.ub};
-        //
-        //     statistics.update_ub = false;
-        //     gc_model<input_format> tmp_model(g, options, statistics, bounds,
-        //     sol);
-        //     statistics.update_ub = true;
-        //
-        //     auto solution_found{tmp_model.ub < model.ub};
-        //     if (options.idsaturlimit == 0) {
-        //         solution_found |= model.find_solution(
-        //             tmp_model.solver, tmp_model.final, tmp_model.lb,
-        //             tmp_model.ub);
-        //     } else {
-        //         solution_found |= model.solve(tmp_model.solver,
-        //         tmp_model.final,
-        //             tmp_model.lb, tmp_model.ub, -1, false);
-        //     }
-        //
-        //     model.lb = std::max(tmp_model.lb, model.lb);
-        //     statistics.notify_lb(model.lb);
-        //
-        //     // we need to check lb < ub because the solution is already
-        //     extended
-        //     // in
-        //     if (solution_found and model.lb < model.ub) {
-        //         if (options.verbosity >= gc::options::YACKING)
-        //             std::cout << "[trace] " << limit << " SAT: " <<
-        //             tmp_model.lb
-        //                       << ".." << tmp_model.ub;
-        //
-        //         auto actualub{model.dsat_extend(model.original)};
-        //
-        //         if (options.verbosity >= gc::options::YACKING)
-        //             std::cout << ".." << actualub << std::endl;
-        //
-        //         if (actualub < model.ub) {
-        //             model.ub = actualub;
-        //             statistics.notify_ub(model.ub);
-        //         }
-        //     }
-        //
-        //     if (options.verbosity >= gc::options::NORMAL)
-        //         statistics.display(std::cout);
-        //
-        //     if (g.size() == model.original.size())
-        //         break;
-        //
-        //     if (--limit == 0)
-        //         break;
-        // }
+			options.lsiter = 0;
+			statistics.ub_safe = false;
+
+			while(init_model.lb < init_model.ub) {
+					std::pair<int, int> bounds{init_model.lb, init_model.lb+1};
+					
+					vmap.clear();
+					vmap.resize(g.capacity(), -1);
+	        gc::graph<input_format> tmp_g(g, vmap);
+					
+					gc_model<input_format> tmp_model(tmp_g, options, statistics, bounds, sol);
+					
+					
+					std::cout << "[search] " << init_model.lb << "-coloring ";
+		      tmp_model.final.describe(std::cout);
+		      std::cout << std::endl;
+					
+					
+					if(tmp_model.solve()) {
+						
+            assert(tmp_model.solution.size() == tmp_model.original.capacity());
+
+            auto incumbent{init_model.ub};
+            if (tmp_model.degeneracy_sol or tmp_model.dsatur_sol
+                or tmp_model.search_sol) {
+                incumbent = tmp_model.reduction.extend_solution(
+                    tmp_model.solution, init_model.ub, true);
+                // copy the tmp model solution into the init model
+                for (int v = 0; v < tmp_model.original.capacity(); ++v)
+                    init_model.solution[init_model.original.nodes[v]]
+                        = tmp_model.solution[v];
+                assert(incumbent < init_model.ub);
+                init_model.ub = incumbent;
+            }
+
+            if (options.verbosity >= gc::options::YACKING)
+                std::cout << init_model.ub << "]\n";
+
+						assert(init_model.lb == tmp_model.ub);
+            assert(init_model.lb == tmp_model.lb);
+
+            // iub may not be equal to ilb even if the solver wasn't stopped:
+            // coloring the removed vertices might have required extra colors
+            // either way, [ilb, iub] are correct bounds
+            statistics.notify_ub(init_model.ub);
+            // statistics.notify_lb(init_model.lb);
+
+            if (options.verbosity >= gc::options::NORMAL)
+                statistics.display(std::cout);
+
+					} else {
+						++init_model.lb;
+						statistics.notify_lb(init_model.lb);
+					}				
+					
+			}
+
+      init_model.finalize_solution(edges);
+
+      if (options.verbosity >= gc::options::QUIET)
+          init_model.print_stats();
+
+
 
     } break;
     case gc::options::LOCALSEARCH: {
@@ -1943,6 +1944,8 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
         options.strategy = gc::options::CLEVER;
         statistics.update_lb = false;
+				
+				options.lsiter = 0;
 
         while (init_model.lb < init_model.ub) {
 
