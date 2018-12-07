@@ -162,9 +162,8 @@ options parse(int argc, char* argv[])
         "int");
     cmd.add<ValueArg<int>>(opt.probewidth, "", "probewidth",
         "size of the max probe width (default = 64)", false, 64, "int");
-    cmd.add<ValueArg<int>>(opt.core, "", "core",
-        "Core type []",
-        false, 0, "int");
+    cmd.add<ValueArg<int>>(
+        opt.core, "", "core", "Core type []", false, 3, "int");
     cmd.add<ValueArg<int>>(opt.idsaturlimit, "", "idsaturlimit",
         "solve limit in idsatur", false, -1, "int");
     cmd.add<ValueArg<int>>(opt.verbosity, "", "verbosity",
@@ -213,6 +212,9 @@ options parse(int argc, char* argv[])
         "min for randpath ratio update", false, 3, "int");
     cmd.add<ValueArg<int>>(opt.rpmax, "", "rpmax",
         "max for randpath ratio update", false, 20, "int");
+				
+    cmd.add<SwitchArg>(opt.norecolor, "", "norecolor",
+        "do not use recolor in dsatur", false);
 
     cmd.parse(argc, argv);
     return opt;

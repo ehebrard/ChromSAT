@@ -1347,6 +1347,8 @@ public:
 
         lb = cf.find_cliques(heuristic, opt.cliquelimit);
 
+        stat.notify_nclique(cf.num_cliques);
+
         //std::cout << "PROPAGATE (" << lb << " / " << bestlb << ")\n";
 
         if (lb < ub

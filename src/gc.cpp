@@ -831,6 +831,9 @@ struct gc_model {
     gc::graph_reduction<adjacency_struct> preprocess(const int k_core_threshold)
     {
         col.random_generator.seed(options.seed);
+				if(options.norecolor) {
+					col.use_recolor = false;
+				}
 
         gc::graph_reduction<adjacency_struct> gr(
             original, statistics, solution);
@@ -1635,6 +1638,8 @@ void extend_dsat_lb_core(gc_model<input_format>& model, gc::options& options,
         if (options.verbosity >= gc::options::NORMAL)
             statistics.display(std::cout);
 
+        statistics.notify_iteration(g.capacity());
+
         if (g.size() == model.original.size())
             break;
 
@@ -1799,76 +1804,75 @@ int color(gc::options& options, gc::graph<input_format>& g)
     } break;
     case gc::options::BOTTOMUP: {
 
-      std::pair<int, int> bounds{0, g.size()};
-      gc_model<input_format> init_model(g, options, statistics, bounds, sol);
+        std::pair<int, int> bounds{0, g.size()};
+        gc_model<input_format> init_model(g, options, statistics, bounds, sol);
 
+        std::vector<int> vmap(g.capacity(), -1);
 
-			std::vector<int> vmap(g.capacity(), -1);
+        options.lsiter = 0;
+        statistics.ub_safe = false;
 
+        while (init_model.lb < init_model.ub) {
+            std::pair<int, int> bounds{init_model.lb, init_model.lb + 1};
 
-			options.lsiter = 0;
-			statistics.ub_safe = false;
+            vmap.clear();
+            vmap.resize(g.capacity(), -1);
+            gc::graph<input_format> tmp_g(g, vmap);
 
-			while(init_model.lb < init_model.ub) {
-					std::pair<int, int> bounds{init_model.lb, init_model.lb+1};
-					
-					vmap.clear();
-					vmap.resize(g.capacity(), -1);
-	        gc::graph<input_format> tmp_g(g, vmap);
-					
-					gc_model<input_format> tmp_model(tmp_g, options, statistics, bounds, sol);
-					
-					
-					std::cout << "[search] " << init_model.lb << "-coloring ";
-		      tmp_model.final.describe(std::cout);
-		      std::cout << std::endl;
-					
-					
-					if(tmp_model.solve()) {
-						
-            assert(tmp_model.solution.size() == tmp_model.original.capacity());
+            gc_model<input_format> tmp_model(
+                tmp_g, options, statistics, bounds, sol);
 
-            auto incumbent{init_model.ub};
-            if (tmp_model.degeneracy_sol or tmp_model.dsatur_sol
-                or tmp_model.search_sol) {
-                incumbent = tmp_model.reduction.extend_solution(
-                    tmp_model.solution, init_model.ub, true);
-                // copy the tmp model solution into the init model
-                for (int v = 0; v < tmp_model.original.capacity(); ++v)
-                    init_model.solution[init_model.original.nodes[v]]
-                        = tmp_model.solution[v];
-                assert(incumbent < init_model.ub);
-                init_model.ub = incumbent;
+            std::cout << "[search] " << init_model.lb << "-coloring ";
+            tmp_model.final.describe(std::cout);
+            std::cout << std::endl;
+
+            if (tmp_model.solve()) {
+
+                assert(
+                    tmp_model.solution.size() == tmp_model.original.capacity());
+
+                auto incumbent{init_model.ub};
+                if (tmp_model.degeneracy_sol or tmp_model.dsatur_sol
+                    or tmp_model.search_sol) {
+                    incumbent = tmp_model.reduction.extend_solution(
+                        tmp_model.solution, init_model.ub, true);
+                    // copy the tmp model solution into the init model
+                    for (int v = 0; v < tmp_model.original.capacity(); ++v)
+                        init_model.solution[init_model.original.nodes[v]]
+                            = tmp_model.solution[v];
+                    assert(incumbent < init_model.ub);
+                    init_model.ub = incumbent;
+                }
+
+                if (options.verbosity >= gc::options::YACKING)
+                    std::cout << init_model.ub << "]\n";
+
+                assert(init_model.lb == tmp_model.ub);
+                assert(init_model.lb == tmp_model.lb);
+
+                // iub may not be equal to ilb even if the solver
+                // wasn't stopped:
+                // coloring the removed vertices might have required
+                // extra colors
+                // either way, [ilb, iub] are correct bounds
+                statistics.notify_ub(init_model.ub);
+                // statistics.notify_lb(init_model.lb);
+
+                if (options.verbosity >= gc::options::NORMAL)
+                    statistics.display(std::cout);
+
+            } else {
+                ++init_model.lb;
+                statistics.notify_lb(init_model.lb);
             }
 
-            if (options.verbosity >= gc::options::YACKING)
-                std::cout << init_model.ub << "]\n";
+            statistics.notify_iteration(g.capacity());
+        }
 
-						assert(init_model.lb == tmp_model.ub);
-            assert(init_model.lb == tmp_model.lb);
+        init_model.finalize_solution(edges);
 
-            // iub may not be equal to ilb even if the solver wasn't stopped:
-            // coloring the removed vertices might have required extra colors
-            // either way, [ilb, iub] are correct bounds
-            statistics.notify_ub(init_model.ub);
-            // statistics.notify_lb(init_model.lb);
-
-            if (options.verbosity >= gc::options::NORMAL)
-                statistics.display(std::cout);
-
-					} else {
-						++init_model.lb;
-						statistics.notify_lb(init_model.lb);
-					}				
-					
-			}
-
-      init_model.finalize_solution(edges);
-
-      if (options.verbosity >= gc::options::QUIET)
-          init_model.print_stats();
-
-
+        if (options.verbosity >= gc::options::QUIET)
+            init_model.print_stats();
 
     } break;
     case gc::options::LOCALSEARCH: {
@@ -1929,7 +1933,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
         if (saved_ub <= model.ub) {
             model.solution = saved_sol;
-                                }
+        }
 
         model.finalize_solution(edges);
 
@@ -2017,6 +2021,8 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
             statistics.unbinds();
             vmap.clear();
+
+            statistics.notify_iteration(gcopy.capacity());
         }
 
         init_model.finalize_solution(edges);
