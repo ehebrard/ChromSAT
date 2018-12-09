@@ -71,6 +71,18 @@ void statistics::notify_bound_delta(const int b1, const int b2)
 		total_bound_2 += b2;
 }
 
+int statistics::get_avg_nclq()
+{
+    return (
+        num_bounds ? (int)((double)total_clq_size / (double)num_bounds) : 0);
+}
+
+void statistics::notify_nclique(const int sz)
+{
+    total_clq_size += sz;
+    ++num_bounds;
+}
+
 void statistics::notify_lb(const int l) 
 {
     if (best_lb < l) {
@@ -101,9 +113,19 @@ double statistics::get_bound_increase() const {
 		return 0;
 }
 
+void statistics::notify_iteration(const int cs)
+{
+    core_size = cs;
+    ++num_iterations;
+    if (num_iterations < 100 or num_iterations % 100 == 0) {
+        changed = true;
+        display(std::cout);
+    }
+}
+
 void statistics::describe(std::ostream& os)
-{	
-		os << "[statistics] lb ub time conflicts moves memory\n";
+{
+    os << "[statistics] lb ub clq iter core time conflicts moves memory\n";
 }
 
 void statistics::display(std::ostream& os)
@@ -127,17 +149,16 @@ void statistics::display(std::ostream& os)
         os.setf(std::ios_base::fixed, std::ios_base::floatfield);
         os << "[data] lb = " << std::setw(4) << std::left << best_lb
            << "| ub = " << std::setw(4) << std::left << best_ub
+           << "| clq = " << std::setw(4) << std::left << get_avg_nclq()
+           << "| iter = " << std::setw(4) << std::left << num_iterations
+           << "| core = " << std::setw(4) << std::left << core_size
            << "| time = " << std::setw(9) << std::left << std::setprecision(4)
-           << (minicsp::cpuTime() - start_time) << "| conflicts = " << std::setw(8)
-           << std::left
+           << (minicsp::cpuTime() - start_time)
+           << "| conflicts = " << std::setw(8) << std::left
            << (cons ? total_conflicts + cons->s.conflicts : total_conflicts)
-           // << "| delta = " << std::setw(8) << std::left << std::setprecision(4)
-           // << get_bound_increase()
-	           << "| moves = " << std::setw(10) << total_iteration
-						 // << "| #vert = " << std::setw(10) << std::left
-						 //            << num_vertices
-							 << "| memory = " << std::setw(8) << std::left
-           << (long)resident_set << std::endl;
+           << "| moves = " << std::setw(10) << total_iteration
+           << "| memory = " << std::setw(8) << std::left << (long)resident_set
+           << std::endl;
     }
 
     changed = false;

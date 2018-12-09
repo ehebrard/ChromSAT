@@ -113,6 +113,7 @@ struct options {
     bool printsolution;
 
     int sdsaturiter;
+		bool norecolor;
 
     int ddsaturiter;
 
