@@ -54,6 +54,9 @@ struct options {
     };
     dual_policy boundalg;
 
+    enum clique_policy { ALL_CLIQUES, INCREMENTAL };
+    clique_policy cliquealg;
+
     bool prune;
 
     bool adaptive;

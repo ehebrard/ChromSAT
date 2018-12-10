@@ -235,6 +235,10 @@ public:
 
     std::vector<int> heuristic;
 
+    // for incremental clique finding
+    std::vector<int> altered_vertices;
+    bitset altered_vertex_set;
+
 public:
     gc_constraint(Solver& solver, dense_graph& g,
         boost::optional<fillin_info> fillin, const varmap& tvars,
@@ -258,6 +262,7 @@ public:
         , ordering_forbidden(0, g.capacity() - 1, bitset::empt)
         , ordering_removed_bs(0, g.capacity() - 1, bitset::empt)
         , expl_reps_extra(g.capacity())
+        , altered_vertex_set(0, g.capacity() - 1, bitset::empt)
     {
 
         for (size_t i{0}; i < isrep.size(); ++i)
@@ -265,7 +270,7 @@ public:
 
         stat.binds(this);
         ub = g.capacity()+1;
-				
+
         for (int i = 0; i != g.capacity(); ++i) {
             if (!g.nodes.contain(i))
                 continue;
@@ -482,7 +487,8 @@ public:
             std::cout << "\nEffect: " << lit_printer(s, Lit(vars[vrep][urep]))
                       << std::endl;
 #endif
-						if (s.value(vars[vrep][urep]) != l_Undef) return {bestidx};
+            if (s.value(vars[vrep][urep]) != l_Undef)
+                return {bestidx};
             // assert(s.value(vars[vrep][urep]) == l_Undef);
             for (Lit l : reason)
                 assert(s.value(l) == l_False);
@@ -747,6 +753,18 @@ public:
     Clause* wake(Solver& s, Lit l)
     {
         sync_graph();
+
+        if (opt.cliquealg == options::INCREMENTAL) {
+            auto info = varinfo[var(l)];
+            if (!altered_vertex_set.fast_contain(info.u)) {
+                altered_vertices.push_back(info.u);
+                altered_vertex_set.fast_add(info.u);
+            }
+            if (!altered_vertex_set.fast_contain(info.v)) {
+                altered_vertices.push_back(info.v);
+                altered_vertex_set.fast_add(info.v);
+            }
+        }
 
         if (opt.fillin)
             return wake_fillin(l);
@@ -1215,8 +1233,8 @@ public:
     }
 
     void create_ordering()
-    {	
-			
+    {
+
         // recompute the degenracy order
         if (opt.ordering == options::DYNAMIC_DEGENERACY) {
             assert(false);
@@ -1226,17 +1244,18 @@ public:
         } else if (opt.ordering == options::PARTITION) {
 
             if (opt.ordering_low_degree == options::PREPROCESSING_ORDERING) {
-							
+
                 bool removed_some{false};
                 ordering_removed_bs.clear();
                 ordering_removed.clear();
                 do {
-																		
+
                     removed_some = false;
                     ordering_forbidden.clear();
                     for (auto v : g.nodes) {
 
-												std::cout << "failed assert after checking " << v << std::endl;
+                        std::cout << "failed assert after checking " << v
+                                  << std::endl;
 
                         if (ordering_forbidden.fast_contain(v)
                             || ordering_removed_bs.fast_contain(v))
@@ -1253,7 +1272,7 @@ public:
                         ordering_forbidden.fast_add(v);
                     }
                 } while (removed_some);
-            } else if (opt.ordering_low_degree == options::DEGREE_ORDERING) {	
+            } else if (opt.ordering_low_degree == options::DEGREE_ORDERING) {
                 ordering_removed_bs.clear();
                 ordering_removed.clear();
                 for (auto v : g.nodes) {
@@ -1286,9 +1305,7 @@ public:
 
             assert(heuristic.size() == g.nodes.size());
         } else {
-					
 
-					
             // no ordering
             heuristic.clear();
             std::copy(
@@ -1345,7 +1362,20 @@ public:
 
         create_ordering();
 
-        lb = cf.find_cliques(heuristic, opt.cliquelimit);
+        if (opt.cliquealg == options::ALL_CLIQUES || !saved_cliques) {
+            lb = cf.find_cliques(heuristic, opt.cliquelimit);
+            if (opt.cliquealg == options::INCREMENTAL) {
+                cf.filter_cliques(lb);
+                saved_cliques = true;
+            }
+        } else {
+            erase_if(altered_vertices,
+                [&](int v) { return !g.nodeset.fast_contain(v); });
+            lb = cf.extend_cliques(altered_vertices, ub);
+            cf.filter_cliques(lb);
+            altered_vertices.clear();
+            altered_vertex_set.clear();
+        }
 
         stat.notify_nclique(cf.num_cliques);
 
@@ -1391,7 +1421,7 @@ public:
                 stat.display(std::cout);
             }
         }
-        if (cf.num_cliques == 1)
+        if (cf.num_cliques == 1 && opt.cliquealg == options::ALL_CLIQUES)
             assert(g.nodes.size() == cf.cliques[0].size());
         if (lb >= ub) {
             if (use_global_bound) {
