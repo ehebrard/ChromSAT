@@ -19,9 +19,9 @@ prop_dep = declare_dependency(link_with: prop_lib,
 			      include_directories: include_directories('src'))
 
 minicsp_inc = include_directories('minicsp')
-minicsp_lib = library('minicsp', ['minicsp/core/solver.cpp',
-				  'minicsp/core/cons.cpp',
-				  'minicsp/core/utils.cpp'])
+minicsp_lib = static_library('minicsp', ['minicsp/core/solver.cpp',
+					 'minicsp/core/cons.cpp',
+					 'minicsp/core/utils.cpp'])
 minicsp_dep = declare_dependency(link_with: minicsp_lib,
 				 include_directories: minicsp_inc)
 
