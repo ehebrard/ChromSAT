@@ -73,6 +73,10 @@ struct cons_base {
     clique_finder<bitset> ccf; // for clique covers
     minicsp::backtrackable<int> lastlb;
 
+    // for incremental clique finding. must be here because it is
+    // reset when backtracking
+    bool saved_cliques{false};
+
     dense_graph create_filled_graph(boost::optional<fillin_info> fillin);
 
     explicit cons_base(minicsp::Solver& s, const options& opt, dense_graph& g,
@@ -94,6 +98,7 @@ struct cons_base {
         if (*lastdlvl < g.current_checkpoint()) {
             g.restore(*lastdlvl);
             *lastdlvl = g.current_checkpoint();
+            saved_cliques = false;
         }
         while (s.decisionLevel() > g.current_checkpoint()) {
             g.checkpoint();

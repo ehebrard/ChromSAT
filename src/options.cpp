@@ -101,6 +101,8 @@ options parse(int argc, char* argv[])
         "Use low degree information to improve clique ordering", false, 0, "int");
     cmd.add<ValueArg<int>>(opt.boundalg, "", "bound",
         "lower bound algorithm [0-3]", false, 2, "int");
+    cmd.add<ValueArg<int>>(opt.cliquealg, "", "cliquealg",
+        "Clique heuristic to use during search", false, 0, "0-1");
     cmd.add<SwitchArg>(opt.prune, "", "prune", "enable pruning", false);
     cmd.add<SwitchArg>(opt.adaptive, "", "adaptive",
         "Switch between CLIQUES and declared bound policy dynamically", true);

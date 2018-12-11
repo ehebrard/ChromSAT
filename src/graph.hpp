@@ -320,6 +320,8 @@ template <class adjacency_struct> struct clique_finder {
     int num_cliques;
     int limit;
 
+    std::vector<int> util_vec;
+
     clique_finder(const graph<adjacency_struct>& ig, const int c = 0xfffffff)
         : g(ig)
         , num_cliques(1)
@@ -386,6 +388,65 @@ template <class adjacency_struct> struct clique_finder {
 
         return *std::max_element(
             begin(clique_sz), begin(clique_sz) + num_cliques);
+    }
+
+    void filter_cliques(int cutoff)
+    {
+        // when we filter, we must update all fields
+        int i{0}, j{0};
+        for (; i != num_cliques; ++i)
+            if (clique_sz[i] >= cutoff) {
+                using std::swap;
+                swap(cliques[i], cliques[j]);
+                swap(clique_sz[i], clique_sz[j]);
+                swap(candidates[i], candidates[j]);
+                ++j;
+            }
+        num_cliques = j;
+    }
+
+    void remap_clique_to_reps(bitset& clq, bitset& N)
+    {
+        util_vec.clear();
+        std::copy(begin(clq), end(clq), back_inserter(util_vec));
+        N.clear();
+        bool first{true};
+        for (auto u : util_vec) {
+            if (g.rep_of[u] != u) {
+                clq.fast_remove(u);
+                clq.fast_add(g.rep_of[u]);
+            }
+            if (first) {
+                N.copy(g.matrix[g.rep_of[u]]);
+                first = false;
+            } else {
+                N.intersect_with(g.matrix[g.rep_of[u]]);
+            }
+        }
+    }
+
+    int extend_cliques(const std::vector<int>& cand, int cutoffub)
+    {
+        int lb = -1;
+        for (int i = 0; i != num_cliques; ++i) {
+            remap_clique_to_reps(cliques[i], candidates[i]);
+            clique_sz[i] = extend_clique(cliques[i], candidates[i], cand);
+            lb = std::max(lb, clique_sz[i]);
+            if (lb >= cutoffub)
+                break;
+        }
+        return lb;
+    }
+
+    int extend_clique(bitset& clq, bitset& N, const std::vector<int>& cand)
+    {
+        for (auto u : cand) {
+            if (N.fast_contain(u)) {
+                clq.fast_add(u);
+                N.intersect_with(g.matrix[u]);
+            }
+        }
+        return clq.size();
     }
 
     // template <class ordering> int find_cliques(std::vector<int>::iterator& b,
