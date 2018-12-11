@@ -327,25 +327,31 @@ struct gc_model {
     */
 
     // returns true if it computed the maximum clique, false if it timed out
-    bool maximum_clique()
+    bool maximum_clique(int lb, int ub)
     {
         std::cout << "[info] Computing maximum clique\n";
+        auto start = minicsp::cpuTime();
         dOmega::Graph graph;
         convert(original, graph);
 
         dOmega::Clique clique(graph, 1);
 
-        clique.findMaxClique(options.domegatime > 0
-                ? minicsp::cpuTime() + options.domegatime
-                : -1.0);
+        clique.findMaxClique(lb, ub,
+            options.domegatime > 0 ? minicsp::cpuTime() + options.domegatime
+                                   : -1.0);
 
         lb = std::max(lb, static_cast<int>(clique.cliqueLB));
 
         statistics.notify_lb(lb);
         statistics.display(std::cout);
 
+        auto end = minicsp::cpuTime();
         if (clique.interrupted)
-            std::cout << "[info] Interrupted\n";
+            std::cout << "[info] Interrupted at " << end << ", after "
+                      << (end - start) << "s\n";
+        else
+            std::cout << "[info] Finished at " << end << ", after "
+                      << (end - start) << "s\n";
 
         return !clique.interrupted;
     }
@@ -625,7 +631,7 @@ struct gc_model {
             if (options.verbosity >= gc::options::YACKING)
                 std::cout << "[preprocessing] compute maximum clique\n";
 
-            havemax = maximum_clique();
+            havemax = maximum_clique(lb, ub);
 
             threshold = std::max(lb-1, threshold);
             reduce(gr, threshold, k);
@@ -831,9 +837,9 @@ struct gc_model {
     gc::graph_reduction<adjacency_struct> preprocess(const int k_core_threshold)
     {
         col.random_generator.seed(options.seed);
-				if(options.norecolor) {
-					col.use_recolor = false;
-				}
+        if (options.norecolor) {
+            col.use_recolor = false;
+        }
 
         gc::graph_reduction<adjacency_struct> gr(
             original, statistics, solution);
@@ -1948,8 +1954,8 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
         options.strategy = gc::options::CLEVER;
         statistics.update_lb = false;
-				
-				options.lsiter = 0;
+
+        options.lsiter = 0;
 
         while (init_model.lb < init_model.ub) {
 

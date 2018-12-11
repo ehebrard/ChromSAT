@@ -63,7 +63,7 @@ public:
     /**
      * findMaxClique: The procedure finds the size of the max clique of the graph
      */
-    int findMaxClique(double timeout = -1.0);
+    int findMaxClique(int lb, int ub, double timeout = -1.0);
 };
 
 }
