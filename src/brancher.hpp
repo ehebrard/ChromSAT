@@ -413,7 +413,7 @@ struct BrelazBrancher : public Brancher {
         auto x = xvars[maxdv];
         // std::cout << "Branching on vertex " << maxdv
         //           << " domsize = " << x.domsize(s) << " degree = " << maxd
-        //           << " domsize ties = " << tiedv << "\n";
+        //           << " domsize ties = " << mindom.size() << "\n";
         cand.clear();
         cand.push_back(x.e_eq(s, x.min(s)));
     }
@@ -429,6 +429,8 @@ struct BrelazBrancher : public Brancher {
         clique_bs.copy(clq);
         if (clique_bs.size() == g.nodeset.size())
             return;
+
+        // std::cout << clq.size() << " " << clique_bs;
 
         util_set.copy(clique_bs);
         util_set.intersect_with(g.nodeset);
@@ -489,6 +491,9 @@ struct BrelazBrancher : public Brancher {
             assert(evar != minicsp::var_Undef);
         } else {
             evar = evars[u][maxv];
+
+            // std::cout << " - " << maxc << " - (" << u << "=" << maxv << ")"
+            //           << std::endl;
         }
         assert(evar != minicsp::var_Undef);
         cand.push_back(minicsp::Lit(evar));
