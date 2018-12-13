@@ -321,6 +321,8 @@ template <class adjacency_struct> struct clique_finder {
     int limit;
 
     std::vector<int> util_vec;
+		
+		// std::vector<std::vector<int>> num_neighbors_of;
 
     clique_finder(const graph<adjacency_struct>& ig, const int c = 0xfffffff)
         : g(ig)
@@ -485,7 +487,7 @@ template <class adjacency_struct> struct clique_finder {
     // }
 
     template <class ordering>
-    void find_clique_cover(ordering o)
+    void 	(ordering o)
     {
         clear();
         if (o.size() == 0)
