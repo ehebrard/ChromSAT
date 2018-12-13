@@ -135,13 +135,13 @@ Clique::Clique(
     this->numThreads = numThreads;
 }
 
-int Clique::findMaxClique(double timeout)
+int Clique::findMaxClique(int lb, int ub, double timeout)
 {
     subgraphs = std::vector<subgraph>(graph.n);
     std::chrono::high_resolution_clock::time_point begin_time = std::chrono::high_resolution_clock::now();
     graph.degeneracyOrdering(subgraphs);
-    cliqueUB = graph.cliqueUB;
-    cliqueLB = graph.cliqueLB;
+    cliqueUB = std::min(ub, graph.cliqueUB);
+    cliqueLB = std::max(lb, graph.cliqueLB);
     std::chrono::high_resolution_clock::time_point end_time = std::chrono::high_resolution_clock::now();
     degeneracyTime = std::chrono::duration_cast<std::chrono::duration<double> >(end_time - begin_time);
 
@@ -176,6 +176,8 @@ int Clique::findMaxClique(double timeout)
         std::vector<std::thread>threads(numThreads);
 
         while (cliqueLB < cliqueUB) {
+            std::cout << "[info] maxclique in [" << cliqueLB << "," << cliqueUB
+                      << "]\n";
             cliqueFlag = false;
             interrupted = false;
 

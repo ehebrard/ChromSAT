@@ -239,13 +239,16 @@ public:
     std::vector<int> altered_vertices;
     bitset altered_vertex_set;
 
+    // for the pruning thing
+    std::vector<std::vector<int>> num_neighbors_in;
+
 public:
     gc_constraint(Solver& solver, dense_graph& g,
         boost::optional<fillin_info> fillin, const varmap& tvars,
         const std::vector<indset_constraint>& isconses, const options& opt,
         statistics& stat)
         : cons_base(solver, opt, g, fillin)
-        , mf(g, cf, opt.prune)
+        , mf(g, cf, false)
         , bfs(s, g, fg)
         , bfsroots(g.capacity())
         , needbfs(0, g.capacity() - 1, bitset::empt)
@@ -263,6 +266,7 @@ public:
         , ordering_removed_bs(0, g.capacity() - 1, bitset::empt)
         , expl_reps_extra(g.capacity())
         , altered_vertex_set(0, g.capacity() - 1, bitset::empt)
+        , num_neighbors_in(g.capacity())
     {
 
         for (size_t i{0}; i < isrep.size(); ++i)
@@ -1160,6 +1164,7 @@ public:
 
         return s.addInactiveClause(reason);
     }
+		
 
     Clause* explain()
     {
@@ -1208,6 +1213,57 @@ public:
                 }
             }
         }
+        return NO_REASON;
+    }
+
+    Clause* lastColorPruning()
+    {
+        // std::cout << cf.num_cliques << std::endl;
+        for (auto nn{begin(num_neighbors_in)}; nn != end(num_neighbors_in);
+             ++nn) {
+            nn->clear();
+            nn->resize(cf.num_cliques, 0);
+        }
+
+        // std::cout << g.nodeset << std::endl;
+        //         std::cout << cf.cliques[0] << " |  " << g.matrix[14] <<
+        //         std::endl;
+
+        for (auto i{0}; i < cf.num_cliques; ++i) {
+            if (cf.clique_sz[i] == ub - 1) {
+                for (auto v : cf.cliques[i]) {
+                    for (auto u : g.matrix[v]) {
+                        if (g.nodeset.fast_contain(u)
+                            and !cf.cliques[i].fast_contain(u)) {
+
+                            if (++num_neighbors_in[u][i] == ub - 2) {
+                                util_set.copy(cf.cliques[i]);
+                                util_set.setminus_with(g.matrix[u]);
+
+																// assert(util_set.size() == 1);
+																//                                 std::cout << " prune " << u << " -- "
+																//                                           << util_set.min() << std::endl;
+																
+																auto w{util_set.min()};
+																
+												        reason.clear();
+												        explain_positive_clique(cf.cliques[i], false);
+																reason.push(Lit(vars[u][w]));
+																
+																
+		                            DO_OR_RETURN(
+		                                s.enqueueFill(Lit(vars[u][w]), reason));
+
+                                
+                                // << cf.cliques[i] << " \\ "
+                                // << g.matrix[u] << std::endl;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         return NO_REASON;
     }
 
@@ -1404,6 +1460,9 @@ public:
             lb = mlb;
         }
 
+        // if(lb == ub-1)
+        // 	std::cout << "prune? (" << s.decisionLevel() << ")\n";
+
         // std::cout << "LOWERBOUND (" << lb << " / " << bestlb << ")\n";
 
         *lastlb = lb;
@@ -1428,7 +1487,12 @@ public:
                 reason.clear();
                 return s.addInactiveClause(reason);
             }
+
+            // std::cout << "FAIL! (" << s.decisionLevel() << ")\n";
+
             return explain();
+        } else if (opt.prune and lb == ub - 1) {
+            DO_OR_RETURN(lastColorPruning());
         }
 
         if (opt.indset_lb)
