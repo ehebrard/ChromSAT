@@ -322,10 +322,24 @@ template <class adjacency_struct> struct clique_finder {
 
     std::vector<int> util_vec;
 
+    // for pruning
+    bool update_nn;
+    int ub; // equal to 0 if not tight
+    std::vector<std::vector<int>> num_neighbors_of;
+    std::vector<int> pruning;
+
+    std::vector<int> clique_map;
+    std::vector<int> new_tight_cliques;
+    // int fake_ub; // equal to 0 if not tight
+    std::vector<std::vector<int>> fake_num_neighbors_of;
+    std::vector<int> fake_pruning;
+
     clique_finder(const graph<adjacency_struct>& ig, const int c = 0xfffffff)
         : g(ig)
         , num_cliques(1)
         , limit(c)
+        , update_nn(false)
+        , ub(0)
     {
         auto m = std::min(limit, g.capacity());
         last_clique.resize(g.capacity());
@@ -338,8 +352,116 @@ template <class adjacency_struct> struct clique_finder {
             b.initialise(0, g.capacity(), bitset::full);
     }
 
+    void compute_neighbors_in(const int i)
+    {
+			
+				// std::cout << "CN " << cliques[i] << std::endl;
+			
+        for (auto v : cliques[i]) {
+            for (auto u : g.matrix[v]) {
+                if (g.nodeset.fast_contain(u) and !cliques[i].fast_contain(u)) {
+
+                    if (++num_neighbors_of[i][u] == ub - 2) {
+                        pruning.push_back(i);
+                        pruning.push_back(u);
+                    }
+                }
+            }
+        }
+    }
+
+    void count_neighbors(const int i)
+    {
+				// std::cout << "cn " << cliques[i] << std::endl;
+			
+        for (auto v : cliques[i]) {
+            for (auto u : g.matrix[v]) {
+                if (g.nodeset.fast_contain(u) and !cliques[i].fast_contain(u)) {
+                    if (++fake_num_neighbors_of[i][u] == clique_sz[i] - 1) {
+                        fake_pruning.push_back(i);
+                        fake_pruning.push_back(u);
+                    }
+                }
+            }
+        }
+    }
+
+    void notify_ub(const int newub)
+    {
+        std::cout << "+ notify " << newub << std::endl;
+
+        pruning.clear();
+
+        int n
+            = std::min(static_cast<int>(num_neighbors_of.size()), num_cliques);
+        for (int i = 0; i < n; ++i) {
+            std::fill(begin(num_neighbors_of[i]), end(num_neighbors_of[i]), 0);
+        }
+        if (n < num_cliques) {
+            num_neighbors_of.resize(num_cliques);
+            for (int i = n; i < num_cliques; ++i) {
+                num_neighbors_of[i].resize(g.capacity(), 0);
+            }
+        }
+
+        ub = newub;
+
+        for (auto i{0}; i < num_cliques; ++i) {
+            if (clique_sz[i] == ub - 1) {
+                compute_neighbors_in(i);
+            }
+        }
+    }
+
+    void compute_pruning()
+    {
+        fake_pruning.clear();
+        if (new_tight_cliques.size() == 0)
+            return;
+
+        // std::cout << "? notify " << newub << std::endl;
+
+        int n = std::min(
+            static_cast<int>(fake_num_neighbors_of.size()), num_cliques);
+        for (int i = 0; i < n; ++i) {
+            std::fill(begin(fake_num_neighbors_of[i]),
+                end(fake_num_neighbors_of[i]), 0);
+        }
+        if (n < num_cliques) {
+            fake_num_neighbors_of.resize(num_cliques);
+            for (int i = n; i < num_cliques; ++i) {
+                fake_num_neighbors_of[i].resize(g.capacity(), 0);
+            }
+        }
+
+        // fake_ub = newub;
+
+        // for (auto i{0}; i < num_cliques; ++i) {
+        //     if (clique_sz[i] == fake_ub - 1) {
+        //         fake_compute_neighbors_in(i);
+        //     }
+        // }
+        // while(new_tight_cliques.size() > 0) {
+        //
+        // }
+        for (auto cl : new_tight_cliques) {
+						
+            count_neighbors(clique_map[cl]);
+        }
+        new_tight_cliques.clear();
+    }
+
     // clear previously cached results
-    void clear() { num_cliques = 0; }
+    void clear()
+    {
+        // if (update_nn) {
+        //     for (auto nn : num_neighbors_of) {
+        //         std::fill(begin(nn), end(nn), 0);
+        //     }
+        // }
+
+        num_cliques = 0;
+    }
     // initialize a new clique
     void new_clique();
 
@@ -356,8 +478,16 @@ template <class adjacency_struct> struct clique_finder {
     // heuristically find a set of cliques and return the size of the
     // largest
 
-    template <class ordering> int find_cliques(ordering o, const int l=0xfffffff)
+    template <class ordering>
+    int find_cliques(
+        ordering o, const int lower, const int upper, const int l = 0xfffffff)
     {
+				new_tight_cliques.clear();
+
+        // std::cout << "find clique [" << lower << ".." << upper
+        //           << "] "; //<< std::endl;
+        // // limit << std::endl;
+        ub = 0;
         if (l < limit)
             limit = l;
 
@@ -386,23 +516,53 @@ template <class adjacency_struct> struct clique_finder {
                 }
         }
 
-        return *std::max_element(
-            begin(clique_sz), begin(clique_sz) + num_cliques);
+        auto maxclique{*std::max_element(
+            begin(clique_sz), begin(clique_sz) + num_cliques)};
+
+        // std::cout << " => " << maxclique << std::endl;
+
+        if (update_nn and lower < upper - 1 and maxclique == upper - 1) {
+            // fake_ub = upper;
+            // std::cout << "(from find clique)\n";
+            //             fake_notify_ub(upper);
+            for (auto i{0}; i < num_cliques; ++i) {
+                if (clique_sz[i] == maxclique) {
+										// std::cout << "push " << i << " from find_clique\n";
+                    new_tight_cliques.push_back(i);
+									}
+            }
+        }
+
+        return maxclique;
     }
 
     void filter_cliques(int cutoff)
     {
+        while (clique_map.size() < num_cliques)
+            clique_map.push_back(clique_map.size());
         // when we filter, we must update all fields
         int i{0}, j{0};
         for (; i != num_cliques; ++i)
             if (clique_sz[i] >= cutoff) {
+                clique_map[i] = j;
+
                 using std::swap;
                 swap(cliques[i], cliques[j]);
                 swap(clique_sz[i], clique_sz[j]);
                 swap(candidates[i], candidates[j]);
+
+                // if (update_nn and new_tight_cliques.size() > 0) {
+                //     swap(fake_num_neighbors_of[i], fake_num_neighbors_of[j]);
+                //     std::cout << " swap " << i << " <> " << j << std::endl;
+                // }
                 ++j;
             }
         num_cliques = j;
+
+        // if(new_tight_cliques.size() > 0) {
+        // 	fake_notify_ub(fake_ub);
+        // 	// fake_ub = 0;
+        // }
     }
 
     void remap_clique_to_reps(bitset& clq, bitset& N)
@@ -425,16 +585,35 @@ template <class adjacency_struct> struct clique_finder {
         }
     }
 
-    int extend_cliques(const std::vector<int>& cand, int cutoffub)
+    int extend_cliques(
+        const std::vector<int>& cand, const int lower, const int upper)
     {
         int lb = -1;
         for (int i = 0; i != num_cliques; ++i) {
             remap_clique_to_reps(cliques[i], candidates[i]);
+						
+						auto sz_before{clique_sz[i]};
+						
             clique_sz[i] = extend_clique(cliques[i], candidates[i], cand);
+
+            if (update_nn and sz_before < clique_sz[i] and clique_sz[i] == upper - 1) {
+                // fake_compute_neighbors_in(i);
+								// std::cout << "push " << i << " from extend_clique\n";
+                new_tight_cliques.push_back(i);
+            }
+
             lb = std::max(lb, clique_sz[i]);
-            if (lb >= cutoffub)
+            if (lb >= upper)
                 break;
         }
+
+        //         std::cout << " => " << lb << std::endl;
+        //         if (update_nn and lower < upper - 1 and lb == upper - 1) {
+        // // std::cout << "(from extend clique)\n";
+        // //             fake_notify_ub(upper);
+        // fake_ub = upper;
+        //         }
+
         return lb;
     }
 
@@ -965,6 +1144,11 @@ void clique_finder<adjacency_struct>::new_clique()
     clique_sz[num_cliques] = 0;
     candidates[num_cliques].copy(g.nodeset);
     ++num_cliques;
+
+    // if (update_nn and num_neighbors_of.size() < num_cliques) {
+    //     num_neighbors_of.resize(num_cliques);
+    //     num_neighbors_of.back().resize(g.capacity(), 0);
+    // }
 }
 // initialize a new color
 template <class adjacency_struct>
@@ -984,6 +1168,13 @@ void clique_finder<adjacency_struct>::insert(int v, int clq)
     ++clique_sz[clq];
     candidates[clq].intersect_with(g.matrix[v]);
     last_clique[v] = clq;
+
+    // if (update_nn) {
+    //     for (auto u : g.matrix[v]) {
+    //         if (g.nodeset.fast_contain(u))
+    //             ++num_neighbors_of[clq][u];
+    //     }
+    // }
 }
 // insert v into the col^th color. assumes it fits. Puts vertices
 // added from candidates[i] into diff

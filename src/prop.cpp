@@ -6,6 +6,8 @@
 
 #include <cmath>
 
+#include <iomanip>
+
 // #define NICE_TRACE
 // #define DEBUG_IS
 // #define DEBUG_CC
@@ -333,6 +335,8 @@ public:
         //                        mineq_constraint = new cons_pbvar(s, vbool, c,
         // rhs);
         //                        s.addConstraint(mineq_constraint);
+
+        cf.update_nn = opt.prune;
 
         if (opt.triangle_up)
             s.use_UP_callback([this](Lit p, const Clause& c) {
@@ -1218,51 +1222,219 @@ public:
 
     Clause* lastColorPruning()
     {
+        // std::cout << "+ notify " << ub << std::endl;
+        // cf.notify_ub(ub);
+				cf.compute_pruning();
+
+        // for (auto v : g.nodes) {
+        //     for (auto i{0}; i < cf.num_cliques; ++i) {
+        //         std::cout << " " << cf.num_neighbors_of[i][v] << "/"
+        //                   << cf.fake_num_neighbors_of[i][v];
+        //     }
+        //     std::cout << std::endl;
+        // }
+        // for (auto p : cf.pruning) {
+        //     std::cout << " " << p;
+        // }
+        // std::cout << std::endl;
+        // for (auto p : cf.fake_pruning) {
+        //     std::cout << " " << p;
+        // }
+        // std::cout << std::endl;
+
+        // assert(cf.pruning.size() == cf.fake_pruning.size());
+        // for (int i = 0; i < cf.pruning.size(); ++i) {
+        //     assert(cf.pruning[i] == cf.fake_pruning[i]);
+        // }
+
+        // while (cf.pruning.size() > 0) {
+        //     auto u = cf.pruning.back();
+        //     cf.pruning.pop_back();
+        //
+        //     auto i = cf.pruning.back();
+        //     cf.pruning.pop_back();
+        //
+        //     util_set.copy(cf.cliques[i]);
+        //     util_set.setminus_with(g.matrix[u]);
+        //
+        //     // assert(util_set.size() == 1);
+        //     //                                 std::cout << " prune " << u << "
+        //     //                                 -- "
+        //     //                                           << util_set.min() <<
+        //     //                                           std::endl;
+        //
+        //     auto w{util_set.min()};
+        //
+        //     reason.clear();
+        //     explain_positive_clique(cf.cliques[i], false);
+        //     reason.push(Lit(vars[u][w]));
+        //
+        //     DO_OR_RETURN(s.enqueueFill(Lit(vars[u][w]), reason));
+        // }
+				
+				
+        while (cf.fake_pruning.size() > 0) {
+            auto u = cf.fake_pruning.back();
+            cf.fake_pruning.pop_back();
+
+            auto i = cf.fake_pruning.back();
+            cf.fake_pruning.pop_back();
+
+            util_set.copy(cf.cliques[i]);
+            util_set.setminus_with(g.matrix[u]);
+
+            // assert(util_set.size() == 1);
+            //                                 std::cout << " prune " << u << "
+            //                                 -- "
+            //                                           << util_set.min() <<
+            //                                           std::endl;
+
+            auto w{util_set.min()};
+
+            reason.clear();
+            explain_positive_clique(cf.cliques[i], false);
+            reason.push(Lit(vars[u][w]));
+
+            DO_OR_RETURN(s.enqueueFill(Lit(vars[u][w]), reason));
+        }
+
+        // // std::cout << cf.num_cliques << std::endl;
+        // for (auto nn{begin(num_neighbors_in)}; nn != end(num_neighbors_in);
+        //      ++nn) {
+        //     nn->clear();
+        //     nn->resize(cf.num_cliques, 0);
+        // }
+
+        //         // std::cout << g.nodeset << std::endl;
+        //         //         std::cout << cf.cliques[0] << " |  " <<
+        //         g.matrix[14] <<
+        //         //         std::endl;
+        //
+        //         std::vector<int> vertices;
+        //         std::vector<int> num_cliques(g.capacity());
+        //         std::vector<int> cliques;
+        //
+        //         for (auto i{0}; i < cf.num_cliques; ++i) {
+        //             if (cf.clique_sz[i] == ub - 1) {
+        //                 cliques.push_back(i);
+        //             }
+        //         }
+        //
+        //         for (auto cl : cliques) {
+        //             for (auto v : cf.cliques[cl]) {
+        //                 if (num_cliques[v]++ == 0) {
+        //                     vertices.push_back(v);
+        //                 }
+        //             }
+        //         }
+        //
+        // for (auto v : vertices) {
+        // 	for (auto u : g.matrix[v]) {
+        // 		if (g.nodeset.fast_contain(u) {
+        //
+        // 		}
+        // 	}
+        // 	if(num_cliques[v] > 1) {
+        // 		std::cout << " " << num_cliques[v] ;
+        // 	}
+        // 	// else std::cout << ".";
+        // }
+        // std::cout << std::endl;
+
+        // for (auto i{0}; i < cf.num_cliques; ++i) {
+        //     if (cf.clique_sz[i] == ub - 1) {
+        //         for (auto v : cf.cliques[i]) {
+        //             for (auto u : g.matrix[v]) {
+        //                 if (g.nodeset.fast_contain(u)
+        //                     and !cf.cliques[i].fast_contain(u)) {
+        //
+        //                     if (++num_neighbors_in[u][i] == ub - 2) {
+        //
+        //                         // std::cout << ".";
+        //
+        //                         // assert(cf.num_neighbors_of[i][u] == ub -
+        //                         2);
+        //
+        //                         util_set.copy(cf.cliques[i]);
+        //                         util_set.setminus_with(g.matrix[u]);
+        //
+        // 																//
+        // assert(util_set.size() == 1);
+        // 																//
+        // std::cout << " prune " << u << " -- "
+        // 																//
+        // << util_set.min() << std::endl;
+        //
+        // 																auto
+        // w{util_set.min()};
+        //
+        // 												        reason.clear();
+        // 												        explain_positive_clique(cf.cliques[i],
+        // false);
+        // 																reason.push(Lit(vars[u][w]));
+        //
+        //
+        // 		                            DO_OR_RETURN(
+        // 		                                s.enqueueFill(Lit(vars[u][w]),
+        // reason));
+        //
+        //
+        //                         // << cf.cliques[i] << " \\ "
+        //                         // << g.matrix[u] << std::endl;
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+
         // std::cout << cf.num_cliques << std::endl;
-        for (auto nn{begin(num_neighbors_in)}; nn != end(num_neighbors_in);
-             ++nn) {
-            nn->clear();
-            nn->resize(cf.num_cliques, 0);
-        }
 
-        // std::cout << g.nodeset << std::endl;
-        //         std::cout << cf.cliques[0] << " |  " << g.matrix[14] <<
-        //         std::endl;
-
-        for (auto i{0}; i < cf.num_cliques; ++i) {
-            if (cf.clique_sz[i] == ub - 1) {
-                for (auto v : cf.cliques[i]) {
-                    for (auto u : g.matrix[v]) {
-                        if (g.nodeset.fast_contain(u)
-                            and !cf.cliques[i].fast_contain(u)) {
-
-                            if (++num_neighbors_in[u][i] == ub - 2) {
-                                util_set.copy(cf.cliques[i]);
-                                util_set.setminus_with(g.matrix[u]);
-
-																// assert(util_set.size() == 1);
-																//                                 std::cout << " prune " << u << " -- "
-																//                                           << util_set.min() << std::endl;
-																
-																auto w{util_set.min()};
-																
-												        reason.clear();
-												        explain_positive_clique(cf.cliques[i], false);
-																reason.push(Lit(vars[u][w]));
-																
-																
-		                            DO_OR_RETURN(
-		                                s.enqueueFill(Lit(vars[u][w]), reason));
-
-                                
-                                // << cf.cliques[i] << " \\ "
-                                // << g.matrix[u] << std::endl;
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        // if (cf.num_cliques > 0) {
+        //     // std::cout << std::endl;
+        //     // for (auto i{0}; i < cf.num_cliques; ++i) {
+        //     //     if (cf.clique_sz[i] == ub - 1) {
+        //     //         for (auto v : g.nodes) {
+        //     //             std::cout << std::setw(3) <<
+        //     cf.num_neighbors_of[i][v];
+        //     //             // assert(cf.num_neighbors_of[i][v] ==
+        //     //             // num_neighbors_in[v][i]);
+        //     //         }
+        //     //         std::cout << std::endl;
+        //     //     }
+        //     // }
+        //     // std::cout << std::endl;
+        //     // for (auto i{0}; i < cf.num_cliques; ++i) {
+        //     //     if (cf.clique_sz[i] == ub - 1) {
+        //     //         for (auto v : g.nodes) {
+        //     //             std::cout << std::setw(3) <<
+        //     num_neighbors_in[v][i];
+        //     //             // assert(cf.num_neighbors_of[i][v] ==
+        //     //             // num_neighbors_in[v][i]);
+        //     //         }
+        //     //         std::cout << std::endl;
+        //     //     }
+        //     // }
+        //     // std::cout << std::endl;
+        //     for (auto i{0}; i < cf.num_cliques; ++i) {
+        //         if (cf.clique_sz[i] == ub - 1)
+        //             for (auto v : g.nodes) {
+        //                 if (cf.num_neighbors_of[i][v] !=
+        //                 num_neighbors_in[v][i])
+        //
+        //                     std::cout << "#neighbors of " << v
+        //                               << "
+        //                             in clq_ " << i << "
+        //                             : " << num_neighbors_in[v][i] << "
+        //                               / " <<
+        //                                 cf.num_neighbors_of[i][v]
+        //                               << std::endl;
+        //
+        //                 assert(cf.num_neighbors_of[i][v]
+        //                     == num_neighbors_in[v][i]);
+        //             }
+        //     }
+        // }
 
         return NO_REASON;
     }
@@ -1412,6 +1584,8 @@ public:
     {
         // check_consistency();
 
+        // std::cout << "\nPROPAGATE (" << s.decisionLevel() << ")\n";
+
         int lb{0};
 
         bound_source = options::CLIQUES;
@@ -1419,7 +1593,7 @@ public:
         create_ordering();
 
         if (opt.cliquealg == options::ALL_CLIQUES || !saved_cliques) {
-            lb = cf.find_cliques(heuristic, opt.cliquelimit);
+            lb = cf.find_cliques(heuristic, lb, ub, opt.cliquelimit);
             if (opt.cliquealg == options::INCREMENTAL) {
                 cf.filter_cliques(lb);
                 saved_cliques = true;
@@ -1427,7 +1601,7 @@ public:
         } else {
             erase_if(altered_vertices,
                 [&](int v) { return !g.nodeset.fast_contain(v); });
-            lb = cf.extend_cliques(altered_vertices, ub);
+            lb = cf.extend_cliques(altered_vertices, lb, ub);
             cf.filter_cliques(lb);
             altered_vertices.clear();
             altered_vertex_set.clear();
@@ -1435,14 +1609,16 @@ public:
 
         stat.notify_nclique(cf.num_cliques);
 
-        //std::cout << "PROPAGATE (" << lb << " / " << bestlb << ")\n";
-
+        auto clique_bound{true};
         if (lb < ub
             && (s.decisionLevel() == 0 || !opt.adaptive
                    || run_expensive_bound)) {
             run_expensive_bound = false;
             bound_source = opt.boundalg;
             auto mlb{lb};
+
+            // auto better{lb < mlb};
+
             if (opt.boundalg == options::FULLMYCIELSKI) {
                 mlb = mf.full_myciel(lb, ub, s, vars);
             } else if (opt.boundalg == options::MAXMYCIELSKI) {
@@ -1451,7 +1627,8 @@ public:
                 mlb = mf.improve_greedy(lb - 1, lb, ub, s, vars);
             }
 
-            // std::cout << lb << " --> " << mlb << std::endl;
+            clique_bound = (lb == mlb);
+
             stat.notify_bound_delta(lb, mlb);
 
             // if(stat.num_bound_delta%100 == 0)
@@ -1491,7 +1668,12 @@ public:
             // std::cout << "FAIL! (" << s.decisionLevel() << ")\n";
 
             return explain();
-        } else if (opt.prune and lb == ub - 1) {
+        } else if (clique_bound and opt.prune and lb == ub - 1) {
+
+            // std::cout << clique_bound << " " << opt.prune << " " << lb <<
+            // ".."
+            //           << ub << std::endl;
+
             DO_OR_RETURN(lastColorPruning());
         }
 
