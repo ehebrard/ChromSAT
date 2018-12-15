@@ -21,6 +21,8 @@ struct Brancher {
     const options& opt;
 
     int64_t numdecisions{0}, numchoices{0};
+		
+		std::mt19937 random_generator;
 
     Brancher(minicsp::Solver& s, dense_graph& g, dense_graph& fg,
         const varmap& evars, const std::vector<minicsp::cspvar>& xvars,
@@ -33,6 +35,8 @@ struct Brancher {
         , constraint(constraint)
         , opt(opt)
     {
+			random_generator.seed(opt.seed);
+			// std::cout << random_generator() << " " << random_generator() << " " << random_generator() << " " << std::endl;
     }
     virtual ~Brancher() {}
 
@@ -473,7 +477,9 @@ struct BrelazBrancher : public Brancher {
 
         util_set.copy(clique_bs);
         util_set.setminus_with(g.matrix[maxv]);
-        int u = util_set.min();
+        int u = (random_generator() % 2 ? util_set.min() : util_set.max());
+				
+				// std::cout << util_set.size() << std::endl;
         minicsp::Var evar{minicsp::var_Undef};
         if (opt.fillin) {
             util_set.clear();
