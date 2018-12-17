@@ -42,7 +42,7 @@ minicsp::Solver::clause_callback_result_t rewriter::rewrite(
         if (s.event(l).type != domevent::NONE)
             to_resolve.push_back(l);
     bool modified = erase_if(clause,
-        [&](minicsp::Lit l) { return s.event(l).type == domevent::NONE; });
+        [&](minicsp::Lit l) { return s.event(l).type != domevent::NONE; });
 
     while (!to_resolve.empty()) {
         auto l = to_resolve.back();
