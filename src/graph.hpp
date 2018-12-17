@@ -16,12 +16,20 @@
 // #define _DEBUG_CLIQUE
 // #define SUBCLASS
 
+// #define _DEBUG_PRUNING
+// #define _FULL_PRUNING
+
 namespace gc
 {
 
 using weight = int64_t;
 using bitset = BitSet;
 using edge = std::pair<int, int>;
+
+struct arc {
+    int v[2];
+    const int operator[](const int i) { return v[i]; }
+};
 
 template <class adjacency_struct> class basic_graph
 {
@@ -324,22 +332,25 @@ template <class adjacency_struct> struct clique_finder {
 
     // for pruning
     bool update_nn;
-    int ub; // equal to 0 if not tight
+
+#ifdef _DEBUG_PRUNING
     std::vector<std::vector<int>> num_neighbors_of;
     std::vector<int> pruning;
-
-    std::vector<int> clique_map;
+#endif
+		
     std::vector<int> new_tight_cliques;
-    // int fake_ub; // equal to 0 if not tight
-    std::vector<std::vector<int>> fake_num_neighbors_of;
-    std::vector<int> fake_pruning;
+    std::vector<std::vector<int>> neighbor_count;
+    std::vector<int> col_pruning;
+		
+#ifdef _FULL_PRUNING
+    std::vector<std::vector<int>> cliques_of;
+#endif
 
     clique_finder(const graph<adjacency_struct>& ig, const int c = 0xfffffff)
         : g(ig)
         , num_cliques(1)
         , limit(c)
         , update_nn(false)
-        , ub(0)
     {
         auto m = std::min(limit, g.capacity());
         last_clique.resize(g.capacity());
@@ -352,16 +363,22 @@ template <class adjacency_struct> struct clique_finder {
             b.initialise(0, g.capacity(), bitset::full);
     }
 
-    void compute_neighbors_in(const int i)
+    void switch_pruning()
     {
-			
-				// std::cout << "CN " << cliques[i] << std::endl;
-			
+#ifdef _FULL_PRUNING
+        cliques_of.resize(g.capacity());
+#endif
+        update_nn = true;
+    }
+
+#ifdef _DEBUG_PRUNING
+    void compute_neighbors_in(const int i, const int sz)
+    {
         for (auto v : cliques[i]) {
             for (auto u : g.matrix[v]) {
                 if (g.nodeset.fast_contain(u) and !cliques[i].fast_contain(u)) {
 
-                    if (++num_neighbors_of[i][u] == ub - 2) {
+                    if (++num_neighbors_of[i][u] == sz) {
                         pruning.push_back(i);
                         pruning.push_back(u);
                     }
@@ -369,27 +386,25 @@ template <class adjacency_struct> struct clique_finder {
             }
         }
     }
+#endif
 
     void count_neighbors(const int i)
     {
-				// std::cout << "cn " << cliques[i] << std::endl;
-			
         for (auto v : cliques[i]) {
             for (auto u : g.matrix[v]) {
                 if (g.nodeset.fast_contain(u) and !cliques[i].fast_contain(u)) {
-                    if (++fake_num_neighbors_of[i][u] == clique_sz[i] - 1) {
-                        fake_pruning.push_back(i);
-                        fake_pruning.push_back(u);
+                    if (++neighbor_count[i][u] == clique_sz[i] - 1) {
+                        col_pruning.push_back(i);
+                        col_pruning.push_back(u);
                     }
                 }
             }
         }
     }
 
-    void notify_ub(const int newub)
+#ifdef _DEBUG_PRUNING
+    void notify_ub(const int ub)
     {
-        std::cout << "+ notify " << newub << std::endl;
-
         pruning.clear();
 
         int n
@@ -404,62 +419,75 @@ template <class adjacency_struct> struct clique_finder {
             }
         }
 
-        ub = newub;
-
         for (auto i{0}; i < num_cliques; ++i) {
             if (clique_sz[i] == ub - 1) {
-                compute_neighbors_in(i);
+                compute_neighbors_in(i, ub - 2);
             }
         }
     }
-
-    void compute_pruning()
+#endif
+		
+    void compute_pruning(const int maxcs, std::vector<arc>& changed_edges,
+        std::vector<int>& changed_vertices)
     {
-        fake_pruning.clear();
-        if (new_tight_cliques.size() == 0)
-            return;
+        col_pruning.clear();
 
-        // std::cout << "? notify " << newub << std::endl;
+        // compute the count for new cliques
+        for (auto cl : new_tight_cliques) {
 
-        int n = std::min(
-            static_cast<int>(fake_num_neighbors_of.size()), num_cliques);
-        for (int i = 0; i < n; ++i) {
-            std::fill(begin(fake_num_neighbors_of[i]),
-                end(fake_num_neighbors_of[i]), 0);
+            if (cl >= neighbor_count.size()) {
+                neighbor_count.resize(cl + 1);
+            }
+            if (neighbor_count[cl].size() == 0)
+                neighbor_count[cl].resize(g.capacity(), 0);
+            else
+                std::fill(
+                    begin(neighbor_count[cl]), end(neighbor_count[cl]), 0);
+
+            count_neighbors(cl);
         }
-        if (n < num_cliques) {
-            fake_num_neighbors_of.resize(num_cliques);
-            for (int i = n; i < num_cliques; ++i) {
-                fake_num_neighbors_of[i].resize(g.capacity(), 0);
+
+// new edges with old cliques
+#ifdef _FULL_PRUNING
+        if (new_tight_cliques.size() < num_cliques) {
+            for (auto v : changed_vertices) {
+                cliques_of[v].clear();
+            }
+
+            int j = 0;
+            for (int i = 0; i < num_cliques; ++i) {
+                if (new_tight_cliques.size() > j
+                    and i == new_tight_cliques[j]) {
+                    ++j;
+                } else {
+                    if (clique_sz[i] == maxcs) {
+                        for (auto v : changed_vertices)
+                            if (cliques[i].fast_contain(v))
+                                cliques_of[v].push_back(i);
+                    }
+                }
+            }
+
+            for (auto e : changed_edges) {
+                for (int i = 0; i < 2; ++i) {
+                    for (auto cl : cliques_of[e[1 - i]]) {
+                        if (!cliques[cl].fast_contain(e[i])
+                            and ++neighbor_count[cl][e[i]] == maxcs - 1) {
+                            col_pruning.push_back(cl);
+                            col_pruning.push_back(e[i]);
+                        }
+                    }
+                }
             }
         }
+#endif
 
-        // fake_ub = newub;
-
-        // for (auto i{0}; i < num_cliques; ++i) {
-        //     if (clique_sz[i] == fake_ub - 1) {
-        //         fake_compute_neighbors_in(i);
-        //     }
-        // }
-        // while(new_tight_cliques.size() > 0) {
-        //
-        // }
-        for (auto cl : new_tight_cliques) {
-						
-            count_neighbors(clique_map[cl]);
-        }
         new_tight_cliques.clear();
     }
 
     // clear previously cached results
     void clear()
     {
-        // if (update_nn) {
-        //     for (auto nn : num_neighbors_of) {
-        //         std::fill(begin(nn), end(nn), 0);
-        //     }
-        // }
-
         num_cliques = 0;
     }
     // initialize a new clique
@@ -482,16 +510,9 @@ template <class adjacency_struct> struct clique_finder {
     int find_cliques(
         ordering o, const int lower, const int upper, const int l = 0xfffffff)
     {
-				new_tight_cliques.clear();
-
-        // std::cout << "find clique [" << lower << ".." << upper
-        //           << "] "; //<< std::endl;
-        // // limit << std::endl;
-        ub = 0;
+        // new_tight_cliques.clear();
         if (l < limit)
             limit = l;
-
-        // std::cout << "LIMIT = " << limit << std::endl;
 
         clear();
         if (o.size() == 0)
@@ -519,50 +540,42 @@ template <class adjacency_struct> struct clique_finder {
         auto maxclique{*std::max_element(
             begin(clique_sz), begin(clique_sz) + num_cliques)};
 
-        // std::cout << " => " << maxclique << std::endl;
 
         if (update_nn and lower < upper - 1 and maxclique == upper - 1) {
-            // fake_ub = upper;
-            // std::cout << "(from find clique)\n";
-            //             fake_notify_ub(upper);
             for (auto i{0}; i < num_cliques; ++i) {
                 if (clique_sz[i] == maxclique) {
-										// std::cout << "push " << i << " from find_clique\n";
                     new_tight_cliques.push_back(i);
-									}
+                }
             }
         }
 
         return maxclique;
     }
 
-    void filter_cliques(int cutoff)
+    void filter_cliques(int cutoff, int tight)
     {
-        while (clique_map.size() < num_cliques)
-            clique_map.push_back(clique_map.size());
+
         // when we filter, we must update all fields
-        int i{0}, j{0};
+        int i{0}, j{0}, k{0};
         for (; i != num_cliques; ++i)
             if (clique_sz[i] >= cutoff) {
-                clique_map[i] = j;
+
+                // rename the new cliques in case of filtering
+                if (update_nn and clique_sz[i] == tight
+                    and new_tight_cliques.size() > k
+                    and new_tight_cliques[k] == i) {
+                    new_tight_cliques[k] = j;
+                    ++k;
+                }
 
                 using std::swap;
                 swap(cliques[i], cliques[j]);
                 swap(clique_sz[i], clique_sz[j]);
                 swap(candidates[i], candidates[j]);
 
-                // if (update_nn and new_tight_cliques.size() > 0) {
-                //     swap(fake_num_neighbors_of[i], fake_num_neighbors_of[j]);
-                //     std::cout << " swap " << i << " <> " << j << std::endl;
-                // }
                 ++j;
             }
         num_cliques = j;
-
-        // if(new_tight_cliques.size() > 0) {
-        // 	fake_notify_ub(fake_ub);
-        // 	// fake_ub = 0;
-        // }
     }
 
     void remap_clique_to_reps(bitset& clq, bitset& N)
@@ -597,8 +610,6 @@ template <class adjacency_struct> struct clique_finder {
             clique_sz[i] = extend_clique(cliques[i], candidates[i], cand);
 
             if (update_nn and sz_before < clique_sz[i] and clique_sz[i] == upper - 1) {
-                // fake_compute_neighbors_in(i);
-								// std::cout << "push " << i << " from extend_clique\n";
                 new_tight_cliques.push_back(i);
             }
 
@@ -606,13 +617,6 @@ template <class adjacency_struct> struct clique_finder {
             if (lb >= upper)
                 break;
         }
-
-        //         std::cout << " => " << lb << std::endl;
-        //         if (update_nn and lower < upper - 1 and lb == upper - 1) {
-        // // std::cout << "(from extend clique)\n";
-        // //             fake_notify_ub(upper);
-        // fake_ub = upper;
-        //         }
 
         return lb;
     }
