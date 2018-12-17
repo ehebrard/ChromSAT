@@ -109,6 +109,7 @@ int main(int argc, char* argv[])
 
     IloCplex cplex(mod);
     cplex.setParam(IloCplex::Param::Threads, 1);
+		cplex.setParam(IloCplex::Param::RandomSeed, options.seed);
 
     if (cplex.solve()) {
         cplex.out() << "Objective value: " << cplex.getObjValue() << endl;
