@@ -85,7 +85,7 @@ public:
         const int solution_courante, const int* coloration_courante);
     void DSATUR_preprocessing();
     int DSATUR_algo(C_Graphe& G_param, double time_param, int regle_input,
-        int LB_input, int UB_input);
+        int LB_input, int UB_input, int seed=12345);
     bool DSATUR_algo_rec(int profondeur);
 
     int choisir_sommet(int* size_candidats);

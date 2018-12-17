@@ -56,6 +56,7 @@ struct options {
 
     enum clique_policy { ALL_CLIQUES, INCREMENTAL };
     clique_policy cliquealg;
+    int cliquemargin;
 
     bool prune;
 
