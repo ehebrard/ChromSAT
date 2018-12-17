@@ -785,14 +785,14 @@ public:
                 altered_vertex_set.fast_add(info.u);
 
                 // if(g.nodeset.fast_contain(info.u))
-                // 	std::cout << " " << info.u;
+                //      std::cout << " " << info.u;
             }
             if (!altered_vertex_set.fast_contain(info.v)) {
                 altered_vertices.push_back(info.v);
                 altered_vertex_set.fast_add(info.v);
 
                 // if(g.nodeset.fast_contain(info.v))
-                // 	std::cout << " " << info.v;
+                //      std::cout << " " << info.v;
             }
             // std::cout << std::endl;
         }
@@ -1191,7 +1191,7 @@ public:
 
         return s.addInactiveClause(reason);
     }
-		
+
 
     Clause* explain()
     {
@@ -1268,7 +1268,7 @@ public:
                 }
         }
 #endif
-				
+
         cf.compute_pruning(ub - 1, changed_edges, changed_vertices);
 
 #ifdef _FULL_PRUNING
@@ -1285,7 +1285,7 @@ public:
         }
         assert(cf.pruning.size() == cf.col_pruning.size());
 #endif
- 
+
 
         while (cf.col_pruning.size() > 0) {
             auto u = cf.col_pruning.back();
@@ -1330,7 +1330,9 @@ public:
         return NO_REASON;
     }
 
-    void create_ordering()
+    void create_ordering() { create_ordering(g.nodes); }
+
+    template <typename NodeVec> void create_ordering(const NodeVec& hnodes)
     {
 
         // recompute the degenracy order
@@ -1350,7 +1352,7 @@ public:
 
                     removed_some = false;
                     ordering_forbidden.clear();
-                    for (auto v : g.nodes) {
+                    for (auto v : hnodes) {
 
                         std::cout << "failed assert after checking " << v
                                   << std::endl;
@@ -1373,7 +1375,7 @@ public:
             } else if (opt.ordering_low_degree == options::DEGREE_ORDERING) {
                 ordering_removed_bs.clear();
                 ordering_removed.clear();
-                for (auto v : g.nodes) {
+                for (auto v : hnodes) {
                     ordering_tmp.copy(g.matrix[v]);
                     ordering_tmp.intersect_with(g.nodeset);
                     if (ordering_tmp.size()
@@ -1386,7 +1388,7 @@ public:
 
             // sort by partition size
             heuristic.clear();
-            for (auto v : g.nodes)
+            for (auto v : hnodes)
                 if (!ordering_removed_bs.fast_contain(v))
                     heuristic.push_back(v);
 
@@ -1401,13 +1403,13 @@ public:
             for (auto v : ordering_removed)
                 heuristic.push_back(v);
 
-            assert(heuristic.size() == g.nodes.size());
+            assert(heuristic.size() == hnodes.size());
         } else {
 
             // no ordering
             heuristic.clear();
             std::copy(
-                g.nodes.begin(), g.nodes.end(), std::back_inserter(heuristic));
+                hnodes.begin(), hnodes.end(), std::back_inserter(heuristic));
         }
     }
 
@@ -1471,10 +1473,9 @@ public:
         } else {
             erase_if(altered_vertices,
                 [&](int v) { return !g.nodeset.fast_contain(v); });
-
-            lb = cf.extend_cliques(altered_vertices, lb, ub);
-            cf.filter_cliques(lb-opt.cliquemargin, ub - 1);
-
+            create_ordering(altered_vertices);
+            lb = cf.extend_cliques(heuristic, lb, ub);
+            cf.filter_cliques(lb - opt.cliquemargin, ub - 1);
             altered_vertices.clear();
             altered_vertex_set.clear();
         }
@@ -1510,7 +1511,7 @@ public:
         }
 
         // if(lb == ub-1)
-        // 	std::cout << "prune? (" << s.decisionLevel() << ")\n";
+        //      std::cout << "prune? (" << s.decisionLevel() << ")\n";
 
         // std::cout << "LOWERBOUND (" << lb << " / " << bestlb << ")\n";
 
