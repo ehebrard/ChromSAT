@@ -38,6 +38,8 @@ int get_problem_name(char* pname, const char* efname)
 
 int main(int argc,char**argv){
 
+	cout << "hi" << endl;
+
 	if(argc<=3){
 		cout<<argv[0]<<" <instancename> <VSR> <time> <LB> <UB>\n";
 		cout<<"VSR : 1 for DSAT rule\n      2 for PASS rule\n";
