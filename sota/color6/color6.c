@@ -93,6 +93,8 @@ int lower_bound;
 int upper_bound;
 int policy;
 
+// std::mt19937 random_generator;
+
 int edge_redundant(int node1, int node2, int nb_edges) { /* node1<node2 */
   int i;
 
@@ -407,8 +409,9 @@ void choose_candidates() {
 }
 
 int choose_by_degree() {
-  int max_degree, nb_degree, *neibors, neibor, chosen_node = FALSE, node, i;
+  int max_degree, nb_degree, *neibors, neibor, chosen_node = FALSE, node, i, nb_best;
   max_degree = -1;
+	nb_best = 0;
   for (i = 0; i < CANDIDATE_NODE_STACK_fill_pointer; i++) {
     node = CANDIDATE_NODE_STACK[i];
     nb_degree = 0;
@@ -419,7 +422,13 @@ int choose_by_degree() {
     }
     if (nb_degree > max_degree) {
       max_degree = nb_degree;
-      chosen_node = node;
+			chosen_node = node;
+			nb_best = 1;
+    } else if(nb_degree == max_degree) {
+    	++nb_best;
+			if(rand() % nb_best == 0) {
+					chosen_node = node;
+			}
     }
   }
   return chosen_node;
@@ -882,6 +891,7 @@ void parse_parameters(int argc, char *argv[]) {
   lower_bound = 0;
   upper_bound = max_nb_value;
   policy = TOP_DOWN;
+	int seed = 12345;
 
   if (argc < 2)
     HELP_FLAG = TRUE;
@@ -897,11 +907,17 @@ void parse_parameters(int argc, char *argv[]) {
         scanone(argc, argv, ++i, &upper_bound);
       else if (strcmp(argv[i], "-p") == 0)
         scanone(argc, argv, ++i, &policy);
+      else if (strcmp(argv[i], "-s") == 0)
+        scanone(argc, argv, ++i, &seed);
       else if (strcmp(argv[i], "-help") == 0)
         HELP_FLAG = TRUE;
       else
         INPUT_FILE = argv[i];
     }
+		
+		printf("random seed = %d\n", seed);
+		srand(seed);
+		
 }
 
 char *filename(char *input) {
@@ -986,6 +1002,7 @@ int solve(long begintime) {
 }
 
 int main(int argc, char *argv[]) {
+	
   long begintime, endtime;
   long mess;
   // struct tms *a_tms;
@@ -995,6 +1012,7 @@ int main(int argc, char *argv[]) {
     printf("using the following parameters (the order does not matter)\n\n");
     printf("your input file\n");
     // printf("-nbColors N: N is the number of colors\n");
+		printf("-s N: N is the random seed\n");
     printf("-l N: N is the lower bound on the number of colors\n");
     printf("-u N: N is the upper bound on the number of colors\n");
     printf("-f N : N is the format used, N=1, DIMACS format\n");
