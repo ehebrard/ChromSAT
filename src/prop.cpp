@@ -1471,26 +1471,9 @@ public:
         } else {
             erase_if(altered_vertices,
                 [&](int v) { return !g.nodeset.fast_contain(v); });
-            // erase_if(changed_edges, [&](arc e) {
-            //     return !g.nodeset.fast_contain(e[0])
-            //         or !g.nodeset.fast_contain(e[1]);
-            // });
-
-            // for(auto v : changed_vertices) {
-            // 	cliques_of[v].clear();
-            // 	for(int i=0; i<cf.num_cliques; ++i) {
-            // 		cliques_of[v].push_back(i);
-            // 	}
-            // }
-
-            // std::cout << std::endl;
-            // for (auto v : altered_vertices) {
-            //     std::cout << " " << v;
-            // }
-            // std::cout << std::endl;
 
             lb = cf.extend_cliques(altered_vertices, lb, ub);
-            cf.filter_cliques(lb, ub - 1);
+            cf.filter_cliques(lb-opt.cliquemargin, ub - 1);
 
             altered_vertices.clear();
             altered_vertex_set.clear();

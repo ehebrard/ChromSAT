@@ -1743,7 +1743,8 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
     std::vector<int> sol;
     if (!options.solution_file.empty()) {
-        std::cout << "[reading] Reading solution file\n";
+        std::cout << "[reading] Reading solution file " << options.solution_file
+                  << "\n";
         std::ifstream sifs(options.solution_file.c_str());
         int c{0};
         while (sifs) {
