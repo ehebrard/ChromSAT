@@ -37,9 +37,9 @@ int get_problem_name(char* pname, const char* efname)
 }
 
 int main(int argc,char**argv){
-
-	if(argc<=3){
-		cout<<argv[0]<<" <instancename> <VSR> <time> <LB> <UB>\n";
+	
+	if(argc!=4 and argc!=5){
+		cout<<argv[0]<<" <instancename> <VSR> <time> <seed>\n";
 		cout<<"VSR : 1 for DSAT rule\n      2 for PASS rule\n";
 		return 0;
 	}
@@ -72,25 +72,21 @@ int main(int argc,char**argv){
 	dsat_.G = G;
 	temps_algo = atoi(argv[3]);
 
-        std::vector<int> solution(G.nb_sommets);
+	std::vector<int> solution(G.nb_sommets);
+	
+	int seed = 12345;
+	if(argc == 5)
+		seed = atoi(argv[4]);
 
-        if (argc == 4) {
-            dsat_.DSATUR_algo(G, temps_algo, atoi(argv[2]), 2, G.nb_sommets);
-        }
-        if (argc == 5) {
-            dsat_.DSATUR_algo(
-                G, temps_algo, atoi(argv[2]), atoi(argv[4]), G.nb_sommets);
-        }
-        if (argc == 6) {
-            dsat_.DSATUR_algo(
-                G, temps_algo, atoi(argv[2]), atoi(argv[4]), atoi(argv[5]));
-        }
-        cout << "Instance : " << pname << "\n";
-        cout << "UB : " << dsat_.UB << "\n";
-        cout << "time : " << dsat_.time_spent << "\n";
-        cout << "nodes : " << dsat_.nombre_noeuds << "\n";
+	dsat_.DSATUR_algo(
+	    G, temps_algo, atoi(argv[2]), 0, G.nb_sommets, seed);
 
-CLEANUP :
+	cout << "Instance : " << pname << "\n";
+	cout << "UB : " << dsat_.UB << "\n";
+	cout << "time : " << dsat_.time_spent << "\n";
+	cout << "nodes : " << dsat_.nombre_noeuds << "\n";
+
+
 	free(pname);
 	free(argv1_cpy);
 

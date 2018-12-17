@@ -33,6 +33,8 @@ int size_candidats;
 
 int profondeur_glob;
 
+std::mt19937 random_generator;
+
 
 /*************************************************************************************************************************/
 
@@ -357,10 +359,11 @@ void DSATUR_::DSATUR_preprocessing()
 }
 
 int DSATUR_::DSATUR_algo(C_Graphe& G_param, double time_param, int regle_input,
-    int LB_input, int UB_input)
+    int LB_input, int UB_input, int seed)
 {
     // #ifdef DEBUG
     cout << "[options] Paramètres :\n";
+		cout << "[options] seed=" << seed << "\n";
     cout << "[options] time limit=" << time_param << "\n";
     // cout<<"[options] borne="<<borne_input<<"\n";
     // cout<<"[options] regle="<<regle_input<<"\n";
@@ -371,6 +374,8 @@ int DSATUR_::DSATUR_algo(C_Graphe& G_param, double time_param, int regle_input,
     // #endif
 
     cout << "[statistics] lb ub time conflicts\n";
+
+		random_generator.seed(seed);
 
     start = clock();
 
@@ -717,6 +722,7 @@ int DSATUR_::choisir_sommet_PASS(int size_candidats){
 	int choix_sommet = -1;
 	int choix_pass = -1;
 	int cpt;
+	int nb_best = 0;
 	for(int i=0 ; i<size_candidats ; i++){
 		cpt = 0;
 		for(int j=0 ; j<size_candidats ; j++){if(i != j && adj[candidats[i]*G.nb_sommets+candidats[j]]){
@@ -725,6 +731,15 @@ int DSATUR_::choisir_sommet_PASS(int size_candidats){
 		if(cpt > choix_pass){
 			choix_sommet = candidats[i];
 			choix_pass = cpt;
+			nb_best = 1;
+		} else if(cpt == choix_pass){
+			// cout << "random";
+			++nb_best;
+			if(random_generator() % nb_best == 0) {
+				choix_sommet = candidats[i];
+				// cout << "*";
+			}
+			// cout << endl;
 		}
 	}
 	return choix_sommet;
