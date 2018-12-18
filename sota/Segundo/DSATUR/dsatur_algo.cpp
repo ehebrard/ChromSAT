@@ -180,29 +180,29 @@ void DSATUR_::store_solution(
         meilleure_coloration[domdeleted[i]] = meilleure_coloration[dom_map[i]];
     }
 
-    if (lowdegdeleted.size() > 0) {
-
-        gc::bitset colors(0, solution_courante - 1, gc::bitset::full);
-
-        // now the low degree vertices
-        for (int i = lowdegdeleted.size(); --i >= 0;) {
-            auto v{lowdegdeleted[i]};
-
-            assert(vertex_map[v] == -1);
-
-            for (int k = 0; k < G.degre[v]; k++) {
-                auto c{
-                    coloration_courante[G.sommets_voisins_bis[v * G.nb_sommets
-                        + k]]
-                    - 1};
-                colors.fast_remove(c);
-            }
-
-            assert(!(colors.empty()));
-
-            meilleure_coloration[lowdegdeleted[i]] = colors.min();
-        }
-    }
+    // if (lowdegdeleted.size() > 0) {
+    //
+    //     gc::bitset colors(0, solution_courante - 1, gc::bitset::full);
+    //
+    //     // now the low degree vertices
+    //     for (int i = lowdegdeleted.size(); --i >= 0;) {
+    //         auto v{lowdegdeleted[i]};
+    //
+    //         // assert(vertex_map[v] == -1);
+    //
+    //         for (int k = 0; k < G.degre[v]; k++) {
+    //             auto c{
+    //                 coloration_courante[G.sommets_voisins_bis[v * G.nb_sommets
+    //                     + k]]
+    //                 - 1};
+    //             colors.fast_remove(c);
+    //         }
+    //
+    //         // assert(!(colors.empty()));
+    //
+    //         meilleure_coloration[lowdegdeleted[i]] = colors.min();
+    //     }
+    // }
 }
 
 void DSATUR_::DSATUR_preprocessing()
@@ -732,7 +732,8 @@ int DSATUR_::choisir_sommet_PASS(int size_candidats){
 			choix_sommet = candidats[i];
 			choix_pass = cpt;
 			nb_best = 1;
-		} else if(cpt == choix_pass){
+		} 
+		else if(cpt == choix_pass){
 			// cout << "random";
 			++nb_best;
 			if(random_generator() % nb_best == 0) {
