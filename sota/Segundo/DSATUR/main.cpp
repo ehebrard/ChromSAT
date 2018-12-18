@@ -37,7 +37,7 @@ int get_problem_name(char* pname, const char* efname)
 }
 
 int main(int argc,char**argv){
-	
+
 	if(argc!=4 and argc!=5){
 		cout<<argv[0]<<" <instancename> <VSR> <time> <seed>\n";
 		cout<<"VSR : 1 for DSAT rule\n      2 for PASS rule\n";
