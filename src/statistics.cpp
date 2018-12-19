@@ -93,7 +93,7 @@ void statistics::notify_lb(const int l)
 
 void statistics::notify_ub(const int u) 
 {
-    if (ub_safe and best_ub > u) {
+    if (best_ub > u) {
         best_ub = u;
         changed = true;
     }

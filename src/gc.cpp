@@ -1870,7 +1870,10 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
             } else {
                 ++init_model.lb;
+
                 statistics.notify_lb(init_model.lb);
+                if (options.verbosity >= gc::options::NORMAL)
+                    statistics.display(std::cout);
             }
 
             statistics.notify_iteration(g.capacity());
