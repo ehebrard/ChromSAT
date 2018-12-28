@@ -1286,7 +1286,6 @@ public:
         assert(cf.pruning.size() == cf.col_pruning.size());
 #endif
 
-
         while (cf.col_pruning.size() > 0) {
             auto u = cf.col_pruning.back();
             cf.col_pruning.pop_back();
@@ -1298,11 +1297,14 @@ public:
             util_set.setminus_with(g.matrix[u]);
 
             auto w{util_set.min()};
+            assert(util_set.size() == 1);
 
             reason.clear();
             explain_positive_clique(cf.cliques[i], false);
-            reason.push(Lit(vars[u][w]));
-
+            for (auto v1 : cf.cliques[i]) {
+                if (v1 != w)
+                    explain_edge(v1, u);
+            }
             DO_OR_RETURN(s.enqueueFill(Lit(vars[u][w]), reason));
         }
 

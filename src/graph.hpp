@@ -337,11 +337,11 @@ template <class adjacency_struct> struct clique_finder {
     std::vector<std::vector<int>> num_neighbors_of;
     std::vector<int> pruning;
 #endif
-		
+
     std::vector<int> new_tight_cliques;
     std::vector<std::vector<int>> neighbor_count;
     std::vector<int> col_pruning;
-		
+
 #ifdef _FULL_PRUNING
     std::vector<std::vector<int>> cliques_of;
 #endif
@@ -426,7 +426,7 @@ template <class adjacency_struct> struct clique_finder {
         }
     }
 #endif
-		
+
     void compute_pruning(const int maxcs, std::vector<arc>& changed_edges,
         std::vector<int>& changed_vertices)
     {
@@ -434,8 +434,8 @@ template <class adjacency_struct> struct clique_finder {
 
         // compute the count for new cliques
         for (auto cl : new_tight_cliques) {
-
-            if (cl >= neighbor_count.size()) {
+            assert(cl < num_cliques);
+            if (cl >= static_cast<int>(neighbor_count.size())) {
                 neighbor_count.resize(cl + 1);
             }
             if (neighbor_count[cl].size() == 0)
@@ -542,6 +542,7 @@ template <class adjacency_struct> struct clique_finder {
 
 
         if (update_nn and lower < upper - 1 and maxclique == upper - 1) {
+            new_tight_cliques.clear();
             for (auto i{0}; i < num_cliques; ++i) {
                 if (clique_sz[i] == maxclique) {
                     new_tight_cliques.push_back(i);
@@ -562,7 +563,7 @@ template <class adjacency_struct> struct clique_finder {
 
                 // rename the new cliques in case of filtering
                 if (update_nn and clique_sz[i] == tight
-                    and new_tight_cliques.size() > k
+                    and static_cast<int>(new_tight_cliques.size()) > k
                     and new_tight_cliques[k] == i) {
                     new_tight_cliques[k] = j;
                     ++k;
@@ -604,9 +605,9 @@ template <class adjacency_struct> struct clique_finder {
         int lb = -1;
         for (int i = 0; i != num_cliques; ++i) {
             remap_clique_to_reps(cliques[i], candidates[i]);
-						
-						auto sz_before{clique_sz[i]};
-						
+
+            auto sz_before{clique_sz[i]};
+
             clique_sz[i] = extend_clique(cliques[i], candidates[i], cand);
 
             if (update_nn and sz_before < clique_sz[i] and clique_sz[i] == upper - 1) {
