@@ -110,6 +110,9 @@ options parse(int argc, char* argv[])
         "Switch between CLIQUES and declared bound policy dynamically", true);
     cmd.add<ValueArg<int>>(opt.branching, "", "branching",
         "Variable branching heuristic [0-14]", false, 1, "int");
+    cmd.add<SwitchArg>(opt.brelaz_first, "", "brelaz-first",
+        "Use brelaz for 1e5 conflicts before switching to chosen heuristic",
+        false);
     cmd.add<SwitchArg>(opt.branching_low_degree, "", "branch-low-degree",
         "Use low degree information to improve branching", false);
     cmd.add<ValueArg<int>>(opt.cliquelimit, "", "cliquelimit",
@@ -216,7 +219,7 @@ options parse(int argc, char* argv[])
         "min for randpath ratio update", false, 3, "int");
     cmd.add<ValueArg<int>>(opt.rpmax, "", "rpmax",
         "max for randpath ratio update", false, 20, "int");
-				
+
     cmd.add<SwitchArg>(opt.norecolor, "", "norecolor",
         "do not use recolor in dsatur", false);
 
@@ -295,8 +298,12 @@ void options::describe(std::ostream& os)
     case gc::options::VSIDS_COLORS_POSITIVE:
         os << "VSIDS restricted to assignments to color variables\n";
         break;
+    case gc::options::VERTEX_ACTIVITY:
+        os << "Exponentially decaying vertex activity\n";
+        break;
     }
     os << "[options]  ... low degree = " << branching_low_degree << "\n";
+    os << "[options]  ... brelaz fst = " << brelaz_first << "\n";
     os << "[options] Strategy        = ";
     switch (strategy) {
     case BNB:

@@ -1052,6 +1052,11 @@ struct gc_model {
                     s, g, cons->fg, vars, xvars, *cons, options);
                 brancher->use();
                 break;
+            case gc::options::VERTEX_ACTIVITY:
+                brancher = std::make_unique<gc::VertexActivityBrancher>(
+                    s, g, cons->fg, vars, xvars, *cons, options);
+                brancher->use();
+                break;
             }
         }
   }

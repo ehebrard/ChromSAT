@@ -73,6 +73,12 @@ struct cons_base {
     clique_finder<bitset> ccf; // for clique covers
     minicsp::backtrackable<int> lastlb;
 
+    struct varinfo_t {
+        int u{-1}, v{-1};
+    };
+    // indexed by varid
+    std::vector<varinfo_t> varinfo;
+
     // for incremental clique finding. must be here because it is
     // reset when backtracking
     bool saved_cliques{false};

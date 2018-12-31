@@ -207,12 +207,6 @@ public:
 
     statistics& stat;
 
-    struct varinfo_t {
-        int u{-1}, v{-1};
-    };
-    // indexed by varid
-    std::vector<varinfo_t> varinfo;
-
     // for the adaptive bound policy: this is set to true on conflicts
     // and reset to false after the stronger policy runs
     bool run_expensive_bound{false};

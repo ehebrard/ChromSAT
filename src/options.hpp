@@ -78,10 +78,12 @@ struct options {
         VSIDS_PHASED,
         VSIDS_GUIDED,
         VSIDS_CLIQUE,
-        VSIDS_COLORS_POSITIVE
+        VSIDS_COLORS_POSITIVE,
+        VERTEX_ACTIVITY
         // ,BRELAZ_GUIDED
     };
     branching_heuristic branching;
+    bool brelaz_first;
 
     bool branching_low_degree;
 
@@ -117,7 +119,7 @@ struct options {
     bool printsolution;
 
     int sdsaturiter;
-		bool norecolor;
+    bool norecolor;
 
     int ddsaturiter;
 

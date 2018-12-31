@@ -21,8 +21,8 @@ struct Brancher {
     const options& opt;
 
     int64_t numdecisions{0}, numchoices{0};
-		
-		std::mt19937 random_generator;
+
+    std::mt19937 random_generator;
 
     Brancher(minicsp::Solver& s, dense_graph& g, dense_graph& fg,
         const varmap& evars, const std::vector<minicsp::cspvar>& xvars,
@@ -35,8 +35,9 @@ struct Brancher {
         , constraint(constraint)
         , opt(opt)
     {
-			random_generator.seed(opt.seed);
-			// std::cout << random_generator() << " " << random_generator() << " " << random_generator() << " " << std::endl;
+        random_generator.seed(opt.seed);
+        // std::cout << random_generator() << " " << random_generator() << " "
+        // << random_generator() << " " << std::endl;
     }
     virtual ~Brancher() {}
 
@@ -478,8 +479,8 @@ struct BrelazBrancher : public Brancher {
         util_set.copy(clique_bs);
         util_set.setminus_with(g.matrix[maxv]);
         int u = (random_generator() % 2 ? util_set.min() : util_set.max());
-				
-				// std::cout << util_set.size() << std::endl;
+
+        // std::cout << util_set.size() << std::endl;
         minicsp::Var evar{minicsp::var_Undef};
         if (opt.fillin) {
             util_set.clear();
@@ -879,6 +880,97 @@ template <int N, int D> struct DegreeUnionBrancher : public EdgeBrancher<N, D> {
         }
 
         this->select_branch(cand);
+    }
+};
+
+// computes an activity for each vertex which is increased every time
+// a vertex participates in conflict resolution and decays
+// exponentially. On branching, select the largest clique and merge
+// the highest activity vertex outside the clique with the highest
+// activity vertex in the clique
+struct VertexActivityBrancher : public Brancher {
+    double vtx_inc{1};
+    double vtx_decay{1 / 0.95};
+    std::vector<double> activity;
+    bitset seen;
+    BrelazBrancher brelaz;
+
+    VertexActivityBrancher(minicsp::Solver& s, dense_graph& g, dense_graph& fg,
+        const varmap& evars, const std::vector<minicsp::cspvar>& xvars,
+        cons_base& constraint, const options& opt)
+        : Brancher(s, g, fg, evars, xvars, constraint, opt)
+        , activity(g.capacity())
+        , seen(0, g.capacity() - 1, bitset::empt)
+        , brelaz(s, g, fg, evars, xvars, constraint, opt)
+    {
+        s.use_clause_callback([this](auto& cls, int) { return clscb(cls); });
+    }
+
+    void vtxBumpActivity(int v)
+    {
+        activity[v] += vtx_inc;
+        if (activity[v] > 1e100) {
+            // Rescale:
+            for (int i = 0; i != g.capacity(); i++)
+                activity[i] *= 1e-100;
+            vtx_inc *= 1e-100;
+        }
+    }
+
+    void vtxDecayActivity() { vtx_inc *= vtx_decay; };
+
+    minicsp::Solver::clause_callback_result_t clscb(vec<minicsp::Lit>& cls)
+    {
+        seen.clear();
+        for (auto l : cls) {
+            auto info = constraint.varinfo[var(l)];
+            if (!seen.fast_contain(info.u)) {
+                vtxBumpActivity(info.u);
+                seen.fast_add(info.u);
+            }
+            if (!seen.fast_contain(info.v)) {
+                vtxBumpActivity(info.v);
+                seen.fast_add(info.v);
+            }
+        }
+        vtxDecayActivity();
+        return minicsp::Solver::CCB_OK;
+    }
+
+    void select_candidates(std::vector<minicsp::Lit>& cand) override
+    {
+        if (opt.brelaz_first && s.conflicts < 1e5)
+            return brelaz.select_candidates_evars(cand);
+
+        auto& cf = constraint.cf;
+        auto maxidx = std::distance(begin(cf.clique_sz),
+            std::max_element(
+                begin(cf.clique_sz), begin(cf.clique_sz) + cf.num_cliques));
+        auto& clq = cf.cliques[maxidx];
+
+        if (clq.size() == g.nodeset.size())
+            return;
+
+        int vtx{-1};
+        for (auto v : g.nodes) {
+            if (clq.fast_contain(v))
+                continue;
+            if (vtx < 0 || activity[v] > activity[vtx])
+                vtx = v;
+        }
+        assert(vtx >= 0);
+
+        int utx{-1};
+        for (auto u : clq) {
+            if (g.matrix[vtx].fast_contain(u))
+                continue;
+            if (utx < 0 || activity[u] > activity[utx])
+                utx = u;
+        }
+        assert(utx >= 0);
+        auto evar = evars[utx][vtx];
+        assert(evar != minicsp::var_Undef);
+        cand.push_back(minicsp::Lit(evar));
     }
 };
 
