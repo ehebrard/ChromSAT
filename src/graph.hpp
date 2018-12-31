@@ -540,9 +540,9 @@ template <class adjacency_struct> struct clique_finder {
         auto maxclique{*std::max_element(
             begin(clique_sz), begin(clique_sz) + num_cliques)};
 
+        new_tight_cliques.clear();
 
         if (update_nn and lower < upper - 1 and maxclique == upper - 1) {
-            new_tight_cliques.clear();
             for (auto i{0}; i < num_cliques; ++i) {
                 if (clique_sz[i] == maxclique) {
                     new_tight_cliques.push_back(i);

@@ -1526,8 +1526,10 @@ public:
                 stat.display(std::cout);
             }
         }
+
         if (cf.num_cliques == 1 && opt.cliquealg == options::ALL_CLIQUES)
             assert(g.nodes.size() == cf.cliques[0].size());
+
         if (lb >= ub) {
             if (use_global_bound) {
                 reason.clear();
@@ -1548,7 +1550,6 @@ public:
             DO_OR_RETURN(propagate_is());
 
         // check local constraints
-
 #ifdef DEBUG_IS
         std::cout << "\npropag: " << lb << " " << ub
                   << " dlvl = " << s.decisionLevel() << std::endl;
