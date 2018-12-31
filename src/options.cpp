@@ -113,6 +113,9 @@ options parse(int argc, char* argv[])
     cmd.add<SwitchArg>(opt.brelaz_first, "", "brelaz-first",
         "Use brelaz for 1e5 conflicts before switching to chosen heuristic",
         false);
+    cmd.add<SwitchArg>(opt.brelaz_first, "", "phase-saving",
+        "Phase saving in branching",
+        false);
     cmd.add<SwitchArg>(opt.branching_low_degree, "", "branch-low-degree",
         "Use low degree information to improve branching", false);
     cmd.add<ValueArg<int>>(opt.cliquelimit, "", "cliquelimit",
@@ -304,6 +307,7 @@ void options::describe(std::ostream& os)
     }
     os << "[options]  ... low degree = " << branching_low_degree << "\n";
     os << "[options]  ... brelaz fst = " << brelaz_first << "\n";
+    os << "[options]  ... phase save = " << phase_saving << "\n";
     os << "[options] Strategy        = ";
     switch (strategy) {
     case BNB:

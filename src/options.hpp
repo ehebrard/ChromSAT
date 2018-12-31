@@ -84,7 +84,7 @@ struct options {
     };
     branching_heuristic branching;
     bool brelaz_first;
-
+    bool phase_saving;
     bool branching_low_degree;
 
     int cliquelimit;

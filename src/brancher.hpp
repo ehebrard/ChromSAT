@@ -970,7 +970,11 @@ struct VertexActivityBrancher : public Brancher {
         assert(utx >= 0);
         auto evar = evars[utx][vtx];
         assert(evar != minicsp::var_Undef);
-        cand.push_back(minicsp::Lit(evar));
+        if (opt.phase_saving)
+            cand.push_back(minicsp::Lit(
+                evar, (s.currentVarPhase(evar) == minicsp::l_False)));
+        else
+            cand.push_back(minicsp::Lit(evar));
     }
 };
 
