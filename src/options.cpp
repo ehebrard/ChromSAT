@@ -114,7 +114,7 @@ options parse(int argc, char* argv[])
     cmd.add<SwitchArg>(opt.brelaz_first, "", "brelaz-first",
         "Use brelaz for 1e5 conflicts before switching to chosen heuristic",
         false);
-    cmd.add<SwitchArg>(opt.brelaz_first, "", "phase-saving",
+    cmd.add<SwitchArg>(opt.phase_saving, "", "phase-saving",
         "Phase saving in branching",
         false);
     cmd.add<SwitchArg>(opt.branching_low_degree, "", "branch-low-degree",

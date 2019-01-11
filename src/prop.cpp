@@ -293,7 +293,7 @@ public:
                 if (ijvar == minicsp::var_Undef)
                     continue;
                 if (varinfo.size() <= static_cast<size_t>(ijvar))
-                    varinfo.resize(ijvar + 1);
+                    varinfo.resize(ijvar + 1, varinfo_t{-1,-1});
                 varinfo[ijvar] = {i, j};
                 s.wake_on_lit(ijvar, this, nullptr);
                 s.schedule_on_lit(ijvar, this);
