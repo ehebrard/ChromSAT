@@ -105,7 +105,8 @@ options parse(int argc, char* argv[])
         "Clique heuristic to use during search", false, 0, "0-1");
     cmd.add<ValueArg<int>>(opt.cliquemargin, "", "cliquemargin",
         "Keep cliques of size lb-x", false, 0, "int>=0");
-    cmd.add<SwitchArg>(opt.prune, "", "prune", "enable pruning", false);
+    cmd.add<SwitchArg>(opt.prune, "", "prune", "enable positive pruning", false);
+		cmd.add<SwitchArg>(opt.enurp, "", "enurp", "enable negative pruning", false);
     cmd.add<SwitchArg>(opt.adaptive, "", "adaptive",
         "Switch between CLIQUES and declared bound policy dynamically", true);
     cmd.add<ValueArg<int>>(opt.branching, "", "branching",

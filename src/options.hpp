@@ -59,6 +59,7 @@ struct options {
     int cliquemargin;
 
     bool prune;
+    bool enurp;		
 
     bool adaptive;
 

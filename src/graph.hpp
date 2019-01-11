@@ -482,7 +482,7 @@ template <class adjacency_struct> struct clique_finder {
         }
 #endif
 
-        new_tight_cliques.clear();
+        // new_tight_cliques.clear();
     }
 
     // clear previously cached results
@@ -546,8 +546,12 @@ template <class adjacency_struct> struct clique_finder {
             for (auto i{0}; i < num_cliques; ++i) {
                 if (clique_sz[i] == maxclique) {
                     new_tight_cliques.push_back(i);
+
+                    // std::cout << " " << i;
                 }
             }
+            // if(new_tight_cliques.size() > 0)
+            // 		std::cout << std::endl;
         }
 
         return maxclique;

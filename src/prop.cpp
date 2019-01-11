@@ -274,6 +274,9 @@ public:
         stat.binds(this);
         ub = g.capacity()+1;
 
+        expl_reps.clear();
+        expl_reps.resize(g.capacity(), -1);
+
         for (int i = 0; i != g.capacity(); ++i) {
             if (!g.nodes.contain(i))
                 continue;
@@ -1264,6 +1267,52 @@ public:
 #endif
 
         cf.compute_pruning(ub - 1, changed_edges, changed_vertices);
+
+				// std::cout << opt.enurp << std::endl;
+
+
+        if (opt.enurp and cf.new_tight_cliques.size() > 0) {
+					
+            for (int i = 0; i < s.nVars(); ++i) {
+                auto info{varinfo[i]};
+                if (!info.empty() and s.value(i) == l_Undef) {
+                    auto u{g.rep_of[info.u]};
+                    auto v{g.rep_of[info.v]};
+                    if (!g.origmatrix[v].fast_contain(u)) {
+
+                        for (auto i : cf.new_tight_cliques) {
+                            if (cf.cliques[i].fast_contain(u)
+                                or cf.cliques[i].fast_contain(v)
+                                or (cf.neighbor_count[i][u]
+                                       + cf.neighbor_count[i][v])
+                                    < cf.clique_sz[i])
+                                continue;
+
+                            reason.clear();
+
+                            bool included{true};
+                            for (auto w : cf.cliques[i]) {
+                                if (g.matrix[v].fast_contain(w)) {
+                                    explain_edge(w, v);
+                                } else if (g.matrix[u].fast_contain(w)) {
+                                    explain_edge(u, w);
+                                } else {
+                                    included = false;
+                                    break;
+                                }
+                            }
+
+                            if (included) {
+                                explain_positive_clique(cf.cliques[i], false);
+                                DO_OR_RETURN(
+                                    s.enqueueFill(~Lit(vars[u][v]), reason));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+				cf.new_tight_cliques.clear();
 
 #ifdef _FULL_PRUNING
         changed_edges.clear();

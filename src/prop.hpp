@@ -75,6 +75,8 @@ struct cons_base {
 
     struct varinfo_t {
         int u{-1}, v{-1};
+
+        inline bool empty() const { return u < 0; }
     };
     // indexed by varid
     std::vector<varinfo_t> varinfo;
