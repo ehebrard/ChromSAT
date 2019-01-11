@@ -296,8 +296,6 @@ public:
                     continue;
                 // if (varinfo.size() <= static_cast<size_t>(ijvar))
                 //     varinfo.resize(ijvar + 1, varinfo_t{-1,-1});
-                // while (varinfo.size() <= static_cast<size_t>(ijvar))
-                //     varinfo.push_back(varinfo_t{-1,-1});
                 varinfo[ijvar] = {i, j};
                 s.wake_on_lit(ijvar, this, nullptr);
                 s.schedule_on_lit(ijvar, this);
