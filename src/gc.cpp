@@ -1053,6 +1053,7 @@ struct gc_model {
                 brancher->use();
                 break;
             case gc::options::VERTEX_ACTIVITY:
+            case gc::options::VERTEX_DOM_OVER_ACT:
                 brancher = std::make_unique<gc::VertexActivityBrancher>(
                     s, g, cons->fg, vars, xvars, *cons, options);
                 brancher->use();

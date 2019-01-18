@@ -106,7 +106,8 @@ options parse(int argc, char* argv[])
     cmd.add<ValueArg<int>>(opt.cliquemargin, "", "cliquemargin",
         "Keep cliques of size lb-x", false, 0, "int>=0");
     cmd.add<SwitchArg>(opt.prune, "", "prune", "enable positive pruning", false);
-		cmd.add<SwitchArg>(opt.enurp, "", "enurp", "enable negative pruning", false);
+    cmd.add<SwitchArg>(
+        opt.enurp, "", "enurp", "enable negative pruning", false);
     cmd.add<SwitchArg>(opt.adaptive, "", "adaptive",
         "Switch between CLIQUES and declared bound policy dynamically", true);
     cmd.add<ValueArg<int>>(opt.branching, "", "branching",
@@ -304,6 +305,9 @@ void options::describe(std::ostream& os)
         break;
     case gc::options::VERTEX_ACTIVITY:
         os << "Exponentially decaying vertex activity\n";
+        break;
+    case gc::options::VERTEX_DOM_OVER_ACT:
+        os << "Domain size over Exponentially decaying vertex activity\n";
         break;
     }
     os << "[options]  ... low degree = " << branching_low_degree << "\n";
