@@ -952,11 +952,48 @@ struct VertexActivityBrancher : public Brancher {
             return;
 
         int vtx{-1};
+        double vtxact{0.01};
+        size_t vtxdom{g.nodes.size()};
         for (auto v : g.nodes) {
             if (clq.fast_contain(v))
                 continue;
-            if (vtx < 0 || activity[v] > activity[vtx])
-                vtx = v;
+            double vact = std::max(activity[v], 0.01);
+            double vdom = [&]() {
+                if (opt.branching == options::VERTEX_ACTIVITY) {
+                    // skips bitset stuff if unnecessary
+                    return 0u;
+                } else {
+                    util_set.copy(g.matrix[v]);
+                    util_set.intersect_with(clq);
+                    return util_set.size();
+                }
+                assert(0);
+            }();
+            switch (opt.branching) {
+            case options::VERTEX_ACTIVITY:
+                if (vtx < 0 || vact > vtxact) {
+                    vtx = v;
+                    vtxact = vact;
+                }
+                break;
+            case options::VERTEX_DOM_OVER_ACT:
+                if (vtx < 0 || vdom / vact > vtxact / vtxdom) {
+                    vtx = v;
+                    vtxact = vact;
+                    vdom = vtxdom;
+                }
+                break;
+            case options::VERTEX_DOM_THEN_ACT:
+                if (vtx < 0 || vdom < vtxdom
+                    || (vdom == vtxdom && vact > vtxact)) {
+                    vtx = v;
+                    vtxdom = vdom;
+                    vtx = vact;
+                }
+                break;
+            default:
+                assert(0);
+            }
         }
         assert(vtx >= 0);
 
