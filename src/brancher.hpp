@@ -894,6 +894,8 @@ struct VertexActivityBrancher : public Brancher {
     std::vector<double> activity;
     bitset seen;
     BrelazBrancher brelaz;
+		
+		bitset util_set;
 
     VertexActivityBrancher(minicsp::Solver& s, dense_graph& g, dense_graph& fg,
         const varmap& evars, const std::vector<minicsp::cspvar>& xvars,
@@ -902,6 +904,7 @@ struct VertexActivityBrancher : public Brancher {
         , activity(g.capacity())
         , seen(0, g.capacity() - 1, bitset::empt)
         , brelaz(s, g, fg, evars, xvars, constraint, opt)
+				, util_set(0, g.capacity() - 1, bitset::empt)
     {
         s.use_clause_callback([this](auto& cls, int) { return clscb(cls); });
     }
