@@ -1,24 +1,25 @@
 #include <iostream>
 
 #include "brancher.hpp"
-#include "dimacs.hpp"
-#include "edgeformat.hpp"
-#include "snap.hpp"
+#include "ca_graph.hpp"
+#include "cliquesampler.hpp"
 #include "csv.hpp"
+#include "dimacs.hpp"
+#include "dsatur.hpp"
+#include "edgeformat.hpp"
 #include "fillin.hpp"
 #include "graph.hpp"
+#include "interval_list.hpp"
 #include "mycielski.hpp"
 #include "options.hpp"
 #include "prop.hpp"
 #include "reduction.hpp"
 #include "rewriter.hpp"
+#include "snap.hpp"
 #include "sparse_dynamic_graph.hpp"
 #include "statistics.hpp"
 #include "utils.hpp"
 #include "vcsolver.hpp"
-#include "interval_list.hpp"
-#include "dsatur.hpp"
-#include "cliquesampler.hpp"
 
 #include <minicsp/core/cons.cpp>
 #include <minicsp/core/solver.hpp>
@@ -1053,7 +1054,6 @@ struct gc_model {
                 brancher->use();
                 break;
             case gc::options::VERTEX_ACTIVITY:
-            case gc::options::VERTEX_DOM_OVER_ACT:
                 brancher = std::make_unique<gc::VertexActivityBrancher>(
                     s, g, cons->fg, vars, xvars, *cons, options);
                 brancher->use();
@@ -2082,6 +2082,59 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
 int main(int argc, char* argv[])
 {
+
+    gc::ca_graph h(7);
+
+    // h.describe(std::cout, 2);
+    std::cout << h << std::endl;
+
+    h.add_dirty_edge(1, 3);
+    h.add_dirty_edge(1, 2);
+    h.add_dirty_edge(4, 3);
+    h.add_dirty_edge(0, 3);
+    h.add_dirty_edge(0, 5);
+    h.add_dirty_edge(5, 6);
+
+    h.sort();
+    // h.add_edge(0,1);
+		
+		h.check_consistency();
+
+    std::cout << h << std::endl;
+
+    h.contract(0, 1);
+		h.check_consistency();
+
+    std::cout << h << std::endl;
+
+    h.add_edge(4, 6);
+		h.check_consistency();
+
+    std::cout << h << std::endl;
+
+    h.contract(6, 0);
+		h.check_consistency();
+
+    std::cout << h << std::endl;
+
+    h.undo();
+		h.check_consistency();
+
+    std::cout << h << std::endl;
+
+    h.undo();
+		h.check_consistency();
+
+    std::cout << h << std::endl;
+
+    h.undo();
+
+    std::cout << h << std::endl;
+
+    h.search();
+
+    exit(1);
+
     auto options = gc::parse(argc, argv);
     gc::graph<gc::vertices_vec> g;
     // gc::graph<gc::bitset> g;

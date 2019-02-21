@@ -3,6 +3,7 @@
 #include "graph.hpp"
 #include "options.hpp"
 #include "partition.hpp"
+#include "statistics.hpp"
 
 #include <minicsp/core/utils.hpp>
 

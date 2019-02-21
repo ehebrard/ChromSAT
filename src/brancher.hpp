@@ -893,7 +893,6 @@ struct VertexActivityBrancher : public Brancher {
     double vtx_decay{1 / 0.95};
     std::vector<double> activity;
     bitset seen;
-    bitset util_set;
     BrelazBrancher brelaz;
 
     VertexActivityBrancher(minicsp::Solver& s, dense_graph& g, dense_graph& fg,
@@ -902,7 +901,6 @@ struct VertexActivityBrancher : public Brancher {
         : Brancher(s, g, fg, evars, xvars, constraint, opt)
         , activity(g.capacity())
         , seen(0, g.capacity() - 1, bitset::empt)
-        , util_set(0, g.capacity() - 1, bitset::empt)
         , brelaz(s, g, fg, evars, xvars, constraint, opt)
     {
         s.use_clause_callback([this](auto& cls, int) { return clscb(cls); });
@@ -963,24 +961,11 @@ struct VertexActivityBrancher : public Brancher {
         assert(vtx >= 0);
 
         int utx{-1};
-        double utxscore{0};
         for (auto u : clq) {
             if (g.matrix[vtx].fast_contain(u))
                 continue;
-            double uscore = [&]() {
-                if (opt.branching == options::VERTEX_ACTIVITY)
-                    return activity[u];
-                else {
-                    util_set.copy(g.matrix[u]);
-                    util_set.intersect_with(clq);
-                    return util_set.size() / (std::max(activity[u], 0.01));
-                }
-                assert(0);
-            }();
-            if (utx < 0 || uscore > utxscore) {
+            if (utx < 0 || activity[u] > activity[utx])
                 utx = u;
-                utxscore = uscore;
-            }
         }
         assert(utx >= 0);
         auto evar = evars[utx][vtx];

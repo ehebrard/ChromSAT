@@ -59,7 +59,7 @@ struct options {
     int cliquemargin;
 
     bool prune;
-    bool enurp;
+    bool enurp;		
 
     bool adaptive;
 
@@ -80,8 +80,7 @@ struct options {
         VSIDS_GUIDED,
         VSIDS_CLIQUE,
         VSIDS_COLORS_POSITIVE,
-        VERTEX_ACTIVITY,
-        VERTEX_DOM_OVER_ACT
+        VERTEX_ACTIVITY
         // ,BRELAZ_GUIDED
     };
     branching_heuristic branching;

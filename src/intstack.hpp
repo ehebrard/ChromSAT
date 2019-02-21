@@ -37,6 +37,7 @@ public:
     bool safe_contain(const int elt) const;
     bool contain(const int elt) const;
 
+    size_t capacity() const;
     size_t size() const;
     bool empty() const;
 
