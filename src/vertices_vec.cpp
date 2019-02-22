@@ -2,6 +2,8 @@
 #include "bitset.hpp"
 #include "utils.hpp"
 
+#include "minicsp/mtl/Alg.h"
+
 // TODO
 /* Copying : clear vector before ? use  = , std::copy, or else ?
 
