@@ -1208,8 +1208,8 @@ void degeneracy_finder<graph_struct>::clear()
 template <class graph_struct>
 void degeneracy_finder<graph_struct>::degeneracy_ordering()
 {
+    degeneracy = 0;
     order.reserve(g.size());
-    // if (g.size() == g.capacity()) {
     for (auto v : g.nodes) {
         auto vd = g.matrix[v].size();
         if (vd >= buckets.size())
@@ -1219,20 +1219,6 @@ void degeneracy_finder<graph_struct>::degeneracy_ordering()
         iterators[v] = buckets[vd].begin();
         ordered[v] = false;
     }
-    // } else {
-    //     gc::bitset actual_neighbors(0, g.capacity() - 1, gc::bitset::empt);
-    //     for (auto v : g.nodes) {
-    //         actual_neighbors.copy(g.matrix[v]);
-    //         actual_neighbors.intersect_with(g.nodeset);
-    //         auto vd = actual_neighbors.size();
-    //         if (vd >= buckets.size())
-    //             buckets.resize(vd + 1);
-    //         buckets[vd].push_front(v);
-    //         degrees[v] = vd;
-    //         iterators[v] = buckets[vd].begin();
-    //         ordered[v] = false;
-    //     }
-    // }
 
     while (true) {
         size_t i{0};
@@ -1247,7 +1233,6 @@ void degeneracy_finder<graph_struct>::degeneracy_ordering()
             core.push_back(end(order));
             core_degree.push_back(degeneracy);
         }
-        // d = std::max(d, static_cast<int>(i));
 
         auto v = buckets[i].back();
         order.push_back(v);
@@ -1255,7 +1240,7 @@ void degeneracy_finder<graph_struct>::degeneracy_ordering()
         ordered[v] = true;
 
         for (auto u : g.matrix[v]) {
-            if (!g.nodeset.fast_contain(u) or ordered[u])
+            if (!g.nodes.contain(u) or ordered[u])
                 continue;
             auto& ud = degrees[u];
             buckets[ud].erase(iterators[u]);

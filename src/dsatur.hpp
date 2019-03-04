@@ -3,6 +3,7 @@
 #include "graph.hpp"
 #include "options.hpp"
 #include "partition.hpp"
+#include "statistics.hpp"
 
 #include <minicsp/core/utils.hpp>
 
@@ -93,15 +94,15 @@ struct colvector {
     }
 };
 
-std::ostream& operator<<(std::ostream& os, const colvector& x)
-{
-    return x.display(os);
-}
+std::ostream& operator<<(std::ostream& os, const colvector& x);
+// {
+//     return x.display(os);
+// }
 
-std::ostream& operator<<(std::ostream& os, const colvector* x)
-{
-    return x->display(os);
-}
+std::ostream& operator<<(std::ostream& os, const colvector* x);
+// {
+//     return x->display(os);
+// }
 
 struct dsatur {
 
@@ -568,7 +569,7 @@ struct dsatur {
         graph_struct& g, const int ub, const int limit, const int seed)
     {
 
-        // std::cout << "INIT (" << ub << ")\n";
+        // std::cout << "INIT (" << ub << ", " << g.capacity() << ")\n";
 
         numcolors = 0;
         rank.resize(g.capacity());
@@ -618,6 +619,8 @@ struct dsatur {
     int brelaz_greedy(graph_struct& g, const int ub,
         std::vector<int>::iterator start, const int limit)
     {
+        // std::cout << ub << ":";
+
         int potential_colors = begin(neighbor_colors)->b.size();
 
         int c, d;
@@ -628,6 +631,9 @@ struct dsatur {
         }
 
         std::vector<int>::iterator candidate{start};
+
+        // std::cout << ncolor.size() << " " << (start - begin(order)) <<
+        // std::endl;
 
         assert(ncolor.size() == (start - begin(order)));
 
@@ -670,12 +676,16 @@ struct dsatur {
                 }
             }
 
+            // std::cout << " " << c;
+
             ncolor.push_back(numcolors);
 
             if (numcolors > ub) {
                 color[*candidate] = c;
 
-                // std::cout << "CANNOT IMPROVE ON " << (ub + 1) << std::endl;
+                // std::cout << "CANNOT IMPROVE ON " << (ub + 1) << " -> return
+                // " << (g.size()) << std::endl;
+                std::cout << " STOP\n";
 
                 return g.size();
             }
@@ -694,6 +704,8 @@ struct dsatur {
 
             ++candidate;
         }
+
+        // std::cout << std::endl;
 
         return numcolors;
     }

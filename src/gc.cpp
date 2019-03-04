@@ -1,24 +1,25 @@
 #include <iostream>
 
 #include "brancher.hpp"
-#include "dimacs.hpp"
-#include "edgeformat.hpp"
-#include "snap.hpp"
+#include "ca_graph.hpp"
+#include "cliquesampler.hpp"
 #include "csv.hpp"
+#include "dimacs.hpp"
+#include "dsatur.hpp"
+#include "edgeformat.hpp"
 #include "fillin.hpp"
 #include "graph.hpp"
+#include "interval_list.hpp"
 #include "mycielski.hpp"
 #include "options.hpp"
 #include "prop.hpp"
 #include "reduction.hpp"
 #include "rewriter.hpp"
+#include "snap.hpp"
 #include "sparse_dynamic_graph.hpp"
 #include "statistics.hpp"
 #include "utils.hpp"
 #include "vcsolver.hpp"
-#include "interval_list.hpp"
-#include "dsatur.hpp"
-#include "cliquesampler.hpp"
 
 #include <minicsp/core/cons.cpp>
 #include <minicsp/core/solver.hpp>
@@ -2079,12 +2080,128 @@ int color(gc::options& options, gc::graph<input_format>& g)
     return 0;
 }
 
+template <class graph_struct> int ccolor(gc::options& options, graph_struct& g)
+{
+    options.describe(std::cout);
+
+    if (options.verbosity >= gc::options::NORMAL)
+        std::cout << "[reading] ";
+
+    std::vector<std::pair<int, int>> edges;
+    if (options.format == "snap")
+        snap::read_graph(options.instance_file.c_str(),
+            [&](int nv, int) { g = graph_struct{nv}; },
+            [&](int u, int v) {
+                if (u != v) {
+                    // num_edges += 1 - g.matrix[u].fast_contain(v);
+                    g.add_edge(u, v);
+                    // ++num_edges;
+                }
+            },
+            [&](int, gc::weight) {});
+    else if (options.format == "csv")
+        csv::read_graph(options.instance_file.c_str(),
+            [&](int nv, int) { g = graph_struct{nv}; },
+            [&](int u, int v) {
+                if (u != v) {
+                    g.add_edge(u, v);
+                }
+            },
+            [&](int, gc::weight) {});
+    else if (options.format == "edg")
+        edgeformat::read_graph(options.instance_file.c_str(),
+            [&](int nv, int ne) {
+                g = graph_struct{nv};
+                // num_edges = ne;
+            },
+            [&](int u, int v) { g.add_edge(u, v); }, [&](int, gc::weight) {});
+    else
+        dimacs::read_graph(options.instance_file.c_str(),
+            [&](int nv, int) { g = graph_struct{nv}; },
+            [&](int u, int v) {
+                if (u != v) {
+                    g.add_edge(u - 1, v - 1);
+                    // ++num_edges;
+                    if (options.checksolution)
+                        edges.push_back(std::pair<int, int>{u - 1, v - 1});
+                }
+            },
+            [&](int, gc::weight) {});
+
+    // std::cout <<         g.count_edges() << std::endl;
+
+    g.canonize();
+
+    std::cout << g << std::endl;
+
+    gc::statistics statistics(g.capacity());
+    g.search(statistics, options);
+
+    return 1;
+}
+
 int main(int argc, char* argv[])
 {
+
+    // gc::ca_graph h(7);
+    //
+    // // h.describe(std::cout, 2);
+    // std::cout << h << std::endl;
+    //
+    // h.add_edge(1, 3);
+    // h.add_edge(1, 2);
+    // h.add_edge(4, 3);
+    // h.add_edge(0, 3);
+    // h.add_edge(0, 5);
+    // h.add_edge(5, 6);
+    //
+    // h.canonize();
+    // // h.add_edge(0,1);
+    //
+    // h.check_consistency();
+    //
+    // std::cout << h << std::endl;
+    //
+    // h.contract(0, 1);
+    // h.check_consistency();
+    //
+    // std::cout << h << std::endl;
+    //
+    // h.addtion(4, 6);
+    // h.check_consistency();
+    //
+    // std::cout << h << std::endl;
+    //
+    // h.contract(6, 0);
+    // h.check_consistency();
+    //
+    // std::cout << h << std::endl;
+    //
+    // h.undo();
+    // h.check_consistency();
+    //
+    // std::cout << h << std::endl;
+    //
+    // h.undo();
+    // h.check_consistency();
+    //
+    // std::cout << h << std::endl;
+    //
+    // h.undo();
+    //
+    // std::cout << h << std::endl;
+    //
+    // h.search();
+    //
+    // exit(1);
+
     auto options = gc::parse(argc, argv);
-    gc::graph<gc::vertices_vec> g;
-    // gc::graph<gc::bitset> g;
-    auto result = color(options, g);
+
+    gc::ca_graph g;
+    auto result = ccolor(options, g);
+
+    // gc::graph<gc::vertices_vec> g;
+    // auto result = color(options, g);
 
     return result;
 }

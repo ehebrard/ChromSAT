@@ -128,6 +128,12 @@ void statistics::describe(std::ostream& os)
     os << "[statistics] lb ub clq iter core time conflicts moves memory\n";
 }
 
+void statistics::force_display(std::ostream& os)
+{
+    changed = true;
+    display(os);
+}
+
 void statistics::display(std::ostream& os)
 {
     if (update_lb and cons and best_lb < cons->bestlb) {
