@@ -2143,57 +2143,6 @@ template <class graph_struct> int ccolor(gc::options& options, graph_struct& g)
 int main(int argc, char* argv[])
 {
 
-    // gc::ca_graph h(7);
-    //
-    // // h.describe(std::cout, 2);
-    // std::cout << h << std::endl;
-    //
-    // h.add_edge(1, 3);
-    // h.add_edge(1, 2);
-    // h.add_edge(4, 3);
-    // h.add_edge(0, 3);
-    // h.add_edge(0, 5);
-    // h.add_edge(5, 6);
-    //
-    // h.canonize();
-    // // h.add_edge(0,1);
-    //
-    // h.check_consistency();
-    //
-    // std::cout << h << std::endl;
-    //
-    // h.contract(0, 1);
-    // h.check_consistency();
-    //
-    // std::cout << h << std::endl;
-    //
-    // h.addtion(4, 6);
-    // h.check_consistency();
-    //
-    // std::cout << h << std::endl;
-    //
-    // h.contract(6, 0);
-    // h.check_consistency();
-    //
-    // std::cout << h << std::endl;
-    //
-    // h.undo();
-    // h.check_consistency();
-    //
-    // std::cout << h << std::endl;
-    //
-    // h.undo();
-    // h.check_consistency();
-    //
-    // std::cout << h << std::endl;
-    //
-    // h.undo();
-    //
-    // std::cout << h << std::endl;
-    //
-    // h.search();
-    //
-    // exit(1);
 
     auto options = gc::parse(argc, argv);
 

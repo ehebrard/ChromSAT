@@ -80,7 +80,9 @@ struct options {
         VSIDS_GUIDED,
         VSIDS_CLIQUE,
         VSIDS_COLORS_POSITIVE,
-        VERTEX_ACTIVITY
+        VERTEX_ACTIVITY,
+        VERTEX_DOM_OVER_ACT,
+        VERTEX_DOM_THEN_ACT
         // ,BRELAZ_GUIDED
     };
     branching_heuristic branching;
