@@ -750,6 +750,23 @@ public:
         }
     }
 
+    template <typename some_iterator>
+    inline void intersect_with(some_iterator s, some_iterator e)
+    {
+        if (s == e)
+            clear();
+        else {
+            set_min(*s);
+            set_max(*(e - 1));
+
+            for (auto i{s + 1}; i != e; ++i) {
+                auto a{*(i - 1)};
+                auto b{*i};
+                remove_interval(a + 1, b - 1);
+            }
+        }
+    }
+
     inline void intersect_with(const Bitset<WORD_TYPE, FLOAT_TYPE>& s,
         Bitset<WORD_TYPE, FLOAT_TYPE>& delta)
     {

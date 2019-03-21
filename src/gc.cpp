@@ -2128,11 +2128,11 @@ template <class graph_struct> int ccolor(gc::options& options, graph_struct& g)
             },
             [&](int, gc::weight) {});
 
-    // std::cout <<         g.count_edges() << std::endl;
+    std::cout << g.num_edges << std::endl;
 
     g.canonize();
 
-    std::cout << g << std::endl;
+    // std::cout << g << std::endl;
 
     gc::statistics statistics(g.capacity());
     g.search(statistics, options);

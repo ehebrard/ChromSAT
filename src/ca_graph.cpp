@@ -60,15 +60,16 @@ void ca_graph::canonize()
 void ca_graph::remove_neighbor(const int u, const int v)
 {
     auto it{end(matrix[u])};
-    do
+    do {
         --it;
-    while (*it != v);
+    } while (*it != v);
     matrix[u].erase(it);
 }
 
 void ca_graph::swap_neighbor(const int u, const int v, const int w)
 {
     auto r_v{gc::find_in(begin(matrix[u]), end(matrix[u]), v)};
+
     *r_v = w;
     if (w > v) {
         while (++r_v != end(matrix[u]) and *r_v < *(r_v - 1)) {
@@ -76,15 +77,20 @@ void ca_graph::swap_neighbor(const int u, const int v, const int w)
         }
     } else {
         while (r_v != begin(matrix[u]) and *r_v < *(r_v - 1)) {
-            std::swap(*r_v, *(--r_v));
+            std::swap(*r_v, *(r_v - 1));
+            --r_v;
         }
     }
 }
 
 void ca_graph::contract(const int u, const int v)
 {
+    // check_consistency("before contract");
+
     parent[v] = u;
+    rank[u] += rank[v];
     nodes.remove(v);
+    nodeset.remove(v);
 
     union_buffer.clear();
     inter_buffer.clear();
@@ -116,6 +122,8 @@ void ca_graph::contract(const int u, const int v)
 
     trail.push_back(sz);
     trail.push_back(v);
+
+    // check_consistency("after contract");
 }
 
 arc ca_graph::undo()
@@ -162,7 +170,9 @@ arc ca_graph::undo_contraction()
     trail.pop_back();
     int u{parent[v]};
     parent[v] = v;
+    rank[u] -= rank[v];
     nodes.add(v);
+    nodeset.add(v);
 
     int sz = trail.back();
     trail.pop_back();
@@ -212,14 +222,39 @@ void ca_graph::search(gc::statistics& stats, gc::options& options)
 {
     int limit{static_cast<int>(nodes.capacity())};
 
-    check_consistency();
+    check_consistency("beg search");
 
     int depth{0};
+
+    bi_graph B;
+
+    gc::bitset V(0, nodes.capacity() - 1, gc::bitset::empt);
+    // gc::bitset ub_core(0, nodes.capacity() - 1, gc::bitset::empt);
+    // gc::bitset lb_core(0, nodes.capacity() - 1, gc::bitset::empt);
+    gc::bitset max_clique(0, nodes.capacity() - 1, gc::bitset::empt);
 
     degeneracy_finder df(*this);
     dsatur brelaz;
     brelaz.use_recolor = false;
     df.degeneracy_ordering();
+
+    std::vector<int> degeneracy(df.degrees);
+    for (auto d{begin(df.order) + 1}; d < end(df.order); ++d) {
+        degeneracy[*d] = std::max(degeneracy[*(d - 1)], degeneracy[*d]);
+        // std::cout << std::setw(3) << *d << " " << std::setw(3) <<
+        // df.degrees[*d] << " " << std::setw(3) << degeneracy[*d] << std::endl;
+    }
+
+    std::vector<int> dg_rank(nodes.capacity());
+
+    int i{0}, lb_frontier{0},
+        ub_frontier{static_cast<int>(df.order.size()) - 1};
+    for (auto u : df.order) {
+        dg_rank[u] = i++;
+        // if(df.degree[u] == )
+    }
+
+    cliquer cq(*this);
 
     // assert(df.degeneracy == *std::max_element(begin(df.degrees),
     // end(df.degrees)));
@@ -227,7 +262,8 @@ void ca_graph::search(gc::statistics& stats, gc::options& options)
     int lb{1 + (num_edges > 0)};
     stats.notify_lb(lb);
 
-    int ub{df.degeneracy + 1};
+    int ub{df.degeneracy + 1};		
+    stats.notify_ub(ub);
 
     // std::cout << "ub = " << ub << " / " << limit << std::endl;
 
@@ -242,56 +278,165 @@ void ca_graph::search(gc::statistics& stats, gc::options& options)
 
     int period = 1000;
 
+    // auto largest_degree_criterion = [&](int x, int y) {return
+    // matrix[x].size() > matrix[y].size();};
+    auto degeneracy_rank_criterion
+        = [&](int x, int y) { return dg_rank[x] > dg_rank[y]; };
+    auto global_criterion = [&](int better, int worse) {
+
+        // 1/ start with the max clique
+        auto better_in_maxclique{max_clique.contain(better)};
+        auto worse_in_maxclique{max_clique.contain(worse)};
+        if (better_in_maxclique and !worse_in_maxclique)
+            return true;
+        if (worse_in_maxclique != better_in_maxclique)
+            return false;
+
+        // 2/ priority on vertices of the maximum ub-core
+        // auto better_in_ub_core{dg_rank[better] >= ub_frontier};
+        // auto worse_in_ub_core{dg_rank[worse] >= ub_frontier};
+        auto better_in_ub_core{degeneracy[better] >= ub};
+        auto worse_in_ub_core{degeneracy[worse] >= ub};
+        if (better_in_ub_core and !worse_in_ub_core)
+            return true;
+        if (better_in_ub_core != worse_in_ub_core)
+            return false;
+
+        // 3/ priority on vertices of the maximum lb-core
+        // auto better_in_lb_core{dg_rank[better] >= lb_frontier};
+        // auto worse_in_lb_core{dg_rank[worse] >= lb_frontier};
+        auto better_in_lb_core{degeneracy[better] >= lb};
+        auto worse_in_lb_core{degeneracy[worse] >= lb};
+        if (better_in_lb_core and !worse_in_lb_core)
+            return true;
+        if (better_in_lb_core != worse_in_lb_core)
+            return false;
+
+        // degeneracy [STATIC]
+        if (degeneracy[better] > degeneracy[worse])
+            return true;
+        if (degeneracy[better] < degeneracy[worse])
+            return false;
+
+        // degree [DYNAMIC]
+        if (matrix[better].size() > matrix[worse].size())
+            return true;
+
+        return false;
+
+    };
+
+    for (auto u : nodes)
+        brelaz.order.push_back(u);
+
+    std::sort(begin(brelaz.order), end(brelaz.order), global_criterion);
+
+    // for (auto u : brelaz.order)
+    //     std::cout << std::setw(3) << u << " " << std::setw(3)
+    //               << matrix[u].size() << " " << std::setw(3) << degeneracy[u]
+    //               << " " << (degeneracy[u] >= ub) << (degeneracy[u] >= lb)
+    //               << (max_clique.contain(u)) << "\n";
+
+    std::vector<int> largest_cliques;
+
     while (lb < ub) {
 
-        if (options.verbosity > 1 && ++stats.total_iteration % period == 0)
-            stats.force_display(std::cout);
+        // check_consistency("search loop");
+        // if (stats.total_conflicts > 100)
+        //     exit(1);
 
-        // check_consistency();
+        if (options.verbosity > 1
+            && stats.notify_iteration(depth) % period == 0)
+            stats.custom_force_display(std::cout);
 
-        assert(pedge[0] >= 0);
+        double tbefore = minicsp::cpuTime();
+        cq.clear();
+        auto clique_sz
+            = cq.find_cliques(begin(brelaz.order), end(brelaz.order), nodes.size());
 
-        if (2 * num_edges == (size() * (size() - 1))) {
-            // cur_lb = size();
-            // if( ub > size() )
-            // 	ub = size();
+        stats.notify_nclique(cq.num_cliques);
+        stats.notify_clique_time(minicsp::cpuTime() - tbefore);
 
-            std::cout << "this happens\n";
+        // std::cout << clique_sz << std::endl;
 
-            exit(1);
+        if (clique_sz > cur_lb) {
+            cur_lb = clique_sz;
         }
 
-        // std::cout << "dsatur (" << size() << ")";
+        tbefore = minicsp::cpuTime();
+        largest_cliques.clear();
+        // largest_cliques.push_back(0);
 
-        if (pedge[0] == pedge[1])
-            nub = brelaz.brelaz_color(*this, ub - 1, size(), 12345);
-        else if (contraction) {
-            coloring[pedge[0]] = 0;
-            nub = brelaz.brelaz_color_guided(
-                *this, ub - 1, pedge.v, pedge.v + 1, coloring, size(), 12345);
-        } else {
-            coloring[pedge[0]] = 0;
-            coloring[pedge[1]] = 1;
-            nub = brelaz.brelaz_color_guided(
-                *this, ub - 1, pedge.v, pedge.v + 2, coloring, size(), 12345);
+        for (auto i{1}; i < cq.cliques.size(); ++i) {
+            if (cq.cliques[i].size() >= clique_sz) {
+                largest_cliques.push_back(i);
+            }
         }
 
-        // std::cout << "nub = " << nub << "/" << size() << std::endl;
+        max_clique.clear();
+        max_clique.union_with(cq.cliques[largest_cliques[0]]);
 
-        if (nub == size())
-            exit(1);
+        int matching_bound = clique_sz;
 
-        // assert(brelaz.order.size() == size());
-        // for (auto v : brelaz.order) {
-        // 		std::cout << " " << v;
-        // }
-        // std::cout << std::endl;
+        if (largest_cliques.size() > 1) {
+
+            for (auto i{0}; i < largest_cliques.size(); ++i) {
+                auto c1{largest_cliques[i]};
+                for (auto j{i + 1}; j < largest_cliques.size(); ++j) {
+                    auto c2{largest_cliques[j]};
+
+                    B.get_from_cliques(*this, cq.cliques[c1], cq.cliques[c2]);
+                    auto mm{B.hopcroftKarp()};
+
+                    auto mm_bound = (cq.cliques[c1].size()
+                        + cq.cliques[c2].size() - B.I - mm);
+
+										// std::cout << " " << mm_bound ; //(mm_bound - std::max(cq.cliques[c1].size(), cq.cliques[c2].size()));
+										// 	// << cq.cliques[c1].size() << "," << cq.cliques[c2].size() << ":"
+										// 		<< mm_bound;
+
+
+                    if (mm_bound > matching_bound) {
+                        matching_bound = mm_bound;
+                    }
+                }
+								// for(auto j{0}; j<i; ++j)
+								// 	std::cout << "  ";
+								// std::cout << std::endl;
+								
+            }
+						// exit(1);
+						
+						
+						// std::cout << std::endl;
+
+            stats.notify_bound_delta(clique_sz, matching_bound);
+            if (cur_lb < matching_bound) {
+                cur_lb = matching_bound;
+            }
+        }
+        stats.notify_matching_time(minicsp::cpuTime() - tbefore);
+
+        tbefore = minicsp::cpuTime();
+        brelaz.clear();
+        nub = brelaz.brelaz_color_score(
+            *this, ub - 1, global_criterion, size(), 12345);
+				
+				if(nub != size())
+					std::cout << "YEEPEE!\n";
 
         // cur_lb = 0;
-        int clique_sz{0};
+        clique_sz = 0;
         for (auto v : brelaz.order) {
             // std::cout << v << " " << brelaz.color[v] << std::endl;
             if (brelaz.color[v] < clique_sz) {
+                //
+                if (brelaz.color[brelaz.order[brelaz.color[v]]]
+                    != brelaz.color[v]) {
+                    std::cout << "col[" << v << "] = " << brelaz.color[v]
+                              << " < " << clique_sz << std::endl;
+                }
+
                 assert(brelaz.color[brelaz.order[brelaz.color[v]]]
                     == brelaz.color[v]);
 
@@ -299,22 +444,64 @@ void ca_graph::search(gc::statistics& stats, gc::options& options)
                 // brelaz.order[brelaz.color[v]] << std::endl;
                 pedge = arc{v, brelaz.order[brelaz.color[v]]};
                 break;
-            }
-            ++clique_sz;
+            } // else {
+            // 							std::cout << "
+            // "
+            // <<
+            // v;
+            // 							max_clique.add(v);
+            // 						}
+            if (++clique_sz == ub)
+                break;
         }
+        stats.notify_dsatur_time(minicsp::cpuTime() - tbefore);
+
+        // std::cout << clique_sz << ":";
+        // for (int i = 0; i < clique_sz; ++i) {
+        //     std::cout << " " << brelaz.order[i];
+        // }
+        //
+        // std::cout << std::endl
+        //           << max_clique.size() << ": " << max_clique <<
+        //           std::endl;
+
+        // std::cout << " nub = " << nub << "/" << size() << std::endl;
+
+        // std::cout << "brelaz clique = " << clique_sz << std::endl;
 
         if (clique_sz > cur_lb)
             cur_lb = clique_sz;
 
-        if (depth == 0 and cur_lb > lb)
+        // std::cout << "probe clique = " << clique_sz << " in " << V.size()
+        // <<
+        // "/"
+        //           << size() << std::endl;
+
+        // // std::cout << cur_lb << ": " << max_clique << std::endl;
+        //
+        // std::cout << cq.cliques[lgst].size() << ":" ;
+        //         for (auto u : cq.cliques[lgst]) {
+        // 		std::cout << " " << u;
+        //         }
+        // std::cout << std::endl ;
+        //
+        // // assert(max_clique.size() == cur_lb);
+
+        if (depth == 0 and cur_lb > lb) {
             lb = cur_lb;
+            stats.notify_lb(lb);
+            while (degeneracy[df.order[lb_frontier]] < lb)
+                ++lb_frontier;
+        }
 
         if (ub > nub) {
             ub = nub;
             stats.notify_ub(ub);
+            while (degeneracy[df.order[ub_frontier]] >= ub)
+                --ub_frontier;
         }
 
-        brelaz.clear();
+        // cq.clear();
 
         // if (size() * (size() - 1) == 2 * num_edges)
         //     cur_lb = size();
@@ -326,8 +513,8 @@ void ca_graph::search(gc::statistics& stats, gc::options& options)
                 std::cout << std::endl << *this;
 
             std::cout //<< std::endl << *this
-                << nodes.size() << "/" << num_edges << ": [" << cur_lb << ".."
-                << ub << "]" << std::endl;
+                << nodes.size() << "/" << num_edges << ": [" << lb << ".."
+                << cur_lb << ".." << ub << "]" << std::endl;
         }
 
         //
@@ -373,6 +560,8 @@ void ca_graph::search(gc::statistics& stats, gc::options& options)
         // if (stats.total_iteration == 10000)
         //     break;
     }
+
+    stats.custom_force_display(std::cout);
 }
 
 std::ostream& ca_graph::describe(std::ostream& os, const int verbosity) const
@@ -414,20 +603,58 @@ std::ostream& ca_graph::describe(std::ostream& os, const int verbosity) const
     return os;
 }
 
-void ca_graph::check_consistency()
+void ca_graph::check_consistency(const char* msg)
 {
     auto count{2 * num_edges};
     std::vector<int> f(nodes.capacity(), 0);
     std::vector<int> b(nodes.capacity(), 0);
 
+    if (nodeset.size() != nodes.size()) {
+        std::cout << msg << ": |nodes|=" << nodes.size()
+                  << " and |nodeset|=" << nodeset.size() << std::endl;
+        exit(1);
+    }
+    // assert(nodeset.size() == nodes.size());
+
+    int total_rank{0};
     for (auto u : nodes) {
+        if (!nodeset.contain(u)) {
+            std::cout << msg << ": " << u << " in nodes but not in nodeset\n";
+            exit(1);
+        }
+        // assert(nodeset.contain(u));
+        total_rank += rank[u];
+
+        auto prev{-1};
         for (auto v : matrix[u]) {
-            assert(nodes.contain(v));
+
+            if (!nodeset.contain(u)) {
+                std::cout << msg << ": " << v << " in N(" << u
+                          << ") but not in nodes\n"
+                          << std::endl;
+                exit(1);
+            }
+
+            if (v <= prev) {
+                std::cout << msg << ": nodes not sorted N(" << u << ") =";
+                for (auto x : matrix[u]) {
+                    std::cout << " " << x;
+                    if (x == v) {
+                        std::cout << "...\n";
+                        break;
+                    }
+                }
+                exit(1);
+            }
+
+            // assert(nodes.contain(v));
             ++f[u];
             ++b[v];
             --count;
         }
     }
+
+    assert(total_rank == nodes.capacity());
 
     if (count)
         std::cout << count << std::endl;
@@ -435,12 +662,163 @@ void ca_graph::check_consistency()
     assert(count == 0);
 
     for (auto u : nodes) {
-        assert(f[u] == b[u]);
+
+        if (f[u] != b[u]) {
+            std::cout << msg << ": " << u << " has " << f[u]
+                      << " neighbors but appears in " << b[u]
+                      << " neighborhoods\n"
+                      << std::endl;
+            exit(1);
+        }
+        // assert(f[u] == b[u]);
     }
+}
+
+// Returns size of maximum matching
+int bi_graph::hopcroftKarp()
+{
+    // Initialize result
+    int result = 0;
+
+    // Keep updating the result while there is an
+    // augmenting path.
+    while (bfs()) {
+
+        // std::cout << "\nmatching (" << result << "):\n";
+        //
+        // for (int u = 0; u < N; ++u) {
+        //     if (matching[u] != T)
+        //         std::cout << u << " -- " << matching[u] << std::endl;
+        // }
+        //
+        // std::cout << "BFS\n";
+
+        // Find a free vertex
+        for (int u = N; u < T; ++u)
+            // If current vertex is free and there is
+            // an augmenting path from current vertex
+            if (matching[u] == T && dfs(u))
+                result++;
+
+        // for (int u = 0; u < T; ++u) {
+        //     std::cout << std::setw(2) << u << " " << std::setw(3) <<
+        //     original[u]
+        //               << " ";
+        //     if (dist[u] != INFTY)
+        //         std::cout << dist[u] << std::endl;
+        //     else
+        //         std::cout << "inf" << std::endl;
+        // }
+        // if (dist[T] != INFTY)
+        //     std::cout << std::setw(2) << T << "     " << dist[T] <<
+        //     std::endl;
+        // else
+        //     std::cout << std::setw(2) << T << "     inf\n";
+        // std::cout << std::endl;
+    }
+    return result;
+}
+
+// Returns true if there is an augmenting path, else returns
+// false
+bool bi_graph::bfs()
+{
+
+    // First layer of vertices (set distance as 0)
+    for (int u = N; u < T; ++u) {
+        // If this is a free vertex, add it to queue
+        if (matching[u] == T) {
+            // u is not matched
+            dist[u] = 0;
+            Q.push_back(u);
+            // std::cout << " " << u;
+        } else {
+            dist[u] = INFTY;
+            // std::cout << " -" << u;
+        }
+    }
+
+    // std::cout << std::endl;
+
+    // Initialize distance to T as infinite
+    dist[T] = INFTY;
+
+    // Q is going to contain vertices of left side only.
+    while (q < Q.size()) {
+        // Dequeue a vertex
+        int u = Q[q++];
+
+        // std::cout << u << ":";
+
+        // If this node is not T and can provide a shorter path to T
+        if (dist[u] < dist[T]) {
+            // Get all adjacent vertices of the dequeued vertex u
+            for (auto v : matrix[u]) {
+                // If pair of v is not considered so far
+                // (v, pairV[V]) is not yet explored edge.
+                if (dist[matching[v]] == INFTY) {
+                    // Consider the pair and add it to queue
+                    dist[matching[v]] = dist[u] + 1;
+                    Q.push_back(matching[v]);
+
+                    // std::cout << " " << matching[v];
+                }
+            }
+        }
+
+        // std::cout << std::endl;
+    }
+
+    // If we could come back to T using alternating path of distinct
+    // vertices then there is an augmenting path
+    return (dist[T] != INFTY);
+}
+
+// Returns true if there is an augmenting path beginning with free vertex u
+bool bi_graph::dfs(const int u)
+{
+    if (u != T) {
+        for (auto v : matrix[u]) {
+            if (dist[matching[v]] == dist[u] + 1) {
+                if (dfs(matching[v])) {
+                    matching[u] = v;
+                    matching[v] = u;
+                    return true;
+                }
+            }
+        }
+
+        dist[u] = INFTY;
+        return false;
+    }
+
+    return true;
+}
+
+std::ostream& bi_graph::describe(std::ostream& os) const
+{
+
+    for (int i = 0; i < T; ++i) {
+        if (i == N)
+            std::cout << std::endl;
+
+        os << original[i] << ":";
+        for (auto j : matrix[i]) {
+            os << " " << original[j];
+        }
+        os << std::endl;
+    }
+
+    return os;
 }
 
 std::ostream& operator<<(std::ostream& os, const gc::ca_graph& g)
 {
     return g.describe(os, 3);
+}
+
+std::ostream& operator<<(std::ostream& os, const gc::bi_graph& g)
+{
+    return g.describe(os);
 }
 }

@@ -286,7 +286,7 @@ struct dsatur {
 
             auto c{coloring[v]};
 
-            // std::cout << " " << v << ":" << c;
+            // std::cout << " " << v; //<< ":" << c;
 
             // std::cout << c << " " << color_map.size() << " " << ub <<
             // std::endl;
@@ -331,7 +331,10 @@ struct dsatur {
                 last_vertex[d++] = it + 1;
         }
 
-        auto ncol{brelaz_greedy(g, g.size(), first, limit)};
+        // std::cout << " |";
+
+        auto ncol{brelaz_greedy(g, ub, first, limit,
+            [&](int x, int y) { return degree[x] > degree[y]; })};
 
         for (auto v : g.nodes) {
             coloring[v] = color[v];
@@ -615,11 +618,16 @@ struct dsatur {
         last_vertex.resize(nsize + 2, cur);
     }
 
-    template <class graph_struct>
+    template <class graph_struct, typename tiebreaker>
     int brelaz_greedy(graph_struct& g, const int ub,
-        std::vector<int>::iterator start, const int limit)
+        std::vector<int>::iterator start, const int limit, tiebreaker criterion
+        //=([&](int x, int y){return degree[x] > degree[y];})
+        )
     {
-        // std::cout << ub << ":";
+        // std::cout << " (" << ub << ")";
+        // bool first_clq{true};
+
+        assert(!use_recolor);
 
         int potential_colors = begin(neighbor_colors)->b.size();
 
@@ -646,12 +654,21 @@ struct dsatur {
             // get the highest saturation degree
             d = neighbor_colors[*candidate].size();
 
+            // std::cout << "limit=" << limit << std::endl;
             if (limit > 1) {
-                auto best{std::max_element(candidate,
-                    std::min(last_vertex[d], candidate + limit),
-                    [&](const int x_, const int y_) {
-                        return (degree[x_] < degree[y_]);
-                    })};
+
+                // for(auto it{candidate}; it!=std::min(last_vertex[d],
+                // candidate + limit); ++it)
+                // 	std::cout << degree[*it] << " ";
+
+                auto best{std::min_element(candidate,
+                    std::min(last_vertex[d], candidate + limit), criterion
+                    // [&](const int x_, const int y_) {
+                    //     return (degree[x_] > degree[y_]);
+                    // }
+                    )};
+
+                // std::cout << "-> " << degree[*best] << std::endl;
                 std::swap(
                     rank[*best], rank[*candidate]); // not sure this is useful
                 std::swap(*best, *candidate);
@@ -671,10 +688,23 @@ struct dsatur {
                     or !recolor(g, *candidate, c)) {
                     ++numcolors;
                     frontier = candidate;
+
+                    // if (first_clq)
+                    //     std::cout << " "
+                    //               << *candidate; //<< " (" << numcolors <<
+                    //               ")";
+
                 } else {
                     --d;
                 }
             }
+
+            // else {
+            //     // if(first_clq)
+            //     // 	std::cout << " (" << numcolors << ")" ;
+            //
+            //     first_clq = false;
+            // }
 
             // std::cout << " " << c;
 
@@ -683,9 +713,11 @@ struct dsatur {
             if (numcolors > ub) {
                 color[*candidate] = c;
 
-                // std::cout << "CANNOT IMPROVE ON " << (ub + 1) << " -> return
-                // " << (g.size()) << std::endl;
-                std::cout << " STOP\n";
+                // // std::cout << "CANNOT IMPROVE ON " << (ub + 1) << " ->
+                // return
+                // // " << (g.size()) << std::endl;
+                // std::cout << " STOP (" << numcolors << "/"
+                //           << (candidate - start) << ")\n";
 
                 return g.size();
             }
@@ -724,7 +756,36 @@ struct dsatur {
             return (degree[x_] > degree[y_]);
         });
 
-        return brelaz_greedy(g, ub, begin(order), limit);
+        return brelaz_greedy(g, ub, begin(order), limit,
+            [&](int x, int y) { return degree[x] > degree[y]; });
+    }
+
+    template <class graph_struct, typename F>
+    int brelaz_color_score(graph_struct& g, const int ub, F criterion,
+        const int limit = 1, const int seed = 1)
+    {
+        if (g.nodes.empty())
+            return 0;
+
+        // std::cout << "limit=" << limit << std::endl;
+        //
+        // std::cout << "seed=" << seed << std::endl;
+
+        brelaz_init(g, ub, limit, seed);
+
+        std::sort(begin(order), end(order), criterion
+            // [&](const int x_, const int y_) {
+            //             return (criterion(x_) > criterion(y_));
+            //         }
+            );
+
+        // for(auto u : order)
+        // 	std::cout << std::setw(3) << u << " " << std::setw(3) <<
+        // degree[u]
+        // 		// << " " << std::setw(3) << criterion(u)
+        // 			<< "\n";
+
+        return brelaz_greedy(g, ub, begin(order), limit, criterion);
     }
 
     template <class graph_struct>
@@ -911,8 +972,9 @@ struct dsatur {
     {
         last_vertex.clear();
         color.clear();
-        for (auto v : order)
-            neighbor_colors[v].clear();
+        if (neighbor_colors.size() > 0)
+            for (auto v : order)
+                neighbor_colors[v].clear();
         order.clear();
         ncolor.clear();
     }

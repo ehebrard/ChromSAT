@@ -1,6 +1,8 @@
 #ifndef __CG_CA_GRAPH_HH
 #define __CG_CA_GRAPH_HH
 
+#include <limits>
+
 #include "dsatur.hpp"
 #include "intstack.hpp"
 #include "statistics.hpp"
@@ -10,118 +12,153 @@
 namespace gc
 {
 
-// template <class graph_struct> struct cliquer {
-//     const graph_struct& g;
-//     std::vector<std::vector<int>> cliques;
-//     std::vector<gc::bitset> candidates;
-//     std::vector<int> last_clique;
-//     int num_cliques;
-//     int limit;
-//
-//
-//     cliquer(const graph_struct& ig, const int c = 0xfffffff)
-//         : g(ig)
-//         , num_cliques(1)
-//         , limit(c)
-//     {
-//         last_clique.resize(g.capacity());
-//     }
-//
-//
-//     // clear previously cached results
-//     void clear()
-//     {
-//         num_cliques = 0;
-//     }
-//     // initialize a new clique
-//     void new_clique();
-//
-//     // insert v into the clq^th clique. assumes it fits
-//     void insert(int v, int clq);
-//
-//     // heuristically find a set of cliques and return the size of the
-//     // largest
-//     template <class ForwardIterator>
-//     int find_cliques(
-//         ForwardIterator beg_ordering, ForwardIterator end_ordering)
-//     {
-//         clear();
-// 				for (auto it{beg_ordering}; it != end_ordering;
-// ++it)
+// template <class container> bool is_sorted(container& c)
 // {
-// 	          bool found{false};
-// 	          for (int i = 0; i != num_cliques; ++i)
-// 	              if (candidates[i].fast_contain(*it)) {
-// 	                  found = true;
-// 	                  insert(*it, i);
-// 	              }
-// 	          if (!found && num_cliques < limit) {
-// 	              new_clique();
-// 	              insert(*it, num_cliques - 1);
-// 	          }
-// 				}
-//
-// 				for (auto it{beg_ordering}; it != end_ordering;
-// ++it)
-// {
-// 	          for (int i = last_clique[*it] + 1; i < num_cliques; ++i)
-// 	              if (candidates[i].fast_contain(*it)) {
-// 	                  insert(*it, i);
-// 	              }
-// 				}
-//
-//         auto maxclique{*std::max_element(
-//             begin(clique_sz), begin(clique_sz) + num_cliques)};
-//
-//         return maxclique;
+//     auto prev{c[0] - 1};
+//     for (auto x : c) {
+//         if (x < prev)
+//             return false;
+//         prev = x;
 //     }
 //
-//
-//
-// 	};
-//
-//
-// 	template <class graph_struct>
-// 	void cliquer<graph_struct>::new_clique()
-// 	{
-// 		if(cliques.size() == num_cliques) {
-// 			cliques.resize(num_cliques+1);
-// 			candidates.resize(num_cliques+1);
-// 			candidates.back().initialise(0, g.capacity(),
-// bitset::empt)
-// 		}
-//
-// 	    cliques[num_cliques].clear();
-// 	    clique_sz[num_cliques] = 0;
-// 	    candidates[num_cliques].copy(g.nodeset);
-// 	    ++num_cliques;
-// 	}
-// 	// initialize a new color
-// 	template <class graph_struct>
-// 	void cliquer<graph_struct>::new_color()
-// 	{
-// 	    assert(num_cliques < g.capacity());
-// 	    cliques[num_cliques].clear();
-// 	    clique_sz[num_cliques] = 0;
-// 	    candidates[num_cliques].clear();
-// 	    ++num_cliques;
-// 	}
-// 	// insert v into the clq^th clique. assumes it fits
-// 	template <class graph_struct>
-// 	void cliquer<graph_struct>::insert(int v, int clq)
-// 	{
-// 	    cliques[clq].fast_add(v);
-// 	    ++clique_sz[clq];
-// 	    candidates[clq].intersect_with(g.matrix[v]);
-// 	    last_clique[v] = clq;
-//
-// 	    // if (update_nn) {
-// 	    //     for (auto u : g.matrix[v]) {
-// 	    //         if (g.nodeset.fast_contain(u))
-// 	    //             ++num_neighbors_of[clq][u];
-// 	    //     }
-// 	    // }
-// 	}
+//     return true;
+// }
+
+template <class graph_struct> struct cliquer {
+    const graph_struct& g;
+    std::vector<std::vector<int>> cliques;
+    std::vector<gc::bitset> candidates;
+    std::vector<int> last_clique;
+    size_t num_cliques;
+    size_t maxcliquesize;
+
+    cliquer(const graph_struct& ig)
+        : g(ig)
+        , num_cliques(0)
+        , maxcliquesize(0)
+    {
+        last_clique.resize(g.capacity());
+    }
+
+    // clear previously cached results
+    void clear()
+    {
+        num_cliques = 0;
+        maxcliquesize = 0;
+    }
+    // initialize a new clique
+    void new_clique();
+
+    // insert v into the clq^th clique. assumes it fits
+    void insert(int v, int clq);
+
+    // heuristically find a set of cliques and return the size of the
+    // largest
+    template <class ForwardIterator>
+    int find_cliques(ForwardIterator beg_ordering, ForwardIterator end_ordering, const int limit=0xfffffff)
+    {
+        clear();
+        for (auto it{beg_ordering}; it != end_ordering; ++it) {
+
+            // std::cout << *it ;
+
+            bool found{false};
+            for (int i = 0; i != num_cliques; ++i)
+                if (candidates[i].fast_contain(*it)) {
+                    found = true;
+                    insert(*it, i);
+                    // std::cout << ":" << i << " ";
+                }
+            if (!found && num_cliques < limit) {
+                new_clique();
+                insert(*it, num_cliques - 1);
+                // std::cout << ":" << (num_cliques - 1) << "* ";
+            }
+        }
+
+        // std::cout << "| ";
+
+        for (auto it{beg_ordering}; it != end_ordering; ++it) {
+            for (int i = last_clique[*it] + 1; i < num_cliques; ++i)
+                if (candidates[i].fast_contain(*it)) {
+                    insert(*it, i);
+                    // std::cout << *it << ":" << (num_cliques - 1) << " ";
+                }
+        }
+
+        // std::cout << " -> " << maxcliquesize << std::endl;
+
+        return maxcliquesize;
+    }
+
+    // heuristically find a set of cliques and return the size of the
+    // largest
+    template <typename ForwardIterator, typename set>
+    int find_cliques_in(
+        ForwardIterator beg_ordering, ForwardIterator end_ordering, set nodes)
+    {
+        clear();
+        for (auto it{beg_ordering}; it != end_ordering; ++it) {
+            // std::cout << *it ;
+
+            if (!nodes.contain(*it))
+                continue;
+
+            bool found{false};
+            for (int i = 0; i != num_cliques; ++i)
+                if (candidates[i].fast_contain(*it)) {
+                    found = true;
+                    insert(*it, i);
+                    // std::cout << ":" << i << " ";
+                }
+            if (!found) {
+                new_clique();
+                insert(*it, num_cliques - 1);
+                // std::cout << ":" << (num_cliques - 1) << "* ";
+            }
+        }
+
+        // std::cout << "| ";
+
+        for (auto it{beg_ordering}; it != end_ordering; ++it) {
+
+            if (!nodes.contain(*it))
+                continue;
+
+            for (int i = last_clique[*it] + 1; i < num_cliques; ++i)
+                if (candidates[i].fast_contain(*it)) {
+                    insert(*it, i);
+                    // std::cout << *it << ":" << (num_cliques - 1) << " ";
+                }
+        }
+
+        // std::cout << " -> " << maxcliquesize << std::endl;
+
+        return maxcliquesize;
+    }
+};
+
+template <class graph_struct> void cliquer<graph_struct>::new_clique()
+{
+    if (cliques.size() == num_cliques) {
+        cliques.resize(num_cliques + 1);
+        candidates.resize(num_cliques + 1);
+        candidates.back().initialise(0, g.capacity(), bitset::empt);
+    }
+
+    cliques[num_cliques].clear();
+    candidates[num_cliques].copy(g.nodeset);
+    ++num_cliques;
+}
+
+// insert v into the clq^th clique. assumes it fits
+template <class graph_struct> void cliquer<graph_struct>::insert(int v, int clq)
+{
+    cliques[clq].push_back(v);
+    candidates[clq].intersect_with(begin(g.matrix[v]), end(g.matrix[v]));
+    last_clique[v] = clq;
+    maxcliquesize = std::max(maxcliquesize, cliques[clq].size());
+}
 
 template <class InputIterator1, class InputIterator2, class OutputIterator,
     class DeltaIterator, class InterIterator>
@@ -171,12 +208,233 @@ ForwardIt find_in(ForwardIt first, ForwardIt last, const T& value)
         if (*it < value) {
             first = ++it;
             count -= step + 1;
-        } else if (*it == value)
+        } else if (*it == value) {
             return it;
-        else
+        } else
             count = step;
     }
+
     return first;
+}
+
+class bi_graph
+{
+
+public:
+    const int INFTY = std::numeric_limits<int>::max();
+
+private:
+    // static const int T = -1;
+
+    std::vector<int> vmap;
+    bitset first;
+
+    std::vector<int> dist;
+
+    std::vector<int> Q;
+    int q;
+
+public:
+    int N;
+    int T;
+    int I;
+
+    std::vector<int> original;
+    std::vector<int> matching;
+
+    // intstack nodes;
+
+    std::vector<std::vector<int>> matrix;
+
+    bi_graph() {}
+
+    template <class graph_struct, class clique_struct>
+    void get_from_cliques(
+        graph_struct& g, clique_struct& c1, clique_struct& c2);
+
+    bool dfs(const int u);
+    bool bfs();
+    int hopcroftKarp();
+
+    template <class graph_struct, class clique_struct>
+    int get_bound(graph_struct& g, clique_struct& c1, clique_struct& c2);
+
+    std::ostream& describe(std::ostream& os) const;
+};
+
+template <class graph_struct, class clique_struct>
+int bi_graph::get_bound(graph_struct& g, clique_struct& c1, clique_struct& c2)
+{
+    get_from_cliques(g, c1, c2);
+    return c1.size() + c2.size() - I - hopcroftKarp();
+}
+
+template <class graph_struct, class clique_struct>
+void bi_graph::get_from_cliques(
+    graph_struct& g, clique_struct& c1, clique_struct& c2)
+{
+    // std::cout << g << std::endl;
+
+    Q.clear();
+    q = 0;
+
+    vmap.clear();
+    vmap.resize(g.capacity(), -1);
+
+    // nodes.clear();
+    // nodes.reserve(c1.size() + c2.size());
+
+    matrix.resize(g.capacity());
+
+    original.clear();
+
+    first.reinitialise(0, g.capacity() - 1, bitset::empt);
+
+    std::sort(begin(c1), end(c1));
+    std::sort(begin(c2), end(c2));
+
+    // for (auto u : c1) {
+    //     std::cout << " " << u;
+    // }
+    // std::cout << std::endl;
+    // for (auto u : c2) {
+    //     std::cout << " " << u;
+    // }
+    // std::cout << std::endl;
+    //
+    // std::cout << c1.size() << " " << c2.size() << std::endl;
+
+    N = 0;
+    I = 0;
+    int i{0}, j{0};
+    while (i < c1.size() or j < c2.size()) {
+
+        // std::cout << i << " " << j;
+        if (i < c1.size() and j < c2.size()) {
+            if (c1[i] < c2[j]) {
+                // std::cout << " -> " << c1[i];
+                original.push_back(c1[i]);
+                first.add(c1[i++]);
+                ++N;
+            } else if (c1[i] > c2[j]) {
+                // std::cout << " -> " << c2[j];
+                original.push_back(c2[j++]);
+            } else {
+                ++I;
+                ++i;
+                ++j;
+            }
+        } else if (i == c1.size()) {
+            while (j < c2.size()) {
+                // std::cout << " -> " << c2[j];
+                original.push_back(c2[j++]);
+            }
+        } else {
+            while (i < c1.size()) {
+                // std::cout << " -> " << c1[i];
+                original.push_back(c1[i]);
+                first.add(c1[i++]);
+                ++N;
+            }
+        }
+
+        // std::cout << std::endl;
+    }
+    // for (auto u : original) {
+    //     std::cout << " " << u;
+    // }
+    // std::cout << std::endl;
+
+    std::sort(begin(original), end(original), [&](int x, int y) {
+        return first.contain(x) > first.contain(y)
+            or (first.contain(x) == first.contain(y) and x < y);
+    });
+
+    i = 0;
+    for (auto u : original) {
+        // std::cout << " " << u;
+        vmap[u] = i++;
+
+        // if (i == N)
+        //     std::cout << " |";
+    }
+    // std::cout << std::endl;
+
+    T = original.size();
+    // nodes.reserve(original.size());
+    // nodes.fill();
+
+    // T = nodes.size();
+
+    matching.clear();
+    matching.resize(T + 1, T);
+
+    dist.clear();
+    dist.resize(T + 1, INFTY);
+
+    // for (auto u : c1) {
+    //     std::cout << " " << u;
+    //     if (vmap[u] == -1) {
+    //         original.push_back(u);
+    //         vmap[u] = nodes.size();
+    //         nodes.push(vmap[u]);
+    //         matrix[vmap[u]].clear();
+    //     }
+    // }
+    // std::cout << std::endl;
+    //
+    // int N{static_cast<int>(nodes.size())};
+    //
+    // for (auto u : c2) {
+    //     std::cout << " " << u;
+    //     if (vmap[u] == -1) {
+    //         original.push_back(u);
+    //         vmap[u] = nodes.size();
+    //         nodes.push(vmap[u]);
+    //         matrix[vmap[u]].clear();
+    //     }
+    // }
+    // std::cout << std::endl;
+
+    for (i = 0; i < T; ++i) {
+        matrix[i].clear();
+    }
+
+    for (i = 0; i < N; ++i) {
+        auto u{original[i]};
+        auto prev{N};
+        auto p{-1};
+        for (auto v : g.matrix[u]) {
+            assert(p < v);
+            p = v;
+            if (vmap[v] >= N) {
+                auto next{vmap[v]};
+                for (int w = prev; w < next; ++w) {
+                    matrix[i].push_back(w);
+                    matrix[w].push_back(i);
+                }
+                prev = next + 1;
+            }
+        }
+    }
+    // for (auto u : ) {
+    //     int prev{N};
+    //     for (auto v : g.matrix[u]) {
+    //         if (u < v and vmap[v]) {
+    //             int next{vmap[v]};
+    //             for (int w = prev; w < next; ++w) {
+    //                 matrix[vmap[u]].push_back(w);
+    // 										matrix[w].push_back(vmap[u]);
+    // 								}
+    //             prev = next + 1;
+    //         }
+    //     }
+    // }
+
+    // this->describe(std::cout);
+
+    // exit(1);
+    // std::cout << *this << std::endl;
 }
 
 class ca_graph
@@ -212,6 +470,8 @@ public:
     std::vector<int> parent;
 
     // struct for merge, rank of the tree whose root is v
+    std::vector<int> rank;
+
     // struct for merge, size of the tree whose root is v
 
     ca_graph() {}
@@ -219,11 +479,17 @@ public:
         : matrix(nv)
         , num_edges(0)
         , parent(nv)
+        , rank(nv)
     {
         nodes.reserve(nv);
         nodes.fill();
-        for (auto v : nodes)
+
+        nodeset.initialise(0, nv - 1, gc::bitset::full);
+
+        for (auto v : nodes) {
             parent[v] = v;
+            rank[v] = 1;
+        }
     }
 
     size_t size() const { return nodes.size(); }
@@ -264,10 +530,11 @@ public:
 
     // void print() const;
 
-    void check_consistency();
+    void check_consistency(const char* msg);
 };
 
 std::ostream& operator<<(std::ostream& os, const ca_graph& g);
+std::ostream& operator<<(std::ostream& os, const bi_graph& g);
 
 } // namespace gc
 

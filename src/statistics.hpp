@@ -44,6 +44,12 @@ struct statistics {
         num_iterations = 0;
         core_size = 0;
 
+        avg_depth = 0;
+
+        matching_cpu = 0;
+        clique_cpu = 0;
+        dsatur_cpu = 0;
+
         start_time = minicsp::cpuTime();
     }
 
@@ -51,6 +57,9 @@ struct statistics {
     void describe(std::ostream&);
     void display(std::ostream&);
     void force_display(std::ostream&);
+
+    void custom_display(std::ostream&);
+    void custom_force_display(std::ostream&);
 
     void binds(cons_base* c);
     void unbinds();
@@ -76,7 +85,8 @@ struct statistics {
 
     // double total_time;
     uint64_t total_conflicts;
-		uint64_t total_iteration;
+    uint64_t total_iteration;
+    int notify_iteration(const int depth);
 
     // the actual statistics
     uint64_t num_neighborhood_contractions;
@@ -91,10 +101,19 @@ struct statistics {
 
     uint64_t num_iterations;
     int core_size;
-    void notify_iteration(const int cs);
+    // void notify_iteration(const int cs);
 
-    // in order to ignor reading time
+    // in order to ignore reading time
     double start_time;
+
+    double avg_depth;
+
+    double matching_cpu;
+    void notify_matching_time(const double t);
+    double clique_cpu;
+    void notify_clique_time(const double t);
+    double dsatur_cpu;
+    void notify_dsatur_time(const double t);
 };
 
 } // namespace gc

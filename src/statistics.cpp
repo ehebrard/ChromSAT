@@ -63,12 +63,19 @@ namespace gc
 	 }
 	}
 
-	
-		
-void statistics::notify_bound_delta(const int b1, const int b2)
-{
-		total_bound_1 += b1;
-		total_bound_2 += b2;
+        int statistics::notify_iteration(const int depth)
+        {
+            avg_depth *= (double)(total_iteration++);
+            avg_depth += (double)depth;
+            avg_depth /= (double)total_iteration;
+
+            return total_iteration;
+        }
+
+        void statistics::notify_bound_delta(const int b1, const int b2)
+        {
+            total_bound_1 += b1;
+            total_bound_2 += b2;
 }
 
 int statistics::get_avg_nclq()
@@ -107,21 +114,25 @@ void statistics::notify_removals(const int n)
 		}
 }
 
+void statistics::notify_matching_time(const double t) { matching_cpu += t; }
+void statistics::notify_clique_time(const double t) { clique_cpu += t; }
+void statistics::notify_dsatur_time(const double t) { dsatur_cpu += t; }
+
 double statistics::get_bound_increase() const {
 		if(total_bound_1)
 				return (double)total_bound_2/(double)total_bound_1;
 		return 0;
 }
 
-void statistics::notify_iteration(const int cs)
-{
-    core_size = cs;
-    ++num_iterations;
-    if (num_iterations < 100 or num_iterations % 100 == 0) {
-        changed = true;
-        display(std::cout);
-    }
-}
+// void statistics::notify_iteration(const int cs)
+// {
+//     core_size = cs;
+//     ++num_iterations;
+//     if (num_iterations < 100 or num_iterations % 100 == 0) {
+//         changed = true;
+//         display(std::cout);
+//     }
+// }
 
 void statistics::describe(std::ostream& os)
 {
@@ -164,6 +175,49 @@ void statistics::display(std::ostream& os)
            << (cons ? total_conflicts + cons->s.conflicts : total_conflicts)
            << "| moves = " << std::setw(10) << total_iteration
            << "| memory = " << std::setw(8) << std::left << (long)resident_set
+           << std::endl;
+    }
+
+    changed = false;
+}
+
+void statistics::custom_force_display(std::ostream& os)
+{
+    changed = true;
+    custom_display(os);
+}
+
+void statistics::custom_display(std::ostream& os)
+{
+    if (update_lb and cons and best_lb < cons->bestlb) {
+        changed = true;
+        best_lb = cons->bestlb;
+    }
+    if (ub_safe and update_ub and cons and best_ub > cons->ub) {
+        changed = true;
+        best_ub = cons->ub;
+    }
+
+    if (changed) {
+
+        double vm_usage;
+        double resident_set;
+
+        process_mem_usage(vm_usage, resident_set);
+
+        os.setf(std::ios_base::fixed, std::ios_base::floatfield);
+        os << "[data] lb = " << std::setw(4) << std::left << best_lb
+           << "| ub = " << std::setw(4) << std::left << best_ub
+           << "| clq = " << std::setw(4) << std::left << get_avg_nclq()
+           << "| delta = " << std::setw(4) << std::left << get_bound_increase()
+           << "| depth = " << std::setw(8) << std::left << std::setprecision(4)
+           << avg_depth << "| cpu = " << std::setw(7) << std::left
+           << std::setprecision(2) << (minicsp::cpuTime() - start_time) 
+           << "c:" << std::setw(6) << std::setprecision(1) << clique_cpu
+           << "m:" << std::setw(6) << std::setprecision(1) << matching_cpu
+           << "d:" << std::setw(6) << std::setprecision(1) << dsatur_cpu
+           << "| conflicts = " << std::setw(8) << std::left
+           << (cons ? total_conflicts + cons->s.conflicts : total_conflicts)
            << std::endl;
     }
 
