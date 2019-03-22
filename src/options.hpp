@@ -15,6 +15,12 @@ struct options {
     std::string instance_file;
     std::string solution_file;
 
+    enum algo {
+        CDCL,
+        SIMPLE,
+    };
+    algo method;
+
     // minicsp options
     bool trace{false};
 

@@ -367,10 +367,10 @@ void ca_graph::search(gc::statistics& stats, gc::options& options)
         largest_cliques.clear();
         // largest_cliques.push_back(0);
 
-        for (auto i{1}; i < cq.cliques.size(); ++i) {
-            if (cq.cliques[i].size() >= clique_sz) {
-                largest_cliques.push_back(i);
-            }
+        for (auto i{0}; i < cq.cliques.size(); ++i) {
+            // if (cq.cliques[i].size() >= clique_sz) {
+            largest_cliques.push_back(i);
+            // }
         }
 
         max_clique.clear();
@@ -382,6 +382,12 @@ void ca_graph::search(gc::statistics& stats, gc::options& options)
 
             for (auto i{0}; i < largest_cliques.size(); ++i) {
                 auto c1{largest_cliques[i]};
+
+                std::cout << cq.cliques[c1].size();
+
+                for (auto j{0}; j < i; ++j)
+                    std::cout << "  ";
+
                 for (auto j{i + 1}; j < largest_cliques.size(); ++j) {
                     auto c2{largest_cliques[j]};
 
@@ -391,24 +397,23 @@ void ca_graph::search(gc::statistics& stats, gc::options& options)
                     auto mm_bound = (cq.cliques[c1].size()
                         + cq.cliques[c2].size() - B.I - mm);
 
-										// std::cout << " " << mm_bound ; //(mm_bound - std::max(cq.cliques[c1].size(), cq.cliques[c2].size()));
-										// 	// << cq.cliques[c1].size() << "," << cq.cliques[c2].size() << ":"
-										// 		<< mm_bound;
-
+                    std::cout << " "
+                              << (mm_bound - std::max(cq.cliques[c1].size(),
+                                                 cq.cliques[c2].size()));
+                    // << cq.cliques[c1].size() << "," << cq.cliques[c2].size()
+                    // << ":"
+                    // << mm_bound;
 
                     if (mm_bound > matching_bound) {
                         matching_bound = mm_bound;
                     }
                 }
-								// for(auto j{0}; j<i; ++j)
-								// 	std::cout << "  ";
-								// std::cout << std::endl;
-								
+
+                std::cout << std::endl;
             }
-						// exit(1);
-						
-						
-						// std::cout << std::endl;
+            exit(1);
+
+            // std::cout << std::endl;
 
             stats.notify_bound_delta(clique_sz, matching_bound);
             if (cur_lb < matching_bound) {

@@ -89,6 +89,8 @@ options parse(int argc, char* argv[])
     cmd.add<UnlabeledValueArg<std::string>>(
         opt.solution_file, "solfile", "solution file", false, "", "string");
     cmd.add<SwitchArg>(opt.trace, "", "trace", "enable minicsp tracing", false);
+    cmd.add<ValueArg<int>>(
+        opt.method, "", "method", "CDCL(0) or BNB(1)", false, 0, "int");
     cmd.add<ValueArg<int>>(opt.learning, "", "learning",
         "CDCLeaning & explanation level [0-1]", false, 1, "int");
     cmd.add<SwitchArg>(

@@ -2146,11 +2146,14 @@ int main(int argc, char* argv[])
 
     auto options = gc::parse(argc, argv);
 
-    gc::ca_graph g;
-    auto result = ccolor(options, g);
-
-    // gc::graph<gc::vertices_vec> g;
-    // auto result = color(options, g);
+    int result;
+    if (options.method == gc::options::CDCL) {
+        gc::graph<gc::vertices_vec> g;
+        result = color(options, g);
+    } else {
+        gc::ca_graph g;
+        result = ccolor(options, g);
+    }
 
     return result;
 }
