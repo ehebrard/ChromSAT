@@ -139,9 +139,10 @@ void ca_graph::get_subproblem(std::vector<int>& vertices, const int size_limit)
 										// std::cout << " *";
                 }
 
-                std::cout << " " << std::setw(2) << matching_debt.back()[j];
             } else
                 matching_debt.back().push_back(0);
+
+            std::cout << " " << std::setw(2) << matching_debt.back()[j];
         }
 
         explored_cliques.add(i);
@@ -592,9 +593,9 @@ void ca_graph::search(gc::statistics& stats, gc::options& options)
         // largest_cliques.push_back(0);
 
         for (auto i{0}; i < cq.cliques.size(); ++i) {
-            // if (cq.cliques[i].size() >= clique_sz) {
-            largest_cliques.push_back(i);
-            // }
+            if (cq.cliques[i].size() >= clique_sz-1) {
+                largest_cliques.push_back(i);
+            }
         }
 
         max_clique.clear();
@@ -608,7 +609,7 @@ void ca_graph::search(gc::statistics& stats, gc::options& options)
         // }
         // std::cout << std::endl;
 
-        if (largest_cliques.size() > 1) {
+        if (ub - clique_sz < 4 and largest_cliques.size() > 1) {
 
             for (auto i{0}; i < largest_cliques.size(); ++i) {
                 auto c1{largest_cliques[i]};
@@ -646,6 +647,13 @@ void ca_graph::search(gc::statistics& stats, gc::options& options)
             // exit(1);
 
             // std::cout << std::endl;
+
+            // if(clique_sz < matching_bound-1)
+            // 	std::cout << (matching_bound - clique_sz) << std::endl;
+
+            // // if(clique_sz == matching_bound)
+            // std::cout << clique_sz << " " << (matching_bound - clique_sz)
+            //           << std::endl;
 
             stats.notify_bound_delta(clique_sz, matching_bound);
             if (cur_lb < matching_bound) {

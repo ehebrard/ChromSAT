@@ -12,70 +12,69 @@
 
 namespace gc
 {
-	
-	
-	//////////////////////////////////////////////////////////////////////////////
-	//
-	// process_mem_usage(double &, double &) - takes two doubles by reference,
-	// attempts to read the system-dependent data for a process' virtual memory
-	// size and resident set size, and return the results in KB.
-	//
-	// On failure, returns 0.0, 0.0
 
-	void process_mem_usage(double& vm_usage, double& resident_set)
-	{
-	   using std::ios_base;
-	   using std::ifstream;
-	   using std::string;
+//////////////////////////////////////////////////////////////////////////////
+//
+// process_mem_usage(double &, double &) - takes two doubles by reference,
+// attempts to read the system-dependent data for a process' virtual memory
+// size and resident set size, and return the results in KB.
+//
+// On failure, returns 0.0, 0.0
 
-	   vm_usage     = 0.0;
-	   resident_set = 0.0;
+void process_mem_usage(double& vm_usage, double& resident_set)
+{
+    using std::ios_base;
+    using std::ifstream;
+    using std::string;
 
-	   // 'file' stat seems to give the most reliable results
-	   //
-		 
-		 
-	   std::ifstream stat_stream("/proc/self/stat",std::ios_base::in);
+    vm_usage = 0.0;
+    resident_set = 0.0;
 
-		 if(stat_stream) {
-	   // dummy vars for leading entries in stat that we don't care about
-	   //
-	   std::string pid, comm, state, ppid, pgrp, session, tty_nr;
-	   std::string tpgid, flags, minflt, cminflt, majflt, cmajflt;
-	   std::string utime, stime, cutime, cstime, priority, nice;
-	   std::string O, itrealvalue, starttime;
+    // 'file' stat seems to give the most reliable results
+    //
 
-	   // the two fields we want
-	   //
-	   unsigned long vsize;
-	   long rss;
+    std::ifstream stat_stream("/proc/self/stat", std::ios_base::in);
 
-	   stat_stream >> pid >> comm >> state >> ppid >> pgrp >> session >> tty_nr
-	               >> tpgid >> flags >> minflt >> cminflt >> majflt >> cmajflt
-	               >> utime >> stime >> cutime >> cstime >> priority >> nice
-	               >> O >> itrealvalue >> starttime >> vsize >> rss; // don't care about the rest
+    if (stat_stream) {
+        // dummy vars for leading entries in stat that we don't care about
+        //
+        std::string pid, comm, state, ppid, pgrp, session, tty_nr;
+        std::string tpgid, flags, minflt, cminflt, majflt, cmajflt;
+        std::string utime, stime, cutime, cstime, priority, nice;
+        std::string O, itrealvalue, starttime;
 
-	   stat_stream.close();
+        // the two fields we want
+        //
+        unsigned long vsize;
+        long rss;
 
-	   long page_size_kb = sysconf(_SC_PAGE_SIZE) / 1024; // in case x86-64 is configured to use 2MB pages
-	   vm_usage     = vsize / 1024.0;
-	   resident_set = rss * page_size_kb;
-	 }
-	}
+        stat_stream >> pid >> comm >> state >> ppid >> pgrp >> session >> tty_nr
+            >> tpgid >> flags >> minflt >> cminflt >> majflt >> cmajflt >> utime
+            >> stime >> cutime >> cstime >> priority >> nice >> O >> itrealvalue
+            >> starttime >> vsize >> rss; // don't care about the rest
 
-        int statistics::notify_iteration(const int depth)
-        {
-            avg_depth *= (double)(total_iteration++);
-            avg_depth += (double)depth;
-            avg_depth /= (double)total_iteration;
+        stat_stream.close();
 
-            return total_iteration;
-        }
+        long page_size_kb = sysconf(_SC_PAGE_SIZE)
+            / 1024; // in case x86-64 is configured to use 2MB pages
+        vm_usage = vsize / 1024.0;
+        resident_set = rss * page_size_kb;
+    }
+}
 
-        void statistics::notify_bound_delta(const int b1, const int b2)
-        {
-            total_bound_1 += b1;
-            total_bound_2 += b2;
+int statistics::notify_iteration(const int depth)
+{
+    avg_depth *= (double)(total_iteration++);
+    avg_depth += (double)depth;
+    avg_depth /= (double)total_iteration;
+
+    return total_iteration;
+}
+
+void statistics::notify_bound_delta(const int b1, const int b2)
+{
+    total_bound_1 += b1;
+    total_bound_2 += b2;
 }
 
 int statistics::get_avg_nclq()
@@ -108,10 +107,10 @@ void statistics::notify_ub(const int u)
 
 void statistics::notify_removals(const int n)
 {
-		if(num_vertices > n) {
-				num_vertices = n;
-				changed = true;
-		}
+    if (num_vertices > n) {
+        num_vertices = n;
+        changed = true;
+    }
 }
 
 void statistics::notify_matching_time(const double t) { matching_cpu += t; }
@@ -119,9 +118,9 @@ void statistics::notify_clique_time(const double t) { clique_cpu += t; }
 void statistics::notify_dsatur_time(const double t) { dsatur_cpu += t; }
 
 double statistics::get_bound_increase() const {
-		if(total_bound_1)
-				return (double)total_bound_2/(double)total_bound_1;
-		return 0;
+    if (total_bound_1)
+        return (double)total_bound_2 / (double)total_bound_1;
+    return 0;
 }
 
 // void statistics::notify_iteration(const int cs)
@@ -209,10 +208,10 @@ void statistics::custom_display(std::ostream& os)
         os << "[data] lb = " << std::setw(4) << std::left << best_lb
            << "| ub = " << std::setw(4) << std::left << best_ub
            << "| clq = " << std::setw(4) << std::left << get_avg_nclq()
-           << "| delta = " << std::setw(4) << std::left << get_bound_increase()
+           << "| delta = " << std::setw(7) << std::left << std::setprecision(4) << get_bound_increase()
            << "| depth = " << std::setw(8) << std::left << std::setprecision(4)
            << avg_depth << "| cpu = " << std::setw(7) << std::left
-           << std::setprecision(2) << (minicsp::cpuTime() - start_time) 
+           << std::setprecision(2) << (minicsp::cpuTime() - start_time)
            << "c:" << std::setw(6) << std::setprecision(1) << clique_cpu
            << "m:" << std::setw(6) << std::setprecision(1) << matching_cpu
            << "d:" << std::setw(6) << std::setprecision(1) << dsatur_cpu
@@ -225,13 +224,13 @@ void statistics::custom_display(std::ostream& os)
 }
 
 void statistics::binds( gc::cons_base* c ) {
-		cons = c;
+cons = c;
 }
 
 void statistics::unbinds() {
-		if(cons)
-				total_conflicts += cons->s.conflicts;
-		cons = NULL;
+    if (cons)
+        total_conflicts += cons->s.conflicts;
+    cons = NULL;
 }
 
 } // namespace gc
