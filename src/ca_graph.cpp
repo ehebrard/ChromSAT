@@ -741,8 +741,8 @@ void ca_graph::search(gc::statistics& stats, gc::options& options)
 
         if (ub > nub) {
             ub = nub;
-            stats.notify_ub(ub);
-            while (degeneracy[df.order[ub_frontier]] >= ub)
+            stats.notify_ub(ub);						
+            while (ub_frontier > 0 and degeneracy[df.order[ub_frontier]] >= ub)
                 --ub_frontier;
         }
 
