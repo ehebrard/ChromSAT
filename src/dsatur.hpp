@@ -3,6 +3,7 @@
 #include "graph.hpp"
 #include "options.hpp"
 #include "partition.hpp"
+#include "statistics.hpp"
 
 #include <minicsp/core/utils.hpp>
 
@@ -93,15 +94,15 @@ struct colvector {
     }
 };
 
-std::ostream& operator<<(std::ostream& os, const colvector& x)
-{
-    return x.display(os);
-}
+std::ostream& operator<<(std::ostream& os, const colvector& x);
+// {
+//     return x.display(os);
+// }
 
-std::ostream& operator<<(std::ostream& os, const colvector* x)
-{
-    return x->display(os);
-}
+std::ostream& operator<<(std::ostream& os, const colvector* x);
+// {
+//     return x->display(os);
+// }
 
 struct dsatur {
 
@@ -144,6 +145,7 @@ struct dsatur {
     std::vector<int> trail;
 
     std::vector<std::vector<long int>> tabuStatus;
+    int uncolored{-1};
 
     long long int num_reassign{0};
     long int total_iteration{0};
@@ -284,7 +286,7 @@ struct dsatur {
 
             auto c{coloring[v]};
 
-            // std::cout << " " << v << ":" << c;
+            // std::cout << " " << v; //<< ":" << c;
 
             // std::cout << c << " " << color_map.size() << " " << ub <<
             // std::endl;
@@ -329,7 +331,10 @@ struct dsatur {
                 last_vertex[d++] = it + 1;
         }
 
-        auto ncol{brelaz_greedy(g, g.size(), first, limit)};
+        // std::cout << " |";
+
+        auto ncol{brelaz_greedy(g, ub, first, limit,
+            [&](int x, int y) { return degree[x] > degree[y]; })};
 
         for (auto v : g.nodes) {
             coloring[v] = color[v];
@@ -567,7 +572,7 @@ struct dsatur {
         graph_struct& g, const int ub, const int limit, const int seed)
     {
 
-        // std::cout << "INIT (" << ub << ")\n";
+        // std::cout << "INIT (" << ub << ", " << g.capacity() << ")\n";
 
         numcolors = 0;
         rank.resize(g.capacity());
@@ -613,10 +618,17 @@ struct dsatur {
         last_vertex.resize(nsize + 2, cur);
     }
 
-    template <class graph_struct>
+    template <class graph_struct, typename tiebreaker>
     int brelaz_greedy(graph_struct& g, const int ub,
-        std::vector<int>::iterator start, const int limit)
+        std::vector<int>::iterator start, const int limit, tiebreaker criterion
+        //=([&](int x, int y){return degree[x] > degree[y];})
+        )
     {
+        // std::cout << " (" << ub << ")";
+        // bool first_clq{true};
+
+        assert(!use_recolor);
+
         int potential_colors = begin(neighbor_colors)->b.size();
 
         int c, d;
@@ -627,6 +639,9 @@ struct dsatur {
         }
 
         std::vector<int>::iterator candidate{start};
+
+        // std::cout << ncolor.size() << " " << (start - begin(order)) <<
+        // std::endl;
 
         assert(ncolor.size() == (start - begin(order)));
 
@@ -639,12 +654,21 @@ struct dsatur {
             // get the highest saturation degree
             d = neighbor_colors[*candidate].size();
 
+            // std::cout << "limit=" << limit << std::endl;
             if (limit > 1) {
-                auto best{std::max_element(candidate,
-                    std::min(last_vertex[d], candidate + limit),
-                    [&](const int x_, const int y_) {
-                        return (degree[x_] < degree[y_]);
-                    })};
+
+                // for(auto it{candidate}; it!=std::min(last_vertex[d],
+                // candidate + limit); ++it)
+                // 	std::cout << degree[*it] << " ";
+
+                auto best{std::min_element(candidate,
+                    std::min(last_vertex[d], candidate + limit), criterion
+                    // [&](const int x_, const int y_) {
+                    //     return (degree[x_] > degree[y_]);
+                    // }
+                    )};
+
+                // std::cout << "-> " << degree[*best] << std::endl;
                 std::swap(
                     rank[*best], rank[*candidate]); // not sure this is useful
                 std::swap(*best, *candidate);
@@ -664,17 +688,36 @@ struct dsatur {
                     or !recolor(g, *candidate, c)) {
                     ++numcolors;
                     frontier = candidate;
+
+                    // if (first_clq)
+                    //     std::cout << " "
+                    //               << *candidate; //<< " (" << numcolors <<
+                    //               ")";
+
                 } else {
                     --d;
                 }
             }
+
+            // else {
+            //     // if(first_clq)
+            //     // 	std::cout << " (" << numcolors << ")" ;
+            //
+            //     first_clq = false;
+            // }
+
+            // std::cout << " " << c;
 
             ncolor.push_back(numcolors);
 
             if (numcolors > ub) {
                 color[*candidate] = c;
 
-                // std::cout << "CANNOT IMPROVE ON " << (ub + 1) << std::endl;
+                // // std::cout << "CANNOT IMPROVE ON " << (ub + 1) << " ->
+                // return
+                // // " << (g.size()) << std::endl;
+                // std::cout << " STOP (" << numcolors << "/"
+                //           << (candidate - start) << ")\n";
 
                 return g.size();
             }
@@ -694,6 +737,8 @@ struct dsatur {
             ++candidate;
         }
 
+        // std::cout << std::endl;
+
         return numcolors;
     }
 
@@ -711,7 +756,36 @@ struct dsatur {
             return (degree[x_] > degree[y_]);
         });
 
-        return brelaz_greedy(g, ub, begin(order), limit);
+        return brelaz_greedy(g, ub, begin(order), limit,
+            [&](int x, int y) { return degree[x] > degree[y]; });
+    }
+
+    template <class graph_struct, typename F>
+    int brelaz_color_score(graph_struct& g, const int ub, F criterion,
+        const int limit = 1, const int seed = 1)
+    {
+        if (g.nodes.empty())
+            return 0;
+
+        // std::cout << "limit=" << limit << std::endl;
+        //
+        // std::cout << "seed=" << seed << std::endl;
+
+        brelaz_init(g, ub, limit, seed);
+
+        std::sort(begin(order), end(order), criterion
+            // [&](const int x_, const int y_) {
+            //             return (criterion(x_) > criterion(y_));
+            //         }
+            );
+
+        // for(auto u : order)
+        // 	std::cout << std::setw(3) << u << " " << std::setw(3) <<
+        // degree[u]
+        // 		// << " " << std::setw(3) << criterion(u)
+        // 			<< "\n";
+
+        return brelaz_greedy(g, ub, begin(order), limit, criterion);
     }
 
     template <class graph_struct>
@@ -898,8 +972,9 @@ struct dsatur {
     {
         last_vertex.clear();
         color.clear();
-        for (auto v : order)
-            neighbor_colors[v].clear();
+        if (neighbor_colors.size() > 0)
+            for (auto v : order)
+                neighbor_colors[v].clear();
         order.clear();
         ncolor.clear();
     }
@@ -1052,7 +1127,7 @@ struct dsatur {
     // beware the moves may make the coloring inconsistent
     template <class graph_struct>
     bool react_color(
-        graph_struct& g, gc::options& options, gc::statistics& stat)
+        graph_struct& g, const gc::options& options, gc::statistics& stat)
     {
         long int verbose_frequency{10000};
         int num_rand{0};
@@ -1068,77 +1143,56 @@ struct dsatur {
                   << std::endl;
 #endif
 
+#ifdef _DEBUG_DSATUR
+        auto init_iter{total_iteration};
+#endif
+
         long int current_iteration{0};
         long int prev_iteration{total_iteration};
         long int num_randpath_move{0};
         long int length_randpath_move{0};
         auto iter_allowance{iter_limit - total_iteration};
 
+        auto rw{options.rw};
         while (total_iteration < iter_limit) {
 
 #ifdef _DEBUG_DSATUR
+            std::cout << total_iteration - init_iter << std::endl;
             check_full_consistency(g, "start react_color loop");
 #endif
 
-            int numBest{1}, col{-1};
-            int sz{g.capacity()};
-            // for (auto c{0}; c < color_bag.size(); ++c) {
-            //     if (color_bag[c].size() <= sz) {
-            //         if (color_bag[c].size() < sz) {
-            //             numBest = 1;
-            //             sz = color_bag[c].size();
-            //         }
-            //
-            //         if (random_generator() % numBest == 0) {
-            //             col = c;
-            //         }
-            //
-            //         ++numBest;
-            //     }
-            // }
-            for (auto c : search_colors) {
-                if (color_bag[c].size() <= sz) {
-                    if (color_bag[c].size() < sz) {
-                        numBest = 1;
-                        sz = color_bag[c].size();
-                    }
+						int numBest{1}; //, uncolored{-1};
+            if (uncolored < 0) {                
+                int sz{g.capacity()};
+                for (auto c : search_colors) {
+                    if (color_bag[c].size() <= sz) {
+                        if (color_bag[c].size() < sz) {
+                            numBest = 1;
+                            sz = color_bag[c].size();
+                        }
 
-                    if (random_generator() % numBest == 0) {
-                        col = c;
-                    }
+                        if (random_generator() % numBest == 0) {
+                            uncolored = c;
+                        }
 
-                    ++numBest;
+                        ++numBest;
+                    }
                 }
-            }
-
-// col = random_generator() % color_bag.size();
+            } 
 
 #ifdef _DEBUG_TABU
-            std::cout << color_bag << "SELECT COLOR " << col << std::endl;
+            std::cout << color_bag << "SELECT COLOR " << uncolored << std::endl;
 #endif
-            auto bestSolutionValue{color_bag[col].size()};
+            auto bestSolutionValue{color_bag[uncolored].size()};
             auto minSolutionValue{g.size()};
             auto maxSolutionValue{0};
             auto prevSolutionValue{bestSolutionValue};
 
-            while (total_iteration < iter_limit and color_bag[col].size() > 0) {
-                // if (iter % 1000000 == 0) {
-                //     std::cout
-                //         << std::setw(10) << bestSolutionValue <<
-                //         std::setw(10)
-                //         << color_bag[col].size() << std::setw(10)
-                //         << (double)num_rand / (double)iter << std::endl;
-                // }
-
-                // for(auto z : color_bag[col]) {
-                // 	std::cout << " " << z;
-                // }
-                // std::cout << std::endl;
+            while (total_iteration < iter_limit
+                and color_bag[uncolored].size() > 0) {
 
                 ++current_iteration;
                 ++total_iteration;
-
-                // assert(iter == total_iteration);
 
                 numBest = 0;
                 int bestNode = -1, bestColor = -1, minConflict{g.capacity()};
@@ -1146,16 +1200,16 @@ struct dsatur {
 #ifdef _DEBUG_TABU
                 prev = minicsp::cpuTime();
                 std::cout << "# " << current_iteration << " ("
-                          << color_bag[col].size() << ") " << prev << "  "
+                          << color_bag[uncolored].size() << ") " << prev << "  "
                           << total_iteration << " / " << iter_limit
                           << std::endl;
 #endif
 
                 int Nsize{0};
-                for (auto v : color_bag[col]) {
+                for (auto v : color_bag[uncolored]) {
 
                     for (auto c{0}; c < color_bag.size(); ++c)
-                        if (c != col) {
+                        if (c != uncolored) {
 
                             ++Nsize;
 
@@ -1171,7 +1225,8 @@ struct dsatur {
                                     if (tabuStatus[v][c] < total_iteration
                                         or (nConflict == 0
                                                and bestSolutionValue
-                                                   == color_bag[col].size())) {
+                                                   == color_bag[uncolored]
+                                                          .size())) {
 
 #ifdef _DEBUG_TABU
                                         std::cout << " " << v << ":" << c << "|"
@@ -1210,12 +1265,12 @@ struct dsatur {
                     // std::cout << "random\n";
                     ++num_rand;
 
-                    bestNode = color_bag[col][random_generator()
-                        % color_bag[col].size()];
-                    bestColor = (col + 1 + (random_generator()
-                                               % (color_bag.size() - 1)))
+                    bestNode = color_bag[uncolored][random_generator()
+                        % color_bag[uncolored].size()];
+                    bestColor = (uncolored + 1 + (random_generator()
+                                                     % (color_bag.size() - 1)))
                         % color_bag.size();
-                    assert(bestColor != col);
+                    assert(bestColor != uncolored);
                     minConflict
                         = neighbor_colors[bestNode].num_neighbors_of_color(
                             bestColor);
@@ -1225,12 +1280,12 @@ struct dsatur {
                 std::cout << bestNode << " <- " << bestColor << " (";
 #endif
 
-                if (minConflict == 1 and options.rw > 0
-                    and (random_generator() % options.rw == 0)) {
+                if (minConflict == 1 and rw > 0
+                    and (random_generator() % rw == 0)) {
 
                     auto nrb{num_reassign};
-                    auto end_node{
-                        randpath(g, bestNode, bestColor, col, tabuTenure, -1)};
+                    auto end_node{randpath(
+                        g, bestNode, bestColor, uncolored, tabuTenure, -1)};
 
                     // std::cout << (num_reassign - nrb) << std::endl;
 
@@ -1241,16 +1296,15 @@ struct dsatur {
                             / (total_iteration - prev_iteration);
 
                         if (avg_length >= options.rpmax) {
-                            options.rw *= options.rpfactor;
-														options.rw /= options.rpdiv;
-                        } else if (avg_length <= options.rpmin
-                            and options.rw > 1) {
-                            --options.rw;
+                            rw *= options.rpfactor;
+                            rw /= options.rpdiv;
+                        } else if (avg_length <= options.rpmin and rw > 1) {
+                            --rw;
                         }
                     }
 
                     if (end_node >= 0)
-                        re_assign(g, end_node, col);
+                        re_assign(g, end_node, uncolored);
 
                 } else {
                     re_assign(g, bestNode, bestColor);
@@ -1260,7 +1314,7 @@ struct dsatur {
                     for (auto v : g.matrix[bestNode]) {
                         tabuStatus[v][bestColor] = total_iteration + tabuTenure;
                         if (color[v] == bestColor) {
-                            re_assign(g, v, col);
+                            re_assign(g, v, uncolored);
 
 #ifdef _DEBUG_TABU
                             std::cout << " " << v;
@@ -1275,10 +1329,10 @@ struct dsatur {
                 prev = now;
 #endif
 
-                if (color_bag[col].size() < minSolutionValue)
-                    minSolutionValue = color_bag[col].size();
-                if (color_bag[col].size() > maxSolutionValue)
-                    maxSolutionValue = color_bag[col].size();
+                if (color_bag[uncolored].size() < minSolutionValue)
+                    minSolutionValue = color_bag[uncolored].size();
+                if (color_bag[uncolored].size() > maxSolutionValue)
+                    maxSolutionValue = color_bag[uncolored].size();
 
                 int Delta = maxSolutionValue - minSolutionValue;
 
@@ -1295,8 +1349,8 @@ struct dsatur {
                 }
 
                 auto improvement{false};
-                if (color_bag[col].size() < bestSolutionValue) {
-                    bestSolutionValue = color_bag[col].size();
+                if (color_bag[uncolored].size() < bestSolutionValue) {
+                    bestSolutionValue = color_bag[uncolored].size();
                     improvement = true;
                     current_iteration = 0;
 
@@ -1310,7 +1364,8 @@ struct dsatur {
                     std::cout
                         << std::right << std::setw(9) << total_iteration
                         << std::setw(9) << current_iteration
-                        << "   obj =" << std::setw(4) << color_bag[col].size()
+                        << "   obj =" << std::setw(4)
+                        << color_bag[uncolored].size()
                         << "   best =" << std::setw(4) << bestSolutionValue
                         << "   tenure =" << std::setw(4) << tabuTenure
                         << "   Delta =" << std::setw(4) << Delta
@@ -1318,11 +1373,13 @@ struct dsatur {
                         << (double)(num_randpath_move)
                             / (double)(total_iteration - prev_iteration)
                         << "   length rp =" << std::setw(5)
-                        << (num_randpath_move ? (int)((double)(length_randpath_move)
-                               / (double)(num_randpath_move)) : 0)
-												<< "   ratio rp =" << std::setw(4) << options.rw
+                        << (num_randpath_move
+                                   ? (int)((double)(length_randpath_move)
+                                         / (double)(num_randpath_move))
+                                   : 0)
+                        << "   ratio rp =" << std::setw(4) << options.rw
                         << std::endl;
-                    // << color_bag[col].size() << std::setw(10)
+                    // << color_bag[uncolored].size() << std::setw(10)
                     // << (double)num_rand / (double)iter << std::endl;
                 }
 
@@ -1352,8 +1409,9 @@ struct dsatur {
 #endif
             }
 
-            if (color_bag[col].size() == 0) {
-                remove_color(g, col);
+            if (color_bag[uncolored].size() == 0) {
+                remove_color(g, uncolored);
+                uncolored = -1;
 
                 stat.notify_ub(color_bag.size());
 								stat.total_iteration = total_iteration;
@@ -1882,7 +1940,7 @@ struct dsatur {
 
     template <class graph_struct, class RandomIt>
     void local_search(graph_struct& g, std::vector<int>& isol,
-        gc::statistics& stat, gc::options& options, RandomIt begin_search,
+        gc::statistics& stat, const gc::options& options, RandomIt begin_search,
         RandomIt end_search)
     {
         // assert(g.size() == isol.size());
@@ -2291,7 +2349,7 @@ struct dsatur {
             if (color[v] >= 0) {
                 for (auto u : g.matrix[v]) {
 
-                    if (color[u] == color[v]) {
+                    if (color[u] == color[v] and color[u] != uncolored) {
                         std::cout << msg << ":\n"
                                   << "N(" << v << ") = " << g.matrix[v]
                                   << std::endl;
@@ -2300,7 +2358,7 @@ struct dsatur {
                                   << std::endl;
                     }
 
-                    assert(color[u] != color[v]);
+                    assert(color[u] != color[v] or color[u] == uncolored);
 
                     if (color[u] < 0) {
                         if (!neighbor_colors[u].contain(color[v]))

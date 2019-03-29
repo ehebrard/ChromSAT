@@ -15,6 +15,12 @@ struct options {
     std::string instance_file;
     std::string solution_file;
 
+    enum algo {
+        CDCL,
+        SIMPLE,
+    };
+    algo method;
+
     // minicsp options
     bool trace{false};
 
@@ -54,7 +60,12 @@ struct options {
     };
     dual_policy boundalg;
 
+    enum clique_policy { ALL_CLIQUES, INCREMENTAL };
+    clique_policy cliquealg;
+    int cliquemargin;
+
     bool prune;
+    bool enurp;		
 
     bool adaptive;
 
@@ -74,11 +85,15 @@ struct options {
         VSIDS_PHASED,
         VSIDS_GUIDED,
         VSIDS_CLIQUE,
-        VSIDS_COLORS_POSITIVE
+        VSIDS_COLORS_POSITIVE,
+        VERTEX_ACTIVITY,
+        VERTEX_DOM_OVER_ACT,
+        VERTEX_DOM_THEN_ACT
         // ,BRELAZ_GUIDED
     };
     branching_heuristic branching;
-
+    bool brelaz_first;
+    bool phase_saving;
     bool branching_low_degree;
 
     int cliquelimit;
@@ -113,6 +128,7 @@ struct options {
     bool printsolution;
 
     int sdsaturiter;
+    bool norecolor;
 
     int ddsaturiter;
 

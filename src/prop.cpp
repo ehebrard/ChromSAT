@@ -6,6 +6,10 @@
 
 #include <cmath>
 
+#include <iomanip>
+
+
+
 // #define NICE_TRACE
 // #define DEBUG_IS
 // #define DEBUG_CC
@@ -203,12 +207,6 @@ public:
 
     statistics& stat;
 
-    struct varinfo_t {
-        int u{-1}, v{-1};
-    };
-    // indexed by varid
-    std::vector<varinfo_t> varinfo;
-
     // for the adaptive bound policy: this is set to true on conflicts
     // and reset to false after the stronger policy runs
     bool run_expensive_bound{false};
@@ -235,13 +233,22 @@ public:
 
     std::vector<int> heuristic;
 
+    // for incremental clique finding
+    std::vector<int> altered_vertices;
+    bitset altered_vertex_set;
+
+    // for the pruning thing
+    std::vector<int> changed_vertices;
+    std::vector<arc> changed_edges;
+    // std::vector<std::vector<int>> cliques_of;
+
 public:
     gc_constraint(Solver& solver, dense_graph& g,
         boost::optional<fillin_info> fillin, const varmap& tvars,
         const std::vector<indset_constraint>& isconses, const options& opt,
         statistics& stat)
         : cons_base(solver, opt, g, fillin)
-        , mf(g, cf, opt.prune)
+        , mf(g, cf, false)
         , bfs(s, g, fg)
         , bfsroots(g.capacity())
         , needbfs(0, g.capacity() - 1, bitset::empt)
@@ -258,6 +265,7 @@ public:
         , ordering_forbidden(0, g.capacity() - 1, bitset::empt)
         , ordering_removed_bs(0, g.capacity() - 1, bitset::empt)
         , expl_reps_extra(g.capacity())
+        , altered_vertex_set(0, g.capacity() - 1, bitset::empt)
     {
 
         for (size_t i{0}; i < isrep.size(); ++i)
@@ -265,7 +273,12 @@ public:
 
         stat.binds(this);
         ub = g.capacity()+1;
-				
+
+        expl_reps.clear();
+        expl_reps.resize(g.capacity(), -1);
+
+				varinfo.resize(s.nVars(), varinfo_t{-1,-1});
+
         for (int i = 0; i != g.capacity(); ++i) {
             if (!g.nodes.contain(i))
                 continue;
@@ -281,8 +294,8 @@ public:
                 auto ijvar = vars[i][j];
                 if (ijvar == minicsp::var_Undef)
                     continue;
-                if (varinfo.size() <= static_cast<size_t>(ijvar))
-                    varinfo.resize(ijvar + 1);
+                // if (varinfo.size() <= static_cast<size_t>(ijvar))
+                //     varinfo.resize(ijvar + 1, varinfo_t{-1,-1});
                 varinfo[ijvar] = {i, j};
                 s.wake_on_lit(ijvar, this, nullptr);
                 s.schedule_on_lit(ijvar, this);
@@ -324,6 +337,10 @@ public:
         //                        mineq_constraint = new cons_pbvar(s, vbool, c,
         // rhs);
         //                        s.addConstraint(mineq_constraint);
+
+        if (opt.prune)
+            cf.switch_pruning();
+        // cf.update_nn = opt.prune;
 
         if (opt.triangle_up)
             s.use_UP_callback([this](Lit p, const Clause& c) {
@@ -482,7 +499,8 @@ public:
             std::cout << "\nEffect: " << lit_printer(s, Lit(vars[vrep][urep]))
                       << std::endl;
 #endif
-						if (s.value(vars[vrep][urep]) != l_Undef) return {bestidx};
+            if (s.value(vars[vrep][urep]) != l_Undef)
+                return {bestidx};
             // assert(s.value(vars[vrep][urep]) == l_Undef);
             for (Lit l : reason)
                 assert(s.value(l) == l_False);
@@ -747,6 +765,36 @@ public:
     Clause* wake(Solver& s, Lit l)
     {
         sync_graph();
+
+        if (opt.cliquealg == options::INCREMENTAL) {
+            auto info = varinfo[var(l)];
+
+            // std::cout << " " << info.u << "|" << info.v;
+
+            if (opt.prune and g.nodeset.fast_contain(info.u)
+                and g.nodeset.fast_contain(info.v)) {
+                arc e{info.u, info.v};
+                changed_edges.push_back(e);
+                // changed_edges.push_back(info.v);
+            }
+
+            // std::cout << "add";
+            if (!altered_vertex_set.fast_contain(info.u)) {
+                altered_vertices.push_back(info.u);
+                altered_vertex_set.fast_add(info.u);
+
+                // if(g.nodeset.fast_contain(info.u))
+                //      std::cout << " " << info.u;
+            }
+            if (!altered_vertex_set.fast_contain(info.v)) {
+                altered_vertices.push_back(info.v);
+                altered_vertex_set.fast_add(info.v);
+
+                // if(g.nodeset.fast_contain(info.v))
+                //      std::cout << " " << info.v;
+            }
+            // std::cout << std::endl;
+        }
 
         if (opt.fillin)
             return wake_fillin(l);
@@ -1143,6 +1191,7 @@ public:
         return s.addInactiveClause(reason);
     }
 
+
     Clause* explain()
     {
         switch (opt.learning) {
@@ -1193,6 +1242,122 @@ public:
         return NO_REASON;
     }
 
+    Clause* lastColorPruning()
+    {
+
+#ifdef _DEBUG_PRUNING
+        cf.notify_ub(ub);
+#endif
+
+#ifdef _FULL_PRUNING
+        erase_if(changed_edges, [&](arc e) {
+            return !g.nodeset.fast_contain(e[0])
+                or !g.nodeset.fast_contain(e[1]);
+        });
+
+        assert(changed_vertices.size() == 0);
+        // changed_vertices.clear();
+        altered_vertex_set.clear();
+
+        for (auto e : changed_edges) {
+            for (int i = 0; i < 2; ++i)
+                if (!altered_vertex_set.fast_contain(e[i])) {
+                    changed_vertices.push_back(e[i]);
+                    altered_vertex_set.fast_add(e[i]);
+                }
+        }
+#endif
+
+        cf.compute_pruning(ub - 1, changed_edges, changed_vertices);
+
+				// std::cout << opt.enurp << std::endl;
+
+
+        if (opt.enurp and cf.new_tight_cliques.size() > 0) {
+					
+            for (int i = 0; i < s.nVars(); ++i) {
+							
+							// std::cout << i << std::endl;
+                auto info{varinfo[i]};
+                if (!info.empty() and s.value(i) == l_Undef) {
+                    auto u{g.rep_of[info.u]};
+                    auto v{g.rep_of[info.v]};
+                    if (!g.origmatrix[v].fast_contain(u)) {
+
+                        for (auto i : cf.new_tight_cliques) {
+                            if (cf.cliques[i].fast_contain(u)
+                                or cf.cliques[i].fast_contain(v)
+                                or (cf.neighbor_count[i][u]
+                                       + cf.neighbor_count[i][v])
+                                    < cf.clique_sz[i])
+                                continue;
+
+                            reason.clear();
+
+                            bool included{true};
+                            for (auto w : cf.cliques[i]) {
+                                if (g.matrix[v].fast_contain(w)) {
+                                    explain_edge(w, v);
+                                } else if (g.matrix[u].fast_contain(w)) {
+                                    explain_edge(u, w);
+                                } else {
+                                    included = false;
+                                    break;
+                                }
+                            }
+
+                            if (included) {
+                                explain_positive_clique(cf.cliques[i], false);
+                                DO_OR_RETURN(
+                                    s.enqueueFill(~Lit(vars[u][v]), reason));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+				cf.new_tight_cliques.clear();
+
+#ifdef _FULL_PRUNING
+        changed_edges.clear();
+        changed_vertices.clear();
+#endif
+
+
+#ifdef _DEBUG_PRUNING
+        for (auto v : g.nodes) {
+            for (auto i{0}; i < cf.num_cliques; ++i) {
+                assert(cf.num_neighbors_of[i][v] == cf.neighbor_count[i][v]);
+            }
+        }
+        assert(cf.pruning.size() == cf.col_pruning.size());
+#endif
+
+        while (cf.col_pruning.size() > 0) {
+            auto u = cf.col_pruning.back();
+            cf.col_pruning.pop_back();
+
+            auto i = cf.col_pruning.back();
+            cf.col_pruning.pop_back();
+
+            util_set.copy(cf.cliques[i]);
+            util_set.setminus_with(g.matrix[u]);
+
+            auto w{util_set.min()};
+            assert(util_set.size() == 1);
+
+            reason.clear();
+            explain_positive_clique(cf.cliques[i], false);
+            for (auto v1 : cf.cliques[i]) {
+                if (v1 != w)
+                    explain_edge(v1, u);
+            }
+            DO_OR_RETURN(s.enqueueFill(Lit(vars[u][w]), reason));
+        }
+
+        return NO_REASON;
+    }
+
     // find an upper bound u for the maximum IS. n/ceil(u) is a lower
     // bound for the chromatic number
     Clause* propagate_is()
@@ -1214,9 +1379,11 @@ public:
         return NO_REASON;
     }
 
-    void create_ordering()
-    {	
-			
+    void create_ordering() { create_ordering(g.nodes); }
+
+    template <typename NodeVec> void create_ordering(const NodeVec& hnodes)
+    {
+
         // recompute the degenracy order
         if (opt.ordering == options::DYNAMIC_DEGENERACY) {
             assert(false);
@@ -1226,17 +1393,18 @@ public:
         } else if (opt.ordering == options::PARTITION) {
 
             if (opt.ordering_low_degree == options::PREPROCESSING_ORDERING) {
-							
+
                 bool removed_some{false};
                 ordering_removed_bs.clear();
                 ordering_removed.clear();
                 do {
-																		
+
                     removed_some = false;
                     ordering_forbidden.clear();
-                    for (auto v : g.nodes) {
+                    for (auto v : hnodes) {
 
-												std::cout << "failed assert after checking " << v << std::endl;
+                        std::cout << "failed assert after checking " << v
+                                  << std::endl;
 
                         if (ordering_forbidden.fast_contain(v)
                             || ordering_removed_bs.fast_contain(v))
@@ -1253,10 +1421,10 @@ public:
                         ordering_forbidden.fast_add(v);
                     }
                 } while (removed_some);
-            } else if (opt.ordering_low_degree == options::DEGREE_ORDERING) {	
+            } else if (opt.ordering_low_degree == options::DEGREE_ORDERING) {
                 ordering_removed_bs.clear();
                 ordering_removed.clear();
-                for (auto v : g.nodes) {
+                for (auto v : hnodes) {
                     ordering_tmp.copy(g.matrix[v]);
                     ordering_tmp.intersect_with(g.nodeset);
                     if (ordering_tmp.size()
@@ -1269,7 +1437,7 @@ public:
 
             // sort by partition size
             heuristic.clear();
-            for (auto v : g.nodes)
+            for (auto v : hnodes)
                 if (!ordering_removed_bs.fast_contain(v))
                     heuristic.push_back(v);
 
@@ -1284,15 +1452,13 @@ public:
             for (auto v : ordering_removed)
                 heuristic.push_back(v);
 
-            assert(heuristic.size() == g.nodes.size());
+            assert(heuristic.size() == hnodes.size());
         } else {
-					
 
-					
             // no ordering
             heuristic.clear();
             std::copy(
-                g.nodes.begin(), g.nodes.end(), std::back_inserter(heuristic));
+                hnodes.begin(), hnodes.end(), std::back_inserter(heuristic));
         }
     }
 
@@ -1339,22 +1505,42 @@ public:
     {
         // check_consistency();
 
+        // std::cout << "\nPROPAGATE (" << s.decisionLevel() << ")\n";
+
         int lb{0};
 
         bound_source = options::CLIQUES;
 
         create_ordering();
 
-        lb = cf.find_cliques(heuristic, opt.cliquelimit);
+        if (opt.cliquealg == options::ALL_CLIQUES || !saved_cliques) {
+            lb = cf.find_cliques(heuristic, lb, ub, opt.cliquelimit);
+            if (opt.cliquealg == options::INCREMENTAL) {
+                cf.filter_cliques(lb, ub - 1);
+                saved_cliques = true;
+            }
+        } else {
+            erase_if(altered_vertices,
+                [&](int v) { return !g.nodeset.fast_contain(v); });
+            create_ordering(altered_vertices);
+            lb = cf.extend_cliques(heuristic, lb, ub);
+            cf.filter_cliques(lb - opt.cliquemargin, ub - 1);
+            altered_vertices.clear();
+            altered_vertex_set.clear();
+        }
 
-        //std::cout << "PROPAGATE (" << lb << " / " << bestlb << ")\n";
+        stat.notify_nclique(cf.num_cliques);
 
+        auto clique_bound{true};
         if (lb < ub
             && (s.decisionLevel() == 0 || !opt.adaptive
                    || run_expensive_bound)) {
             run_expensive_bound = false;
             bound_source = opt.boundalg;
             auto mlb{lb};
+
+            // auto better{lb < mlb};
+
             if (opt.boundalg == options::FULLMYCIELSKI) {
                 mlb = mf.full_myciel(lb, ub, s, vars);
             } else if (opt.boundalg == options::MAXMYCIELSKI) {
@@ -1363,7 +1549,8 @@ public:
                 mlb = mf.improve_greedy(lb - 1, lb, ub, s, vars);
             }
 
-            // std::cout << lb << " --> " << mlb << std::endl;
+            clique_bound = (lb == mlb);
+
             stat.notify_bound_delta(lb, mlb);
 
             // if(stat.num_bound_delta%100 == 0)
@@ -1371,6 +1558,9 @@ public:
 
             lb = mlb;
         }
+
+        // if(lb == ub-1)
+        //      std::cout << "prune? (" << s.decisionLevel() << ")\n";
 
         // std::cout << "LOWERBOUND (" << lb << " / " << bestlb << ")\n";
 
@@ -1389,21 +1579,30 @@ public:
                 stat.display(std::cout);
             }
         }
-        if (cf.num_cliques == 1)
+
+        if (cf.num_cliques == 1 && opt.cliquealg == options::ALL_CLIQUES)
             assert(g.nodes.size() == cf.cliques[0].size());
+
         if (lb >= ub) {
             if (use_global_bound) {
                 reason.clear();
                 return s.addInactiveClause(reason);
             }
+
+            // std::cout << "FAIL! (" << s.decisionLevel() << ")\n";
+
             return explain();
+        } else if (clique_bound and opt.prune) {
+            if (lb == ub - 1)
+                DO_OR_RETURN(lastColorPruning());
+            else
+                changed_edges.clear();
         }
 
         if (opt.indset_lb)
             DO_OR_RETURN(propagate_is());
 
         // check local constraints
-
 #ifdef DEBUG_IS
         std::cout << "\npropag: " << lb << " " << ub
                   << " dlvl = " << s.decisionLevel() << std::endl;

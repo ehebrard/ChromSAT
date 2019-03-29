@@ -1,6 +1,7 @@
 #include "vertices_vec.hpp"
 #include "bitset.hpp"
 #include "utils.hpp"
+#include "minicsp/mtl/Alg.h"
 
 #include "minicsp/mtl/Alg.h"
 

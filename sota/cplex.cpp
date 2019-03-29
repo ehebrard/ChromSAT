@@ -34,8 +34,8 @@ int main(int argc, char* argv[])
     auto sol{gc::brelaz_color(g)};
     int ub{*max_element(begin(sol), end(sol)) + 1};
 
-    gc::clique_finder cf{g};
-    cf.find_cliques(g.nodes);
+    gc::clique_finder<gc::bitset> cf{g};
+    cf.find_cliques(g.nodes, 0, g.size());
 
     IloEnv env;
     IloModel mod(env, "coloring");
@@ -109,6 +109,9 @@ int main(int argc, char* argv[])
 
     IloCplex cplex(mod);
     cplex.setParam(IloCplex::Param::Threads, 1);
+		cplex.setParam(IloCplex::Param::RandomSeed, options.seed);
+		
+		std::cout << "set seed " << options.seed << std::endl;
 
     if (cplex.solve()) {
         cplex.out() << "Objective value: " << cplex.getObjValue() << endl;

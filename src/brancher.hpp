@@ -22,6 +22,8 @@ struct Brancher {
 
     int64_t numdecisions{0}, numchoices{0};
 
+    std::mt19937 random_generator;
+
     Brancher(minicsp::Solver& s, dense_graph& g, dense_graph& fg,
         const varmap& evars, const std::vector<minicsp::cspvar>& xvars,
         cons_base& constraint, const options& opt)
@@ -33,6 +35,9 @@ struct Brancher {
         , constraint(constraint)
         , opt(opt)
     {
+        random_generator.seed(opt.seed);
+        // std::cout << random_generator() << " " << random_generator() << " "
+        // << random_generator() << " " << std::endl;
     }
     virtual ~Brancher() {}
 
@@ -413,7 +418,7 @@ struct BrelazBrancher : public Brancher {
         auto x = xvars[maxdv];
         // std::cout << "Branching on vertex " << maxdv
         //           << " domsize = " << x.domsize(s) << " degree = " << maxd
-        //           << " domsize ties = " << tiedv << "\n";
+        //           << " domsize ties = " << mindom.size() << "\n";
         cand.clear();
         cand.push_back(x.e_eq(s, x.min(s)));
     }
@@ -429,6 +434,8 @@ struct BrelazBrancher : public Brancher {
         clique_bs.copy(clq);
         if (clique_bs.size() == g.nodeset.size())
             return;
+
+        // std::cout << clq.size() << " " << clique_bs;
 
         util_set.copy(clique_bs);
         util_set.intersect_with(g.nodeset);
@@ -471,7 +478,9 @@ struct BrelazBrancher : public Brancher {
 
         util_set.copy(clique_bs);
         util_set.setminus_with(g.matrix[maxv]);
-        int u = util_set.min();
+        int u = (random_generator() % 2 ? util_set.min() : util_set.max());
+
+        // std::cout << util_set.size() << std::endl;
         minicsp::Var evar{minicsp::var_Undef};
         if (opt.fillin) {
             util_set.clear();
@@ -489,6 +498,9 @@ struct BrelazBrancher : public Brancher {
             assert(evar != minicsp::var_Undef);
         } else {
             evar = evars[u][maxv];
+
+            // std::cout << " - " << maxc << " - (" << u << "=" << maxv << ")"
+            //           << std::endl;
         }
         assert(evar != minicsp::var_Undef);
         cand.push_back(minicsp::Lit(evar));
@@ -868,6 +880,141 @@ template <int N, int D> struct DegreeUnionBrancher : public EdgeBrancher<N, D> {
         }
 
         this->select_branch(cand);
+    }
+};
+
+// computes an activity for each vertex which is increased every time
+// a vertex participates in conflict resolution and decays
+// exponentially. On branching, select the largest clique and merge
+// the highest activity vertex outside the clique with the highest
+// activity vertex in the clique
+struct VertexActivityBrancher : public Brancher {
+    double vtx_inc{1};
+    double vtx_decay{1 / 0.95};
+    std::vector<double> activity;
+    bitset seen;
+    BrelazBrancher brelaz;
+		
+		bitset util_set;
+
+    VertexActivityBrancher(minicsp::Solver& s, dense_graph& g, dense_graph& fg,
+        const varmap& evars, const std::vector<minicsp::cspvar>& xvars,
+        cons_base& constraint, const options& opt)
+        : Brancher(s, g, fg, evars, xvars, constraint, opt)
+        , activity(g.capacity())
+        , seen(0, g.capacity() - 1, bitset::empt)
+        , brelaz(s, g, fg, evars, xvars, constraint, opt)
+				, util_set(0, g.capacity() - 1, bitset::empt)
+    {
+        s.use_clause_callback([this](auto& cls, int) { return clscb(cls); });
+    }
+
+    void vtxBumpActivity(int v)
+    {
+        activity[v] += vtx_inc;
+        if (activity[v] > 1e100) {
+            // Rescale:
+            for (int i = 0; i != g.capacity(); i++)
+                activity[i] *= 1e-100;
+            vtx_inc *= 1e-100;
+        }
+    }
+
+    void vtxDecayActivity() { vtx_inc *= vtx_decay; };
+
+    minicsp::Solver::clause_callback_result_t clscb(vec<minicsp::Lit>& cls)
+    {
+        seen.clear();
+        for (auto l : cls) {
+            auto info = constraint.varinfo[var(l)];
+            if (!seen.fast_contain(info.u)) {
+                vtxBumpActivity(info.u);
+                seen.fast_add(info.u);
+            }
+            if (!seen.fast_contain(info.v)) {
+                vtxBumpActivity(info.v);
+                seen.fast_add(info.v);
+            }
+        }
+        vtxDecayActivity();
+        return minicsp::Solver::CCB_OK;
+    }
+
+    void select_candidates(std::vector<minicsp::Lit>& cand) override
+    {
+        if (opt.brelaz_first && s.conflicts < 1e5)
+            return brelaz.select_candidates_evars(cand);
+
+        auto& cf = constraint.cf;
+        auto maxidx = std::distance(begin(cf.clique_sz),
+            std::max_element(
+                begin(cf.clique_sz), begin(cf.clique_sz) + cf.num_cliques));
+        auto& clq = cf.cliques[maxidx];
+
+        if (clq.size() == g.nodeset.size())
+            return;
+
+        int vtx{-1};
+        double vtxact{0.01};
+        size_t vtxdom{g.nodes.size()};
+        for (auto v : g.nodes) {
+            if (clq.fast_contain(v))
+                continue;
+            double vact = std::max(activity[v], 0.01);
+            double vdom = [&]() {
+                if (opt.branching == options::VERTEX_ACTIVITY) {
+                    // skips bitset stuff if unnecessary
+                    return 0u;
+                } else {
+                    util_set.copy(g.matrix[v]);
+                    util_set.intersect_with(clq);
+                    return util_set.size();
+                }
+                assert(0);
+            }();
+            switch (opt.branching) {
+            case options::VERTEX_ACTIVITY:
+                if (vtx < 0 || vact > vtxact) {
+                    vtx = v;
+                    vtxact = vact;
+                }
+                break;
+            case options::VERTEX_DOM_OVER_ACT:
+                if (vtx < 0 || vdom / vact > vtxact / vtxdom) {
+                    vtx = v;
+                    vtxact = vact;
+                    vdom = vtxdom;
+                }
+                break;
+            case options::VERTEX_DOM_THEN_ACT:
+                if (vtx < 0 || vdom < vtxdom
+                    || (vdom == vtxdom && vact > vtxact)) {
+                    vtx = v;
+                    vtxdom = vdom;
+                    vtx = vact;
+                }
+                break;
+            default:
+                assert(0);
+            }
+        }
+        assert(vtx >= 0);
+
+        int utx{-1};
+        for (auto u : clq) {
+            if (g.matrix[vtx].fast_contain(u))
+                continue;
+            if (utx < 0 || activity[u] > activity[utx])
+                utx = u;
+        }
+        assert(utx >= 0);
+        auto evar = evars[utx][vtx];
+        assert(evar != minicsp::var_Undef);
+        if (opt.phase_saving)
+            cand.push_back(minicsp::Lit(
+                evar, (s.currentVarPhase(evar) == minicsp::l_False)));
+        else
+            cand.push_back(minicsp::Lit(evar));
     }
 };
 

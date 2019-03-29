@@ -89,6 +89,8 @@ options parse(int argc, char* argv[])
     cmd.add<UnlabeledValueArg<std::string>>(
         opt.solution_file, "solfile", "solution file", false, "", "string");
     cmd.add<SwitchArg>(opt.trace, "", "trace", "enable minicsp tracing", false);
+    cmd.add<ValueArg<int>>(
+        opt.method, "", "method", "CDCL(0) or BNB(1)", false, 0, "int");
     cmd.add<ValueArg<int>>(opt.learning, "", "learning",
         "CDCLeaning & explanation level [0-1]", false, 1, "int");
     cmd.add<SwitchArg>(
@@ -101,11 +103,22 @@ options parse(int argc, char* argv[])
         "Use low degree information to improve clique ordering", false, 0, "int");
     cmd.add<ValueArg<int>>(opt.boundalg, "", "bound",
         "lower bound algorithm [0-3]", false, 2, "int");
-    cmd.add<SwitchArg>(opt.prune, "", "prune", "enable pruning", false);
+    cmd.add<ValueArg<int>>(opt.cliquealg, "", "cliquealg",
+        "Clique heuristic to use during search", false, 0, "0-1");
+    cmd.add<ValueArg<int>>(opt.cliquemargin, "", "cliquemargin",
+        "Keep cliques of size lb-x", false, 0, "int>=0");
+    cmd.add<SwitchArg>(opt.prune, "", "prune", "enable positive pruning", false);
+		cmd.add<SwitchArg>(opt.enurp, "", "enurp", "enable negative pruning", false);
     cmd.add<SwitchArg>(opt.adaptive, "", "adaptive",
         "Switch between CLIQUES and declared bound policy dynamically", true);
     cmd.add<ValueArg<int>>(opt.branching, "", "branching",
         "Variable branching heuristic [0-14]", false, 1, "int");
+    cmd.add<SwitchArg>(opt.brelaz_first, "", "brelaz-first",
+        "Use brelaz for 1e5 conflicts before switching to chosen heuristic",
+        false);
+    cmd.add<SwitchArg>(opt.phase_saving, "", "phase-saving",
+        "Phase saving in branching",
+        false);
     cmd.add<SwitchArg>(opt.branching_low_degree, "", "branch-low-degree",
         "Use low degree information to improve branching", false);
     cmd.add<ValueArg<int>>(opt.cliquelimit, "", "cliquelimit",
@@ -162,9 +175,8 @@ options parse(int argc, char* argv[])
         "int");
     cmd.add<ValueArg<int>>(opt.probewidth, "", "probewidth",
         "size of the max probe width (default = 64)", false, 64, "int");
-    cmd.add<ValueArg<int>>(opt.core, "", "core",
-        "Core type []",
-        false, 0, "int");
+    cmd.add<ValueArg<int>>(
+        opt.core, "", "core", "Core type []", false, 3, "int");
     cmd.add<ValueArg<int>>(opt.idsaturlimit, "", "idsaturlimit",
         "solve limit in idsatur", false, -1, "int");
     cmd.add<ValueArg<int>>(opt.verbosity, "", "verbosity",
@@ -172,23 +184,23 @@ options parse(int argc, char* argv[])
         false, 2, "int");
 
     cmd.add<ValueArg<int>>(opt.randwalkiter, "", "randwalkiter",
-        "number of random walk iterations during local search", false, 100,
+        "number of random walk iterations during local search", false, 0,
         "int");
     cmd.add<ValueArg<long int>>(opt.lsiter, "", "lsiter",
-        "number of local search iterations", false, 10000000, "int");
+        "number of local search iterations", false, 0, "int");
     cmd.add<ValueArg<int>>(opt.lsextra, "", "lsextra",
         "number of local search extra iterations during the i-dsatur phase",
-        false, 100000, "int");
+        false, 0, "int");
     cmd.add<ValueArg<int>>(opt.dsatlimit, "", "dsatlimit",
-        "iteration limit during dsat moves", false, 50, "int");
+        "iteration limit during dsat moves", false, 0, "int");
     cmd.add<SwitchArg>(opt.switchdescent, "", "switchdescent",
-        "do (not) use descent move in LS", true);
+        "use descent move in LS", false);
     cmd.add<SwitchArg>(opt.switchreact, "", "switchreact",
         "do (not) use react move in LS", true);
     cmd.add<SwitchArg>(
         opt.focus, "", "focus", "do not move the core in LS", false);
     cmd.add<ValueArg<int>>(
-        opt.rw, "", "rw", "frequency of path exploration", false, 2, "int");
+        opt.rw, "", "rw", "frequency of path exploration", false, 1, "int");
 
     cmd.add<ValueArg<int>>(
         opt.seed, "", "seed", "random seed", false, 12345, "int");
@@ -198,7 +210,7 @@ options parse(int argc, char* argv[])
     cmd.add<ValueArg<int>>(opt.dynamiclimit, "", "dynamiclimit",
         "update the LS iteration limit dynamically [0=static, 1=geometric, 2=backoff]", false, 2, "int");
     cmd.add<SwitchArg>(opt.dynrandpath, "", "dynrandpath",
-        "update the randpath ratio dynamically", false);
+        "update the randpath ratio dynamically", true);
 
     cmd.add<ValueArg<int>>(opt.dynfactor, "", "dynfactor",
         "geometric factor for iter limit", false, 2, "int");
@@ -213,6 +225,9 @@ options parse(int argc, char* argv[])
         "min for randpath ratio update", false, 3, "int");
     cmd.add<ValueArg<int>>(opt.rpmax, "", "rpmax",
         "max for randpath ratio update", false, 20, "int");
+
+    cmd.add<SwitchArg>(opt.norecolor, "", "norecolor",
+        "do not use recolor in dsatur", false);
 
     cmd.parse(argc, argv);
     return opt;
@@ -289,8 +304,13 @@ void options::describe(std::ostream& os)
     case gc::options::VSIDS_COLORS_POSITIVE:
         os << "VSIDS restricted to assignments to color variables\n";
         break;
+    case gc::options::VERTEX_ACTIVITY:
+        os << "Exponentially decaying vertex activity\n";
+        break;
     }
     os << "[options]  ... low degree = " << branching_low_degree << "\n";
+    os << "[options]  ... brelaz fst = " << brelaz_first << "\n";
+    os << "[options]  ... phase save = " << phase_saving << "\n";
     os << "[options] Strategy        = ";
     switch (strategy) {
     case BNB:

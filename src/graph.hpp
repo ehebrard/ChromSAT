@@ -16,12 +16,20 @@
 // #define _DEBUG_CLIQUE
 // #define SUBCLASS
 
+// #define _DEBUG_PRUNING
+// #define _FULL_PRUNING
+
 namespace gc
 {
 
 using weight = int64_t;
 using bitset = BitSet;
 using edge = std::pair<int, int>;
+
+struct arc {
+    int v[2];
+    const int operator[](const int i) { return v[i]; }
+};
 
 template <class adjacency_struct> class basic_graph
 {
@@ -320,10 +328,29 @@ template <class adjacency_struct> struct clique_finder {
     int num_cliques;
     int limit;
 
+    std::vector<int> util_vec;
+
+    // for pruning
+    bool update_nn;
+
+#ifdef _DEBUG_PRUNING
+    std::vector<std::vector<int>> num_neighbors_of;
+    std::vector<int> pruning;
+#endif
+
+    std::vector<int> new_tight_cliques;
+    std::vector<std::vector<int>> neighbor_count;
+    std::vector<int> col_pruning;
+
+#ifdef _FULL_PRUNING
+    std::vector<std::vector<int>> cliques_of;
+#endif
+
     clique_finder(const graph<adjacency_struct>& ig, const int c = 0xfffffff)
         : g(ig)
         , num_cliques(1)
         , limit(c)
+        , update_nn(false)
     {
         auto m = std::min(limit, g.capacity());
         last_clique.resize(g.capacity());
@@ -336,8 +363,133 @@ template <class adjacency_struct> struct clique_finder {
             b.initialise(0, g.capacity(), bitset::full);
     }
 
+    void switch_pruning()
+    {
+#ifdef _FULL_PRUNING
+        cliques_of.resize(g.capacity());
+#endif
+        update_nn = true;
+    }
+
+#ifdef _DEBUG_PRUNING
+    void compute_neighbors_in(const int i, const int sz)
+    {
+        for (auto v : cliques[i]) {
+            for (auto u : g.matrix[v]) {
+                if (g.nodeset.fast_contain(u) and !cliques[i].fast_contain(u)) {
+
+                    if (++num_neighbors_of[i][u] == sz) {
+                        pruning.push_back(i);
+                        pruning.push_back(u);
+                    }
+                }
+            }
+        }
+    }
+#endif
+
+    void count_neighbors(const int i)
+    {
+        for (auto v : cliques[i]) {
+            for (auto u : g.matrix[v]) {
+                if (g.nodeset.fast_contain(u) and !cliques[i].fast_contain(u)) {
+                    if (++neighbor_count[i][u] == clique_sz[i] - 1) {
+                        col_pruning.push_back(i);
+                        col_pruning.push_back(u);
+                    }
+                }
+            }
+        }
+    }
+
+#ifdef _DEBUG_PRUNING
+    void notify_ub(const int ub)
+    {
+        pruning.clear();
+
+        int n
+            = std::min(static_cast<int>(num_neighbors_of.size()), num_cliques);
+        for (int i = 0; i < n; ++i) {
+            std::fill(begin(num_neighbors_of[i]), end(num_neighbors_of[i]), 0);
+        }
+        if (n < num_cliques) {
+            num_neighbors_of.resize(num_cliques);
+            for (int i = n; i < num_cliques; ++i) {
+                num_neighbors_of[i].resize(g.capacity(), 0);
+            }
+        }
+
+        for (auto i{0}; i < num_cliques; ++i) {
+            if (clique_sz[i] == ub - 1) {
+                compute_neighbors_in(i, ub - 2);
+            }
+        }
+    }
+#endif
+
+    void compute_pruning(const int maxcs, std::vector<arc>& changed_edges,
+        std::vector<int>& changed_vertices)
+    {
+        col_pruning.clear();
+
+        // compute the count for new cliques
+        for (auto cl : new_tight_cliques) {
+            assert(cl < num_cliques);
+            if (cl >= static_cast<int>(neighbor_count.size())) {
+                neighbor_count.resize(cl + 1);
+            }
+            if (neighbor_count[cl].size() == 0)
+                neighbor_count[cl].resize(g.capacity(), 0);
+            else
+                std::fill(
+                    begin(neighbor_count[cl]), end(neighbor_count[cl]), 0);
+
+            count_neighbors(cl);
+        }
+
+// new edges with old cliques
+#ifdef _FULL_PRUNING
+        if (new_tight_cliques.size() < num_cliques) {
+            for (auto v : changed_vertices) {
+                cliques_of[v].clear();
+            }
+
+            int j = 0;
+            for (int i = 0; i < num_cliques; ++i) {
+                if (new_tight_cliques.size() > j
+                    and i == new_tight_cliques[j]) {
+                    ++j;
+                } else {
+                    if (clique_sz[i] == maxcs) {
+                        for (auto v : changed_vertices)
+                            if (cliques[i].fast_contain(v))
+                                cliques_of[v].push_back(i);
+                    }
+                }
+            }
+
+            for (auto e : changed_edges) {
+                for (int i = 0; i < 2; ++i) {
+                    for (auto cl : cliques_of[e[1 - i]]) {
+                        if (!cliques[cl].fast_contain(e[i])
+                            and ++neighbor_count[cl][e[i]] == maxcs - 1) {
+                            col_pruning.push_back(cl);
+                            col_pruning.push_back(e[i]);
+                        }
+                    }
+                }
+            }
+        }
+#endif
+
+        // new_tight_cliques.clear();
+    }
+
     // clear previously cached results
-    void clear() { num_cliques = 0; }
+    void clear()
+    {
+        num_cliques = 0;
+    }
     // initialize a new clique
     void new_clique();
 
@@ -354,12 +506,13 @@ template <class adjacency_struct> struct clique_finder {
     // heuristically find a set of cliques and return the size of the
     // largest
 
-    template <class ordering> int find_cliques(ordering o, const int l=0xfffffff)
+    template <class ordering>
+    int find_cliques(
+        ordering o, const int lower, const int upper, const int l = 0xfffffff)
     {
+        // new_tight_cliques.clear();
         if (l < limit)
             limit = l;
-
-        // std::cout << "LIMIT = " << limit << std::endl;
 
         clear();
         if (o.size() == 0)
@@ -384,8 +537,104 @@ template <class adjacency_struct> struct clique_finder {
                 }
         }
 
-        return *std::max_element(
-            begin(clique_sz), begin(clique_sz) + num_cliques);
+        auto maxclique{*std::max_element(
+            begin(clique_sz), begin(clique_sz) + num_cliques)};
+
+        new_tight_cliques.clear();
+
+        if (update_nn and lower < upper - 1 and maxclique == upper - 1) {
+            for (auto i{0}; i < num_cliques; ++i) {
+                if (clique_sz[i] == maxclique) {
+                    new_tight_cliques.push_back(i);
+
+                    // std::cout << " " << i;
+                }
+            }
+            // if(new_tight_cliques.size() > 0)
+            // 		std::cout << std::endl;
+        }
+
+        return maxclique;
+    }
+
+    void filter_cliques(int cutoff, int tight)
+    {
+
+        // when we filter, we must update all fields
+        int i{0}, j{0}, k{0};
+        for (; i != num_cliques; ++i)
+            if (clique_sz[i] >= cutoff) {
+
+                // rename the new cliques in case of filtering
+                if (update_nn and clique_sz[i] == tight
+                    and static_cast<int>(new_tight_cliques.size()) > k
+                    and new_tight_cliques[k] == i) {
+                    new_tight_cliques[k] = j;
+                    ++k;
+                }
+
+                using std::swap;
+                swap(cliques[i], cliques[j]);
+                swap(clique_sz[i], clique_sz[j]);
+                swap(candidates[i], candidates[j]);
+
+                ++j;
+            }
+        num_cliques = j;
+    }
+
+    void remap_clique_to_reps(bitset& clq, bitset& N)
+    {
+        util_vec.clear();
+        std::copy(begin(clq), end(clq), back_inserter(util_vec));
+        N.clear();
+        bool first{true};
+        for (auto u : util_vec) {
+            if (g.rep_of[u] != u) {
+                clq.fast_remove(u);
+                clq.fast_add(g.rep_of[u]);
+            }
+            if (first) {
+                N.copy(g.matrix[g.rep_of[u]]);
+                first = false;
+            } else {
+                N.intersect_with(g.matrix[g.rep_of[u]]);
+            }
+        }
+    }
+
+    int extend_cliques(
+        const std::vector<int>& cand, const int lower, const int upper)
+    {
+        int lb = -1;
+        for (int i = 0; i != num_cliques; ++i) {
+            remap_clique_to_reps(cliques[i], candidates[i]);
+
+            auto sz_before{clique_sz[i]};
+
+            clique_sz[i] = extend_clique(cliques[i], candidates[i], cand);
+
+            if (update_nn and sz_before < clique_sz[i] and clique_sz[i] == upper - 1) {
+                new_tight_cliques.push_back(i);
+            }
+
+            lb = std::max(lb, clique_sz[i]);
+            if (lb >= upper)
+                break;
+        }
+
+        return lb;
+    }
+
+    int extend_clique(bitset& clq, bitset& N, const std::vector<int>& cand)
+    {
+        for (auto u : cand) {
+            if (N.fast_contain(u)) {
+                clq.fast_add(u);
+                N.intersect_with(g.matrix[u]);
+            }
+        }
+        return clq.size();
     }
 
     // template <class ordering> int find_cliques(std::vector<int>::iterator& b,
@@ -904,6 +1153,11 @@ void clique_finder<adjacency_struct>::new_clique()
     clique_sz[num_cliques] = 0;
     candidates[num_cliques].copy(g.nodeset);
     ++num_cliques;
+
+    // if (update_nn and num_neighbors_of.size() < num_cliques) {
+    //     num_neighbors_of.resize(num_cliques);
+    //     num_neighbors_of.back().resize(g.capacity(), 0);
+    // }
 }
 // initialize a new color
 template <class adjacency_struct>
@@ -923,6 +1177,13 @@ void clique_finder<adjacency_struct>::insert(int v, int clq)
     ++clique_sz[clq];
     candidates[clq].intersect_with(g.matrix[v]);
     last_clique[v] = clq;
+
+    // if (update_nn) {
+    //     for (auto u : g.matrix[v]) {
+    //         if (g.nodeset.fast_contain(u))
+    //             ++num_neighbors_of[clq][u];
+    //     }
+    // }
 }
 // insert v into the col^th color. assumes it fits. Puts vertices
 // added from candidates[i] into diff
@@ -947,8 +1208,8 @@ void degeneracy_finder<graph_struct>::clear()
 template <class graph_struct>
 void degeneracy_finder<graph_struct>::degeneracy_ordering()
 {
+    degeneracy = 0;
     order.reserve(g.size());
-    // if (g.size() == g.capacity()) {
     for (auto v : g.nodes) {
         auto vd = g.matrix[v].size();
         if (vd >= buckets.size())
@@ -958,20 +1219,6 @@ void degeneracy_finder<graph_struct>::degeneracy_ordering()
         iterators[v] = buckets[vd].begin();
         ordered[v] = false;
     }
-    // } else {
-    //     gc::bitset actual_neighbors(0, g.capacity() - 1, gc::bitset::empt);
-    //     for (auto v : g.nodes) {
-    //         actual_neighbors.copy(g.matrix[v]);
-    //         actual_neighbors.intersect_with(g.nodeset);
-    //         auto vd = actual_neighbors.size();
-    //         if (vd >= buckets.size())
-    //             buckets.resize(vd + 1);
-    //         buckets[vd].push_front(v);
-    //         degrees[v] = vd;
-    //         iterators[v] = buckets[vd].begin();
-    //         ordered[v] = false;
-    //     }
-    // }
 
     while (true) {
         size_t i{0};
@@ -986,7 +1233,6 @@ void degeneracy_finder<graph_struct>::degeneracy_ordering()
             core.push_back(end(order));
             core_degree.push_back(degeneracy);
         }
-        // d = std::max(d, static_cast<int>(i));
 
         auto v = buckets[i].back();
         order.push_back(v);
@@ -994,7 +1240,7 @@ void degeneracy_finder<graph_struct>::degeneracy_ordering()
         ordered[v] = true;
 
         for (auto u : g.matrix[v]) {
-            if (!g.nodeset.fast_contain(u) or ordered[u])
+            if (!g.nodes.contain(u) or ordered[u])
                 continue;
             auto& ud = degrees[u];
             buckets[ud].erase(iterators[u]);

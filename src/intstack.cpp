@@ -50,6 +50,7 @@ bool intstack::safe_contain(const int elt) const
 bool intstack::contain(const int elt) const { return index_[elt] < size_; }
 
 size_t intstack::size() const { return size_; }
+size_t intstack::capacity() const { return index_.size(); }
 
 bool intstack::empty() const { return size_ == 0; }
 

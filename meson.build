@@ -3,6 +3,7 @@ project('gc', ['c', 'cpp'],
 compiler = meson.get_compiler('cpp')
 
 basic_lib = static_library('basic', ['src/intstack.cpp',
+             'src/ca_graph.cpp',
 						 'src/partition.cpp',
 				     'src/options.cpp',
 				     'src/vertices_vec.cpp',
@@ -19,9 +20,9 @@ prop_dep = declare_dependency(link_with: prop_lib,
 			      include_directories: include_directories('src'))
 
 minicsp_inc = include_directories('minicsp')
-minicsp_lib = library('minicsp', ['minicsp/core/solver.cpp',
-				  'minicsp/core/cons.cpp',
-				  'minicsp/core/utils.cpp'])
+minicsp_lib = static_library('minicsp', ['minicsp/core/solver.cpp',
+					 'minicsp/core/cons.cpp',
+					 'minicsp/core/utils.cpp'])
 minicsp_dep = declare_dependency(link_with: minicsp_lib,
 				 include_directories: minicsp_inc)
 
@@ -50,6 +51,8 @@ executable('gc', ['src/gc.cpp'],
 	   dependencies: [minicsp_dep, basic_dep, prop_dep,
 			  segundo_dep, domega_dep, thread_dep])
 
+executable('segundo', ['sota/Segundo/DSATUR/main.cpp'],
+	   dependencies: [segundo_dep, basic_dep])
 
 use_gecode = get_option('use_gecode')
 if use_gecode

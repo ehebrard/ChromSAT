@@ -1,24 +1,25 @@
 #include <iostream>
 
 #include "brancher.hpp"
-#include "dimacs.hpp"
-#include "edgeformat.hpp"
-#include "snap.hpp"
+#include "ca_graph.hpp"
+#include "cliquesampler.hpp"
 #include "csv.hpp"
+#include "dimacs.hpp"
+#include "dsatur.hpp"
+#include "edgeformat.hpp"
 #include "fillin.hpp"
 #include "graph.hpp"
+#include "interval_list.hpp"
 #include "mycielski.hpp"
 #include "options.hpp"
 #include "prop.hpp"
 #include "reduction.hpp"
 #include "rewriter.hpp"
+#include "snap.hpp"
 #include "sparse_dynamic_graph.hpp"
 #include "statistics.hpp"
 #include "utils.hpp"
 #include "vcsolver.hpp"
-#include "interval_list.hpp"
-#include "dsatur.hpp"
-#include "cliquesampler.hpp"
 
 #include <minicsp/core/cons.cpp>
 #include <minicsp/core/solver.hpp>
@@ -327,25 +328,31 @@ struct gc_model {
     */
 
     // returns true if it computed the maximum clique, false if it timed out
-    bool maximum_clique()
+    bool maximum_clique(int lb, int ub)
     {
         std::cout << "[info] Computing maximum clique\n";
+        auto start = minicsp::cpuTime();
         dOmega::Graph graph;
         convert(original, graph);
 
         dOmega::Clique clique(graph, 1);
 
-        clique.findMaxClique(options.domegatime > 0
-                ? minicsp::cpuTime() + options.domegatime
-                : -1.0);
+        clique.findMaxClique(lb, ub,
+            options.domegatime > 0 ? minicsp::cpuTime() + options.domegatime
+                                   : -1.0);
 
         lb = std::max(lb, static_cast<int>(clique.cliqueLB));
 
         statistics.notify_lb(lb);
         statistics.display(std::cout);
 
+        auto end = minicsp::cpuTime();
         if (clique.interrupted)
-            std::cout << "[info] Interrupted\n";
+            std::cout << "[info] Interrupted at " << end << ", after "
+                      << (end - start) << "s\n";
+        else
+            std::cout << "[info] Finished at " << end << ", after "
+                      << (end - start) << "s\n";
 
         return !clique.interrupted;
     }
@@ -481,6 +488,7 @@ struct gc_model {
 
     void upper_bound()
     {
+        bool dsatur_solution{false};
         if (options.sdsaturiter > 0 and !dsatur_sol and lb < ub) {
 
             if (options.verbosity >= gc::options::YACKING)
@@ -490,12 +498,16 @@ struct gc_model {
 
             col.clear();
             int niter{options.sdsaturiter};
-            do {
+
+            while (niter-- > 0) {
                 if (options.verbosity >= gc::options::YACKING) {
                     std::cout << ".";
                     std::cout.flush();
                 }
                 col.clear();
+                // if (niter == 1 and options.lsiter > 0)
+                //     col.full = true;
+
                 auto ncol{col.brelaz_color(original, ub - 1,
                     (1 << (options.sdsaturiter + 1 - niter)), 12345 + niter)};
 
@@ -523,6 +535,7 @@ struct gc_model {
                             statistics.display(std::cout);
                         }
 
+                        dsatur_solution = true;
                         // auto n_rel{1 + col.frontier - begin(col.order)};
 
                         // std::cout << "relevant vertices: " << n_rel
@@ -531,10 +544,27 @@ struct gc_model {
                 }
                 if (--niter > 0) // Do not clear last col
                     col.clear();
-            } while (niter > 0);
+            }
         }
         if (options.verbosity >= gc::options::YACKING)
             std::cout << std::endl;
+        if (options.lsiter > 0 and lb < ub) {
+
+            if (!dsatur_solution) {
+                col.clear();
+                col.brelaz_color_guided(original, ub, begin(original.nodes),
+                    end(original.nodes), solution, 0, 0);
+            }
+
+            if (options.verbosity >= gc::options::NORMAL)
+                std::cout << "[info] local search (limit=" << options.lsiter
+                          << ")\n";
+
+            col.local_search(original, solution, statistics, options,
+                begin(original.nodes), end(original.nodes));
+            assert(ub >= statistics.best_ub);
+            ub = statistics.best_ub;
+        }
     }
 
     bool peeling(
@@ -602,7 +632,7 @@ struct gc_model {
             if (options.verbosity >= gc::options::YACKING)
                 std::cout << "[preprocessing] compute maximum clique\n";
 
-            havemax = maximum_clique();
+            havemax = maximum_clique(lb, ub);
 
             threshold = std::max(lb-1, threshold);
             reduce(gr, threshold, k);
@@ -707,8 +737,9 @@ struct gc_model {
         }
     }
 
-
-    bool neighborhood_dominance(gc::graph_reduction<adjacency_struct>& gr)
+    bool neighborhood_dominance(gc::graph_reduction<adjacency_struct>& gr
+        //, const int limit
+        )
     {
 
         int size_before{original.size()};
@@ -806,9 +837,10 @@ struct gc_model {
 
     gc::graph_reduction<adjacency_struct> preprocess(const int k_core_threshold)
     {
-        // auto gr{degeneracy_peeling(original)};
-
         col.random_generator.seed(options.seed);
+        if (options.norecolor) {
+            col.use_recolor = false;
+        }
 
         gc::graph_reduction<adjacency_struct> gr(
             original, statistics, solution);
@@ -1018,6 +1050,11 @@ struct gc_model {
                 break;
             case gc::options::DEGREE_UNION_DYN:
                 brancher = std::make_unique<gc::DegreeUnionBrancher<2, 3>>(
+                    s, g, cons->fg, vars, xvars, *cons, options);
+                brancher->use();
+                break;
+            case gc::options::VERTEX_ACTIVITY:
+                brancher = std::make_unique<gc::VertexActivityBrancher>(
                     s, g, cons->fg, vars, xvars, *cons, options);
                 brancher->use();
                 break;
@@ -1613,6 +1650,8 @@ void extend_dsat_lb_core(gc_model<input_format>& model, gc::options& options,
         if (options.verbosity >= gc::options::NORMAL)
             statistics.display(std::cout);
 
+        statistics.notify_iteration(g.capacity());
+
         if (g.size() == model.original.size())
             break;
 
@@ -1710,7 +1749,8 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
     std::vector<int> sol;
     if (!options.solution_file.empty()) {
-        std::cout << "[reading] Reading solution file\n";
+        std::cout << "[reading] Reading solution file " << options.solution_file
+                  << "\n";
         std::ifstream sifs(options.solution_file.c_str());
         int c{0};
         while (sifs) {
@@ -1729,6 +1769,16 @@ int color(gc::options& options, gc::graph<input_format>& g)
         statistics.describe(std::cout);
         std::cout << std::endl;
     }
+
+    /*
+
+    [preprocess] <lb> + <peeling> + <neighborhood>
+    +
+    [heuristic] <dsatur * x> + <LS>
+    +
+    [algorithm] <BNB, VERMA, IDSATUR, BOTTOM-UP>
+
+    */
 
     // std::cout << "MAIN (READ): " << g.size() << "(" << (int*)(&g) << ")"
     //           << std::endl;
@@ -1764,113 +1814,81 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
         extend_dsat_lb_core(model, options, statistics, sol);
 
-        //         int limit{options.idsaturlimit};
-        //
-        //         while (model.lb < model.ub) {
-        //             statistics.binds(NULL);
-        //             gc::dense_graph g{model.dsatur_reduced()};
-        //
-        //             minicsp::Solver s;
-        //
-        //             model.init_search(s, g, model.original.nodes);
-        //
-        //             statistics.binds(model.cons);
-        //
-        //
-        // int nub{model.ub}, nlb{model.lb};
-        //             auto solution_found{false};
-        //             if (options.idsaturlimit == 0) {
-        //                 solution_found = model.find_solution(s, g, nlb, nub);
-        //             } else {
-        //                 solution_found = model.solve(s, g, nlb, nub, -1,
-        //                 false);
-        //             }
-        //
-        //             model.lb = std::max(nlb, model.lb);
-        //             statistics.notify_lb(model.lb);
-        //
-        //             if (options.verbosity >= gc::options::NORMAL)
-        //                 statistics.display(std::cout);
-        //
-        //             if (g.size() == model.original.size())
-        //                 break;
-        //
-        //             if (--limit == 0)
-        //                 break;
-        //         }
-
     } break;
     case gc::options::BOTTOMUP: {
 
-        // gc::statistics& sub_statistics(g.capacity());
-
         std::pair<int, int> bounds{0, g.size()};
+        gc_model<input_format> init_model(g, options, statistics, bounds, sol);
 
-        options.strategy = gc::options::BOUNDS; // so that we don't create the
-        // dense graph yet
-        options.ddsaturiter = 0;
-        gc_model<input_format> model(g, options, statistics, bounds, sol);
+        std::vector<int> vmap(g.capacity(), -1);
 
-        // extend_dsat_lb_core(model, options, statistics, sol);
+        options.lsiter = 0;
+        statistics.ub_safe = false;
 
-        // int limit{-1};
-        //
-        // options.strategy = gc::options::BNB;
-        // while (model.lb < model.ub) {
-        //
-        //     statistics.binds(NULL);
-        //     gc::graph<input_format> g{model.dsatur_sparse_reduced()};
-        //
-        //     std::pair<int, int> bounds{model.lb, model.ub};
-        //
-        //     statistics.update_ub = false;
-        //     gc_model<input_format> tmp_model(g, options, statistics, bounds,
-        //     sol);
-        //     statistics.update_ub = true;
-        //
-        //     auto solution_found{tmp_model.ub < model.ub};
-        //     if (options.idsaturlimit == 0) {
-        //         solution_found |= model.find_solution(
-        //             tmp_model.solver, tmp_model.final, tmp_model.lb,
-        //             tmp_model.ub);
-        //     } else {
-        //         solution_found |= model.solve(tmp_model.solver,
-        //         tmp_model.final,
-        //             tmp_model.lb, tmp_model.ub, -1, false);
-        //     }
-        //
-        //     model.lb = std::max(tmp_model.lb, model.lb);
-        //     statistics.notify_lb(model.lb);
-        //
-        //     // we need to check lb < ub because the solution is already
-        //     extended
-        //     // in
-        //     if (solution_found and model.lb < model.ub) {
-        //         if (options.verbosity >= gc::options::YACKING)
-        //             std::cout << "[trace] " << limit << " SAT: " <<
-        //             tmp_model.lb
-        //                       << ".." << tmp_model.ub;
-        //
-        //         auto actualub{model.dsat_extend(model.original)};
-        //
-        //         if (options.verbosity >= gc::options::YACKING)
-        //             std::cout << ".." << actualub << std::endl;
-        //
-        //         if (actualub < model.ub) {
-        //             model.ub = actualub;
-        //             statistics.notify_ub(model.ub);
-        //         }
-        //     }
-        //
-        //     if (options.verbosity >= gc::options::NORMAL)
-        //         statistics.display(std::cout);
-        //
-        //     if (g.size() == model.original.size())
-        //         break;
-        //
-        //     if (--limit == 0)
-        //         break;
-        // }
+        while (init_model.lb < init_model.ub) {
+            std::pair<int, int> bounds{init_model.lb, init_model.lb + 1};
+
+            vmap.clear();
+            vmap.resize(g.capacity(), -1);
+            gc::graph<input_format> tmp_g(g, vmap);
+
+            gc_model<input_format> tmp_model(
+                tmp_g, options, statistics, bounds, sol);
+
+            std::cout << "[search] " << init_model.lb << "-coloring ";
+            tmp_model.final.describe(std::cout);
+            std::cout << std::endl;
+
+            if (tmp_model.solve()) {
+
+                assert(
+                    tmp_model.solution.size() == tmp_model.original.capacity());
+
+                auto incumbent{init_model.ub};
+                if (tmp_model.degeneracy_sol or tmp_model.dsatur_sol
+                    or tmp_model.search_sol) {
+                    incumbent = tmp_model.reduction.extend_solution(
+                        tmp_model.solution, init_model.ub, true);
+                    // copy the tmp model solution into the init model
+                    for (int v = 0; v < tmp_model.original.capacity(); ++v)
+                        init_model.solution[init_model.original.nodes[v]]
+                            = tmp_model.solution[v];
+                    assert(incumbent < init_model.ub);
+                    init_model.ub = incumbent;
+                }
+
+                if (options.verbosity >= gc::options::YACKING)
+                    std::cout << init_model.ub << "]\n";
+
+                assert(init_model.lb == tmp_model.ub);
+                assert(init_model.lb == tmp_model.lb);
+
+                // iub may not be equal to ilb even if the solver
+                // wasn't stopped:
+                // coloring the removed vertices might have required
+                // extra colors
+                // either way, [ilb, iub] are correct bounds
+                statistics.notify_ub(init_model.ub);
+                // statistics.notify_lb(init_model.lb);
+
+                if (options.verbosity >= gc::options::NORMAL)
+                    statistics.display(std::cout);
+
+            } else {
+                ++init_model.lb;
+
+                statistics.notify_lb(init_model.lb);
+                if (options.verbosity >= gc::options::NORMAL)
+                    statistics.display(std::cout);
+            }
+
+            statistics.notify_iteration(g.capacity());
+        }
+
+        init_model.finalize_solution(edges);
+
+        if (options.verbosity >= gc::options::QUIET)
+            init_model.print_stats();
 
     } break;
     case gc::options::LOCALSEARCH: {
@@ -1888,9 +1906,6 @@ int color(gc::options& options, gc::graph<input_format>& g)
         std::vector<int> vmap(g.capacity(), -1);
         gc::graph<input_format> pg(g, vmap);
 
-        // std::cout << g.nodeset << std::endl << pg.nodeset << std::endl;
-        // exit(1);
-
         options.preprocessing = gc::options::NO_PREPROCESSING;
         gc_model<input_format> model(pg, options, statistics, bounds, sol);
         for (auto v : pg.nodes) {
@@ -1899,8 +1914,6 @@ int color(gc::options& options, gc::graph<input_format>& g)
         }
         model.ub = init_model.ub;
         model.lb = init_model.lb;
-
-
 
         model.col.brelaz_color_guided(
             pg, model.ub, begin(pg.nodes), end(pg.nodes), model.solution, 0, 0);
@@ -1936,7 +1949,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
         if (saved_ub <= model.ub) {
             model.solution = saved_sol;
-                                }
+        }
 
         model.finalize_solution(edges);
 
@@ -1952,11 +1965,7 @@ int color(gc::options& options, gc::graph<input_format>& g)
         options.strategy = gc::options::CLEVER;
         statistics.update_lb = false;
 
-        // std::vector<std::pair<int, int>> tmp_edges;
-        // for (auto u : init_model.g.nodes)
-        //     for (auto v : init_model.g.matrix[u])
-        //         if (u < v)
-        //             tmp_edges.push_back(std::pair<int, int>{u, v});
+        options.lsiter = 0;
 
         while (init_model.lb < init_model.ub) {
 
@@ -2028,6 +2037,8 @@ int color(gc::options& options, gc::graph<input_format>& g)
 
             statistics.unbinds();
             vmap.clear();
+
+            statistics.notify_iteration(gcopy.capacity());
         }
 
         init_model.finalize_solution(edges);
@@ -2069,12 +2080,86 @@ int color(gc::options& options, gc::graph<input_format>& g)
     return 0;
 }
 
+template <class graph_struct> int ccolor(gc::options& options, graph_struct& g)
+{
+    options.describe(std::cout);
+
+    if (options.verbosity >= gc::options::NORMAL)
+        std::cout << "[reading] ";
+
+    std::vector<std::pair<int, int>> edges;
+    if (options.format == "snap")
+        snap::read_graph(options.instance_file.c_str(),
+            [&](int nv, int) { g = graph_struct{nv}; },
+            [&](int u, int v) {
+                if (u != v) {
+                    // num_edges += 1 - g.matrix[u].fast_contain(v);
+                    g.add_edge(u, v);
+                    // ++num_edges;
+                }
+            },
+            [&](int, gc::weight) {});
+    else if (options.format == "csv")
+        csv::read_graph(options.instance_file.c_str(),
+            [&](int nv, int) { g = graph_struct{nv}; },
+            [&](int u, int v) {
+                if (u != v) {
+                    g.add_edge(u, v);
+                }
+            },
+            [&](int, gc::weight) {});
+    else if (options.format == "edg")
+        edgeformat::read_graph(options.instance_file.c_str(),
+            [&](int nv, int ne) {
+                g = graph_struct{nv};
+                // num_edges = ne;
+            },
+            [&](int u, int v) { g.add_edge(u, v); }, [&](int, gc::weight) {});
+    else
+        dimacs::read_graph(options.instance_file.c_str(),
+            [&](int nv, int) { g = graph_struct{nv}; },
+            [&](int u, int v) {
+                if (u != v) {
+                    g.add_edge(u - 1, v - 1);
+                    // ++num_edges;
+                    if (options.checksolution)
+                        edges.push_back(std::pair<int, int>{u - 1, v - 1});
+                }
+            },
+            [&](int, gc::weight) {});
+
+    std::cout << g.num_edges << std::endl;
+
+    g.canonize();
+
+    // std::cout << g << std::endl;
+
+    gc::statistics statistics(g.capacity());
+
+    std::vector<int> sub;
+    g.get_subproblem(sub, 20);
+
+    // exit(1);
+
+    g.search(statistics, options);
+
+    return 1;
+}
+
 int main(int argc, char* argv[])
 {
+
+
     auto options = gc::parse(argc, argv);
-    gc::graph<gc::vertices_vec> g;
-    // gc::graph<gc::bitset> g;
-    auto result = color(options, g);
+
+    int result;
+    if (options.method == gc::options::CDCL) {
+        gc::graph<gc::vertices_vec> g;
+        result = color(options, g);
+    } else {
+        gc::ca_graph g;
+        result = ccolor(options, g);
+    }
 
     return result;
 }
