@@ -11,6 +11,227 @@
 namespace gc
 {
 
+// let's just do it greedily because I'm not sure about the objective function
+// anyway
+void ca_graph::get_subproblem(std::vector<int>& vertices, const int size_limit)
+{
+    bi_graph B;
+    degeneracy_finder df(*this);
+    df.degeneracy_ordering();
+    cliquer cq(*this);
+
+    gc::bitset visited(0, nodes.capacity() - 1, gc::bitset::empt);
+
+    auto clique_sz = cq.find_cliques(rbegin(df.order), rend(df.order));
+
+    std::vector<double> unmatched_score(cq.num_cliques, 0);
+		
+		
+		
+		
+		
+		//     B.get_from_cliques(*this, cq.cliques[0], cq.cliques[1]);
+		//
+		// // std::cout << B << std::endl;
+		//
+		//
+		//     int max_matching{B.hopcroftKarp()};
+		//
+		// // std::cout << max_matching << std::endl;
+		//
+		//
+		//     B.get_from_cliques(*this, cq.cliques[1], cq.cliques[0]);
+		//
+		// std::cout << B << std::endl;
+		//
+		//
+		//     max_matching = B.hopcroftKarp();
+		//
+		// std::cout << max_matching << std::endl;
+		//
+		//
+		// exit(1);
+		
+
+    std::cout << "     ";
+    for (auto i{0}; i < cq.num_cliques; ++i) {
+        std::cout << " " << std::setw(2) << i;
+    }
+    std::cout << std::endl;
+
+    for (auto i{0}; i < cq.num_cliques; ++i) {
+        std::cout << std::setw(2) << cq.cliques[i].size() << " " << std::setw(2)
+                  << i;
+
+        // for (auto j{0}; j < i; ++j)
+        //     std::cout << "   ";
+
+        for (auto j{0}; j < cq.num_cliques; ++j) 
+					if(i!=j)
+				{
+
+            B.get_from_cliques(*this, cq.cliques[i], cq.cliques[j]);
+            auto mm{B.hopcroftKarp()};
+
+            auto mm_bound
+                = (cq.cliques[i].size() + cq.cliques[j].size() - B.I - mm);
+
+            std::cout << " " << std::setw(2)
+                      << (mm_bound - std::max(cq.cliques[i].size(),
+                                         cq.cliques[j].size()));
+        } else
+					std::cout << "  0" ;
+
+        std::cout << std::endl;
+    }
+
+    // contains the cliques for which we computed the matching to every other
+    // cliques
+    intstack explored_cliques;
+    explored_cliques.reserve(cq.num_cliques);
+
+    //
+    intstack chosen_cliques;
+    chosen_cliques.reserve(cq.num_cliques);
+
+    std::vector<std::vector<int>> matching_debt;
+
+    std::vector<int> largest_cliques;
+    for (auto i{0}; i < cq.num_cliques; ++i) {
+        if (cq.cliques[i].size() == clique_sz) {
+            largest_cliques.push_back(i);
+        }
+    }
+
+    // while (vertices.size() < size_limit) {
+    for (auto i : largest_cliques) {
+
+        std::cout << std::setw(2) << cq.cliques[i].size() << " " << std::setw(2)
+                  << i;
+
+        matching_debt.resize(matching_debt.size() + 1);
+        for (auto j{0}; j < cq.num_cliques; ++j) {
+            if (i != j) {
+                if (explored_cliques.contain(j)) {
+
+                    matching_debt.back().push_back(
+                        matching_debt[explored_cliques.index(j)][i]);
+										
+										// std::cout << " .";
+										
+                } else {
+                    B.get_from_cliques(*this, cq.cliques[i], cq.cliques[j]);
+                    int mm{B.hopcroftKarp()};
+
+                    int mm_bound{static_cast<int>(cq.cliques[i].size()
+                                     + cq.cliques[j].size())
+                        - B.I - mm};
+
+                    int cq_bound{static_cast<int>(
+                        std::max(cq.cliques[i].size(), cq.cliques[j].size()))};
+
+                    assert(mm_bound >= cq_bound);
+                    matching_debt.back().push_back(mm_bound - cq_bound);
+
+                    unmatched_score[i] += std::pow(
+                        (double)(cq.num_cliques), (mm_bound - cq_bound));
+										
+										// std::cout << " *";
+                }
+
+                std::cout << " " << std::setw(2) << matching_debt.back()[j];
+            } else
+                matching_debt.back().push_back(0);
+        }
+
+        explored_cliques.add(i);
+
+        std::cout << " -> " << unmatched_score[i] << std::endl;
+    }
+
+    // choose the best next clique
+    auto choice{*std::max_element(begin(largest_cliques), end(largest_cliques),
+        [&](int x, int y) { return unmatched_score[x] < unmatched_score[y]; })};
+
+    chosen_cliques.add(choice);
+    for (auto u : cq.cliques[choice]) {
+        visited.add(u);
+        vertices.push_back(u);
+    }
+		
+    std::cout << " -> CHOOSE " << choice << ": " << visited << std::endl;
+    for (int i{0}; i < cq.num_cliques; ++i)
+        std::cout << std::setw(5) << i;
+    std::cout << std::endl;
+
+    while (vertices.size() < size_limit) {
+
+        for (auto cl{chosen_cliques.begin_not_in()};
+             cl != chosen_cliques.end_not_in(); ++cl) {
+            auto i{*cl};
+            unmatched_score[i] = 0;
+
+            for (auto j : chosen_cliques)
+                unmatched_score[i]
+                    += (double)(matching_debt[explored_cliques.index(j)][i]);
+        }
+
+        for (int i{0}; i < cq.num_cliques; ++i)
+            if (!chosen_cliques.contain(i))
+                std::cout << std::setw(5) << " ";
+            else
+                std::cout << std::setw(5) << (int)(unmatched_score[i]);
+
+        choice = *std::max_element(chosen_cliques.begin_not_in(),
+            chosen_cliques.end_not_in(), [&](int x, int y) {
+                return unmatched_score[x] < unmatched_score[y];
+            });
+
+        std::cout << std::endl;
+
+        // compute the matching with the chosen clique
+
+        matching_debt.resize(matching_debt.size() + 1);
+        for (int i{0}; i < cq.num_cliques; ++i)
+            if (i != choice and !chosen_cliques.contain(i)) {
+                if (explored_cliques.contain(i)) {
+
+                    matching_debt.back().push_back(
+                        matching_debt[explored_cliques.index(i)][choice]);
+                } else {
+
+                    B.get_from_cliques(*this, cq.cliques[choice], cq.cliques[i]);
+                    int mm{B.hopcroftKarp()};
+
+                    int mm_bound{static_cast<int>(cq.cliques[choice].size()
+                                     + cq.cliques[i].size())
+                        - B.I - mm};
+
+                    int cq_bound{static_cast<int>(
+                        std::max(cq.cliques[choice].size(), cq.cliques[i].size()))};
+
+                    assert(mm_bound >= cq_bound);
+                    matching_debt.back().push_back(mm_bound - cq_bound);
+                }
+
+            } else
+                matching_debt.back().push_back(0);
+
+        chosen_cliques.add(choice);
+        if (!explored_cliques.contain(choice))
+            explored_cliques.add(choice);
+        for (auto u : cq.cliques[choice])
+            if (!visited.contain(u)) {
+                visited.add(u);
+                vertices.push_back(u);
+            }
+
+        std::cout << " -> CHOOSE " << choice << ": " << visited << std::endl;
+    }
+
+    // exit(1);
+}
+
 int ca_graph::find(const int v) const
 {
     auto x{v};
@@ -220,6 +441,9 @@ arc ca_graph::any_non_edge()
 
 void ca_graph::search(gc::statistics& stats, gc::options& options)
 {
+
+    // exit(1);
+
     int limit{static_cast<int>(nodes.capacity())};
 
     check_consistency("beg search");
@@ -351,8 +575,8 @@ void ca_graph::search(gc::statistics& stats, gc::options& options)
 
         double tbefore = minicsp::cpuTime();
         cq.clear();
-        auto clique_sz
-            = cq.find_cliques(begin(brelaz.order), end(brelaz.order), nodes.size());
+        auto clique_sz = cq.find_cliques(
+            begin(brelaz.order), end(brelaz.order), options.cliquelimit);
 
         stats.notify_nclique(cq.num_cliques);
         stats.notify_clique_time(minicsp::cpuTime() - tbefore);
@@ -378,15 +602,22 @@ void ca_graph::search(gc::statistics& stats, gc::options& options)
 
         int matching_bound = clique_sz;
 
+        // std::cout << "     ";
+        // for (auto i{1}; i < largest_cliques.size(); ++i) {
+        //     std::cout << " " << std::setw(2) << i;
+        // }
+        // std::cout << std::endl;
+
         if (largest_cliques.size() > 1) {
 
             for (auto i{0}; i < largest_cliques.size(); ++i) {
                 auto c1{largest_cliques[i]};
 
-                std::cout << cq.cliques[c1].size();
-
-                for (auto j{0}; j < i; ++j)
-                    std::cout << "  ";
+                // std::cout << std::setw(2) << cq.cliques[c1].size() << " "
+                //           << std::setw(2) << i;
+                //
+                // for (auto j{0}; j < i; ++j)
+                //     std::cout << "   ";
 
                 for (auto j{i + 1}; j < largest_cliques.size(); ++j) {
                     auto c2{largest_cliques[j]};
@@ -397,21 +628,22 @@ void ca_graph::search(gc::statistics& stats, gc::options& options)
                     auto mm_bound = (cq.cliques[c1].size()
                         + cq.cliques[c2].size() - B.I - mm);
 
-                    std::cout << " "
-                              << (mm_bound - std::max(cq.cliques[c1].size(),
-                                                 cq.cliques[c2].size()));
-                    // << cq.cliques[c1].size() << "," << cq.cliques[c2].size()
-                    // << ":"
-                    // << mm_bound;
+                    // std::cout << " " << std::setw(2)
+                    //           << (mm_bound - std::max(cq.cliques[c1].size(),
+                    //                              cq.cliques[c2].size()));
+                    // // << cq.cliques[c1].size() << "," <<
+                    // cq.cliques[c2].size()
+                    // // << ":"
+                    // // << mm_bound;
 
                     if (mm_bound > matching_bound) {
                         matching_bound = mm_bound;
                     }
                 }
 
-                std::cout << std::endl;
+                // std::cout << std::endl;
             }
-            exit(1);
+            // exit(1);
 
             // std::cout << std::endl;
 
