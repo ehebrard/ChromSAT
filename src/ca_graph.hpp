@@ -403,13 +403,19 @@ void bi_graph::get_from_cliques(
     for (i = 0; i < N; ++i) {
 				
         auto u{original[i]};
-				
-				// std::cout << vmap[u] << ":";
-				// for (auto v : g.matrix[u])
-				// 	if(vmap[v] >= N)
-				// 		std::cout << " " << vmap[v];
-				// std::cout << std::endl << u << ":";		
-				
+
+        // std::cout << u << ":";
+        // for (auto v : g.matrix[u])
+        // 	// if(vmap[v] >= N)
+        // 		std::cout << " " << v;
+        // std::cout << std::endl ;
+
+        // std::cout << vmap[u] << ":";
+        // for (auto v : g.matrix[u])
+        // 	if(vmap[v] >= N)
+        // 		std::cout << " " << vmap[v];
+        // std::cout << std::endl << u << ":";
+
         auto prev{N};
         auto p{-1};
         for (auto v : g.matrix[u]) {
@@ -539,6 +545,7 @@ public:
     arc any_non_edge();
 
     void search(statistics& stat, options& options);
+    void old_search(statistics& stat, options& options);
 
     void get_subproblem(std::vector<int>& vertices, const int size_limit);
 
