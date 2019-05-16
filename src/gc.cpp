@@ -2136,8 +2136,8 @@ template <class graph_struct> int ccolor(gc::options& options, graph_struct& g)
 
     gc::statistics statistics(g.capacity());
 
-    std::vector<int> sub;
-    g.get_subproblem(sub, 20);
+    // std::vector<int> sub;
+    // g.get_subproblem(sub, 20);
 
     // exit(1);
 

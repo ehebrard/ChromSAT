@@ -51,17 +51,16 @@ void ca_graph::get_subproblem(std::vector<int>& vertices, const int size_limit)
 		//
 		//
 		// exit(1);
-		
 
-    std::cout << "     ";
-    for (auto i{0}; i < cq.num_cliques; ++i) {
-        std::cout << " " << std::setw(2) << i;
-    }
-    std::cout << std::endl;
+    // std::cout << "     ";
+    // for (auto i{0}; i < cq.num_cliques; ++i) {
+    //     std::cout << " " << std::setw(2) << i;
+    // }
+    // std::cout << std::endl;
 
     for (auto i{0}; i < cq.num_cliques; ++i) {
-        std::cout << std::setw(2) << cq.cliques[i].size() << " " << std::setw(2)
-                  << i;
+        std::cout << std::setw(2) << cq.cliques[i].size() << " " << std::setw(3)
+                  << i << " ";
 
         // for (auto j{0}; j < i; ++j)
         //     std::cout << "   ";
@@ -76,11 +75,16 @@ void ca_graph::get_subproblem(std::vector<int>& vertices, const int size_limit)
             auto mm_bound
                 = (cq.cliques[i].size() + cq.cliques[j].size() - B.I - mm);
 
-            std::cout << " " << std::setw(2)
-                      << (mm_bound - std::max(cq.cliques[i].size(),
-                                         cq.cliques[j].size()));
+            if (mm_bound - std::max(cq.cliques[i].size(), cq.cliques[j].size())
+                > 0)
+                std::cout //<< " " << std::setw(2)
+                    << (mm_bound - std::max(cq.cliques[i].size(),
+                                       cq.cliques[j].size()));
+            else
+                std::cout << " ";
+
         } else
-					std::cout << "  0" ;
+            std::cout << " ";
 
         std::cout << std::endl;
     }
@@ -106,8 +110,9 @@ void ca_graph::get_subproblem(std::vector<int>& vertices, const int size_limit)
     // while (vertices.size() < size_limit) {
     for (auto i : largest_cliques) {
 
-        std::cout << std::setw(2) << cq.cliques[i].size() << " " << std::setw(2)
-                  << i;
+        // std::cout << std::setw(2) << cq.cliques[i].size() << " " <<
+        // std::setw(2)
+        //           << i;
 
         matching_debt.resize(matching_debt.size() + 1);
         for (auto j{0}; j < cq.num_cliques; ++j) {
@@ -142,12 +147,12 @@ void ca_graph::get_subproblem(std::vector<int>& vertices, const int size_limit)
             } else
                 matching_debt.back().push_back(0);
 
-            std::cout << " " << std::setw(2) << matching_debt.back()[j];
+            // std::cout << " " << std::setw(2) << matching_debt.back()[j];
         }
 
         explored_cliques.add(i);
 
-        std::cout << " -> " << unmatched_score[i] << std::endl;
+        // std::cout << " -> " << unmatched_score[i] << std::endl;
     }
 
     // choose the best next clique
@@ -159,11 +164,11 @@ void ca_graph::get_subproblem(std::vector<int>& vertices, const int size_limit)
         visited.add(u);
         vertices.push_back(u);
     }
-		
-    std::cout << " -> CHOOSE " << choice << ": " << visited << std::endl;
-    for (int i{0}; i < cq.num_cliques; ++i)
-        std::cout << std::setw(5) << i;
-    std::cout << std::endl;
+
+    // std::cout << " -> CHOOSE " << choice << ": " << visited << std::endl;
+    // for (int i{0}; i < cq.num_cliques; ++i)
+    //     std::cout << std::setw(5) << i;
+    // std::cout << std::endl;
 
     while (vertices.size() < size_limit) {
 
@@ -177,18 +182,18 @@ void ca_graph::get_subproblem(std::vector<int>& vertices, const int size_limit)
                     += (double)(matching_debt[explored_cliques.index(j)][i]);
         }
 
-        for (int i{0}; i < cq.num_cliques; ++i)
-            if (!chosen_cliques.contain(i))
-                std::cout << std::setw(5) << " ";
-            else
-                std::cout << std::setw(5) << (int)(unmatched_score[i]);
+        // for (int i{0}; i < cq.num_cliques; ++i)
+        //     if (!chosen_cliques.contain(i))
+        //         std::cout << std::setw(5) << " ";
+        //     else
+        //         std::cout << std::setw(5) << (int)(unmatched_score[i]);
 
         choice = *std::max_element(chosen_cliques.begin_not_in(),
             chosen_cliques.end_not_in(), [&](int x, int y) {
                 return unmatched_score[x] < unmatched_score[y];
             });
 
-        std::cout << std::endl;
+        // std::cout << std::endl;
 
         // compute the matching with the chosen clique
 
@@ -227,7 +232,7 @@ void ca_graph::get_subproblem(std::vector<int>& vertices, const int size_limit)
                 vertices.push_back(u);
             }
 
-        std::cout << " -> CHOOSE " << choice << ": " << visited << std::endl;
+        // std::cout << " -> CHOOSE " << choice << ": " << visited << std::endl;
     }
 
     // exit(1);
@@ -275,8 +280,14 @@ void ca_graph::add_edge(const int u, const int v)
 
 void ca_graph::canonize()
 {
-    for (auto v : nodes)
+    num_edges = 0;
+    for (auto v : nodes) {
         std::sort(begin(matrix[v]), end(matrix[v]));
+        matrix[v].erase(
+            std::unique(begin(matrix[v]), end(matrix[v])), end(matrix[v]));
+        num_edges += matrix[v].size();
+    }
+    num_edges /= 2;
 }
 
 void ca_graph::remove_neighbor(const int u, const int v)
@@ -440,7 +451,7 @@ arc ca_graph::any_non_edge()
     return arc{0, 0};
 }
 
-void ca_graph::search(gc::statistics& stats, gc::options& options)
+void ca_graph::old_search(gc::statistics& stats, gc::options& options)
 {
 
     // exit(1);
@@ -501,7 +512,7 @@ void ca_graph::search(gc::statistics& stats, gc::options& options)
 
     int cur_lb{lb};
 
-    int period = 1000;
+    int period = std::pow(10, 6 - options.verbosity);
 
     // auto largest_degree_criterion = [&](int x, int y) {return
     // matrix[x].size() > matrix[y].size();};
@@ -550,6 +561,415 @@ void ca_graph::search(gc::statistics& stats, gc::options& options)
         return false;
 
     };
+
+    for (auto u : nodes)
+        brelaz.order.push_back(u);
+
+    std::sort(begin(brelaz.order), end(brelaz.order), global_criterion);
+
+    // for (auto u : brelaz.order)
+    //     std::cout << std::setw(3) << u << " " << std::setw(3)
+    //               << matrix[u].size() << " " << std::setw(3) << degeneracy[u]
+    //               << " " << (degeneracy[u] >= ub) << (degeneracy[u] >= lb)
+    //               << (max_clique.contain(u)) << "\n";
+
+    std::vector<int> largest_cliques;
+
+    while (lb < ub) {
+
+        // check_consistency("search loop");
+        // if (stats.total_conflicts > 100)
+        //     exit(1);
+
+        if (options.verbosity > 1
+            && stats.notify_iteration(depth) % period == 0)
+            stats.custom_force_display(std::cout);
+
+        double tbefore = minicsp::cpuTime();
+        cq.clear();
+        auto clique_sz = cq.find_cliques(
+            begin(brelaz.order), end(brelaz.order), options.cliquelimit);
+
+        stats.notify_nclique(cq.num_cliques);
+        stats.notify_clique_time(minicsp::cpuTime() - tbefore);
+
+        // std::cout << clique_sz << std::endl;
+
+        if (clique_sz > cur_lb) {
+            cur_lb = clique_sz;
+        }
+
+        tbefore = minicsp::cpuTime();
+        largest_cliques.clear();
+        // largest_cliques.push_back(0);
+
+        for (auto i{0}; i < cq.cliques.size(); ++i) {
+            if (cq.cliques[i].size() >= clique_sz - 1) {
+                largest_cliques.push_back(i);
+            }
+        }
+
+        max_clique.clear();
+        max_clique.union_with(cq.cliques[largest_cliques[0]]);
+
+        int matching_bound = clique_sz;
+
+        // std::cout << "     ";
+        // for (auto i{1}; i < largest_cliques.size(); ++i) {
+        //     std::cout << " " << std::setw(2) << i;
+        // }
+        // std::cout << std::endl;
+
+        if (ub - clique_sz < 4 and largest_cliques.size() > 1) {
+
+            for (auto i{0}; i < largest_cliques.size(); ++i) {
+                auto c1{largest_cliques[i]};
+
+                // std::cout << std::setw(2) << cq.cliques[c1].size() << " "
+                //           << std::setw(2) << i;
+                //
+                // for (auto j{0}; j < i; ++j)
+                //     std::cout << "   ";
+
+                for (auto j{i + 1}; j < largest_cliques.size(); ++j) {
+                    auto c2{largest_cliques[j]};
+
+                    B.get_from_cliques(*this, cq.cliques[c1], cq.cliques[c2]);
+                    auto mm{B.hopcroftKarp()};
+
+                    auto mm_bound = (cq.cliques[c1].size()
+                        + cq.cliques[c2].size() - B.I - mm);
+
+                    // std::cout << " " << std::setw(2)
+                    //           << (mm_bound - std::max(cq.cliques[c1].size(),
+                    //                              cq.cliques[c2].size()));
+                    // // << cq.cliques[c1].size() << "," <<
+                    // cq.cliques[c2].size()
+                    // // << ":"
+                    // // << mm_bound;
+
+                    if (mm_bound > matching_bound) {
+                        matching_bound = mm_bound;
+                    }
+                }
+
+                // std::cout << std::endl;
+            }
+            // exit(1);
+
+            // std::cout << std::endl;
+
+            // if(clique_sz < matching_bound-1)
+            // 	std::cout << (matching_bound - clique_sz) << std::endl;
+
+            // // if(clique_sz == matching_bound)
+            // std::cout << clique_sz << " " << (matching_bound - clique_sz)
+            //           << std::endl;
+
+            stats.notify_bound_delta(clique_sz, matching_bound);
+            if (cur_lb < matching_bound) {
+                cur_lb = matching_bound;
+            }
+        }
+        stats.notify_matching_time(minicsp::cpuTime() - tbefore);
+
+        tbefore = minicsp::cpuTime();
+        brelaz.clear();
+        nub = brelaz.brelaz_color_score(
+            *this, ub - 1, global_criterion, size(), 12345);
+
+        if (nub != size())
+            std::cout << "YEEPEE!\n";
+
+        // cur_lb = 0;
+        clique_sz = 0;
+        for (auto v : brelaz.order) {
+            // std::cout << v << " " << brelaz.color[v] << std::endl;
+            if (brelaz.color[v] < clique_sz) {
+                //
+                if (brelaz.color[brelaz.order[brelaz.color[v]]]
+                    != brelaz.color[v]) {
+                    std::cout << "col[" << v << "] = " << brelaz.color[v]
+                              << " < " << clique_sz << std::endl;
+                }
+
+                assert(brelaz.color[brelaz.order[brelaz.color[v]]]
+                    == brelaz.color[v]);
+
+                // std::cout << "--> branch on " << v << "," <<
+                // brelaz.order[brelaz.color[v]] << std::endl;
+                pedge = arc{v, brelaz.order[brelaz.color[v]]};
+                break;
+            } // else {
+            // 							std::cout << "
+            // "
+            // <<
+            // v;
+            // 							max_clique.add(v);
+            // 						}
+            if (++clique_sz == ub)
+                break;
+        }
+        stats.notify_dsatur_time(minicsp::cpuTime() - tbefore);
+
+        // std::cout << clique_sz << ":";
+        // for (int i = 0; i < clique_sz; ++i) {
+        //     std::cout << " " << brelaz.order[i];
+        // }
+        //
+        // std::cout << std::endl
+        //           << max_clique.size() << ": " << max_clique <<
+        //           std::endl;
+
+        // std::cout << " nub = " << nub << "/" << size() << std::endl;
+
+        // std::cout << "brelaz clique = " << clique_sz << std::endl;
+
+        if (clique_sz > cur_lb)
+            cur_lb = clique_sz;
+
+        // std::cout << "probe clique = " << clique_sz << " in " << V.size()
+        // <<
+        // "/"
+        //           << size() << std::endl;
+
+        // // std::cout << cur_lb << ": " << max_clique << std::endl;
+        //
+        // std::cout << cq.cliques[lgst].size() << ":" ;
+        //         for (auto u : cq.cliques[lgst]) {
+        // 		std::cout << " " << u;
+        //         }
+        // std::cout << std::endl ;
+        //
+        // // assert(max_clique.size() == cur_lb);
+
+        if (depth == 0 and cur_lb > lb) {
+            lb = cur_lb;
+            stats.notify_lb(lb);
+            while (degeneracy[df.order[lb_frontier]] < lb)
+                ++lb_frontier;
+        }
+
+        if (ub > nub) {
+            ub = nub;
+            stats.notify_ub(ub);
+            while (ub_frontier > 0 and degeneracy[df.order[ub_frontier]] >= ub)
+                --ub_frontier;
+        }
+
+        // cq.clear();
+
+        // if (size() * (size() - 1) == 2 * num_edges)
+        //     cur_lb = size();
+        // else
+        //     cur_lb = 0;
+
+        if (options.verbosity > 4) {
+            if (options.verbosity > 5)
+                std::cout << std::endl << *this;
+
+            std::cout //<< std::endl << *this
+                << nodes.size() << "/" << num_edges << ": [" << lb << ".."
+                << cur_lb << ".." << ub << "]" << std::endl;
+        }
+
+        //
+
+        if (ub > cur_lb) {
+            // pedge = any_non_edge();
+
+            ++depth;
+
+            if (options.verbosity > 3) {
+                std::cout << std::setw(3) << std::left << depth << std::right;
+                for (int i = 0; i < depth; i++)
+                    std::cout << " ";
+                std::cout << "/(" << pedge[0] << "," << pedge[1] << ")\n";
+            }
+
+            trail.push_back(limit);
+            contract(pedge[0], pedge[1]);
+            contraction = true;
+            // std::cout << *this << std::endl;
+        } else if (depth > 0) {
+
+            ++stats.total_conflicts;
+
+            --depth;
+            pedge = backtrack(limit);
+            addition(pedge[0], pedge[1]);
+            contraction = false;
+
+            if (options.verbosity > 3) {
+                std::cout << std::setw(3) << std::left << depth << std::right;
+                for (int i = 0; i < depth; i++)
+                    std::cout << " ";
+                std::cout << "+(" << pedge[0] << "," << pedge[1] << ")\n";
+            }
+
+            cur_lb = ub - 1;
+
+        } else {
+            break;
+        }
+
+        // if (stats.total_iteration == 10000)
+        //     break;
+    }
+
+    stats.custom_force_display(std::cout);
+}
+
+void ca_graph::search(gc::statistics& stats, gc::options& options)
+{
+
+    // exit(1);
+
+    int limit{static_cast<int>(nodes.capacity())};
+
+    check_consistency("beg search");
+
+    int depth{0};
+
+    bi_graph B;
+
+    gc::bitset V(0, nodes.capacity() - 1, gc::bitset::empt);
+    // gc::bitset ub_core(0, nodes.capacity() - 1, gc::bitset::empt);
+    // gc::bitset lb_core(0, nodes.capacity() - 1, gc::bitset::empt);
+    gc::bitset max_clique(0, nodes.capacity() - 1, gc::bitset::empt);
+
+    degeneracy_finder df(*this);
+    dsatur brelaz;
+    brelaz.use_recolor = false;
+    df.degeneracy_ordering();
+
+    std::vector<int> degeneracy(df.degrees);
+    for (auto d{begin(df.order) + 1}; d < end(df.order); ++d) {
+        degeneracy[*d] = std::max(degeneracy[*(d - 1)], degeneracy[*d]);
+    }
+
+    std::vector<int> dg_rank(nodes.capacity());
+
+    int i{0}, lb_frontier{0},
+        ub_frontier{static_cast<int>(df.order.size()) - 1};
+    for (auto u : df.order) {
+        dg_rank[u] = i++;
+    }
+
+    cliquer cq(*this);
+
+    int lb{1 + (num_edges > 0)};
+    stats.notify_lb(lb);
+
+    int ub{df.degeneracy + 1};
+    stats.notify_ub(ub);
+
+    std::vector<int> coloring(limit, 0);
+
+    bool contraction{true};
+    arc pedge{0, 0};
+    int nub{ub};
+
+    int cur_lb{lb};
+
+    int period = std::pow(10, 6 - options.verbosity);
+
+    // auto largest_degree_criterion = [&](int x, int y) {return
+    // matrix[x].size() > matrix[y].size();};
+    auto degeneracy_rank_criterion
+        = [&](int x, int y) { return dg_rank[x] > dg_rank[y]; };
+    auto global_criterion = [&](int better, int worse) {
+
+        // 1/ start with the max clique
+        auto better_in_maxclique{max_clique.contain(better)};
+        auto worse_in_maxclique{max_clique.contain(worse)};
+        if (better_in_maxclique and !worse_in_maxclique)
+            return true;
+        if (worse_in_maxclique != better_in_maxclique)
+            return false;
+
+        // 2/ priority on vertices of the maximum ub-core
+        // auto better_in_ub_core{dg_rank[better] >= ub_frontier};
+        // auto worse_in_ub_core{dg_rank[worse] >= ub_frontier};
+        auto better_in_ub_core{degeneracy[better] >= ub};
+        auto worse_in_ub_core{degeneracy[worse] >= ub};
+        if (better_in_ub_core and !worse_in_ub_core)
+            return true;
+        if (better_in_ub_core != worse_in_ub_core)
+            return false;
+
+        // 3/ priority on vertices of the maximum lb-core
+        // auto better_in_lb_core{dg_rank[better] >= lb_frontier};
+        // auto worse_in_lb_core{dg_rank[worse] >= lb_frontier};
+        auto better_in_lb_core{degeneracy[better] >= lb};
+        auto worse_in_lb_core{degeneracy[worse] >= lb};
+        if (better_in_lb_core and !worse_in_lb_core)
+            return true;
+        if (better_in_lb_core != worse_in_lb_core)
+            return false;
+
+        // degeneracy [STATIC]
+        if (degeneracy[better] > degeneracy[worse])
+            return true;
+        if (degeneracy[better] < degeneracy[worse])
+            return false;
+
+        // degree [DYNAMIC]
+        if (matrix[better].size() > matrix[worse].size())
+            return true;
+
+        return false;
+
+    };
+
+    // brelaz.full = true;
+    // brelaz.clear();
+
+    nub = brelaz.brelaz_color_score(
+        *this, ub - 1, global_criterion, size(), 12345);
+
+    // std::vector<int> coloring(capacity(), -1);
+
+    for (auto v{0}; v < capacity(); ++v) {
+        coloring[v] = brelaz.color[v];
+        // std::cout << " " << coloring[v];
+    }
+
+    // std::cout << " -> " << nub << std::endl;
+
+    brelaz.local_search(*this, coloring, stats, options, begin(brelaz.order),
+        end(brelaz.order));
+
+    // brelaz.check_full_consistency(*this, "after local search");
+
+    // for (auto v : nodes) {
+    //     coloring[v] = brelaz.color[v];
+    //     std::cout << " " << coloring[v];
+    // }
+    //
+    // std::cout << " -> " << nub << std::endl;
+
+    brelaz.restart(*this, coloring);
+
+    // brelaz.check_full_consistency(*this, "after restart");
+
+    // brelaz.full = true;
+    // brelaz.findpath_out
+
+    // brelaz.clear();
+    //
+    //     brelaz.local_search(*this, coloring, stats, options,
+    //     begin(brelaz.order),
+    //         end(brelaz.order));
+    //
+    // brelaz.clear();
+    //
+    //     brelaz.init_local_search(*this, coloring, begin(brelaz.order),
+    //         end(brelaz.order));
+
+    brelaz.massacre_vertices(*this, options, stats);
+
+    exit(1);
 
     for (auto u : nodes)
         brelaz.order.push_back(u);
