@@ -577,7 +577,7 @@ struct gc_model {
         // std::cout << "[preprocessing] start peeling (" << k_core_threshold
         //           << ")\n";
 
-        auto threshold = std::max(lb-1, k_core_threshold);
+        auto threshold = std::max(lb, k_core_threshold);
 
         // bool ub_safe{(threshold <= lb)};
         if (options.verbosity >= gc::options::YACKING)
@@ -2136,8 +2136,8 @@ template <class graph_struct> int ccolor(gc::options& options, graph_struct& g)
 
     gc::statistics statistics(g.capacity());
 
-    std::vector<int> sub;
-    g.get_subproblem(sub, 20);
+    // std::vector<int> sub;
+    // g.get_subproblem(sub, 20);
 
     // exit(1);
 
