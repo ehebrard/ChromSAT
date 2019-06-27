@@ -54,6 +54,7 @@ executable('gc', ['src/gc.cpp'],
 executable('segundo', ['sota/Segundo/DSATUR/main.cpp'],
 	   dependencies: [segundo_dep, basic_dep])
 
+
 use_gecode = get_option('use_gecode')
 if use_gecode
   gecode_root = get_option('gecode')
@@ -119,6 +120,10 @@ if use_cplex
 	     ['sota/cplex.cpp'],
 	     dependencies: [cplex_dep, basic_dep],
 	     cpp_args: ['-DIL_STD'])
+
+  executable('node', ['src/node.cpp'],
+           dependencies: [basic_dep, prop_dep, minicsp_dep, cplex_dep],
+           cpp_args: ['-DIL_STD'])
 endif
 
 
