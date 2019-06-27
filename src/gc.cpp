@@ -2132,7 +2132,7 @@ template <class graph_struct> int ccolor(gc::options& options, graph_struct& g)
 
     g.canonize();
 
-    // std::cout << g << std::endl;
+    std::cout << g << std::endl;
 
     gc::statistics statistics(g.capacity());
 

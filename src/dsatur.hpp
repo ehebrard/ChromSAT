@@ -130,6 +130,7 @@ struct dsatur {
 
     int numcolors;
 
+    bool move{true};
     bool full{false};
 		bool reverse{false};
     bool use_recolor{true};
@@ -622,6 +623,25 @@ struct dsatur {
         last_vertex.resize(nsize + 2, cur);
     }
 
+    template <class graph_struct, typename riterator>
+    int greedy(graph_struct& g, riterator vstart, riterator vend, const int ub)
+    {
+        color.resize(g.capacity(), -1);
+        for (auto it{begin(neighbor_colors)}; it != end(neighbor_colors);
+             ++it) {
+            it->initialise(ub);
+        }
+        neighbor_colors.resize(g.capacity(), colvector(ub));
+
+        full = false;
+        reverse = false;
+        move = false;
+        for (auto v{vstart}; v != vend; ++v) {
+            assign_color(g, *v, neighbor_colors[*v].get_first_allowed());
+        }
+        move = true;
+    }
+
     template <class graph_struct, typename tiebreaker>
     int brelaz_greedy(graph_struct& g, const int ub,
         std::vector<int>::iterator start, const int limit, tiebreaker criterion
@@ -1107,11 +1127,13 @@ struct dsatur {
         // update the saturation degree of x's neighbors
         for (auto y : g.matrix[x]) {
             if (full or (!reverse and color[y] < 0) or (reverse and color[y] >= 0)) {
+                // if(full or color[y] < 0) {
                 if (neighbor_colors[y].add(c)) {
                     auto d{neighbor_colors[y].size()};
                     // move y one partition up in the saturation degree
                     // list
-                    move_up(y, d);
+                    if (move)
+                        move_up(y, d);
                 }
             }
         }
@@ -1125,11 +1147,16 @@ struct dsatur {
         // update the saturation degree of x's neighbors
         for (auto y : g.matrix[x])
             if (full or (!reverse and color[y] < 0) or (reverse and color[y] >= 0)) {
+                // if(full or color[y] < 0) {
                 if (neighbor_colors[y].remove(c)) {
 										// move y one partition down in the saturation degree
                     // list
-                    move_down(y, neighbor_colors[y].size() + 1);
-										
+                                                                                if (move)
+                                                                                    move_down(
+                                                                                        y,
+                                                                                        neighbor_colors
+                                                                                                [y].size()
+                                                                                            + 1);
                 }
             }
     }

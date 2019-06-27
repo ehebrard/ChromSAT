@@ -843,10 +843,33 @@ void ca_graph::search(gc::statistics& stats, gc::options& options)
     brelaz.use_recolor = false;
     df.degeneracy_ordering();
 
+    int ub{df.degeneracy + 1};
+    // gc::bitset colors(0, ub - 1, gc::bitset::empty);
+
+    brelaz.greedy(*this, rbegin(df.order), rend(df.order), ub);
+
     std::vector<int> degeneracy(df.degrees);
-    for (auto d{begin(df.order) + 1}; d < end(df.order); ++d) {
-        degeneracy[*d] = std::max(degeneracy[*(d - 1)], degeneracy[*d]);
+
+    std::vector<int> coloring(limit, 0);
+
+    // std::cout << std::setw(3) << *begin(df.order) << " " << std::setw(3) <<
+    // df.degrees[*begin(df.order)] << " " << std::setw(3) <<
+    // degeneracy[*begin(df.order)] << std::endl;
+    //
+    for (auto d{begin(df.order)}; d < end(df.order); ++d) {
+        auto v{*d};
+
+        coloring[*d] = brelaz.color[*d];
+
+        if (d != begin(df.order))
+            degeneracy[v] = std::max(degeneracy[*(d - 1)], degeneracy[v]);
+        std::cout << std::setw(3) << v << " " << std::setw(3) << df.degrees[v]
+                  << " " << std::setw(3) << degeneracy[v] << std::endl;
+
+        // for()
     }
+
+    // brelaz.greedy(rbegin(df.order), rend(df.order));
 
     std::vector<int> dg_rank(nodes.capacity());
 
@@ -861,10 +884,8 @@ void ca_graph::search(gc::statistics& stats, gc::options& options)
     int lb{1 + (num_edges > 0)};
     stats.notify_lb(lb);
 
-    int ub{df.degeneracy + 1};
+    // int ub{df.degeneracy + 1};
     stats.notify_ub(ub);
-
-    std::vector<int> coloring(limit, 0);
 
     bool contraction{true};
     arc pedge{0, 0};
@@ -930,10 +951,13 @@ void ca_graph::search(gc::statistics& stats, gc::options& options)
 
     // std::vector<int> coloring(capacity(), -1);
 
-    for (auto v{0}; v < capacity(); ++v) {
-        coloring[v] = brelaz.color[v];
-        // std::cout << " " << coloring[v];
-    }
+    if (nub < ub)
+        for (auto v{0}; v < capacity(); ++v) {
+            coloring[v] = brelaz.color[v];
+            std::cout << " " << coloring[v];
+        }
+    else
+        exit(1);
 
     // std::cout << " -> " << nub << std::endl;
 
