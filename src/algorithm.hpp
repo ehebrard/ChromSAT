@@ -4,454 +4,356 @@
 #include <limits>
 #include <vector>
 
+#include "bi_graph.hpp"
+#include "cliquer.hpp"
 #include "dsatur.hpp"
 #include "intstack.hpp"
 #include "statistics.hpp"
 
-
 namespace gc
 {
 
-template <class graph_struct> struct cliquer {
-    const graph_struct& g;
-    std::vector<std::vector<int>> cliques;
-    std::vector<gc::bitset> candidates;
-    std::vector<int> last_clique;
-    size_t num_cliques;
-    size_t maxcliquesize;
+template <class graph_struct> class coloring_algorithm;
 
-    cliquer(const graph_struct& ig)
-        : g(ig)
-        , num_cliques(0)
-        , maxcliquesize(0)
+template <class graph_struct> class heuristic
+{
+
+private:
+    coloring_algorithm<graph_struct>& env;
+
+    degeneracy_finder<graph_struct> df;
+    std::vector<int> degeneracy;
+    std::vector<int> dg_rank;
+
+public:
+    // dsatur brelaz;
+
+    heuristic(coloring_algorithm<graph_struct>& env)
+        : env(env)
+        , df(env.G)
     {
-        last_clique.resize(g.capacity());
+        // N = env.G.nodes.capacity();
+        degeneracy.resize(env.N);
+        // max_clique.initialise(0, N - 1, gc::bitset::empt);
+        // brelaz.use_recolor = false;
     }
 
-    // clear previously cached results
-    void clear()
+    int degeneracy_coloring(std::vector<int>& coloring)
     {
-        num_cliques = 0;
-        maxcliquesize = 0;
+
+        /*** compute degeneracy and k-cores, and initialise ub ***/
+        df.degeneracy_ordering();
+        int ub{df.degeneracy + 1};
+
+        /*** compute the coloring corresponding to the degeneracy ordering
+        * ***/
+        // brelaz.use_recolor = false;
+        auto bub{
+            env.brelaz.greedy(env.G, rbegin(df.order), rend(df.order), ub)};
+
+        if (ub > bub)
+            ub = bub;
+
+        degeneracy = df.degrees;
+        coloring.resize(env.N, 0);
+        dg_rank.resize(env.N);
+        int r{0};
+        for (auto d{begin(df.order)}; d < end(df.order); ++d) {
+            auto v{*d};
+            coloring[*d] = env.brelaz.color[*d];
+            dg_rank[*d] = r++;
+            if (d != begin(df.order))
+                degeneracy[v] = std::max(degeneracy[*(d - 1)], degeneracy[v]);
+        }
+
+        return ub;
     }
-    // initialize a new clique
-    void new_clique();
 
-    // insert v into the clq^th clique. assumes it fits
-    void insert(int v, int clq);
-
-    // heuristically find a set of cliques and return the size of the
-    // largest
-    template <class ForwardIterator>
-    int find_cliques(ForwardIterator beg_ordering, ForwardIterator end_ordering, const int limit=0xfffffff)
+    int dsatur_coloring(const int ub, std::vector<int>& coloring)
     {
-        clear();
-        for (auto it{beg_ordering}; it != end_ordering; ++it) {
+        env.l.get_largest_clique();
 
-            // std::cout << *it ;
+        double tbefore = minicsp::cpuTime();
+        auto global_criterion = [&](int better, int worse) {
+            // degree [DYNAMIC]
+            // if (G.matrix[better].size() > G.matrix[worse].size())
+            // if (dg_rank[better] > dg_rank[worse])
+            //             return true;
 
-            bool found{false};
-            for (int i = 0; i != num_cliques; ++i)
-                if (candidates[i].fast_contain(*it)) {
-                    found = true;
-                    insert(*it, i);
-                    // std::cout << ":" << i << " ";
-                }
-            if (!found && num_cliques < limit) {
-                new_clique();
-                insert(*it, num_cliques - 1);
-                // std::cout << ":" << (num_cliques - 1) << "* ";
+            // 1/ start with the max clique
+            auto better_in_maxclique{env.l.max_clique.contain(better)};
+            auto worse_in_maxclique{env.l.max_clique.contain(worse)};
+            if (better_in_maxclique and !worse_in_maxclique)
+                return true;
+            if (worse_in_maxclique != better_in_maxclique)
+                return false;
+
+            if (degeneracy[better] > degeneracy[worse]
+                or (degeneracy[better] == degeneracy[worse]
+                       and env.G.matrix[better].size()
+                           > env.G.matrix[worse].size()))
+                return true;
+            return false;
+        };
+
+        env.brelaz.clear();
+        /*** compute a better coloring using dsatur with complex tie breaking
+         * ***/
+        auto nub{env.brelaz.brelaz_color_score(
+            env.G, ub - 1, global_criterion, env.G.size(), 12345)};
+
+        if (nub < ub) {
+
+            coloring.resize(env.N, 0);
+
+            for (auto v{0}; v < env.N; ++v) {
+                coloring[v] = env.brelaz.color[v];
             }
-        }
-
-        // std::cout << "| ";
-
-        for (auto it{beg_ordering}; it != end_ordering; ++it) {
-            for (int i = last_clique[*it] + 1; i < num_cliques; ++i)
-                if (candidates[i].fast_contain(*it)) {
-                    insert(*it, i);
-                    // std::cout << *it << ":" << (num_cliques - 1) << " ";
-                }
-        }
-
-        // std::cout << " -> " << maxcliquesize << std::endl;
-
-        return maxcliquesize;
-    }
-
-    // heuristically find a set of cliques and return the size of the
-    // largest
-    template <typename ForwardIterator, typename set>
-    int find_cliques_in(
-        ForwardIterator beg_ordering, ForwardIterator end_ordering, set nodes)
-    {
-        clear();
-        for (auto it{beg_ordering}; it != end_ordering; ++it) {
-            // std::cout << *it ;
-
-            if (!nodes.contain(*it))
-                continue;
-
-            bool found{false};
-            for (int i = 0; i != num_cliques; ++i)
-                if (candidates[i].fast_contain(*it)) {
-                    found = true;
-                    insert(*it, i);
-                    // std::cout << ":" << i << " ";
-                }
-            if (!found) {
-                new_clique();
-                insert(*it, num_cliques - 1);
-                // std::cout << ":" << (num_cliques - 1) << "* ";
-            }
-        }
-
-        // std::cout << "| ";
-
-        for (auto it{beg_ordering}; it != end_ordering; ++it) {
-
-            if (!nodes.contain(*it))
-                continue;
-
-            for (int i = last_clique[*it] + 1; i < num_cliques; ++i)
-                if (candidates[i].fast_contain(*it)) {
-                    insert(*it, i);
-                    // std::cout << *it << ":" << (num_cliques - 1) << " ";
-                }
-        }
-
-        // std::cout << " -> " << maxcliquesize << std::endl;
-
-        return maxcliquesize;
-    }
-};
-
-template <class graph_struct> void cliquer<graph_struct>::new_clique()
-{
-    if (cliques.size() == num_cliques) {
-        cliques.resize(num_cliques + 1);
-        candidates.resize(num_cliques + 1);
-        candidates.back().initialise(0, g.capacity(), bitset::empt);
-    }
-
-    cliques[num_cliques].clear();
-    candidates[num_cliques].copy(g.nodeset);
-    ++num_cliques;
-}
-
-// insert v into the clq^th clique. assumes it fits
-template <class graph_struct> void cliquer<graph_struct>::insert(int v, int clq)
-{
-    cliques[clq].push_back(v);
-    candidates[clq].intersect_with(begin(g.matrix[v]), end(g.matrix[v]));
-    last_clique[v] = clq;
-    maxcliquesize = std::max(maxcliquesize, cliques[clq].size());
-}
-
-template <class InputIterator1, class InputIterator2, class OutputIterator,
-    class DeltaIterator, class InterIterator>
-OutputIterator set_union_delta(InputIterator1 first1, InputIterator1 last1,
-    InputIterator2 first2, InputIterator2 last2, OutputIterator result_union,
-    DeltaIterator delta, // 2 \ 1
-    InterIterator inter)
-{
-    while (first1 != last1 and first2 != last2) {
-        if (*first1 < *first2) {
-            *result_union = *first1;
-            ++result_union;
-            ++first1;
-        } else {
-            *result_union = *first2;
-            ++result_union;
-            if (*first2 < *first1) {
-                *delta = *first2;
-                ++first2;
-                ++delta;
-            } else {
-                *inter = *first1;
-                ++inter;
-                ++first1;
-                ++first2;
-            }
-        }
-    }
-
-    std::copy(first2, last2, delta);
-    std::copy(first2, last2, result_union);
-
-    return std::copy(first1, last1, result_union);
-}
-
-template <class ForwardIt, class T>
-ForwardIt find_in(ForwardIt first, ForwardIt last, const T& value)
-{
-    ForwardIt it;
-    typename std::iterator_traits<ForwardIt>::difference_type count, step;
-    count = std::distance(first, last);
-
-    while (count > 0) {
-        it = first;
-        step = count / 2;
-        std::advance(it, step);
-        if (*it < value) {
-            first = ++it;
-            count -= step + 1;
-        } else if (*it == value) {
-            return it;
         } else
-            count = step;
+            nub = ub;
+        env.stats.notify_dsatur_time(minicsp::cpuTime() - tbefore);
+
+        return nub;
     }
-
-    return first;
-}
-
-class bi_graph
-{
-
-public:
-    const int INFTY = std::numeric_limits<int>::max();
-
-private:
-    // static const int T = -1;
-
-    std::vector<int> vmap;
-    bitset first;
-
-    std::vector<int> dist;
-
-    std::vector<int> Q;
-    int q;
-
-public:
-    int N;
-    int T;
-    int I;
-
-    std::vector<int> original;
-    std::vector<int> matching;
-
-    // intstack nodes;
-
-    std::vector<std::vector<int>> matrix;
-
-    bi_graph() {}
-
-    template <class graph_struct, class clique_struct>
-    void get_from_cliques(
-        graph_struct& g, clique_struct& c1, clique_struct& c2);
-
-    bool dfs(const int u);
-    bool bfs();
-    int hopcroftKarp();
-
-    template <class graph_struct, class clique_struct>
-    int get_bound(graph_struct& g, clique_struct& c1, clique_struct& c2);
-
-    std::ostream& describe(std::ostream& os) const;
 };
 
-template <class graph_struct, class clique_struct>
-int bi_graph::get_bound(graph_struct& g, clique_struct& c1, clique_struct& c2)
+template <class graph_struct> class lower_bound
 {
-    get_from_cliques(g, c1, c2);
-    return c1.size() + c2.size() - I - hopcroftKarp();
-}
 
-template <class graph_struct, class clique_struct>
-void bi_graph::get_from_cliques(
-    graph_struct& g, clique_struct& c1, clique_struct& c2)
-{
-    Q.clear();
-    q = 0;
+private:
+    coloring_algorithm<graph_struct>& env;
 
-    vmap.clear();
-    vmap.resize(g.capacity(), -1);
+    std::vector<int> largest_cliques;
 
-    matrix.resize(g.capacity());
+    gc::cliquer<graph_struct> cq;
+    gc::bi_graph B;
 
-    original.clear();
+public:
+    int clique_sz;
+    gc::bitset max_clique;
 
-    first.reinitialise(0, g.capacity() - 1, bitset::empt);
+    lower_bound(coloring_algorithm<graph_struct>& env)
+        : env(env)
+        , cq(env.G)
+        , clique_sz{0}
+        , max_clique(0, env.G.capacity() - 1, gc::bitset::empt)
+    {
+    }
 
-    std::sort(begin(c1), end(c1));
-    std::sort(begin(c2), end(c2));
+    template <class random_it> int clique(random_it beg, random_it end)
+    {
+        double tbefore = minicsp::cpuTime();
+        cq.clear();
+        clique_sz = cq.find_cliques(beg, end, env.options.cliquelimit);
 
-    N = 0;
-    I = 0;
-    int i{0}, j{0};
-    while (i < c1.size() or j < c2.size()) {
+        env.stats.notify_nclique(cq.num_cliques);
+        env.stats.notify_clique_time(minicsp::cpuTime() - tbefore);
 
-        // std::cout << i << " " << j;
-        if (i < c1.size() and j < c2.size()) {
-            if (c1[i] < c2[j]) {
-                // std::cout << " -> " << c1[i];
-                original.push_back(c1[i]);
-                first.add(c1[i++]);
-                ++N;
-            } else if (c1[i] > c2[j]) {
-                // std::cout << " -> " << c2[j];
-                original.push_back(c2[j++]);
-            } else {
-                ++I;
-                ++i;
-                ++j;
-            }
-        } else if (i == c1.size()) {
-            while (j < c2.size()) {
-                // std::cout << " -> " << c2[j];
-                original.push_back(c2[j++]);
-            }
-        } else {
-            while (i < c1.size()) {
-                // std::cout << " -> " << c1[i];
-                original.push_back(c1[i]);
-                first.add(c1[i++]);
-                ++N;
+        return clique_sz;
+    }
+
+    void get_largest_clique()
+    {
+        if (clique_sz == 0)
+            return;
+
+        largest_cliques.clear();
+
+        for (auto i{0}; i < cq.cliques.size(); ++i) {
+            if (cq.cliques[i].size() >= clique_sz) {
+                largest_cliques.push_back(i);
             }
         }
 
-        // std::cout << std::endl;
+        max_clique.clear();
+        max_clique.union_with(cq.cliques[largest_cliques[0]]);
     }
 
-    std::sort(begin(original), end(original), [&](int x, int y) {
-        return first.contain(x) > first.contain(y)
-            or (first.contain(x) == first.contain(y) and x < y);
-    });
+    int matching()
+    {
+        double tbefore = minicsp::cpuTime();
+        get_largest_clique();
 
-    i = 0;
-    for (auto u : original) {
-        // std::cout << " " << u;
-        vmap[u] = i++;
+        int matching_bound = clique_sz;
 
-        // if (i == N)
-        //     std::cout << " |";
-    }
-    // std::cout << std::endl;
+        if (largest_cliques.size() > 1) {
 
-    T = original.size();
-    // nodes.reserve(original.size());
-    // nodes.fill();
+            for (auto i{0}; i < largest_cliques.size(); ++i) {
+                auto c1{largest_cliques[i]};
 
-    // T = nodes.size();
+                for (auto j{i + 1}; j < largest_cliques.size(); ++j) {
+                    auto c2{largest_cliques[j]};
 
-    matching.clear();
-    matching.resize(T + 1, T);
+                    B.get_from_cliques(env.G, cq.cliques[c1], cq.cliques[c2]);
+                    auto mm{B.hopcroftKarp()};
 
-    dist.clear();
-    dist.resize(T + 1, INFTY);
+                    auto mm_bound = (cq.cliques[c1].size()
+                        + cq.cliques[c2].size() - B.I - mm);
 
-    for (i = 0; i < T; ++i) {
-        matrix[i].clear();
-    }
-
-    for (i = 0; i < N; ++i) {
-				
-        auto u{original[i]};
-
-
-        auto prev{N};
-        auto p{-1};
-        for (auto v : g.matrix[u]) {
-            assert(p < v);
-            p = v;
-            if (vmap[v] >= N) {
-                auto next{vmap[v]};
-								
-								// std::cout << " [" << original[prev] << ".." << v << "[";
-								
-                for (int w = prev; w < next; ++w) {
-                    matrix[i].push_back(w);
-                    matrix[w].push_back(i);
+                    if (mm_bound > matching_bound) {
+                        matching_bound = mm_bound;
+                    }
                 }
-                prev = next + 1;
             }
+
+            env.stats.notify_bound_delta(clique_sz, matching_bound);
         }
-				
-        for (int w = prev; w < original.size(); ++w) {
-            matrix[i].push_back(w);
-            matrix[w].push_back(i);
-        }
-				
-				// std::cout << std::endl;
-				
+        env.stats.notify_matching_time(minicsp::cpuTime() - tbefore);
+
+        return matching_bound;
     }
-
-}
-
-template<class graph_struct&>
-class heuristic {
-
-private: 
-	graph_struct& G;
-	dsatur brelaz;
-	degeneracy_finder df;
-	
-	preprocessor(graph_struct& g) : G(g) {}
-
 };
 
-template<class graph_struct&>
-class lower_bound {
-	
-private: 
-	graph_struct& G;
-
-	bi_graph B;
-	
-	lower_bound(graph_struct& g) G(g) {}
-
-};
-
-template<class graph_struct&>
-class selector {
-	
-private: 
-	graph_struct& G;
-
-	selector(graph_struct& g) G(g) {}
-
-};
-
-
-
-template<class graph_struct&>
-class coloring_algorithm {
+template <class graph_struct> class selector
+{
 
 private:
-	
-	graph_struct& G;
-	statistics& stats;
-	options& options;
-	
-	heuristic h;
-	lower_bound l;
-	selector s;
-	
-	
-	// dsatur brelaz;
+    coloring_algorithm<graph_struct>& env;
 
-	
-	
-	gc::bitset max_clique;	
-  std::vector<int> degeneracy;
-  std::vector<int> coloring;	
-	std::vector<int> dg_rank;
-	
-	
-	coloring_algorithm(graph_struct& g, statistics& stats, options& options) : G(g), stats(stats), options(options), h(g), s(G) {}
-		
-	
-	
-	void find_coloring()
-	{
-		std::cout << "hello\n";
-		
-		
-		G.search();
-	}
-		
-		
+public:
+    selector(coloring_algorithm<graph_struct>& env)
+        : env(env)
+    {
+    }
 
+    arc select()
+    {
+
+        // std::cout << env.l.max_clique << " " << env.l.clique_sz << "/" <<
+        // env.l.max_clique.size() << std::endl;
+
+        int c = 0;
+        for (auto vp{begin(env.brelaz.order)};
+             vp != begin(env.brelaz.order) + env.l.clique_sz; ++vp) {
+
+            // std::cout << *vp << " " << c << std::endl;
+
+            assert(env.brelaz.color[*vp] == c++);
+        }
+
+        arc e;
+        for (auto vp{begin(env.brelaz.order) + env.l.clique_sz};
+             vp != end(env.brelaz.order); ++vp) {
+            auto v{*vp};
+            if (env.brelaz.color[v] < env.l.clique_sz) {
+                e = arc{v, env.brelaz.order[env.brelaz.color[v]]};
+                break;
+            }
+        }
+        return e;
+    }
+
+    void make_choice()
+    {
+        ++env.depth;
+        env.G.trail.push_back(env.N);
+        arc e{select()};
+        env.G.contract(e[0], e[1]);
+    }
+};
+
+template <class graph_struct> class coloring_algorithm
+{
+
+public:
+    graph_struct& G;
+    gc::statistics& stats;
+    gc::options& options;
+
+    int UB;
+    int LB;
+    int depth;
+    int N;
+    dsatur brelaz;
+
+    heuristic<graph_struct> h;
+    lower_bound<graph_struct> l;
+    selector<graph_struct> s;
+
+public:
+    std::vector<int> coloring;
+
+    coloring_algorithm(graph_struct& g, statistics& stats, gc::options& options)
+        : G(g)
+        , stats(stats)
+        , options(options)
+        , UB{static_cast<int>(g.size())}
+        , LB{1 + (G.num_edges > 0)}
+        , depth{0}
+        , N{static_cast<int>(G.nodes.capacity())}
+        , h(*this)
+        , l(*this)
+        , s(*this)
+    {
+        stats.notify_lb(LB);
+        stats.notify_ub(UB);
+        brelaz.use_recolor = false;
+    }
+
+    void update_lb(const int lb)
+    {
+        if (depth == 0 and lb > LB) {
+            LB = lb;
+            stats.notify_lb(lb);
+            stats.custom_force_display(std::cout);
+        }
+    }
+
+    void update_ub(const int ub)
+    {
+        if (ub < UB) {
+            UB = ub;
+            stats.notify_ub(ub);
+            stats.custom_force_display(std::cout);
+        }
+    }
+
+    // void contract(arc e) {
+    // 	trail.push_back(limit);
+    // 	G.contract(e[0], e[1]);
+    // }
+
+    void backtrack()
+    {
+        --depth;
+        arc e{G.backtrack(N)};
+        G.addition(e[0], e[1]);
+        ++stats.total_conflicts;
+    }
+
+    void find_coloring()
+    {
+        int period = std::pow(10, 6 - options.verbosity);
+
+        update_ub(h.degeneracy_coloring(coloring));
+
+        update_ub(h.dsatur_coloring(UB, coloring));
+
+        while (LB < UB) {
+
+            if (options.verbosity > 1
+                && stats.notify_iteration(depth) % period == 0)
+                stats.custom_force_display(std::cout);
+
+            auto lb{l.clique(begin(brelaz.order), end(brelaz.order))};
+            update_lb(lb);
+
+            update_ub(h.dsatur_coloring(UB+1, coloring));
+
+            if (UB > lb) {
+
+                s.make_choice();
+
+            } else if (depth > 0) {
+
+                backtrack();
+
+            } else
+                break;
+        }
+				
+				stats.custom_force_display(std::cout);
+    }
 }; 
 
 

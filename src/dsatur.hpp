@@ -1,3 +1,4 @@
+#include <iomanip>
 #include <iostream>
 
 #include "graph.hpp"
@@ -654,7 +655,7 @@ struct dsatur {
         //=([&](int x, int y){return degree[x] > degree[y];})
         )
     {
-        // std::cout << " (" << ub << ")";
+        // std::cout << " ub = " << ub << ", limit = " << limit << std::endl;
         // bool first_clq{true};
 
         // assert(!use_recolor);
@@ -706,6 +707,8 @@ struct dsatur {
 
             // use the first possible color for x
             c = neighbor_colors[*candidate].get_first_allowed();
+
+            // std::cout << *candidate << " <- " << c << std::endl;
 
             if (c == numcolors) {
 
@@ -798,7 +801,7 @@ struct dsatur {
             return 0;
 
         // std::cout << "limit=" << limit << std::endl;
-        //
+        // //
         // std::cout << "seed=" << seed << std::endl;
 
         brelaz_init(g, ub, limit, seed);
@@ -809,11 +812,11 @@ struct dsatur {
             //         }
             );
 
-        // for(auto u : order)
-        // 	std::cout << std::setw(3) << u << " " << std::setw(3) <<
-        // degree[u]
-        // 		// << " " << std::setw(3) << criterion(u)
-        // 			<< "\n";
+        // for (auto u : order)
+        //     std::cout << std::setw(3) << u << " " << std::setw(3) <<
+        //     degree[u]
+        //               // << " " << std::setw(3) << criterion(u)
+        //               << "\n";
 
         return brelaz_greedy(g, ub, begin(order), limit, criterion);
     }
