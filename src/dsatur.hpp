@@ -635,10 +635,17 @@ struct dsatur {
         full = false;
         reverse = false;
         move = false;
+
+        auto c{0}, nub{0};
         for (auto v{vstart}; v != vend; ++v) {
-            assign_color(g, *v, neighbor_colors[*v].get_first_allowed());
+            c = neighbor_colors[*v].get_first_allowed();
+            assign_color(g, *v, c);
+            if (c >= nub)
+                nub = c + 1;
         }
         move = true;
+
+        return nub;
     }
 
     template <class graph_struct, typename tiebreaker>
@@ -881,7 +888,7 @@ struct dsatur {
 
         full = true;
 
-        int degeneracy;
+        // int degeneracy;
         std::vector<int> dorder;
         // std::vector<int> degrees;
         std::vector<std::list<int>::iterator> iterators;
@@ -980,14 +987,14 @@ struct dsatur {
             std::cout << std::endl;
         }
 				std::cout << std::endl;
-				
-				auto d{color_degeneracy(g)};
-				
-				exit(1);
-				
-				x = order.back();
-				unassign_color(g, x, color[x]);
-				// search_vertices.remove(x);
+
+                                // auto d{color_degeneracy(g)};
+
+                                exit(1);
+
+                                x = order.back();
+                                unassign_color(g, x, color[x]);
+                                // search_vertices.remove(x);
 				
 				
 				std::vector<int> N_of_x;

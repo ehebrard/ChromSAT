@@ -1,5 +1,6 @@
 #include <iostream>
 
+#include "algorithm.hpp"
 #include "brancher.hpp"
 #include "ca_graph.hpp"
 #include "cliquesampler.hpp"
@@ -1058,6 +1059,9 @@ struct gc_model {
                     s, g, cons->fg, vars, xvars, *cons, options);
                 brancher->use();
                 break;
+            default:
+                std::cout << "THIS BRANCHER IS UNKNOWN!\n";
+                exit(1);
             }
         }
   }
@@ -2141,7 +2145,11 @@ template <class graph_struct> int ccolor(gc::options& options, graph_struct& g)
 
     // exit(1);
 
-    g.search(statistics, options);
+    algorithm A(g);
+
+    A.find_coloring(statistics, options);
+
+    // g.search(statistics, options);
 
     return 1;
 }
