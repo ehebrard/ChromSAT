@@ -122,7 +122,7 @@ if use_cplex
 	     cpp_args: ['-DIL_STD'])
 
   executable('node', ['src/node.cpp'],
-           dependencies: [basic_dep, cplex_dep],
+	           dependencies: [basic_dep, prop_dep, minicsp_dep, cplex_dep],
            cpp_args: ['-DIL_STD'])
 endif
 
