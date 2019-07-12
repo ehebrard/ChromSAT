@@ -121,7 +121,7 @@ if use_cplex
 	     dependencies: [cplex_dep, basic_dep],
 	     cpp_args: ['-DIL_STD'])
 
-  executable('node', ['src/stage/Node.cpp','src/stage/Graph.cpp'],
+  executable('bnp', ['src/stage/main_bnp.cpp','src/stage/BnP.cpp'],
 	           dependencies: [basic_dep, prop_dep, minicsp_dep, cplex_dep],
            cpp_args: ['-DIL_STD'])
 endif
