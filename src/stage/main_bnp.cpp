@@ -120,7 +120,7 @@ pair<int, int> makechoice(gc::ca_graph g) {
 //============================================================================//
 //====// Main //==============================================================//
 
-int mainfe(int argc, char * argv[]) {
+int main(int argc, char * argv[]) {
 
 	//>> Create the BnP solver
 	BnP bnp;
@@ -138,7 +138,7 @@ int mainfe(int argc, char * argv[]) {
 	bnp.print(O_STD);
 }
 
-int main(int argc, char * argv[]) {
+int mainee(int argc, char * argv[]) {
 	//>>
 	int count = 1000;
 

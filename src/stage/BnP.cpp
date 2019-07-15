@@ -246,6 +246,17 @@ void BnP::forward(int u , int v) { // //////////////////////////////////////// /
 	
 	cout << "a" <<endl;
 
+	//>> Find appropriate value for u and v if none was found before.
+	if ((u==-1)or(v==-1)) {
+		pair p(this->_choice(this->_graph));
+		u = get<0>(p);
+		v = get<1>(p);
+		cout << u << ":" << v << endl;
+	}
+
+	
+	cout << "d" << endl;
+
 	//>> Load the vertices already used by this node to generate children
 	//>> (if any)
 	if ((this->_currentNode->su != -1) and (this->_currentNode->sv != -1)) {
@@ -255,17 +266,6 @@ void BnP::forward(int u , int v) { // //////////////////////////////////////// /
 		this->_currentNode->su = u;
 		this->_currentNode->sv = v;
 	}
-
-	cout << "d" << endl;
-	
-	//>> Find appropriate value for u and v if none was found before.
-	if ((u==-1)or(v==-1)) {
-		pair p(this->_choice(this->_graph));
-		u = get<0>(p);
-		v = get<1>(p);
-		cout << u << ":" << v << endl;
-	}
-
 	
 	cout << "e" <<endl;
 	
