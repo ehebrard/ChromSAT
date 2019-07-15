@@ -243,13 +243,12 @@ public:
         return e;
     }
 
-    arc make_choice()
+    void make_choice()
     {
         ++env.depth;
         env.G.trail.push_back(env.N);
         arc e{select()};
         env.G.contract(e[0], e[1]);
-	return e;
     }
 };
 

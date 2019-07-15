@@ -30,10 +30,10 @@ IloNumArray gensolve(IloNumArray price, gc::ca_graph graph) {
 	vector<vector<int>> mat = graph.matrix;
 	IloInt nbVertices(mat.size());
 	
-
-	try {
-		//>> Create an environment
-		IloEnv env;
+	//>> Create an environment
+	IloEnv env;
+	
+	try {		
 			
 		//>> Output storage
 		IloNumArray col(env);
@@ -91,21 +91,13 @@ IloNumArray gensolve(IloNumArray price, gc::ca_graph graph) {
 
 		//>> Retrieve pattern
 		generatorSolver.getValues(col, generatorVector);
-		
-		//>> print the col
-		cout << wW "";		
-		for(j=0 ; j<col.getSize() ; j++) {
-			cout << col[j] << " ";
-		}
-		cout << "" Ww << endl;
 
-		
 		//>> Output
 		return col;
 		
 	} catch (IloWrongUsage e) {
 		cout << e << endl;
-		exit(EXIT_FAILURE);
+		exit(EXIT_FAILURE);		
 	}
 
 }
@@ -116,63 +108,65 @@ IloNumArray gensolve(IloNumArray price, gc::ca_graph graph) {
 /*GLOBAL :*/gc::coloring_algorithm<gc::ca_graph>* choicer;
 
 pair<int, int> makechoice(gc::ca_graph g) {
-	/*cout << gG int(choicer->G.size()) Gg << endl;
-	++choicer->depth;
-	choicer->G.trail.push_back(choicer->N);
-	gc::arc e{choicer->s.select()};
-	
-	return make_pair(e[0],e[1]);*/
-	cout << gG "???" Gg << endl;
-	gc::arc e = choicer->s.make_choice();
-		cout << gG "???" Gg << endl;
-	cout << gG e[0] << " " << e[1] Gg << endl;
+	int u = rand()%int(g.size());
+	int v = rand()%int(g.size());
+	while (find(g.matrix[u].begin(), g.matrix[u].end(), v) != g.matrix[u].end()) {
+		u = rand()%int(g.size());
+		v = rand()%int(g.size());
+	}
+	return make_pair(u,v);
 }
 
 //============================================================================//
 //====// Main //==============================================================//
 
-int main(int argc, char * argv[]) {
-
-	cout << wW "1" Ww << endl;
+int mainfe(int argc, char * argv[]) {
 
 	//>> Create the BnP solver
 	BnP bnp;
 	bnp.load(string(argv[1]), I_TGF);
-	bnp.setNoisyMode();
-
-	cout << wW "2" Ww << endl;
-
-	//>> Create the choicer
-	gc::statistics stat(int(bnp.getRefGraph().size()));
-
-	cout << wW "2.5" Ww << endl;
-
-	gc::options opt = gc::parse(argc, argv);
-
-	cout << wW "3" Ww << endl;
-
-	choicer = new gc::coloring_algorithm<gc::ca_graph>(bnp.getRefGraph(), stat, opt);
-
-	cout << wW "4" Ww << endl;
+	bnp.setDiscreetMode();
 
 	//>> Set the modular functions
 	bnp.setChoice(makechoice);
 	bnp.setGenerator(gensolve);
 
-	cout << wW "5" Ww << endl;
-
 	//>> Run the solver
 	bnp.run();
 
-	cout << wW "6" Ww << endl;
-
 	//>> Print the result
 	bnp.print(O_STD);
+}
 
-	cout << wW "7" Ww << endl;
+int main(int argc, char * argv[]) {
+	//>>
+	int count = 1000;
 
-	//>> Destroy the choicer
-	delete choicer;
+	//>> Create the BnP solver
+	BnP bnp;
+	bnp.load("tgf/map_75_100900ppm.tgf", I_TGF);
+	bnp.setDiscreetMode();
 
-	cout << wW "8" Ww << endl;
+	//>> Set the modular functions
+	bnp.setChoice(makechoice);
+	bnp.setGenerator(gensolve);
+
+	//>>
+	for(vector<int> v : bnp._graph.matrix) {
+		cout << "[";		
+		for(int i : v) {
+			cout << i << " ";
+		}
+		cout << "]" << endl;
+	}
+
+
+	//>>
+	for(int i=0 ; i<count ; i++) {
+		if(i%100 == 0) {
+			cout << i << endl;
+		}
+		bnp.solve();
+		bnp.forward();
+	}
 }

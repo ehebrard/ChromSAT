@@ -100,7 +100,7 @@ class BnP {
 	
 ///////-/// ATTRIBUTES ///-/////////////////////////////////////////////////////
 
-	private:
+	public:
 	//>> About the graph itself
 	string              _name;        // Name of the loaded file
 	gc::ca_graph        _graph;       // Adjacency Graph of the loaded file
@@ -116,6 +116,8 @@ class BnP {
 	IloRangeArray   _masterLRange;  // Master range for columns
 	IloCplex        _masterSolver;  
 	IloNumVarArray  _masterLVector; // Decision vectors 
+	IloNumArray     price;
+	IloNumArray     column;
 	//>> About column generation
 	Generator           _gen;     // The pointer towards the generation function
 	Choice              _choice;  // The pointer towards the choice function

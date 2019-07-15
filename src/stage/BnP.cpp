@@ -17,6 +17,8 @@
 #define Uu <<"\033[0m"
 #define mM "\033[35;1m"<<
 #define Mm <<"\033[0m"
+#define gG "\033[32;1m"<<
+#define Gg <<"\033[0m"
 
 //============================================================================//
 //====// Namespace //=========================================================//
@@ -68,6 +70,7 @@ void BnP::load(string filename, InFormat in) { // /////////////////////////// //
 	//>> Make it _currentNode and add it to _nodes
 	this->_currentNode = this->_rootNode;
 	this->_nodes.push_back(this->_rootNode);
+	this->_nodes.shrink_to_fit();
 
 	//>> Create the column vector
 	this->_columns = vector<vector<int>>();
@@ -75,6 +78,10 @@ void BnP::load(string filename, InFormat in) { // /////////////////////////// //
 	//>> Create the master problem
 	//>>//>> Environment
 	this->_env = IloEnv();
+
+	//>>//>> 
+	this->price = IloNumArray(this->_env,IloInt(int(this->_graph.size())));
+	this->column =  IloNumArray(this->_env,IloInt(int(this->_graph.size())));
 
 	//>>//>> Create a model
 	this->_masterModel = IloModel(this->_env);
@@ -133,12 +140,10 @@ void BnP::print(OutFormat out) { // ///////////////////////////////////////// //
 void BnP::solve() { // ////////////////////////////////////////////////////// //
 
 	//>> Declaration
-	IloInt      i;
+	int      i;
 	float       result = 0;
 	IloInt      nbVertices(this->_graph.matrix.size());
-	IloNumArray price(this->_env, nbVertices);
-	IloNumArray column(this->_env, nbVertices);
-
+	
 	//>> Update the range thanks to the nullified list
 	//>>//>> Clear nullifying constraints
 	for( i=0 ; i < this->_masterLRange.getSize() ; i++ ) {
@@ -146,7 +151,6 @@ void BnP::solve() { // ////////////////////////////////////////////////////// //
 	}
 
 	//>>//>> Add the constraint
-	cout << eE "null : " << int(this->_currentNode->nullified.size()) Ee << endl;
 	for(int j : this->_currentNode->nullified) {
 		this->_masterLVector[j].setUB(0);
 	}
@@ -169,7 +173,6 @@ void BnP::solve() { // ////////////////////////////////////////////////////// //
 		for (i = 0 ; i<nbVertices ; i++) {
 			result += column[i]*price[i];
 		}
-		cout << eE result+1 Ee << endl;
 		
 		//>> Test the value if the new pattern may improve the master
 		//>> pattern.
@@ -196,7 +199,9 @@ void BnP::solve() { // ////////////////////////////////////////////////////// //
 		if (this->_masterSolver.getValue(this->_masterLVector[j]) != 0) {
 			ub += 1;
 			this->_currentNode->columns.push_back(j);
+			this->_currentNode->columns.shrink_to_fit();
 			this->_currentNode->weights.push_back(this->_masterSolver.getValue(this->_masterLVector[j]));
+			this->_currentNode->weights.shrink_to_fit();
 		}
 	}
 	this->_currentNode->ub = ub;
@@ -217,11 +222,17 @@ void BnP::forward(int u , int v) { // //////////////////////////////////////// /
 	//>> Declaration
 	Transform t;
 
+	
+	cout << "a" <<endl;
+
 	//>> Check if a child cannot be generated (<=> exit here)
 	if (this->_currentNode->status == NS_2C) {
-		cout << wW"WARNING: The current node cannot generate another child."Ww << endl;
+		cout << wW "WARNING: The current node cannot generate another child." Ww << endl;
 		return;	
 	}
+
+	
+	cout << "a" <<endl;
 
 	//>> Select the transformation and update the status
 	if (this->_currentNode->status == NS_1C) { // Create second child
@@ -232,6 +243,9 @@ void BnP::forward(int u , int v) { // //////////////////////////////////////// /
 		this->_currentNode->status = NS_1C;
 	}
 	
+	
+	cout << "a" <<endl;
+
 	//>> Load the vertices already used by this node to generate children
 	//>> (if any)
 	if ((this->_currentNode->su != -1) and (this->_currentNode->sv != -1)) {
@@ -241,12 +255,20 @@ void BnP::forward(int u , int v) { // //////////////////////////////////////// /
 		this->_currentNode->su = u;
 		this->_currentNode->sv = v;
 	}
+
+	cout << "d" << endl;
 	
 	//>> Find appropriate value for u and v if none was found before.
 	if ((u==-1)or(v==-1)) {
-		//#TBD
+		pair p(this->_choice(this->_graph));
+		u = get<0>(p);
+		v = get<1>(p);
+		cout << u << ":" << v << endl;
 	}
 
+	
+	cout << "e" <<endl;
+	
 	//>> Create the child 
 	pNode child      = make_shared<Node>();
 	child->status    = NS_CREATED;
@@ -260,19 +282,35 @@ void BnP::forward(int u , int v) { // //////////////////////////////////////// /
 	child->u = this->_currentNode->su;
 	child->v = this->_currentNode->sv;
 	
+	cout << "e" <<endl;	
+
 	//>> Add the child to _nodes
 	this->_nodes.push_back(child);
+	this->_nodes.shrink_to_fit();
+
+	cout << "f" <<endl;
 
 	//>> Update _currentNode
 	this->_currentNode = child;
 
+
+	cout << "g" <<endl;
+
 	//>> Update the graph and the depth
 	if (t == T_LINK) {
+		cout << 1 << endl;
 		this->_graph.addition(child->u, child->v);
+		cout << 2 << endl;
 		this->_currentNode->depth++;
+		cout << 3 << endl;
 	} else {
+		cout << 1 << "'" << endl;
 		this->_graph.contract(child->u, child->v);
+		cout << 2 << "'" << endl;
 	}
+
+	
+	cout << "h" <<endl;
 
 	//>> Update the nullified list
 	//>> See the publication of ??? for further details.
@@ -281,20 +319,22 @@ void BnP::forward(int u , int v) { // //////////////////////////////////////// /
 			if (   (find(this->_columns[i].begin(), this->_columns[i].end(), child->u) != this->_columns[i].end() )
 			    and(find(this->_columns[i].begin(), this->_columns[i].end(), child->v) != this->_columns[i].end() ) ) {
 				child->nullified.insert(i);
-				cout << wW "null-col: " << i Ww <<endl; 
 			}
 		}
 	} else {
 		for (int i=0 ; i < int(this->_columns.size()) ; i++) {
 			if (   (find(this->_columns[i].begin(), this->_columns[i].end(), child->u) != this->_columns[i].end())
 			    and(find(this->_columns[i].begin(), this->_columns[i].end(), child->v) == this->_columns[i].end()) ) {
-				child->nullified.insert(i);cout << wW "null-col:" << i Ww <<endl; 
+				child->nullified.insert(i);
 			} else if (   (find(this->_columns[i].begin(), this->_columns[i].end(), child->u) == this->_columns[i].end())
 			           and(find(this->_columns[i].begin(), this->_columns[i].end(), child->v) != this->_columns[i].end()) ) {
-				child->nullified.insert(i);cout << wW "null-col:" << i Ww <<endl; 
+				child->nullified.insert(i);
 			}
 		}
 	}
+
+	
+	cout << "i" <<endl;
 }
 
 void BnP::backward() { /// ///////////////////////////////////////////////// ///
@@ -330,57 +370,37 @@ void BnP::run() { /// ////////////////////////////////////////////////////// ///
 	//>> Branch & Price
 	while (LB < UB) {
 
-		cout << mM "a" Mm <<endl;
-
 		//>> Solve current node
 		this->solve();
-
-		cout << mM "b" Mm <<endl;
 
 		//>> Retrieve values
 		lb = this->getCurrentLB();
 		ub = this->getCurrentUB();
 
-		cout << mM "c" Mm <<endl;
-
 		//>> Update values
 		if ((this->getCurrentDepth() == 0)and(lb > LB)) {
-			cout << mM "c+" Mm <<endl;
 			LB = lb;
 		}
-
-		cout << mM "d" Mm <<endl;
 	
 		if (ub < UB) {
-			cout << mM "d+" Mm <<endl;
 			UB = ub;
 		}
 
-		cout << mM "e" Mm <<endl;
-
 		//>> Select next step
 		if (UB > lb) {
-			cout << mM "f1-0" Mm <<endl;
 			pair<int,int> c = this->_choice(this->_graph);
-			cout << mM "f1-1 :" << get<0>(c) << " " << get<1>(c) Mm <<endl;
 			this->forward(get<0>(c),get<1>(c));
-			cout << mM "f1-2" Mm <<endl;
 		} else if (this->getCurrentDepth() != 0) {
-			cout << mM "f2-0" Mm <<endl;
 			this->backward();
-			cout << mM "f2-1" Mm <<endl;
 			while ((this->getCurrentStatus() == NS_2C)and(this->getCurrentDepth() != 0)) {
-				cout << mM "f2-1+" Mm <<endl;
 				this->backward();
 			}
-			cout << mM "f2-2" Mm <<endl;
 			this->forward();
 		} else {
-			cout << mM "f3" Mm <<endl;
 			break;
 		}
 
-		cout << mM "g" Mm <<endl;				
+
 	}
 }
 
@@ -407,7 +427,7 @@ NodeStatus BnP::getCurrentStatus() const { /// ///////////////////////////// ///
 	return this->_currentNode->status;
 }
 
-gc::ca_graph& BnP::getRefGraph() { /// /////////////////////////////// ///
+gc::ca_graph& BnP::getRefGraph() { /// ///////////////////////////////////// ///
 	return this->_graph;
 }
 
@@ -426,7 +446,9 @@ int BnP::getCurrentDepth() const { /// ///////////////////////////////////// ///
 void BnP::addCol(IloInt i) { /// /////////////////////////////////////////// ///
 	vector<int> trivcol;
 	trivcol.push_back(i);
+	trivcol.shrink_to_fit();
 	this->_columns.push_back(trivcol);
+	this->_columns.shrink_to_fit();
 }
 
 void BnP::addCol(IloNumArray ilocol) { /// ///////////////////////////////// ///
@@ -434,9 +456,11 @@ void BnP::addCol(IloNumArray ilocol) { /// ///////////////////////////////// ///
 	for (int i=0 ; i<ilocol.getSize() ; i++) {
 		if (ilocol[i] == 1) {
 			col.push_back(i);
+			col.shrink_to_fit();
 		}
 	}
 	this->_columns.push_back(col);
+	this->_columns.shrink_to_fit();
 }
 
 
@@ -515,10 +539,10 @@ void BnP::_printSTD() { /// //////////////////////////////////////////////// ///
 
 	//>> Printing!
 	cout << endl;
-	cout << uU"Current node:"Uu << endl;
+	cout << uU "Current node:" Uu << endl;
 	cout << "Upper Bound: " << ub << endl;
 	cout << "Lower Bound: " << lb << endl;
-	cout << uU"Selected columns:"Uu << endl;
+	cout << uU "Selected columns:" Uu << endl;
 	for(int i=0 ; i<int(colI.size()) ; i++) {
 		cout << uU "Column " << colI[i] Uu << "(" << wgt[i] << "x):" << endl;
 		cout << "[" << this->_columns[colI[i]][0];

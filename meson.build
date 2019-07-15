@@ -123,7 +123,7 @@ if use_cplex
 
   executable('bnp', ['src/stage/main_bnp.cpp','src/stage/BnP.cpp'],
 	           dependencies: [basic_dep, prop_dep, minicsp_dep, cplex_dep],
-           cpp_args: ['-DIL_STD'])
+           cpp_args: ['-DIL_STD', '-g'])
 endif
 
 
