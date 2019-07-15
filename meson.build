@@ -1,5 +1,5 @@
 project('gc', ['c', 'cpp'],
-	default_options : ['c_std=c11', 'cpp_std=c++1z'])
+	default_options : ['c_std=c11', 'cpp_std=c++17'])
 compiler = meson.get_compiler('cpp')
 
 basic_lib = static_library('basic', ['src/intstack.cpp',
