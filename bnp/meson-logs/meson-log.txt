@@ -1,0 +1,58 @@
+Build started at 2019-07-12T16:06:44.827065
+Main binary: /usr/bin/python3
+Python system: Linux
+The Meson build system
+Version: 0.48.2
+Source dir: /home/ycharriere/Documents/git/ChromSAT
+Build dir: /home/ycharriere/Documents/git/ChromSAT/bnp
+Build type: native build
+Project name: gc
+Project version: undefined
+Native C compiler: gcc-8 (gcc 8.3.0 "gcc-8 (Ubuntu 8.3.0-16ubuntu3~16.04) 8.3.0")
+Native C++ compiler: g++-8 (gcc 8.3.0 "g++-8 (Ubuntu 8.3.0-16ubuntu3~16.04) 8.3.0")
+Build machine cpu family: x86_64
+Build machine cpu: x86_64
+Dependency threads found: YES (cached)
+Running compile:
+Working directory:  /tmp/tmpxmzvw1lk
+Command line:  g++-8 /tmp/tmpxmzvw1lk/testfile.cpp -pipe -D_FILE_OFFSET_BITS=64 -o /tmp/tmpxmzvw1lk/output.exe -O0 -fpermissive -Wl,--start-group -lz -Wl,--end-group -Wl,--allow-shlib-undefined 
+
+Code:
+ int main(int argc, char **argv) { return 0; }
+Compiler stdout:
+ 
+Compiler stderr:
+ 
+Library z found: YES
+Running compile:
+Working directory:  /tmp/tmpqcuq917u
+Command line:  g++-8 /tmp/tmpqcuq917u/testfile.cpp -pipe -D_FILE_OFFSET_BITS=64 -c -o /tmp/tmpqcuq917u/output.obj -O0 -fpermissive --print-search-dirs 
+
+Code:
+ 
+Compiler stdout:
+ install: /usr/lib/gcc/x86_64-linux-gnu/8/
+programs: =/usr/lib/gcc/x86_64-linux-gnu/8/:/usr/lib/gcc/x86_64-linux-gnu/8/:/usr/lib/gcc/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/8/:/usr/lib/gcc/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/8/../../../../x86_64-linux-gnu/bin/x86_64-linux-gnu/8/:/usr/lib/gcc/x86_64-linux-gnu/8/../../../../x86_64-linux-gnu/bin/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/8/../../../../x86_64-linux-gnu/bin/
+libraries: =/usr/lib/gcc/x86_64-linux-gnu/8/:/usr/lib/gcc/x86_64-linux-gnu/8/../../../../x86_64-linux-gnu/lib/x86_64-linux-gnu/8/:/usr/lib/gcc/x86_64-linux-gnu/8/../../../../x86_64-linux-gnu/lib/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/8/../../../../x86_64-linux-gnu/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/8/../../../x86_64-linux-gnu/8/:/usr/lib/gcc/x86_64-linux-gnu/8/../../../x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/8/../../../../lib/:/lib/x86_64-linux-gnu/8/:/lib/x86_64-linux-gnu/:/lib/../lib/:/usr/lib/x86_64-linux-gnu/8/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/8/../../../../x86_64-linux-gnu/lib/:/usr/lib/gcc/x86_64-linux-gnu/8/../../../:/lib/:/usr/lib/
+
+Compiler stderr:
+ 
+Library cplex found: YES
+Library ilocplex found: YES
+Library concert found: YES
+Dependency threads found: YES (cached)
+Build targets in project: 13
+Found ninja-1.5.1 at /usr/bin/ninja
+Running compile:
+Working directory:  /tmp/tmp3u3y_rfc
+Command line:  gcc-8 /tmp/tmp3u3y_rfc/testfile.c -pipe -D_FILE_OFFSET_BITS=64 -c -o /tmp/tmp3u3y_rfc/output.obj -O0 --print-search-dirs 
+
+Code:
+ 
+Compiler stdout:
+ install: /usr/lib/gcc/x86_64-linux-gnu/8/
+programs: =/usr/lib/gcc/x86_64-linux-gnu/8/:/usr/lib/gcc/x86_64-linux-gnu/8/:/usr/lib/gcc/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/8/:/usr/lib/gcc/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/8/../../../../x86_64-linux-gnu/bin/x86_64-linux-gnu/8/:/usr/lib/gcc/x86_64-linux-gnu/8/../../../../x86_64-linux-gnu/bin/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/8/../../../../x86_64-linux-gnu/bin/
+libraries: =/usr/lib/gcc/x86_64-linux-gnu/8/:/usr/lib/gcc/x86_64-linux-gnu/8/../../../../x86_64-linux-gnu/lib/x86_64-linux-gnu/8/:/usr/lib/gcc/x86_64-linux-gnu/8/../../../../x86_64-linux-gnu/lib/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/8/../../../../x86_64-linux-gnu/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/8/../../../x86_64-linux-gnu/8/:/usr/lib/gcc/x86_64-linux-gnu/8/../../../x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/8/../../../../lib/:/lib/x86_64-linux-gnu/8/:/lib/x86_64-linux-gnu/:/lib/../lib/:/usr/lib/x86_64-linux-gnu/8/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/8/../../../../x86_64-linux-gnu/lib/:/usr/lib/gcc/x86_64-linux-gnu/8/../../../:/lib/:/usr/lib/
+
+Compiler stderr:
+ 
