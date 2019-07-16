@@ -304,7 +304,7 @@ void BnP::forward(int u , int v) { // //////////////////////////////////////// /
 		this->_currentNode->depth++;
 		cout << 3 << endl;
 	} else {
-		cout << 1 << "'" << endl;
+		cout << 1 << "': " << child->u << " " <<  child->v << endl;
 		this->_graph.contract(child->u, child->v);
 		cout << 2 << "'" << endl;
 	}
