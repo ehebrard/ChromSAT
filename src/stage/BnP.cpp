@@ -219,11 +219,12 @@ void BnP::solve() { // ////////////////////////////////////////////////////// //
 
 void BnP::forward(int u , int v) { // //////////////////////////////////////// //
 
+	cout << wW "A" Ww << endl;
+
 	//>> Declaration
 	Transform t;
 
-	
-	cout << "a" <<endl;
+	cout << wW "B" Ww << endl;
 
 	//>> Check if a child cannot be generated (<=> exit here)
 	if (this->_currentNode->status == NS_2C) {
@@ -231,8 +232,7 @@ void BnP::forward(int u , int v) { // //////////////////////////////////////// /
 		return;	
 	}
 
-	
-	cout << "a" <<endl;
+	cout << wW "C" Ww << endl;
 
 	//>> Select the transformation and update the status
 	if (this->_currentNode->status == NS_1C) { // Create second child
@@ -242,9 +242,18 @@ void BnP::forward(int u , int v) { // //////////////////////////////////////// /
 		t = T_MERGE;
 		this->_currentNode->status = NS_1C;
 	}
-	
-	
-	cout << "a" <<endl;
+
+	cout << wW "D" Ww << endl;
+
+	//>> Find appropriate value for u and v if none was found before.
+	if ((u==-1)or(v==-1)) {
+		pair p(this->_choice(this->_graph));
+		u = get<0>(p);
+		v = get<1>(p);
+		cout << u << ":" << v << endl;
+	}
+
+	cout << wW "E" Ww << endl;
 
 	//>> Load the vertices already used by this node to generate children
 	//>> (if any)
@@ -256,18 +265,7 @@ void BnP::forward(int u , int v) { // //////////////////////////////////////// /
 		this->_currentNode->sv = v;
 	}
 
-	cout << "d" << endl;
-	
-	//>> Find appropriate value for u and v if none was found before.
-	if ((u==-1)or(v==-1)) {
-		pair p(this->_choice(this->_graph));
-		u = get<0>(p);
-		v = get<1>(p);
-		cout << u << ":" << v << endl;
-	}
-
-	
-	cout << "e" <<endl;
+	cout << wW "F" Ww << endl;
 	
 	//>> Create the child 
 	pNode child      = make_shared<Node>();
@@ -281,36 +279,33 @@ void BnP::forward(int u , int v) { // //////////////////////////////////////// /
 	child->sv        = -1;
 	child->u = this->_currentNode->su;
 	child->v = this->_currentNode->sv;
-	
-	cout << "e" <<endl;	
 
+	cout << wW "G" Ww << endl;
+	
 	//>> Add the child to _nodes
 	this->_nodes.push_back(child);
 	this->_nodes.shrink_to_fit();
 
-	cout << "f" <<endl;
+	cout << wW "H" Ww << endl;
 
 	//>> Update _currentNode
 	this->_currentNode = child;
 
-
-	cout << "g" <<endl;
+	cout << wW "I" Ww << endl;
 
 	//>> Update the graph and the depth
 	if (t == T_LINK) {
-		cout << 1 << endl;
+		cout << eE "FORWARD: LINK  " << child->u << " " << child->v Ee << endl;
 		this->_graph.addition(child->u, child->v);
-		cout << 2 << endl;
 		this->_currentNode->depth++;
-		cout << 3 << endl;
+		
 	} else {
-		cout << 1 << "': " << child->u << " " <<  child->v << endl;
+		cout << eE "FORWARD: MERGE " << child->u << " " << child->v Ee << endl;
 		this->_graph.contract(child->u, child->v);
-		cout << 2 << "'" << endl;
+		
 	}
 
-	
-	cout << "h" <<endl;
+	cout << wW "J" Ww << endl;
 
 	//>> Update the nullified list
 	//>> See the publication of ??? for further details.
@@ -333,11 +328,14 @@ void BnP::forward(int u , int v) { // //////////////////////////////////////// /
 		}
 	}
 
-	
-	cout << "i" <<endl;
+	cout << wW "K" Ww << endl;
+
 }
 
 void BnP::backward() { /// ///////////////////////////////////////////////// ///
+	//>>
+	cout << eE "BACKWARD" Ee << endl;
+
 	//>> Stop if this node is root	
 	if (this->_currentNode->t == T_NONE) {
 		return;
@@ -349,6 +347,8 @@ void BnP::backward() { /// ///////////////////////////////////////////////// ///
 	//>> Select the parent node
 	this->_currentNode = this->_nodes.back();
 	
+	
+
 	//>> Update the graph
 	this->_graph.undo();	
 }

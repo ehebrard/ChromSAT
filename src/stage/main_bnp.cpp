@@ -108,19 +108,36 @@ IloNumArray gensolve(IloNumArray price, gc::ca_graph graph) {
 /*GLOBAL :*/gc::coloring_algorithm<gc::ca_graph>* choicer;
 
 pair<int, int> makechoice(gc::ca_graph g) {
+	cout << "rand" << endl;
 	int u = rand()%int(g.size());
 	int v = rand()%int(g.size());
+	cout << u << " " << v << endl;
 	while (find(g.matrix[u].begin(), g.matrix[u].end(), v) != g.matrix[u].end()) {
 		u = rand()%int(g.size());
 		v = rand()%int(g.size());
+		cout << u << " " << v << endl;
 	}
 	return make_pair(u,v);
 }
 
 //============================================================================//
+//====// Choice //============================================================//
+
+void printNode(pNode n) {
+	cout << gG endl;
+	cout << "Size of .nullified: " << int(n->nullified.size()) << endl;
+	cout << "Size of .weights  : " << int(n->weights.size())   << endl;
+	cout << "Size of .columns  : " << int(n->columns.size())   << endl,
+	cout Gg;
+
+}
+
+
+//============================================================================//
 //====// Main //==============================================================//
 
-int mainfe(int argc, char * argv[]) {
+int maini(int argc, char * argv[]) {
+	std::srand(std::time(nullptr));
 
 	//>> Create the BnP solver
 	BnP bnp;
@@ -139,8 +156,10 @@ int mainfe(int argc, char * argv[]) {
 }
 
 int main(int argc, char * argv[]) {
+	std::srand(std::time(nullptr));
+
 	//>>
-	int count = 1000;
+	int count = 10000;
 
 	//>> Create the BnP solver
 	BnP bnp;
@@ -152,21 +171,23 @@ int main(int argc, char * argv[]) {
 	bnp.setGenerator(gensolve);
 
 	//>>
-	for(vector<int> v : bnp._graph.matrix) {
-		cout << "[";		
-		for(int i : v) {
-			cout << i << " ";
-		}
-		cout << "]" << endl;
-	}
-
-
-	//>>
 	for(int i=0 ; i<count ; i++) {
 		if(i%100 == 0) {
 			cout << i << endl;
 		}
-		bnp.solve();
+		//bnp.solve();
 		bnp.forward();
+		printNode(bnp._currentNode);
+		cout << gG "Nb of node in memory: " << int(bnp._nodes.size()) << endl;
+		/*for(int j=0 ; j<bnp._graph.size() ; j++) {
+			cout << wW "(" << j << "):" << "[ ";
+			for(int k : bnp._graph.matrix[j]) {
+				cout << k << " ";
+			}
+			cout << "]" Ww << endl;
+		}*/
 	}
+
+	cout << eE "Fin pour " << count << " forward" Ee << endl;
 }
+
