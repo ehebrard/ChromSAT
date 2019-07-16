@@ -102,6 +102,7 @@ class BnP {
 
 	public:
 	//>> About the graph itself
+	int                 _nbVertices;
 	string              _name;        // Name of the loaded file
 	gc::ca_graph        _graph;       // Adjacency Graph of the loaded file
 	vector<pNode>       _nodes;       // List of node in the current trails

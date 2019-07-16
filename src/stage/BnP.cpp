@@ -140,7 +140,8 @@ void BnP::print(OutFormat out) { // ///////////////////////////////////////// //
 void BnP::solve() { // ////////////////////////////////////////////////////// //
 
 	//>> Declaration
-	int      i;
+	bool        success;
+	int         i;
 	float       result = 0;
 	IloInt      nbVertices(this->_graph.matrix.size());
 	
@@ -154,11 +155,24 @@ void BnP::solve() { // ////////////////////////////////////////////////////// //
 	for(int j : this->_currentNode->nullified) {
 		this->_masterLVector[j].setUB(0);
 	}
+	cout << wW "Zero-Col: " << int(this->_currentNode->nullified.size()) Ww << endl;
 	
 	//>> Solve to optimality
 	for(;;) {
 		//>> Solve master problem with current patterns
-		this->_masterSolver.solve();
+		success = this->_masterSolver.solve();
+		if (!success) {
+			cout << wW "Solve() failed" Ww << endl;			
+			for(IloInt l=0 ; l<this->_masterLVector.getSize() ; l++) {
+				cout << "Col" << l << " in ";
+				cout << "[" << this->_masterLVector[l].getLB();
+				cout << ";" << this->_masterLVector[l].getUB() << "]";
+				cout << " is valued " << this->_masterSolver.getValue(this->_masterLVector[l]) << endl;					
+			}
+			exit(EXIT_FAILURE);
+		} else {
+			cout << wW "Solve() succeed" Ww << endl;
+		}
 
 		//>> Retrieve costs / price
 		for (i=0 ; i<nbVertices ; i++) {
@@ -199,9 +213,7 @@ void BnP::solve() { // ////////////////////////////////////////////////////// //
 		if (this->_masterSolver.getValue(this->_masterLVector[j]) != 0) {
 			ub += 1;
 			this->_currentNode->columns.push_back(j);
-			this->_currentNode->columns.shrink_to_fit();
 			this->_currentNode->weights.push_back(this->_masterSolver.getValue(this->_masterLVector[j]));
-			this->_currentNode->weights.shrink_to_fit();
 		}
 	}
 	this->_currentNode->ub = ub;
@@ -219,20 +231,14 @@ void BnP::solve() { // ////////////////////////////////////////////////////// //
 
 void BnP::forward(int u , int v) { // //////////////////////////////////////// //
 
-	cout << wW "A" Ww << endl;
-
 	//>> Declaration
 	Transform t;
-
-	cout << wW "B" Ww << endl;
 
 	//>> Check if a child cannot be generated (<=> exit here)
 	if (this->_currentNode->status == NS_2C) {
 		cout << wW "WARNING: The current node cannot generate another child." Ww << endl;
 		return;	
 	}
-
-	cout << wW "C" Ww << endl;
 
 	//>> Select the transformation and update the status
 	if (this->_currentNode->status == NS_1C) { // Create second child
@@ -243,17 +249,12 @@ void BnP::forward(int u , int v) { // //////////////////////////////////////// /
 		this->_currentNode->status = NS_1C;
 	}
 
-	cout << wW "D" Ww << endl;
-
 	//>> Find appropriate value for u and v if none was found before.
 	if ((u==-1)or(v==-1)) {
 		pair p(this->_choice(this->_graph));
 		u = get<0>(p);
 		v = get<1>(p);
-		cout << u << ":" << v << endl;
 	}
-
-	cout << wW "E" Ww << endl;
 
 	//>> Load the vertices already used by this node to generate children
 	//>> (if any)
@@ -264,8 +265,6 @@ void BnP::forward(int u , int v) { // //////////////////////////////////////// /
 		this->_currentNode->su = u;
 		this->_currentNode->sv = v;
 	}
-
-	cout << wW "F" Ww << endl;
 	
 	//>> Create the child 
 	pNode child      = make_shared<Node>();
@@ -279,45 +278,35 @@ void BnP::forward(int u , int v) { // //////////////////////////////////////// /
 	child->sv        = -1;
 	child->u = this->_currentNode->su;
 	child->v = this->_currentNode->sv;
-
-	cout << wW "G" Ww << endl;
 	
 	//>> Add the child to _nodes
 	this->_nodes.push_back(child);
 	this->_nodes.shrink_to_fit();
 
-	cout << wW "H" Ww << endl;
-
 	//>> Update _currentNode
 	this->_currentNode = child;
-
-	cout << wW "I" Ww << endl;
 
 	//>> Update the graph and the depth
 	if (t == T_LINK) {
 		cout << eE "FORWARD: LINK  " << child->u << " " << child->v Ee << endl;
-		this->_graph.addition(child->u, child->v);
-		this->_currentNode->depth++;
-		
+		this->_graph.addition(child->u, child->v);		
 	} else {
 		cout << eE "FORWARD: MERGE " << child->u << " " << child->v Ee << endl;
 		this->_graph.contract(child->u, child->v);
-		
+		this->_currentNode->depth++;
 	}
-
-	cout << wW "J" Ww << endl;
 
 	//>> Update the nullified list
 	//>> See the publication of ??? for further details.
 	if (t == T_LINK) {
-		for (int i=0 ; i < int(this->_columns.size()) ; i++) {
+		for (int i=this->_nbVertices ; i < int(this->_columns.size()) ; i++) {
 			if (   (find(this->_columns[i].begin(), this->_columns[i].end(), child->u) != this->_columns[i].end() )
 			    and(find(this->_columns[i].begin(), this->_columns[i].end(), child->v) != this->_columns[i].end() ) ) {
 				child->nullified.insert(i);
 			}
 		}
 	} else {
-		for (int i=0 ; i < int(this->_columns.size()) ; i++) {
+		for (int i=this->_nbVertices ; i < int(this->_columns.size()) ; i++) {
 			if (   (find(this->_columns[i].begin(), this->_columns[i].end(), child->u) != this->_columns[i].end())
 			    and(find(this->_columns[i].begin(), this->_columns[i].end(), child->v) == this->_columns[i].end()) ) {
 				child->nullified.insert(i);
@@ -327,9 +316,6 @@ void BnP::forward(int u , int v) { // //////////////////////////////////////// /
 			}
 		}
 	}
-
-	cout << wW "K" Ww << endl;
-
 }
 
 void BnP::backward() { /// ///////////////////////////////////////////////// ///
@@ -372,6 +358,8 @@ void BnP::run() { /// ////////////////////////////////////////////////////// ///
 
 		//>> Solve current node
 		this->solve();
+		cout << wW this->_masterSolver.getStatus() Ww << endl;
+		this->print(O_STD);
 
 		//>> Retrieve values
 		lb = this->getCurrentLB();
@@ -386,9 +374,23 @@ void BnP::run() { /// ////////////////////////////////////////////////////// ///
 			UB = ub;
 		}
 
+		cout << "LB: " << LB << "  || UB: " << UB << endl;
+
+		//>> Save if LB == UB
+		if (LB >= UB) {
+			this->_incumbent = this->_currentNode;
+			break;
+		}		
+
+		//>> Find next edge
+		pair<int,int> c = this->_choice(this->_graph);
+		cout << get<0>(c) << " " <<  get<1>(c) << endl;
+
 		//>> Select next step
-		if (UB > lb) {
-			pair<int,int> c = this->_choice(this->_graph);
+		if ((UB > lb)and
+		    (     (get<0>(c)!=0)
+		        or(get<1>(c)!=0)
+		   )) {
 			this->forward(get<0>(c),get<1>(c));
 		} else if (this->getCurrentDepth() != 0) {
 			this->backward();
@@ -397,10 +399,9 @@ void BnP::run() { /// ////////////////////////////////////////////////////// ///
 			}
 			this->forward();
 		} else {
+			cout << eE uU "BREAK" Uu Ee << endl;
 			break;
 		}
-
-
 	}
 }
 
@@ -493,6 +494,7 @@ void BnP::_loadTGF(string filename) { /// //////////////////////////////// ///
 			V++;
 		}
 	}
+	this->_nbVertices = V;
 
 	//>> Create the ca_graph
 	this->_graph = gc::ca_graph(V);

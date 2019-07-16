@@ -92,6 +92,13 @@ IloNumArray gensolve(IloNumArray price, gc::ca_graph graph) {
 		//>> Retrieve pattern
 		generatorSolver.getValues(col, generatorVector);
 
+		/*cout << "Nouvelle colonne :\n[" ;
+		for(IloInt i=0 ; i<col.getSize() ; i++) {
+			if(col[i] !=0) {
+				cout << "(" << i << ":" << col[i] << ") ";
+			}
+		}
+		cout << "]" << endl;*/
 		//>> Output
 		return col;
 		
@@ -105,23 +112,14 @@ IloNumArray gensolve(IloNumArray price, gc::ca_graph graph) {
 //============================================================================//
 //====// Choice //============================================================//
 
-/*GLOBAL :*/gc::coloring_algorithm<gc::ca_graph>* choicer;
 
 pair<int, int> makechoice(gc::ca_graph g) {
-	cout << "rand" << endl;
-	int u = rand()%int(g.size());
-	int v = rand()%int(g.size());
-	cout << u << " " << v << endl;
-	while (find(g.matrix[u].begin(), g.matrix[u].end(), v) != g.matrix[u].end()) {
-		u = rand()%int(g.size());
-		v = rand()%int(g.size());
-		cout << u << " " << v << endl;
-	}
-	return make_pair(u,v);
+	gc::arc a = g.any_non_edge();
+	return make_pair(a[0],a[1]);
 }
 
 //============================================================================//
-//====// Choice //============================================================//
+//====// Print //=============================================================//
 
 void printNode(pNode n) {
 	cout << gG endl;
@@ -136,26 +134,63 @@ void printNode(pNode n) {
 //============================================================================//
 //====// Main //==============================================================//
 
-int maini(int argc, char * argv[]) {
-	std::srand(std::time(nullptr));
+
+void printG(gc::ca_graph g) {
+	cout << endl;
+	for (vector i : g.matrix) {
+		cout << "[ ";
+		for(int j : i) {
+			cout << j << " ";
+		}
+		cout << "]" << endl;;
+	}
+	cout << endl;
+}
+
+
+int maieyn() {
+	gc::ca_graph g(4);
+	printG(g);
+	g.contract(0,1);
+	printG(g);
+	g.addition(3,2);
+	printG(g);
+	g.addition(0,2);
+	printG(g);
+	g.addition(1,3);
+	printG(g);
+}
+
+int main(int argc, char * argv[]) {
+
+	cout << eE "1" Ee << endl;
 
 	//>> Create the BnP solver
 	BnP bnp;
 	bnp.load(string(argv[1]), I_TGF);
-	bnp.setDiscreetMode();
+	bnp.setNoisyMode();
+
+	cout << eE "2" Ee << endl;
 
 	//>> Set the modular functions
 	bnp.setChoice(makechoice);
 	bnp.setGenerator(gensolve);
 
+	cout << eE "3" Ee << endl;
+
 	//>> Run the solver
 	bnp.run();
 
+	cout << eE "4" Ee << endl;
+
 	//>> Print the result
+	bnp.selectIncumbent();
 	bnp.print(O_STD);
+
+	cout << eE "END" Ee << endl;
 }
 
-int main(int argc, char * argv[]) {
+int maini(int argc, char * argv[]) {
 	std::srand(std::time(nullptr));
 
 	//>>
@@ -179,13 +214,6 @@ int main(int argc, char * argv[]) {
 		bnp.forward();
 		printNode(bnp._currentNode);
 		cout << gG "Nb of node in memory: " << int(bnp._nodes.size()) << endl;
-		/*for(int j=0 ; j<bnp._graph.size() ; j++) {
-			cout << wW "(" << j << "):" << "[ ";
-			for(int k : bnp._graph.matrix[j]) {
-				cout << k << " ";
-			}
-			cout << "]" Ww << endl;
-		}*/
 	}
 
 	cout << eE "Fin pour " << count << " forward" Ee << endl;
