@@ -5,6 +5,7 @@
 #include <iostream>
 
 #include "BnP.hpp"
+#include "../dimacs.hpp"
 
 //============================================================================//
 //====// Define //============================================================//
@@ -40,14 +41,16 @@ void BnP::load(string filename, InFormat in) { // /////////////////////////// //
 	IloInt nbVertices;
 
 	//>> Select format
-	if (in == bnp::I_TGF) {
+	if (in == I_TGF) {
 		this->_loadTGF(filename);
-	} else if (in == bnp::I_DOT) {
+	} else if (in == I_DOT) {
 		cout << eE "ERROR: This input format (.dot) is not supported yet." Ee << endl;
 		exit(EXIT_FAILURE);
-	} else if (in == bnp::I_CLQ) {
+	} else if (in == I_CLQ) {
 		cout << eE "ERROR: This input format (.clq) is not supported yet." Ee << endl;
 		exit(EXIT_FAILURE);
+	} else if (in == I_DIMACS){
+		this->_loadDIMACS(filename);
 	} else {
 		cout << eE "ERROR: Unknown input format." Ee << endl;
 		exit(EXIT_FAILURE);
@@ -55,6 +58,7 @@ void BnP::load(string filename, InFormat in) { // /////////////////////////// //
 
 	//>> Retrieve the number of Vertices
 	nbVertices = this->_graph.matrix.size();
+	this->_nbVertices = nbVertices;
 
 	//>> Create a root node
 	this->_rootNode         = make_shared<Node>();
@@ -112,6 +116,17 @@ void BnP::load(string filename, InFormat in) { // /////////////////////////// //
 
 	//>>//>> Create solver
 	this->_masterSolver = IloCplex(this->_masterModel);
+
+	//>> Print the graph
+	int w = 0;
+	for (auto i : this->_graph.matrix) {
+		cout << w << ": [ ";
+		for(int j : i) {
+			cout << j << " ";
+		}
+		cout << endl;
+		w++;
+	}
 	
 }
 
@@ -145,6 +160,7 @@ void BnP::solve() { // ////////////////////////////////////////////////////// //
 	float       result = 0;
 	IloInt      nbVertices(this->_graph.matrix.size());
 	
+	cout << wW "Updating Zero-Col" Ww << endl;
 	//>> Update the range thanks to the nullified list
 	//>>//>> Clear nullifying constraints
 	for( i=0 ; i < this->_masterLRange.getSize() ; i++ ) {
@@ -157,12 +173,13 @@ void BnP::solve() { // ////////////////////////////////////////////////////// //
 	}
 	cout << wW "Zero-Col: " << int(this->_currentNode->nullified.size()) Ww << endl;
 	
+	cout << wW "Solve: start" Ww << endl;
 	//>> Solve to optimality
 	for(;;) {
 		//>> Solve master problem with current patterns
 		success = this->_masterSolver.solve();
 		if (!success) {
-			cout << wW "Solve() failed" Ww << endl;			
+			cout << eE "Solve() failed" Ee << endl;			
 			for(IloInt l=0 ; l<this->_masterLVector.getSize() ; l++) {
 				cout << "Col" << l << " in ";
 				cout << "[" << this->_masterLVector[l].getLB();
@@ -170,15 +187,14 @@ void BnP::solve() { // ////////////////////////////////////////////////////// //
 				cout << " is valued " << this->_masterSolver.getValue(this->_masterLVector[l]) << endl;					
 			}
 			exit(EXIT_FAILURE);
-		} else {
-			cout << wW "Solve() succeed" Ww << endl;
 		}
 
 		//>> Retrieve costs / price
 		for (i=0 ; i<nbVertices ; i++) {
 			price[i] = -this->_masterSolver.getDual(this->_masterXRange[i]);
 		}
-
+		
+		cout << gG "Generating column" Gg << endl;
 		//>> Call the generator method/function
 		column = this->_gen(price, this->_graph); // <= Carefull here
 
@@ -191,9 +207,11 @@ void BnP::solve() { // ////////////////////////////////////////////////////// //
 		//>> Test the value if the new pattern may improve the master
 		//>> pattern.
 		if (result+1 > -RC_EPS) {
+			cout << gG "No column found" Gg eE " => " << (result+1) Ee << endl;
 			break; // The best pattern is not usefull => break
 		}
 
+		cout << gG "Column found!" Gg eE " => " << (result+1) Ee << endl;
 		//>> Add the new pattern to the master problem
 		this->addCol(column);
 		this->_masterLRange.add(IloRange(this->_env, 0, 1));
@@ -204,6 +222,9 @@ void BnP::solve() { // ////////////////////////////////////////////////////// //
 
 	}
 
+	cout << wW "Solve: end" Ww << endl;
+
+	cout << wW "Updating bnp's values" Ww << endl;
 	//>> Retrieve solution values
 	//>>//>> lb
 	this->_currentNode->lb = this->_masterSolver.getObjValue();
@@ -356,15 +377,18 @@ void BnP::run() { /// ////////////////////////////////////////////////////// ///
 	//>> Branch & Price
 	while (LB < UB) {
 
+		cout << mM "Solve the current node" Mm << endl;
 		//>> Solve current node
 		this->solve();
 		cout << wW this->_masterSolver.getStatus() Ww << endl;
 		this->print(O_STD);
 
+		cout << mM "Retrieving values" Mm << endl;
 		//>> Retrieve values
 		lb = this->getCurrentLB();
 		ub = this->getCurrentUB();
 
+		cout << mM "Updating values" Mm << endl;
 		//>> Update values
 		if ((this->getCurrentDepth() == 0)and(lb > LB)) {
 			LB = lb;
@@ -376,16 +400,19 @@ void BnP::run() { /// ////////////////////////////////////////////////////// ///
 
 		cout << "LB: " << LB << "  || UB: " << UB << endl;
 
+		cout << mM "Checking if globally solved" Mm << endl;
 		//>> Save if LB == UB
 		if (LB >= UB) {
 			this->_incumbent = this->_currentNode;
 			break;
 		}		
 
+		cout << mM "Selecting next step" Mm << endl;
 		//>> Find next edge
 		pair<int,int> c = this->_choice(this->_graph);
 		cout << get<0>(c) << " " <<  get<1>(c) << endl;
 
+		cout << mM "Branching" Mm << endl;
 		//>> Select next step
 		if ((UB > lb)and
 		    (     (get<0>(c)!=0)
@@ -494,7 +521,6 @@ void BnP::_loadTGF(string filename) { /// //////////////////////////////// ///
 			V++;
 		}
 	}
-	this->_nbVertices = V;
 
 	//>> Create the ca_graph
 	this->_graph = gc::ca_graph(V);
@@ -532,6 +558,38 @@ void BnP::_loadDOT(string filename) { /// ////////////////////////////////// ///
 void BnP::_loadCLQ(string filename) { /// ////////////////////////////////// ///
 }
 
+void BnP::_loadDIMACS(string filename) { /// //////////////////////////////// ///
+	//>> Declaration
+	string         line;
+	vector<string> tks;
+	
+	//>> Read the graph
+	dimacs::read_graph(filename.c_str(),
+		[&](int nv,  int) {this->_graph = gc::ca_graph(nv);},
+		[&](int u, int v) {
+			if (u != v) {
+				this->_graph.add_edge(u-1, v-1);
+			}
+		},
+		[&](int, gc::weight) {});
+
+	// Retrieve the file name.
+	stringstream   sepline;
+	sepline << filename;
+	tks = vector<string>();
+	while (getline(sepline, line, '/')) {
+		tks.push_back(line);
+	} 
+	if (!tks.empty()){
+		stringstream   sepline;
+		sepline << tks.back();
+		getline(sepline, this->_name, '.');
+	} else {
+		this->_name = "unknown";
+	}
+
+}
+
 void BnP::_printSTD() { /// //////////////////////////////////////////////// ///
 	//>> Shortening names
 	float lb           = this->_currentNode->lb;
@@ -557,6 +615,7 @@ void BnP::_printSTD() { /// //////////////////////////////////////////////// ///
 }
 
 void BnP::_printDOT() { /// //////////////////////////////////////////////// ///
+
 }
 
 void BnP::_printSOL() { /// //////////////////////////////////////////////// ///

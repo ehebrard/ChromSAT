@@ -32,9 +32,10 @@ namespace bnp {
 
 //>> Possible format for input files
 enum InFormat {
-	I_TGF = 0,
-	I_DOT = 1,
-	I_CLQ = 2
+	I_TGF   = 0,
+	I_DOT   = 1,
+	I_CLQ   = 2,
+	I_DIMACS = 3
 };
 
 //>> Possible format for output files
@@ -173,9 +174,10 @@ class BnP {
 	*/
 
 	private:
-	void _loadTGF(string filename); // Called by load() to perform
-	void _loadDOT(string filename); // the part of file reading 
-	void _loadCLQ(string filename); // given the right format.
+	void _loadTGF(string filename);    // Called by load() to perform
+	void _loadDOT(string filename);    // the part of file reading 
+	void _loadCLQ(string filename);    // given the right format.
+	void _loadDIMACS(string filename); // |^|
 	void _printSTD(); // Called by print() to print the
 	void _printDOT(); // result in the intented format 
 	void _printSOL(); // and media.

@@ -34,7 +34,7 @@ IloNumArray gensolve(IloNumArray price, gc::ca_graph graph) {
 	IloEnv env;
 	
 	try {		
-			
+		cout << "Creating generator" << endl;	
 		//>> Output storage
 		IloNumArray col(env);
 
@@ -48,6 +48,7 @@ IloNumArray gensolve(IloNumArray price, gc::ca_graph graph) {
 		//>> Create the decision vector
 		IloNumVarArray generatorVector = IloNumVarArray(env, nbVertices, 0, 1, ILOINT);
 		
+		cout << "Settting Constraint" << endl;
 		//>> Create constraints : "Two adjacent vertices can not belong to
 		//>> the same stable set."
 		for (i=0 ; i<nbVertices ; i++) {
@@ -76,6 +77,7 @@ IloNumArray gensolve(IloNumArray price, gc::ca_graph graph) {
 			generatorModel.add(cstr);
 		}
 
+		cout << "Setting solver" << endl;
 		//>> Create solver
 		IloCplex generatorSolver = IloCplex(generatorModel);
 		
@@ -92,7 +94,7 @@ IloNumArray gensolve(IloNumArray price, gc::ca_graph graph) {
 		//>> Retrieve pattern
 		generatorSolver.getValues(col, generatorVector);
 
-		/*cout << "Nouvelle colonne :\n[" ;
+		/*cout << "New column! :\n[" ;
 		for(IloInt i=0 ; i<col.getSize() ; i++) {
 			if(col[i] !=0) {
 				cout << "(" << i << ":" << col[i] << ") ";
@@ -132,90 +134,99 @@ void printNode(pNode n) {
 
 
 //============================================================================//
+//====// Usage //=============================================================//
+
+void exitWithUsage() {
+	cout << wW uU "USAGE:" Uu Ww;
+	cout <<           wW " bnp <filename> [-i <input format>  ||" << endl;
+	cout <<       "                        -o <output format> ||" << endl;
+	cout <<       "                        -d ]" Ww               << endl;
+	cout << wW uU "with :" Uu Ww                                  << endl;
+	cout <<    wW "<input format> among tgf, dot, clq and dimacs" << endl;
+	cout <<       "<output format> among dot, sol and std"        << endl;
+	cout <<       "-d limits the output printed on the shell"     << endl;
+	cout Ww;
+}
+
+//============================================================================//
 //====// Main //==============================================================//
 
 
-void printG(gc::ca_graph g) {
-	cout << endl;
-	for (vector i : g.matrix) {
-		cout << "[ ";
-		for(int j : i) {
-			cout << j << " ";
-		}
-		cout << "]" << endl;;
-	}
-	cout << endl;
-}
-
-
-int maieyn() {
-	gc::ca_graph g(4);
-	printG(g);
-	g.contract(0,1);
-	printG(g);
-	g.addition(3,2);
-	printG(g);
-	g.addition(0,2);
-	printG(g);
-	g.addition(1,3);
-	printG(g);
-}
-
 int main(int argc, char * argv[]) {
+	//>> Declaration
+	string filename;
+	InFormat in = I_TGF;
+	OutFormat out = O_STD;
+	bool noise = true;
 
-	cout << eE "1" Ee << endl;
+	//>> Sort argv
+	//>>//>> filename
+	if (argc < 2) {
+		exitWithUsage();
+	} else {
+		filename = string(argv[1]);	
+	}
+	//>>//>> other parameters
+	for(int i=2 ; i<argc ; i++) {
+		if (string(argv[i]) == "-i") {
+			if (i+1 < argc) {
+				i++;
+				if (string(argv[i]) == "tgf") {
+					in = I_TGF;
+				} else if (string(argv[i]) == "dot"){
+					in = I_DOT;					
+				} else if (string(argv[i]) == "clq"){
+					in = I_DOT;
+				} else if (string(argv[i]) == "dimacs"){
+					in = I_DIMACS;
+				} else {
+					exitWithUsage();
+				}
+			} else {
+				exitWithUsage();
+			}
+		} else if (string(argv[i]) == "-o") {
+			if (i+1 < argc) {
+				i++;
+				if (string(argv[i]) == "std") {
+					out = O_STD;
+				} else if (string(argv[i]) == "dot"){
+					out = O_DOT;					
+				} else if (string(argv[i]) == "sol"){
+					out = O_SOL;
+				} else {
+					exitWithUsage();
+				}
+			} else {
+				exitWithUsage();
+			}
+
+		} else if (string(argv[i]) == "-d") {
+			noise = false;
+		} else {
+			exitWithUsage();
+		}
+	}
 
 	//>> Create the BnP solver
 	BnP bnp;
-	bnp.load(string(argv[1]), I_TGF);
-	bnp.setNoisyMode();
+	bnp.load(filename, in);
+	if (noise) {
+		bnp.setNoisyMode();
+	} else {
+		bnp.setDiscreetMode();
+	}
 
-	cout << eE "2" Ee << endl;
 
 	//>> Set the modular functions
 	bnp.setChoice(makechoice);
 	bnp.setGenerator(gensolve);
-
-	cout << eE "3" Ee << endl;
 
 	//>> Run the solver
 	bnp.run();
 
-	cout << eE "4" Ee << endl;
-
 	//>> Print the result
 	bnp.selectIncumbent();
-	bnp.print(O_STD);
-
-	cout << eE "END" Ee << endl;
-}
-
-int maini(int argc, char * argv[]) {
-	std::srand(std::time(nullptr));
-
-	//>>
-	int count = 10000;
-
-	//>> Create the BnP solver
-	BnP bnp;
-	bnp.load("tgf/map_75_100900ppm.tgf", I_TGF);
-	bnp.setDiscreetMode();
-
-	//>> Set the modular functions
-	bnp.setChoice(makechoice);
-	bnp.setGenerator(gensolve);
-
-	//>>
-	for(int i=0 ; i<count ; i++) {
-		if(i%100 == 0) {
-			cout << i << endl;
-		}
-		//bnp.solve();
-		bnp.forward();
-		printNode(bnp._currentNode);
-		cout << gG "Nb of node in memory: " << int(bnp._nodes.size()) << endl;
-	}
-
-	cout << eE "Fin pour " << count << " forward" Ee << endl;
+	bnp.print(out);
 }
 
