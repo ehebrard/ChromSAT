@@ -386,8 +386,9 @@ void BnP::run() { /// ////////////////////////////////////////////////////// ///
 		cout << mM "Solve the current node" Mm << endl;
 
 		//>> Solve current node
-		//this->solve();
-		//cout << wW this->_masterSolver.getStatus() Ww << endl;
+		this->solve();
+		this->print(O_STD);
+		cout << wW this->_masterSolver.getStatus() Ww << endl;
 		
 
 		cout << mM "Retrieving values" Mm << endl;
@@ -409,10 +410,10 @@ void BnP::run() { /// ////////////////////////////////////////////////////// ///
 
 		cout << mM "Checking if globally solved" Mm << endl;
 		//>> Save if LB == UB
-		if (LB >= UB) {
+		/*if (lb >= UB) {
 			this->_incumbent = this->_currentNode;
 			break;
-		}		
+		}*/		
 
 		cout << mM "Selecting next step" Mm << endl;
 		//>> Find next edge
