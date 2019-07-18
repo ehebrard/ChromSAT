@@ -3,6 +3,7 @@
 
 #include "BnP.hpp"
 
+
 //============================================================================//
 //====// Namespace //=========================================================//
 
@@ -36,7 +37,6 @@ vector<int> gensolve(IloNumArray price, gc::ca_graph graph) {
 		//>> Create an environment
 		IloEnv env;
 	
-		cout << "Creating generator" << endl;	
 		//>> Output storage
 		IloNumArray col(env);
 		vector<int> out;
@@ -51,10 +51,8 @@ vector<int> gensolve(IloNumArray price, gc::ca_graph graph) {
 		//>> Create the decision vector
 		IloNumVarArray generatorVector = IloNumVarArray(env, int(graph.size()), 0, 1, ILOINT);
 		
-		cout << "Settting Constraint" << endl;
 		//>> Create constraints : "Two adjacent vertices can not belong to
 		//>> the same stable set."
-		cout << eE "A" Ee << endl;
 		int l =0;
 		for (int k =0 ; k<graph.size() ; k++) {
 			i = graph.nodes[k];
@@ -72,7 +70,7 @@ vector<int> gensolve(IloNumArray price, gc::ca_graph graph) {
 
 		//>> Create constraints : "A vertex either belongs to the maximal 
 		//>> stable set or at least one of its neighbors belongs to it."
-		cout << eE "B" Ee << endl;
+		
 		for (int k =0 ; k<graph.size() ; k++) {
 			i = graph.nodes[k];
 			IloExpr expCstr(env);
@@ -89,7 +87,7 @@ vector<int> gensolve(IloNumArray price, gc::ca_graph graph) {
 			generatorModel.add(cstr);
 		}
 
-		cout << "Setting solver" << endl;
+		
 		//>> Create solver
 		IloCplex generatorSolver = IloCplex(generatorModel);
 		
@@ -232,6 +230,9 @@ int main(int argc, char * argv[]) {
 			exitWithUsage();
 		}
 	}
+	//>> COUT
+	cout << gG "Loading data, please wait." Gg << endl;
+
 
 	//>> Create the BnP solver
 	BnP bnp;
@@ -251,7 +252,7 @@ int main(int argc, char * argv[]) {
 	bnp.run();
 
 	//>> Print the result
-	bnp.selectIncumbent();
-	bnp.print(out);
+	/*bnp.selectIncumbent();
+	bnp.print(out);*/
 }
 

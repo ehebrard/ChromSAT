@@ -3,6 +3,7 @@
 
 #include <limits>
 #include <iostream>
+#include <ctime>
 
 #include "BnP.hpp"
 #include "../dimacs.hpp"
@@ -74,7 +75,6 @@ void BnP::load(string filename, InFormat in) { // /////////////////////////// //
 	//>> Make it _currentNode and add it to _nodes
 	this->_currentNode = this->_rootNode;
 	this->_nodes.push_back(this->_rootNode);
-	this->_nodes.shrink_to_fit();
 
 	//>> Create the column vector
 	this->_columns = vector<vector<int>>();
@@ -118,15 +118,15 @@ void BnP::load(string filename, InFormat in) { // /////////////////////////// //
 	this->_masterSolver = IloCplex(this->_masterModel);
 
 	//>> Print the graph
-	int w = 0;
+	/*int w = 0;
 	for (auto i : this->_graph.matrix) {
 		cout << w << ": [ ";
 		for(int j : i) {
 			cout << j << " ";
 		}
-		cout << endl;
+		cout << "]" << endl;
 		w++;
-	}
+	}*/
 	
 }
 
@@ -160,7 +160,6 @@ void BnP::solve() { // ////////////////////////////////////////////////////// //
 	float       result = 0;
 	IloInt      nbVertices(this->_graph.matrix.size());
 	
-	cout << wW "Updating Zero-Col" Ww << endl;
 	//>> Update the range thanks to the nullified list
 	//>>//>> Clear nullifying constraints
 	for( i=0 ; i < this->_masterLRange.getSize() ; i++ ) {
@@ -171,9 +170,7 @@ void BnP::solve() { // ////////////////////////////////////////////////////// //
 	for(int j : this->_currentNode->nullified) {
 		this->_masterLVector[j].setUB(0);
 	}
-	cout << wW "Zero-Col: " << int(this->_currentNode->nullified.size()) Ww << endl;
-	
-	cout << wW "Solve: start" Ww << endl;
+
 	//>> Solve to optimality
 	for(;;) {
 		//>> Solve master problem with current patterns
@@ -194,7 +191,6 @@ void BnP::solve() { // ////////////////////////////////////////////////////// //
 			price[i] = -this->_masterSolver.getDual(this->_masterXRange[i]);
 		}
 		
-		cout << gG "Generating column" Gg << endl;
 		//>> Call the generator method/function
 		vector<int> storage = this->_gen(price, this->_graph);
 		for(int k=0 ; k<int(storage.size()) ; k++) {
@@ -210,11 +206,9 @@ void BnP::solve() { // ////////////////////////////////////////////////////// //
 		//>> Test the value if the new pattern may improve the master
 		//>> pattern.
 		if (result+1 > -RC_EPS) {
-			cout << gG "No column found" Gg eE " => " << (result+1) Ee << endl;
 			break; // The best pattern is not usefull => break
 		}
 
-		cout << gG "Column found!" Gg eE " => " << (result+1) Ee << endl;
 		//>> Add the new pattern to the master problem
 		this->addCol(column);
 		this->_masterLRange.add(IloRange(this->_env, 0, 1));
@@ -225,9 +219,6 @@ void BnP::solve() { // ////////////////////////////////////////////////////// //
 
 	}
 
-	cout << wW "Solve: end" Ww << endl;
-
-	cout << wW "Updating bnp's values" Ww << endl;
 	//>> Retrieve solution values
 	//>>//>> lb
 	this->_currentNode->lb = this->_masterSolver.getObjValue();
@@ -243,14 +234,14 @@ void BnP::solve() { // ////////////////////////////////////////////////////// //
 	this->_currentNode->ub = ub;
 	//>>//>> Update the status of _currentNode
 	this->_currentNode->status = NS_SOLVED;
-
+	/*
 	//>> Check if it's the new incumbent and replace it if necessary
 	if (this->_currentNode->lb == this->_currentNode->ub) {
 		if (   (this->_incumbent   == nullptr         )
 		    or (this->_currentNode <= this->_incumbent) ) {
 			this->_incumbent = this->_currentNode;
 		}
-	}
+	}*/
 }
 
 void BnP::forward(int u , int v) { // //////////////////////////////////////// //
@@ -293,9 +284,6 @@ void BnP::forward(int u , int v) { // //////////////////////////////////////// /
 	//>> Create the child 
 	pNode child      = make_shared<Node>();
 	child->status    = NS_CREATED;
-	cout << gG this->_currentNode->t Gg << endl;
-	cout << wW int(this->_nodes.size()) Ww << endl;
-	cout << eE "NullSize: " << int(this->_currentNode->nullified.size()) Ee << endl;
 	child->nullified = this->_currentNode->nullified;
 	child->depth     = this->_currentNode->depth;
 	child->lb        = 0;
@@ -314,11 +302,8 @@ void BnP::forward(int u , int v) { // //////////////////////////////////////// /
 
 	//>> Update the graph and the depth
 	if (t == T_LINK) {
-		cout << eE "FORWARD: LINK  " << child->u << " " << child->v Ee << endl;
 		this->_graph.addition(child->u, child->v);		
 	} else {
-		cout << eE "FORWARD: MERGE " << child->u << " " << child->v Ee << endl;
-		cout << "CONTRACT " << child->u << " " << child->v << endl; 
 		this->_graph.contract(child->u, child->v);
 		this->_currentNode->depth++;
 	}
@@ -345,9 +330,6 @@ void BnP::forward(int u , int v) { // //////////////////////////////////////// /
 }
 
 void BnP::backward() { /// ///////////////////////////////////////////////// ///
-	//>>
-	cout << eE "BACKWARD" Ee << endl;
-
 	//>> Stop if this node is root	
 	if (this->_currentNode->t == T_NONE) {
 		return;
@@ -378,49 +360,51 @@ void BnP::run() { /// ////////////////////////////////////////////////////// ///
 	float LB = 0;
 	float ub;
 	float lb;
-	int i =0;
+	int   i = 1;
 	
 	//>> Branch & Price
 	while (LB < UB) {
-		cout << uU i Uu << endl;
-		cout << mM "Solve the current node" Mm << endl;
 
 		//>> Solve current node
 		this->solve();
-		this->print(O_STD);
-		cout << wW this->_masterSolver.getStatus() Ww << endl;
-		
 
-		cout << mM "Retrieving values" Mm << endl;
+	
 		//>> Retrieve values
 		lb = this->getCurrentLB();
 		ub = this->getCurrentUB();
 
-		cout << mM "Updating values" Mm << endl;
 		//>> Update values
 		if ((this->getCurrentDepth() == 0)and(lb > LB)) {
 			LB = lb;
 		}
 	
-		if (ub < UB) {
+		if (ub <= UB) {
 			UB = ub;
 		}
 
-		cout << "LB: " << LB << "  || UB: " << UB << endl;
-
-		cout << mM "Checking if globally solved" Mm << endl;
 		//>> Save if LB == UB
 		/*if (lb >= UB) {
 			this->_incumbent = this->_currentNode;
 			break;
-		}*/		
+		}*/
 
-		cout << mM "Selecting next step" Mm << endl;
+		//>> Print
+		cout << "\33[H\33[2J";
+		cout << uU  "Loaded graph:"  Uu << endl << this->_name << endl << endl;
+		cout << uU "Global:" Uu << endl;
+		cout << "UB = " << UB << endl;
+		cout << "LB = " << LB << endl;
+		this->print(O_STD);
+		cout << endl;
+		cout << uU "Data:" Uu << endl;
+		cout << "Generated columns: " << int(this->_columns.size()) << endl;
+		cout << "Currently useable columns: " << int(this->_columns.size()) - int(this->_currentNode->nullified.size()) << endl;
+		cout << "Explored node: " << i << endl;
+		cout << endl;		
+
 		//>> Find next edge
 		pair<int,int> c = this->_choice(this->_graph);
-		cout << get<0>(c) << " " <<  get<1>(c) << endl;
 
-		cout << mM "Branching" Mm << endl;
 		//>> Select next step
 		if ((UB > lb)and
 		    (     (get<0>(c)!=0)
@@ -434,7 +418,6 @@ void BnP::run() { /// ////////////////////////////////////////////////////// ///
 			}
 			this->forward();
 		} else {
-			cout << eE uU "BREAK" Uu Ee << endl;
 			break;
 		}
 		i++;
@@ -607,7 +590,7 @@ void BnP::_printSTD() { /// //////////////////////////////////////////////// ///
 	cout << uU "Current node:" Uu << endl;
 	cout << "Upper Bound: " << ub << endl;
 	cout << "Lower Bound: " << lb << endl;
-	cout << uU "Selected columns:" Uu << endl;
+	/*cout << uU "Selected columns:" Uu << endl;
 	for(int i=0 ; i<int(colI.size()) ; i++) {
 		cout << uU "Column " << colI[i] Uu << "(" << wgt[i] << "x):" << endl;
 		cout << "[" << this->_columns[colI[i]][0];
@@ -616,7 +599,7 @@ void BnP::_printSTD() { /// //////////////////////////////////////////////// ///
 		}
 		cout << "]" << endl;
 	} 
-	cout << endl << "===================================" << endl  << endl;
+	cout << endl << "===================================" << endl  << endl;*/
 }
 
 void BnP::_printDOT() { /// //////////////////////////////////////////////// ///
