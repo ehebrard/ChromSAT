@@ -85,7 +85,7 @@ struct Node {
 
 //>> Type of a function pointer toward a method/function which find
 //>> new columns
-typedef IloNumArray (*Generator)(IloNumArray, gc::ca_graph);
+typedef vector<int> (*Generator)(IloNumArray, gc::ca_graph);
 
 //>> Type of a function pointer toward a method/function which find
 //>> the branching vertice pair

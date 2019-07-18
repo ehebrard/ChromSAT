@@ -24,19 +24,22 @@ using namespace bnp;
 //============================================================================//
 //====// Generator //=========================================================//
 
-IloNumArray gensolve(IloNumArray price, gc::ca_graph graph) {
+vector<int> gensolve(IloNumArray price, gc::ca_graph graph) {
 	//>> Declarations
 	IloInt i, j;
 	vector<vector<int>> mat = graph.matrix;
 	IloInt nbVertices(mat.size());
 	
-	//>> Create an environment
-	IloEnv env;
+
 	
-	try {		
+	try {	
+		//>> Create an environment
+		IloEnv env;
+	
 		cout << "Creating generator" << endl;	
 		//>> Output storage
 		IloNumArray col(env);
+		vector<int> out;
 
 		//>> Create a model
 		IloModel generatorModel = IloModel(env);
@@ -46,17 +49,21 @@ IloNumArray gensolve(IloNumArray price, gc::ca_graph graph) {
 		IloAdd(generatorModel, generatorObj);
 
 		//>> Create the decision vector
-		IloNumVarArray generatorVector = IloNumVarArray(env, nbVertices, 0, 1, ILOINT);
+		IloNumVarArray generatorVector = IloNumVarArray(env, int(graph.size()), 0, 1, ILOINT);
 		
 		cout << "Settting Constraint" << endl;
 		//>> Create constraints : "Two adjacent vertices can not belong to
 		//>> the same stable set."
-		for (i=0 ; i<nbVertices ; i++) {
+		cout << eE "A" Ee << endl;
+		int l =0;
+		for (int k =0 ; k<graph.size() ; k++) {
+			i = graph.nodes[k];
 			if (mat[i].size() > 0) {
 				for(auto j : mat[i]) {
-					if (i <= j) {
-						generatorModel.add(   generatorVector[i]
-								   +  generatorVector[j]
+					if ((i <= j)and(graph.nodes.contain(j))) {
+						l = graph.nodes.index(j);
+						generatorModel.add(   generatorVector[k]
+								   +  generatorVector[l]
 							           <= 1.0 );
 					}
 				}
@@ -65,12 +72,17 @@ IloNumArray gensolve(IloNumArray price, gc::ca_graph graph) {
 
 		//>> Create constraints : "A vertex either belongs to the maximal 
 		//>> stable set or at least one of its neighbors belongs to it."
-		for (i=0 ; i<nbVertices ; i++) {
+		cout << eE "B" Ee << endl;
+		for (int k =0 ; k<graph.size() ; k++) {
+			i = graph.nodes[k];
 			IloExpr expCstr(env);
-			expCstr += generatorVector[i];
+			expCstr += generatorVector[k];
 			if (mat[i].size() > 0) {
 				for(auto j : mat[i]) {
-					expCstr += generatorVector[j];
+					if (graph.nodes.contain(j)) {
+						l = graph.nodes.index(j);
+						expCstr += generatorVector[l];
+					}
 				}
 			}
 			IloConstraint cstr = expCstr >= 1.0;
@@ -94,6 +106,8 @@ IloNumArray gensolve(IloNumArray price, gc::ca_graph graph) {
 		//>> Retrieve pattern
 		generatorSolver.getValues(col, generatorVector);
 
+		
+
 		/*cout << "New column! :\n[" ;
 		for(IloInt i=0 ; i<col.getSize() ; i++) {
 			if(col[i] !=0) {
@@ -101,8 +115,19 @@ IloNumArray gensolve(IloNumArray price, gc::ca_graph graph) {
 			}
 		}
 		cout << "]" << endl;*/
+
+		for(int w=0 ; w<nbVertices ; w++) {
+			int p = graph.parent[w];
+			while ( p != graph.parent[p] ) {
+				p = graph.parent[p];
+			}
+			out.push_back(col[graph.nodes.index(p)]);
+		}
+
+		env.end();
+
 		//>> Output
-		return col;
+		return out;
 		
 	} catch (IloWrongUsage e) {
 		cout << e << endl;
@@ -138,9 +163,9 @@ void printNode(pNode n) {
 
 void exitWithUsage() {
 	cout << wW uU "USAGE:" Uu Ww;
-	cout <<           wW " bnp <filename> [-i <input format>  ||" << endl;
-	cout <<       "                        -o <output format> ||" << endl;
-	cout <<       "                        -d ]" Ww               << endl;
+	cout <<          wW " bnp <filename> [-i <input format>  ||" << endl;
+	cout <<       "                       -o <output format> ||" << endl;
+	cout <<       "                       -d ]" Ww               << endl;
 	cout << wW uU "with :" Uu Ww                                  << endl;
 	cout <<    wW "<input format> among tgf, dot, clq and dimacs" << endl;
 	cout <<       "<output format> among dot, sol and std"        << endl;

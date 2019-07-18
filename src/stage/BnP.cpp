@@ -196,7 +196,10 @@ void BnP::solve() { // ////////////////////////////////////////////////////// //
 		
 		cout << gG "Generating column" Gg << endl;
 		//>> Call the generator method/function
-		column = this->_gen(price, this->_graph); // <= Carefull here
+		vector<int> storage = this->_gen(price, this->_graph);
+		for(int k=0 ; k<int(storage.size()) ; k++) {
+			column[k] = storage[k];
+		}
 
 		//>> Evaluate the improvement of this pattern :
 		result = 0;
@@ -290,6 +293,9 @@ void BnP::forward(int u , int v) { // //////////////////////////////////////// /
 	//>> Create the child 
 	pNode child      = make_shared<Node>();
 	child->status    = NS_CREATED;
+	cout << gG this->_currentNode->t Gg << endl;
+	cout << wW int(this->_nodes.size()) Ww << endl;
+	cout << eE "NullSize: " << int(this->_currentNode->nullified.size()) Ee << endl;
 	child->nullified = this->_currentNode->nullified;
 	child->depth     = this->_currentNode->depth;
 	child->lb        = 0;
@@ -302,7 +308,6 @@ void BnP::forward(int u , int v) { // //////////////////////////////////////// /
 	
 	//>> Add the child to _nodes
 	this->_nodes.push_back(child);
-	this->_nodes.shrink_to_fit();
 
 	//>> Update _currentNode
 	this->_currentNode = child;
@@ -313,12 +318,12 @@ void BnP::forward(int u , int v) { // //////////////////////////////////////// /
 		this->_graph.addition(child->u, child->v);		
 	} else {
 		cout << eE "FORWARD: MERGE " << child->u << " " << child->v Ee << endl;
+		cout << "CONTRACT " << child->u << " " << child->v << endl; 
 		this->_graph.contract(child->u, child->v);
 		this->_currentNode->depth++;
 	}
 
 	//>> Update the nullified list
-	//>> See the publication of ??? for further details.
 	if (t == T_LINK) {
 		for (int i=this->_nbVertices ; i < int(this->_columns.size()) ; i++) {
 			if (   (find(this->_columns[i].begin(), this->_columns[i].end(), child->u) != this->_columns[i].end() )
@@ -373,15 +378,17 @@ void BnP::run() { /// ////////////////////////////////////////////////////// ///
 	float LB = 0;
 	float ub;
 	float lb;
+	int i =0;
 	
 	//>> Branch & Price
 	while (LB < UB) {
-
+		cout << uU i Uu << endl;
 		cout << mM "Solve the current node" Mm << endl;
+
 		//>> Solve current node
-		this->solve();
-		cout << wW this->_masterSolver.getStatus() Ww << endl;
-		this->print(O_STD);
+		//this->solve();
+		//cout << wW this->_masterSolver.getStatus() Ww << endl;
+		
 
 		cout << mM "Retrieving values" Mm << endl;
 		//>> Retrieve values
@@ -429,6 +436,7 @@ void BnP::run() { /// ////////////////////////////////////////////////////// ///
 			cout << eE uU "BREAK" Uu Ee << endl;
 			break;
 		}
+		i++;
 	}
 }
 
@@ -474,9 +482,7 @@ int BnP::getCurrentDepth() const { /// ///////////////////////////////////// ///
 void BnP::addCol(IloInt i) { /// /////////////////////////////////////////// ///
 	vector<int> trivcol;
 	trivcol.push_back(i);
-	trivcol.shrink_to_fit();
 	this->_columns.push_back(trivcol);
-	this->_columns.shrink_to_fit();
 }
 
 void BnP::addCol(IloNumArray ilocol) { /// ///////////////////////////////// ///
@@ -484,11 +490,9 @@ void BnP::addCol(IloNumArray ilocol) { /// ///////////////////////////////// ///
 	for (int i=0 ; i<ilocol.getSize() ; i++) {
 		if (ilocol[i] == 1) {
 			col.push_back(i);
-			col.shrink_to_fit();
 		}
 	}
 	this->_columns.push_back(col);
-	this->_columns.shrink_to_fit();
 }
 
 
