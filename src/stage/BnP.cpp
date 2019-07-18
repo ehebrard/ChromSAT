@@ -5,6 +5,9 @@
 #include <iostream>
 #include <ctime>
 
+#include <fstream>
+#include <sstream>
+
 #include "BnP.hpp"
 #include "../dimacs.hpp"
 
@@ -21,6 +24,14 @@
 #define Mm <<"\033[0m"
 #define gG "\033[32;1m"<<
 #define Gg <<"\033[0m"
+
+//============================================================================//
+//====// Global //============================================================//
+
+string color[] = {"blue","red","yellow","green","purple","chocolate",
+                  "lightblue2","magenta3","navy","yellow4","lightsteelblue",
+                  "antiquewhite4","cyan","deeppink"};
+int colorcount = 14;
 
 //============================================================================//
 //====// Namespace //=========================================================//
@@ -75,6 +86,9 @@ void BnP::load(string filename, InFormat in) { // /////////////////////////// //
 	//>> Make it _currentNode and add it to _nodes
 	this->_currentNode = this->_rootNode;
 	this->_nodes.push_back(this->_rootNode);
+	
+	//>> and make it the _incumbent
+	this->_incumbent = this->_currentNode;
 
 	//>> Create the column vector
 	this->_columns = vector<vector<int>>();
@@ -141,8 +155,7 @@ void BnP::print(OutFormat out) { // ///////////////////////////////////////// //
 	if (out == O_STD) {
 		this->_printSTD();
 	} else if (out == O_DOT) {
-		cout << eE "ERROR: This output format (.dot) is not supported yet." Ee << endl;
-		exit(EXIT_FAILURE);
+		this->_printDOT();
 	} else if (out == O_SOL) {
 		cout << eE "ERROR: This output format (.sol) is not supported yet." Ee << endl;
 		exit(EXIT_FAILURE);
@@ -350,7 +363,7 @@ void BnP::backward() { /// ///////////////////////////////////////////////// ///
 
 void BnP::selectIncumbent() { /// ////////////////////////////////////////// ///
 	if (this->_incumbent != nullptr) {
-		this->_currentNode == this->_incumbent;
+		this->_currentNode = this->_incumbent;
 	}
 }
 
@@ -382,11 +395,10 @@ void BnP::run() { /// ////////////////////////////////////////////////////// ///
 			UB = ub;
 		}
 
-		//>> Save if LB == UB
-		/*if (lb >= UB) {
+		//>> Save if interesting integer solution
+		if ((lb == ub)and(ub < this->_incumbent->ub)) {
 			this->_incumbent = this->_currentNode;
-			break;
-		}*/
+		}
 
 		//>> Print
 		cout << "\33[H\33[2J";
@@ -394,13 +406,14 @@ void BnP::run() { /// ////////////////////////////////////////////////////// ///
 		cout << uU "Global:" Uu << endl;
 		cout << "UB = " << UB << endl;
 		cout << "LB = " << LB << endl;
-		this->print(O_STD);
+		this->_printCurrent();
 		cout << endl;
 		cout << uU "Data:" Uu << endl;
 		cout << "Generated columns: " << int(this->_columns.size()) << endl;
 		cout << "Currently useable columns: " << int(this->_columns.size()) - int(this->_currentNode->nullified.size()) << endl;
-		cout << "Explored node: " << i << endl;
-		cout << endl;		
+		cout << "Explored nodes: " << i << endl;
+		cout << endl;	
+		this->_printSTD();	
 
 		//>> Find next edge
 		pair<int,int> c = this->_choice(this->_graph);
@@ -418,6 +431,11 @@ void BnP::run() { /// ////////////////////////////////////////////////////// ///
 			}
 			this->forward();
 		} else {
+
+			//>> Clean graph
+			while(this->_currentNode != this->_rootNode) {
+				this->backward();
+			}
 			break;
 		}
 		i++;
@@ -580,6 +598,78 @@ void BnP::_loadDIMACS(string filename) { /// //////////////////////////////// //
 
 void BnP::_printSTD() { /// //////////////////////////////////////////////// ///
 	//>> Shortening names
+	float lb           = this->_incumbent->lb;
+	float ub           = this->_incumbent->ub;
+	vector<float> wgt  = this->_incumbent->weights; 
+	vector<int>   colI = this->_incumbent->columns;	
+
+	//>> Printing!
+	cout << endl;
+	cout << uU "Current best integer solution:" Uu << endl;
+	cout << "Upper Bound: " << ub << endl;
+	cout << "Lower Bound: " << lb << endl;
+	cout << uU "Selected columns:" Uu << endl;
+	for(int i=0 ; i<int(colI.size()) ; i++) {
+		cout << uU "Column " << colI[i] Uu << "(" << wgt[i] << "x):" << endl;
+		cout << "[" << this->_columns[colI[i]][0];
+		for(int j=1 ; j<int(this->_columns[colI[i]].size()) ; j++) {
+			cout << " " << this->_columns[colI[i]][j];
+		}
+		cout << "]" << endl;
+	}
+}
+
+void BnP::_printDOT() { /// //////////////////////////////////////////////// ///
+	//>> Check if printable
+	if ( int(this->_incumbent->columns.size()) > colorcount) {
+		cout << wW "Warning: unable to print more than " << colorcount << " colors." Ww << endl;	
+		return;
+	}	
+
+	//>> Open output file
+	ofstream f(this->_name+"_out.dot");
+	if (!f.is_open()) {
+		cout << wW "Warning: Unable to open " << this->_name << "_out.log!" Ww << endl;	
+		return;
+	}
+
+	//>> Header 
+	f << "graph " << this->_name << " {" << endl;
+	f << "    node[style=filled];" << endl;
+	
+	//>> Vertices
+	for (int i=0 ; i < int(this->_graph.matrix.size()) ; i++) {
+		for (int c=0 ; c < int(this->_incumbent->columns.size()) ; c++) {
+			if (find( this->_columns[this->_incumbent->columns[c]].begin(), 
+			          this->_columns[this->_incumbent->columns[c]].end(),   i)
+			       != this->_columns[this->_incumbent->columns[c]].end()) {
+				f << "    " << i << "[color=" << color[c] << "];" << endl;
+				break;			
+			}
+		}
+	}
+
+	//>> Edges
+	for (int i=0 ; i < int(this->_graph.matrix.size()) ; i++) {
+		for (int j : this->_graph.matrix[i]) {
+			if (i < j) {
+				f << "    " << i << " -- " << j  << ";" << endl;
+			}
+		}
+	}
+
+
+	//>> Footer
+	f << "}" << endl;
+
+
+}
+
+void BnP::_printSOL() { /// //////////////////////////////////////////////// ///
+}
+
+void BnP::_printCurrent() { /// ///////////////////////////////////////////// ///
+	//>> Shortening names
 	float lb           = this->_currentNode->lb;
 	float ub           = this->_currentNode->ub;
 	vector<float> wgt  = this->_currentNode->weights; 
@@ -588,25 +678,8 @@ void BnP::_printSTD() { /// //////////////////////////////////////////////// ///
 	//>> Printing!
 	cout << endl;
 	cout << uU "Current node:" Uu << endl;
-	cout << "Upper Bound: " << ub << endl;
-	cout << "Lower Bound: " << lb << endl;
-	/*cout << uU "Selected columns:" Uu << endl;
-	for(int i=0 ; i<int(colI.size()) ; i++) {
-		cout << uU "Column " << colI[i] Uu << "(" << wgt[i] << "x):" << endl;
-		cout << "[" << this->_columns[colI[i]][0];
-		for(int j=1 ; j<int(this->_columns[colI[i]].size()) ; j++) {
-			cout << " " << this->_columns[colI[i]][j];
-		}
-		cout << "]" << endl;
-	} 
-	cout << endl << "===================================" << endl  << endl;*/
-}
-
-void BnP::_printDOT() { /// //////////////////////////////////////////////// ///
-
-}
-
-void BnP::_printSOL() { /// //////////////////////////////////////////////// ///
+	cout << "Upper Bound = " << ub << endl;
+	cout << "Lower Bound = " << lb << endl;
 }
 
 //============================================================================//

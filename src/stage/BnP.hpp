@@ -182,6 +182,8 @@ class BnP {
 	void _printDOT(); // result in the intented format 
 	void _printSOL(); // and media.
 
+	void _printCurrent();
+
 
 ///////-/// GETTERS, SETTERS, etc ///-//////////////////////////////////////////
 

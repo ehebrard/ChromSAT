@@ -252,7 +252,6 @@ int main(int argc, char * argv[]) {
 	bnp.run();
 
 	//>> Print the result
-	/*bnp.selectIncumbent();
-	bnp.print(out);*/
+	bnp.print(out);
 }
 
