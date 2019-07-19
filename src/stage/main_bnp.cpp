@@ -3,6 +3,7 @@
 
 #include "BnP.hpp"
 
+#include <cmath>
 
 //============================================================================//
 //====// Namespace //=========================================================//
@@ -113,7 +114,6 @@ vector<int> gensolve(IloNumArray price, gc::ca_graph graph) {
 			}
 		}
 		cout << "]" << endl;*/
-
 		for(int w=0 ; w<nbVertices ; w++) {
 			int p = graph.parent[w];
 			while ( p != graph.parent[p] ) {
@@ -137,10 +137,62 @@ vector<int> gensolve(IloNumArray price, gc::ca_graph graph) {
 //============================================================================//
 //====// Choice //============================================================//
 
-
-pair<int, int> makechoice(gc::ca_graph g) {
+pair<int, int> makechoice(gc::ca_graph g, vector<set<int>> c, Node n) {
 	gc::arc a = g.any_non_edge();
 	return make_pair(a[0],a[1]);
+}
+
+pair<int, int> otherchoice(gc::ca_graph g, vector<set<int>> c, Node n) {
+
+	//>> Alias
+	vector<int>   valid   = n.columns;
+	vector<float> weights = n.weights;
+	int u;
+	int v = -1;
+
+	//>> Select the most fractionnal column
+	set<int> col1;
+	int select = -1;
+	float gap = 0.51;	
+	for(int i=0 ; i<int(weights.size()) ; i++) {
+		if (abs(0.5-weights[i]) < gap) {
+			gap = abs(0.5-weights[i]);
+			select = valid[i];
+		}
+	}
+	col1 = c[select];
+
+	for(int k : col1) {
+		//>> Find the first row
+		u = k;
+
+		//>> Find the second row
+		for(int i : valid) {
+			if (c[i].find(u) != c[i].end()) {
+				for(int j : c[i]) {
+					if (col1.find(j) == col1.end()) {
+						v = j;
+						break;
+					} 
+				}
+				if (v != -1) break;
+			}	
+		}
+		if (v != -1) break;
+	}
+	
+	//>> Convert indices
+	while (u != g.parent[u]) {
+		u = g.parent[u];	
+	}
+	while (v != g.parent[v]) {
+		v = g.parent[v];	
+	}
+
+	//>> Return
+	return make_pair(u, v);
+	
+
 }
 
 //============================================================================//
@@ -243,9 +295,8 @@ int main(int argc, char * argv[]) {
 		bnp.setDiscreetMode();
 	}
 
-
 	//>> Set the modular functions
-	bnp.setChoice(makechoice);
+	bnp.setChoice(otherchoice);
 	bnp.setGenerator(gensolve);
 
 	//>> Run the solver

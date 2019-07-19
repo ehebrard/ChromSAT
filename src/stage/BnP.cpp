@@ -91,7 +91,7 @@ void BnP::load(string filename, InFormat in) { // /////////////////////////// //
 	this->_incumbent = this->_currentNode;
 
 	//>> Create the column vector
-	this->_columns = vector<vector<int>>();
+	this->_columns = vector<set<int>>();
 
 	//>> Create the master problem
 	//>>//>> Environment
@@ -279,7 +279,7 @@ void BnP::forward(int u , int v) { // //////////////////////////////////////// /
 
 	//>> Find appropriate value for u and v if none was found before.
 	if ((u==-1)or(v==-1)) {
-		pair p(this->_choice(this->_graph));
+		pair p(this->_choice(this->_graph, this->_columns, *(this->_currentNode)));
 		u = get<0>(p);
 		v = get<1>(p);
 	}
@@ -324,18 +324,18 @@ void BnP::forward(int u , int v) { // //////////////////////////////////////// /
 	//>> Update the nullified list
 	if (t == T_LINK) {
 		for (int i=this->_nbVertices ; i < int(this->_columns.size()) ; i++) {
-			if (   (find(this->_columns[i].begin(), this->_columns[i].end(), child->u) != this->_columns[i].end() )
-			    and(find(this->_columns[i].begin(), this->_columns[i].end(), child->v) != this->_columns[i].end() ) ) {
+			if (   (this->_columns[i].find(child->u) != this->_columns[i].end() )
+			    and(this->_columns[i].find(child->v) != this->_columns[i].end() ) ) {
 				child->nullified.insert(i);
 			}
 		}
 	} else {
 		for (int i=this->_nbVertices ; i < int(this->_columns.size()) ; i++) {
-			if (   (find(this->_columns[i].begin(), this->_columns[i].end(), child->u) != this->_columns[i].end())
-			    and(find(this->_columns[i].begin(), this->_columns[i].end(), child->v) == this->_columns[i].end()) ) {
+			if (   (this->_columns[i].find(child->u) != this->_columns[i].end())
+			    and(this->_columns[i].find(child->v) == this->_columns[i].end()) ) {
 				child->nullified.insert(i);
-			} else if (   (find(this->_columns[i].begin(), this->_columns[i].end(), child->u) == this->_columns[i].end())
-			           and(find(this->_columns[i].begin(), this->_columns[i].end(), child->v) != this->_columns[i].end()) ) {
+			} else if (   (this->_columns[i].find(child->u) == this->_columns[i].end())
+			           and(this->_columns[i].find(child->v) != this->_columns[i].end()) ) {
 				child->nullified.insert(i);
 			}
 		}
@@ -354,8 +354,6 @@ void BnP::backward() { /// ///////////////////////////////////////////////// ///
 	//>> Select the parent node
 	this->_currentNode = this->_nodes.back();
 	
-	
-
 	//>> Update the graph
 	this->_graph.undo();	
 }
@@ -416,7 +414,7 @@ void BnP::run() { /// ////////////////////////////////////////////////////// ///
 		this->_printSTD();	
 
 		//>> Find next edge
-		pair<int,int> c = this->_choice(this->_graph);
+		pair<int,int> c = this->_choice(this->_graph, this->_columns, *(this->_currentNode));
 
 		//>> Select next step
 		if ((UB > lb)and
@@ -482,16 +480,16 @@ int BnP::getCurrentDepth() const { /// ///////////////////////////////////// ///
 }
 
 void BnP::addCol(IloInt i) { /// /////////////////////////////////////////// ///
-	vector<int> trivcol;
-	trivcol.push_back(i);
+	set<int> trivcol;
+	trivcol.insert(i);
 	this->_columns.push_back(trivcol);
 }
 
 void BnP::addCol(IloNumArray ilocol) { /// ///////////////////////////////// ///
-	vector<int> col;
+	set<int> col;
 	for (int i=0 ; i<ilocol.getSize() ; i++) {
 		if (ilocol[i] == 1) {
-			col.push_back(i);
+			col.insert(i);
 		}
 	}
 	this->_columns.push_back(col);
@@ -611,11 +609,11 @@ void BnP::_printSTD() { /// //////////////////////////////////////////////// ///
 	cout << uU "Selected columns:" Uu << endl;
 	for(int i=0 ; i<int(colI.size()) ; i++) {
 		cout << uU "Column " << colI[i] Uu << "(" << wgt[i] << "x):" << endl;
-		cout << "[" << this->_columns[colI[i]][0];
-		for(int j=1 ; j<int(this->_columns[colI[i]].size()) ; j++) {
-			cout << " " << this->_columns[colI[i]][j];
+		cout << "[";
+		for(int j : this->_columns[colI[i]]) {
+			cout << " " << j;
 		}
-		cout << "]" << endl;
+		cout << " ]" << endl;
 	}
 }
 
@@ -640,8 +638,7 @@ void BnP::_printDOT() { /// //////////////////////////////////////////////// ///
 	//>> Vertices
 	for (int i=0 ; i < int(this->_graph.matrix.size()) ; i++) {
 		for (int c=0 ; c < int(this->_incumbent->columns.size()) ; c++) {
-			if (find( this->_columns[this->_incumbent->columns[c]].begin(), 
-			          this->_columns[this->_incumbent->columns[c]].end(),   i)
+			if (this->_columns[this->_incumbent->columns[c]].find(i)
 			       != this->_columns[this->_incumbent->columns[c]].end()) {
 				f << "    " << i << "[color=" << color[c] << "];" << endl;
 				break;			

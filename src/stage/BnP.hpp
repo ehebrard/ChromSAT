@@ -86,11 +86,16 @@ struct Node {
 //>> Type of a function pointer toward a method/function which find
 //>> new columns
 typedef vector<int> (*Generator)(IloNumArray, gc::ca_graph);
+//>>       |^|                      |^|              |^|
+//>> the new found column ; the pricing values ; the current graph
 
 //>> Type of a function pointer toward a method/function which find
 //>> the branching vertice pair
-typedef pair<int,int> (*Choice)(gc::ca_graph);
-
+typedef pair<int,int> (*Choice)(gc::ca_graph, vector<set<int>>, Node);
+//>>        |^|                  |^|            |^|              |^|          
+//>> the selected vertices       |^|    every columns we know    |^|
+//>>                         the current graph              the current node   
+ 
 //>> Type of a shared pointer toward a node
 typedef shared_ptr<Node> pNode; 
 
@@ -123,7 +128,7 @@ class BnP {
 	//>> About column generation
 	Generator           _gen;     // The pointer towards the generation function
 	Choice              _choice;  // The pointer towards the choice function
-	vector<vector<int>> _columns; // All the discovered columns
+	vector<set<int>>    _columns; // All the discovered columns
 	
 
 
