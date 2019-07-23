@@ -1,4 +1,4 @@
-Build started at 2019-07-12T16:06:44.827065
+Build started at 2019-07-23T16:07:16.909128
 Main binary: /usr/bin/python3
 Python system: Linux
 The Meson build system
@@ -14,8 +14,8 @@ Build machine cpu family: x86_64
 Build machine cpu: x86_64
 Dependency threads found: YES (cached)
 Running compile:
-Working directory:  /tmp/tmpxmzvw1lk
-Command line:  g++-8 /tmp/tmpxmzvw1lk/testfile.cpp -pipe -D_FILE_OFFSET_BITS=64 -o /tmp/tmpxmzvw1lk/output.exe -O0 -fpermissive -Wl,--start-group -lz -Wl,--end-group -Wl,--allow-shlib-undefined 
+Working directory:  /tmp/tmpr6tsn0vn
+Command line:  g++-8 /tmp/tmpr6tsn0vn/testfile.cpp -pipe -D_FILE_OFFSET_BITS=64 -o /tmp/tmpr6tsn0vn/output.exe -O0 -fpermissive -Wl,--start-group -lz -Wl,--end-group -Wl,--allow-shlib-undefined 
 
 Code:
  int main(int argc, char **argv) { return 0; }
@@ -25,8 +25,8 @@ Compiler stderr:
  
 Library z found: YES
 Running compile:
-Working directory:  /tmp/tmpqcuq917u
-Command line:  g++-8 /tmp/tmpqcuq917u/testfile.cpp -pipe -D_FILE_OFFSET_BITS=64 -c -o /tmp/tmpqcuq917u/output.obj -O0 -fpermissive --print-search-dirs 
+Working directory:  /tmp/tmprbhi1muy
+Command line:  g++-8 /tmp/tmprbhi1muy/testfile.cpp -pipe -D_FILE_OFFSET_BITS=64 -c -o /tmp/tmprbhi1muy/output.obj -O0 -fpermissive --print-search-dirs 
 
 Code:
  
@@ -44,8 +44,8 @@ Dependency threads found: YES (cached)
 Build targets in project: 13
 Found ninja-1.5.1 at /usr/bin/ninja
 Running compile:
-Working directory:  /tmp/tmp3u3y_rfc
-Command line:  gcc-8 /tmp/tmp3u3y_rfc/testfile.c -pipe -D_FILE_OFFSET_BITS=64 -c -o /tmp/tmp3u3y_rfc/output.obj -O0 --print-search-dirs 
+Working directory:  /tmp/tmprcnwaeb2
+Command line:  gcc-8 /tmp/tmprcnwaeb2/testfile.c -pipe -D_FILE_OFFSET_BITS=64 -c -o /tmp/tmprcnwaeb2/output.obj -O0 --print-search-dirs 
 
 Code:
  

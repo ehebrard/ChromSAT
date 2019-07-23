@@ -365,18 +365,30 @@ void BnP::selectIncumbent() { /// ////////////////////////////////////////// ///
 	}
 }
 
-void BnP::run() { /// ////////////////////////////////////////////////////// ///
+void BnP::run(int timelimit, bool log) { /// /////////////////////////////// ///
 	//>> Declaration
- 	float UB = float(this->_graph.size());
-	float LB = 0;
+ 	float UB    = float(this->_graph.size());
+	float LB    = 0;
 	float ub;
 	float lb;
-	int   i = 1;
-	
+	int   i     = 1;
+	int   dec   = 0;
+	int   time  = -1;
+	bool  timer = true;
+	bool  timeout = false;
+	if (timelimit == -1) {
+		timer = false;
+	}
+
+	cout << uU  "Loaded graph:"  Uu << endl << this->_name << endl << endl;
+
+	clock_t c0 = clock();
+
 	//>> Branch & Price
 	while (LB < UB) {
 
 		//>> Solve current node
+		this->_masterSolver.setParam(IloCplex::TiLim, timelimit);	
 		this->solve();
 
 	
@@ -387,8 +399,7 @@ void BnP::run() { /// ////////////////////////////////////////////////////// ///
 		//>> Update values
 		if ((this->getCurrentDepth() == 0)and(lb > LB)) {
 			LB = lb;
-		}
-	
+		}	
 		if (ub <= UB) {
 			UB = ub;
 		}
@@ -399,7 +410,7 @@ void BnP::run() { /// ////////////////////////////////////////////////////// ///
 		}
 
 		//>> Print
-		cout << "\33[H\33[2J";
+		/*cout << "\33[H\33[2J";
 		cout << uU  "Loaded graph:"  Uu << endl << this->_name << endl << endl;
 		cout << uU "Global:" Uu << endl;
 		cout << "UB = " << UB << endl;
@@ -410,11 +421,21 @@ void BnP::run() { /// ////////////////////////////////////////////////////// ///
 		cout << "Generated columns: " << int(this->_columns.size()) << endl;
 		cout << "Currently useable columns: " << int(this->_columns.size()) - int(this->_currentNode->nullified.size()) << endl;
 		cout << "Explored nodes: " << i << endl;
+		cout << "CPU time: " << (clock()-c0)/(CLOCKS_PER_SEC) << endl;
 		cout << endl;	
-		this->_printSTD();	
+		this->_printSTD(false);*/
+			
 
 		//>> Find next edge
 		pair<int,int> c = this->_choice(this->_graph, this->_columns, *(this->_currentNode));
+
+		
+		//>> Verify time limit
+		time = (clock()-c0)/(CLOCKS_PER_SEC);
+		if ((timer)and(time>=timelimit)){
+			timeout = true;
+			break;
+		}
 
 		//>> Select next step
 		if ((UB > lb)and
@@ -423,13 +444,13 @@ void BnP::run() { /// ////////////////////////////////////////////////////// ///
 		   )) {
 			this->forward(get<0>(c),get<1>(c));
 		} else if (this->getCurrentDepth() != 0) {
+			dec++;
 			this->backward();
 			while ((this->getCurrentStatus() == NS_2C)and(this->getCurrentDepth() != 0)) {
 				this->backward();
 			}
 			this->forward();
 		} else {
-
 			//>> Clean graph
 			while(this->_currentNode != this->_rootNode) {
 				this->backward();
@@ -437,6 +458,10 @@ void BnP::run() { /// ////////////////////////////////////////////////////// ///
 			break;
 		}
 		i++;
+	}
+	if (log) {
+		time = (clock()-c0)/(CLOCKS_PER_SEC);
+		this->_printLOG(UB, LB, i, dec, time, timeout);
 	}
 }
 
@@ -463,7 +488,7 @@ NodeStatus BnP::getCurrentStatus() const { /// ///////////////////////////// ///
 	return this->_currentNode->status;
 }
 
-gc::ca_graph& BnP::getRefGraph() { /// ///////////////////////////////////// ///
+gc::ms_graph& BnP::getRefGraph() { /// ///////////////////////////////////// ///
 	return this->_graph;
 }
 
@@ -526,8 +551,8 @@ void BnP::_loadTGF(string filename) { /// //////////////////////////////// ///
 		}
 	}
 
-	//>> Create the ca_graph
-	this->_graph = gc::ca_graph(V);
+	//>> Create the ms_graph
+	this->_graph = gc::ms_graph(V);
 
 	//>> Read the edges
 	while (getline(f, line)) {
@@ -548,9 +573,7 @@ void BnP::_loadTGF(string filename) { /// //////////////////////////////// ///
 		tks.push_back(line);
 	} 
 	if (!tks.empty()){
-		stringstream   sepline;
-		sepline << tks.back();
-		getline(sepline, this->_name, '.');
+		this->_name = tks.back();
 	} else {
 		this->_name = "unknown";
 	}
@@ -569,14 +592,17 @@ void BnP::_loadDIMACS(string filename) { /// //////////////////////////////// //
 	
 	//>> Read the graph
 	dimacs::read_graph(filename.c_str(),
-		[&](int nv,  int) {this->_graph = gc::ca_graph(nv);},
+		[&](int nv,  int) {this->_graph = gc::ms_graph(nv);},
 		[&](int u, int v) {
-			if (u != v) {
+			if (   (u != v)
+			    and(find(this->_graph.matrix[u-1].begin(), 
+			             this->_graph.matrix[u-1].end(),
+			             v-1) ==  this->_graph.matrix[u-1].end()) ) {
 				this->_graph.add_edge(u-1, v-1);
+				
 			}
 		},
 		[&](int, gc::weight) {});
-
 	// Retrieve the file name.
 	stringstream   sepline;
 	sepline << filename;
@@ -585,21 +611,29 @@ void BnP::_loadDIMACS(string filename) { /// //////////////////////////////// //
 		tks.push_back(line);
 	} 
 	if (!tks.empty()){
-		stringstream   sepline;
-		sepline << tks.back();
-		getline(sepline, this->_name, '.');
+		this->_name = tks.back();
 	} else {
 		this->_name = "unknown";
 	}
 
 }
 
-void BnP::_printSTD() { /// //////////////////////////////////////////////// ///
+void BnP::_printSTD(bool full) { /// //////////////////////////////// ///
 	//>> Shortening names
-	float lb           = this->_incumbent->lb;
-	float ub           = this->_incumbent->ub;
-	vector<float> wgt  = this->_incumbent->weights; 
-	vector<int>   colI = this->_incumbent->columns;	
+	float         lb    = this->_incumbent->lb;
+	float         ub    = this->_incumbent->ub;
+	vector<float> wgt   = this->_incumbent->weights; 
+	vector<int>   colI  = this->_incumbent->columns;	
+	bool          cplt  = false;
+	int           limit = 0;
+
+	//>> Full or part ?
+	if ((!full)and(int(colI.size()) > 5)) {
+		limit = 5;
+		cplt  = true;
+	} else {
+		limit = colI.size();
+	}
 
 	//>> Printing!
 	cout << endl;
@@ -607,13 +641,16 @@ void BnP::_printSTD() { /// //////////////////////////////////////////////// ///
 	cout << "Upper Bound: " << ub << endl;
 	cout << "Lower Bound: " << lb << endl;
 	cout << uU "Selected columns:" Uu << endl;
-	for(int i=0 ; i<int(colI.size()) ; i++) {
+	for(int i=0 ; i<limit ; i++) {
 		cout << uU "Column " << colI[i] Uu << "(" << wgt[i] << "x):" << endl;
 		cout << "[";
 		for(int j : this->_columns[colI[i]]) {
 			cout << " " << j;
 		}
 		cout << " ]" << endl;
+	}
+	if (cplt) {
+		cout << "..." << endl;
 	}
 }
 
@@ -677,6 +714,47 @@ void BnP::_printCurrent() { /// ///////////////////////////////////////////// //
 	cout << uU "Current node:" Uu << endl;
 	cout << "Upper Bound = " << ub << endl;
 	cout << "Lower Bound = " << lb << endl;
+}
+
+void BnP::_printLOG(float UB, float LB, int nc, int dec, int time, bool timeout) { ///
+	//>> Open as append
+	ofstream log;
+	log.open("log.csv", ios_base::app);
+
+	//>> Append!
+	//>>//>> Name
+	log << this->_name << ";";
+	
+	//>>//>> K
+	if (UB <= LB) {
+		log << UB << ";";
+	} else {
+		log << "?" << ";";
+	}
+
+	//>>//>> LB
+	log << LB << ";";
+	
+	//>>//>> UB
+	log << UB << ";";
+
+	//>>//>> Best Integer coloring	
+	log << this->_incumbent->ub << ";";
+
+	//>>//>> CPU time
+	log << time << ";";
+
+	//>>//>> timeout
+	log << timeout << ";";
+
+	//>>//>> Visited nodes
+	log << nc << ";";
+
+	//>>//>> Column generated
+	log << int(this->_columns.size()) << ";";
+
+	//>>//>> Dead-end
+	log << dec << endl;
 }
 
 //============================================================================//

@@ -9,7 +9,7 @@
 #include <set>
 #include <utility>
 
-#include "../ca_graph.hpp"
+#include "ms_graph.hpp"
 #include "../algorithm.hpp"
 	
 #include <ilcplex/ilocplex.h>
@@ -85,13 +85,13 @@ struct Node {
 
 //>> Type of a function pointer toward a method/function which find
 //>> new columns
-typedef vector<int> (*Generator)(IloNumArray, gc::ca_graph);
+typedef vector<int> (*Generator)(IloNumArray, gc::ms_graph);
 //>>       |^|                      |^|              |^|
 //>> the new found column ; the pricing values ; the current graph
 
 //>> Type of a function pointer toward a method/function which find
 //>> the branching vertice pair
-typedef pair<int,int> (*Choice)(gc::ca_graph, vector<set<int>>, Node);
+typedef pair<int,int> (*Choice)(gc::ms_graph, vector<set<int>>, Node);
 //>>        |^|                  |^|            |^|              |^|          
 //>> the selected vertices       |^|    every columns we know    |^|
 //>>                         the current graph              the current node   
@@ -106,11 +106,11 @@ class BnP {
 	
 ///////-/// ATTRIBUTES ///-/////////////////////////////////////////////////////
 
-	public:
+	private:
 	//>> About the graph itself
 	int                 _nbVertices;
 	string              _name;        // Name of the loaded file
-	gc::ca_graph        _graph;       // Adjacency Graph of the loaded file
+	gc::ms_graph        _graph;       // Adjacency Graph of the loaded file
 	vector<pNode>       _nodes;       // List of node in the current trails
 	pNode               _rootNode;    // The initial node
 	pNode               _currentNode; // The currently loaded node
@@ -141,7 +141,7 @@ class BnP {
 
 	public:
 	void load(string filename, InFormat in = I_TGF); /*
-	* Load a file given its name and format as a gc::ca_graph.
+	* Load a file given its name and format as a gc::ms_graph.
 	* Initialize the first node and the master problem.
 	*/
 
@@ -174,8 +174,10 @@ class BnP {
 	* Load the incumbent as the currentNode.
 	*/
 
-	void run(); /*
-	* 
+	void run(int timelimit = -1, bool log = false); /*
+	* Run? Run!
+	* timelimit is in second
+	* log refers to the save made in a .csv file
 	*/
 
 	private:
@@ -183,11 +185,13 @@ class BnP {
 	void _loadDOT(string filename);    // the part of file reading 
 	void _loadCLQ(string filename);    // given the right format.
 	void _loadDIMACS(string filename); // |^|
-	void _printSTD(); // Called by print() to print the
-	void _printDOT(); // result in the intented format 
-	void _printSOL(); // and media.
+	
+	void _printSTD(bool full = true); // Called by print() to print the
+	void _printDOT();                 // result in the intented format 
+	void _printSOL();                 // and media.
 
 	void _printCurrent();
+	void _printLOG(float UB, float LB, int nc, int dec, int time, bool timeout);
 
 
 ///////-/// GETTERS, SETTERS, etc ///-//////////////////////////////////////////
@@ -204,7 +208,7 @@ class BnP {
 	float         getCurrentLB()     const;
 	float         getCurrentUB()     const;
 	int           getCurrentDepth()  const;
-	gc::ca_graph& getRefGraph();
+	gc::ms_graph& getRefGraph();
 
 	//>> Adders
 	void addCol(IloInt i);

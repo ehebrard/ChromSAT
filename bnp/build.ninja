@@ -242,7 +242,11 @@ build bnp@exe/src_stage_BnP.cpp.o: cpp_COMPILER ../src/stage/BnP.cpp
  DEPFILE = bnp@exe/src_stage_BnP.cpp.o.d
  ARGS = -Ibnp@exe -I. -I.. -I../src -I../minicsp -I/net/phorcys/data/roc/Logiciels/CPLEX_Studio1271/cplex/include -I/net/phorcys/data/roc/Logiciels/CPLEX_Studio1271/concert/include -fdiagnostics-color=always -pipe -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -Wnon-virtual-dtor -std=c++1z -O2 -g -pthread -DIL_STD -g
 
-build bnp: cpp_LINKER bnp@exe/src_stage_main_bnp.cpp.o bnp@exe/src_stage_BnP.cpp.o | /net/phorcys/data/roc/Logiciels/CPLEX_Studio1271/cplex/lib/x86-64_linux/static_pic/libcplex.a /net/phorcys/data/roc/Logiciels/CPLEX_Studio1271/cplex/lib/x86-64_linux/static_pic/libilocplex.a /net/phorcys/data/roc/Logiciels/CPLEX_Studio1271/concert/lib/x86-64_linux/static_pic/libconcert.a libbasic.a libprop.a libminicsp.a
+build bnp@exe/src_stage_ms_graph.cpp.o: cpp_COMPILER ../src/stage/ms_graph.cpp
+ DEPFILE = bnp@exe/src_stage_ms_graph.cpp.o.d
+ ARGS = -Ibnp@exe -I. -I.. -I../src -I../minicsp -I/net/phorcys/data/roc/Logiciels/CPLEX_Studio1271/cplex/include -I/net/phorcys/data/roc/Logiciels/CPLEX_Studio1271/concert/include -fdiagnostics-color=always -pipe -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -Wnon-virtual-dtor -std=c++1z -O2 -g -pthread -DIL_STD -g
+
+build bnp: cpp_LINKER bnp@exe/src_stage_main_bnp.cpp.o bnp@exe/src_stage_BnP.cpp.o bnp@exe/src_stage_ms_graph.cpp.o | /net/phorcys/data/roc/Logiciels/CPLEX_Studio1271/cplex/lib/x86-64_linux/static_pic/libcplex.a /net/phorcys/data/roc/Logiciels/CPLEX_Studio1271/cplex/lib/x86-64_linux/static_pic/libilocplex.a /net/phorcys/data/roc/Logiciels/CPLEX_Studio1271/concert/lib/x86-64_linux/static_pic/libconcert.a libbasic.a libprop.a libminicsp.a
  LINK_ARGS = -Wl,--no-undefined -Wl,--as-needed -Wl,--start-group libbasic.a libprop.a libminicsp.a /net/phorcys/data/roc/Logiciels/CPLEX_Studio1271/cplex/lib/x86-64_linux/static_pic/libcplex.a /net/phorcys/data/roc/Logiciels/CPLEX_Studio1271/cplex/lib/x86-64_linux/static_pic/libilocplex.a /net/phorcys/data/roc/Logiciels/CPLEX_Studio1271/concert/lib/x86-64_linux/static_pic/libconcert.a -Wl,--end-group -pthread '-Wl,-rpath,$$ORIGIN/' -Wl,-rpath-link,/home/ycharriere/Documents/git/ChromSAT/bnp/
 
 build dsatur@exe/sota_trick_dsatur.c.o: c_COMPILER ../sota/trick/dsatur.c

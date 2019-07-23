@@ -171,6 +171,11 @@
   },
   {
     "directory": "/home/ycharriere/Documents/git/ChromSAT/bnp",
+    "command": "g++-8 -Ibnp@exe -I. -I.. -I../src -I../minicsp -I/net/phorcys/data/roc/Logiciels/CPLEX_Studio1271/cplex/include -I/net/phorcys/data/roc/Logiciels/CPLEX_Studio1271/concert/include -fdiagnostics-color=always -pipe -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -Wnon-virtual-dtor -std=c++1z -O2 -g -pthread -DIL_STD -g  -MD -MQ 'bnp@exe/src_stage_ms_graph.cpp.o' -MF 'bnp@exe/src_stage_ms_graph.cpp.o.d' -o 'bnp@exe/src_stage_ms_graph.cpp.o' -c ../src/stage/ms_graph.cpp",
+    "file": "../src/stage/ms_graph.cpp"
+  },
+  {
+    "directory": "/home/ycharriere/Documents/git/ChromSAT/bnp",
     "command": "gcc-8 -Idsatur@exe -I. -I.. -fdiagnostics-color=always -pipe -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -std=c11 -O2 -g  -MD -MQ 'dsatur@exe/sota_trick_dsatur.c.o' -MF 'dsatur@exe/sota_trick_dsatur.c.o.d' -o 'dsatur@exe/sota_trick_dsatur.c.o' -c ../sota/trick/dsatur.c",
     "file": "../sota/trick/dsatur.c"
   },

@@ -26,7 +26,15 @@ using namespace bnp;
 //============================================================================//
 //====// Generator //=========================================================//
 
-vector<int> gensolve(IloNumArray price, gc::ca_graph graph) {
+vector<int> othergen(IloNumArray price, gc::ms_graph graph) {
+	vector<float> input_price;
+	for (IloInt i=0 ; i<price.getSize() ; i++) {
+		input_price.push_back(price[i]);
+	}	
+	return graph.ms_find_set(input_price, -1, gc::SN_MODE_MIN_SWAP);
+}
+
+vector<int> gensolve(IloNumArray price, gc::ms_graph graph) {
 	//>> Declarations
 	IloInt i, j;
 	vector<vector<int>> mat = graph.matrix;
@@ -55,7 +63,7 @@ vector<int> gensolve(IloNumArray price, gc::ca_graph graph) {
 		//>> Create constraints : "Two adjacent vertices can not belong to
 		//>> the same stable set."
 		int l =0;
-		for (int k =0 ; k<graph.size() ; k++) {
+		for (int k =0 ; k<int(graph.size()) ; k++) {
 			i = graph.nodes[k];
 			if (mat[i].size() > 0) {
 				for(auto j : mat[i]) {
@@ -93,6 +101,7 @@ vector<int> gensolve(IloNumArray price, gc::ca_graph graph) {
 		IloCplex generatorSolver = IloCplex(generatorModel);
 		
 		generatorSolver.setOut(env.getNullStream());
+		generatorSolver.setParam(IloCplex::TiLim, 300);	
 
 		//>> Apply price to objective
 		generatorObj.setLinearCoefs(generatorVector, price);
@@ -137,17 +146,17 @@ vector<int> gensolve(IloNumArray price, gc::ca_graph graph) {
 //============================================================================//
 //====// Choice //============================================================//
 
-pair<int, int> makechoice(gc::ca_graph g, vector<set<int>> c, Node n) {
+pair<int, int> makechoice(gc::ms_graph g, vector<set<int>> c, Node n) {
 	gc::arc a = g.any_non_edge();
 	return make_pair(a[0],a[1]);
 }
 
-pair<int, int> otherchoice(gc::ca_graph g, vector<set<int>> c, Node n) {
+pair<int, int> otherchoice(gc::ms_graph g, vector<set<int>> c, Node n) {
 
 	//>> Alias
 	vector<int>   valid   = n.columns;
 	vector<float> weights = n.weights;
-	int u;
+	int u = -1;
 	int v = -1;
 
 	//>> Select the most fractionnal column
@@ -300,9 +309,12 @@ int main(int argc, char * argv[]) {
 	bnp.setGenerator(gensolve);
 
 	//>> Run the solver
-	bnp.run();
+	bnp.run(300, true);
 
 	//>> Print the result
 	bnp.print(out);
+
+	//>> Return
+	return 0;
 }
 
