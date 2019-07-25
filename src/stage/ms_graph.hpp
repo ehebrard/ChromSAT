@@ -44,12 +44,13 @@ class ms_graph : public ca_graph {
 
     private:
     std::vector<ms_pStateSaver> _ms_states;
+	ms_pStateSaver              _ms_root;
     
 ///////-/// CONSTRUCTORS ///-///////////////////////////////////////////////////
 
     public:
-    ms_graph(): ca_graph() {}
-    ms_graph(int nv): ca_graph(nv) {}
+    ms_graph(): ca_graph() {_ms_root = std::make_shared<ms_StateSaver>();}
+    ms_graph(int nv): ca_graph(nv) {_ms_root = std::make_shared<ms_StateSaver>();}
 
 ///////-/// METHODS ///-////////////////////////////////////////////////////////
 
@@ -86,7 +87,7 @@ class ms_graph : public ca_graph {
     * Return the current vertex.
     */
     
-    int ms_deep_forward(const SN_MODE sn_mode); /*
+    int ms_deep_forward(const SN_MODE sn_mode, std::vector<float> price); /*
     * Branch until a max set is found.
     */
     
@@ -113,11 +114,17 @@ class ms_graph : public ca_graph {
     * if mode>0  : the set has a score higher than obj.
     * if mode<=0 : the set has a score lower than obj
     */
-    
+
+    float ms_lb(const std::vector<float> price); /*
+    * Search a lb.
+    */    
+
     private:
     int _ms_select_min_swap() const; /*
     * Try to find the vertex which is the closest to the limit of the intstack.
     */    
+    
+    void _ms_print_current_set();
 };
 //============================================================================//
 //====// Namespace : end //===================================================//

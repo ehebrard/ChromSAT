@@ -27,11 +27,13 @@ using namespace bnp;
 //====// Generator //=========================================================//
 
 vector<int> othergen(IloNumArray price, gc::ms_graph graph) {
+	
 	vector<float> input_price;
 	for (IloInt i=0 ; i<price.getSize() ; i++) {
 		input_price.push_back(price[i]);
-	}	
-	return graph.ms_find_set(input_price, -1, gc::SN_MODE_MIN_SWAP);
+	}
+	vector<int> out = graph.ms_find_set(input_price, -1, gc::SN_MODE_MIN_SWAP);
+	return out;
 }
 
 vector<int> gensolve(IloNumArray price, gc::ms_graph graph) {
@@ -101,7 +103,7 @@ vector<int> gensolve(IloNumArray price, gc::ms_graph graph) {
 		IloCplex generatorSolver = IloCplex(generatorModel);
 		
 		generatorSolver.setOut(env.getNullStream());
-		generatorSolver.setParam(IloCplex::TiLim, 300);	
+		//generatorSolver.setParam(IloCplex::TiLim, 300);	
 
 		//>> Apply price to objective
 		generatorObj.setLinearCoefs(generatorVector, price);
@@ -116,13 +118,13 @@ vector<int> gensolve(IloNumArray price, gc::ms_graph graph) {
 
 		
 
-		/*cout << "New column! :\n[" ;
+		cout << "New column! :\n[" ;
 		for(IloInt i=0 ; i<col.getSize() ; i++) {
 			if(col[i] !=0) {
 				cout << "(" << i << ":" << col[i] << ") ";
 			}
 		}
-		cout << "]" << endl;*/
+		cout << "]" << endl;
 		for(int w=0 ; w<nbVertices ; w++) {
 			int p = graph.parent[w];
 			while ( p != graph.parent[p] ) {
@@ -294,7 +296,6 @@ int main(int argc, char * argv[]) {
 	//>> COUT
 	cout << gG "Loading data, please wait." Gg << endl;
 
-
 	//>> Create the BnP solver
 	BnP bnp;
 	bnp.load(filename, in);
@@ -306,10 +307,10 @@ int main(int argc, char * argv[]) {
 
 	//>> Set the modular functions
 	bnp.setChoice(otherchoice);
-	bnp.setGenerator(gensolve);
+	bnp.setGenerator(othergen);
 
 	//>> Run the solver
-	bnp.run(300, true);
+	bnp.run(-1, true);
 
 	//>> Print the result
 	bnp.print(out);

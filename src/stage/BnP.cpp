@@ -166,95 +166,99 @@ void BnP::print(OutFormat out) { // ///////////////////////////////////////// //
 }
 
 void BnP::solve() { // ////////////////////////////////////////////////////// //
+	try {
+		//>> Declaration
+		bool        success;
+		int         i;
+		float       result = 0;
+		IloInt      nbVertices(this->_graph.matrix.size());
+		
+		//>> Update the range thanks to the nullified list
+		//>>//>> Clear nullifying constraints
+		for( i=0 ; i < this->_masterLRange.getSize() ; i++ ) {
+			this->_masterLVector[i].setUB(1);
+		}
 
-	//>> Declaration
-	bool        success;
-	int         i;
-	float       result = 0;
-	IloInt      nbVertices(this->_graph.matrix.size());
-	
-	//>> Update the range thanks to the nullified list
-	//>>//>> Clear nullifying constraints
-	for( i=0 ; i < this->_masterLRange.getSize() ; i++ ) {
-		this->_masterLVector[i].setUB(1);
-	}
+		//>>//>> Add the constraint
+		for(int j : this->_currentNode->nullified) {
+			this->_masterLVector[j].setUB(0);
+		}
 
-	//>>//>> Add the constraint
-	for(int j : this->_currentNode->nullified) {
-		this->_masterLVector[j].setUB(0);
-	}
-
-	//>> Solve to optimality
-	for(;;) {
-		//>> Solve master problem with current patterns
-		success = this->_masterSolver.solve();
-		if (!success) {
-			cout << eE "Solve() failed" Ee << endl;			
-			for(IloInt l=0 ; l<this->_masterLVector.getSize() ; l++) {
-				cout << "Col" << l << " in ";
-				cout << "[" << this->_masterLVector[l].getLB();
-				cout << ";" << this->_masterLVector[l].getUB() << "]";
-				cout << " is valued " << this->_masterSolver.getValue(this->_masterLVector[l]) << endl;					
+		//>> Solve to optimality
+		for(;;) {
+			//>> Solve master problem with current patterns
+			cout << "bip" << endl;
+			success = this->_masterSolver.solve();
+			cout << "boup" << endl;
+			if (!success) {
+				cout << eE "Solve() failed" Ee << endl;			
+				for(IloInt l=0 ; l<this->_masterLVector.getSize() ; l++) {
+					cout << "Col" << l << " in ";
+					cout << "[" << this->_masterLVector[l].getLB();
+					cout << ";" << this->_masterLVector[l].getUB() << "]";
+					cout << " is valued " << this->_masterSolver.getValue(this->_masterLVector[l]) << endl;					
+				}
+				exit(EXIT_FAILURE);
 			}
-			exit(EXIT_FAILURE);
+
+			//>> Retrieve costs / price
+			for (i=0 ; i<nbVertices ; i++) {
+				price[i] = -this->_masterSolver.getDual(this->_masterXRange[i]);
+			}
+			
+			//>> Call the generator method/function
+			vector<int> storage = this->_gen(price, this->_graph);
+			for(int k=0 ; k<int(storage.size()) ; k++) {
+				column[k] = storage[k];
+			}
+
+			//>> Evaluate the improvement of this pattern :
+			result = 0;
+			for (i = 0 ; i<nbVertices ; i++) {
+				result += column[i]*price[i];
+			}
+			//>> Test the value if the new pattern may improve the master
+			//>> pattern.
+			if (result+1 > -RC_EPS) {
+				break; // The best pattern is not usefull => break
+			}
+
+			//>> Add the new pattern to the master problem
+			this->addCol(column);
+			this->_masterLRange.add(IloRange(this->_env, 0, 1));
+			i = this->_masterLRange.getSize()-1;
+			this->_masterLVector.add(IloNumVar(   this->_masterObj(1)         
+				                            + this->_masterXRange(column)
+				                            + this->_masterLRange[i](1)   ));
+
 		}
 
-		//>> Retrieve costs / price
-		for (i=0 ; i<nbVertices ; i++) {
-			price[i] = -this->_masterSolver.getDual(this->_masterXRange[i]);
+		//>> Retrieve solution values
+		//>>//>> lb
+		this->_currentNode->lb = this->_masterSolver.getObjValue();
+		//>>//>> ub, columns, weights
+		float ub(0);
+		for (IloInt j=0 ; j<this->_masterLVector.getSize() ; j++) {
+			if (this->_masterSolver.getValue(this->_masterLVector[j]) != 0) {
+				ub += 1;
+				this->_currentNode->columns.push_back(j);
+				this->_currentNode->weights.push_back(this->_masterSolver.getValue(this->_masterLVector[j]));
+			}
 		}
-		
-		//>> Call the generator method/function
-		vector<int> storage = this->_gen(price, this->_graph);
-		for(int k=0 ; k<int(storage.size()) ; k++) {
-			column[k] = storage[k];
-		}
-
-		//>> Evaluate the improvement of this pattern :
-		result = 0;
-		for (i = 0 ; i<nbVertices ; i++) {
-			result += column[i]*price[i];
-		}
-		
-		//>> Test the value if the new pattern may improve the master
-		//>> pattern.
-		if (result+1 > -RC_EPS) {
-			break; // The best pattern is not usefull => break
-		}
-
-		//>> Add the new pattern to the master problem
-		this->addCol(column);
-		this->_masterLRange.add(IloRange(this->_env, 0, 1));
-		i = this->_masterLRange.getSize()-1;
-		this->_masterLVector.add(IloNumVar(   this->_masterObj(1)         
-		                                    + this->_masterXRange(column)
-		                                    + this->_masterLRange[i](1)   ));
-
+		this->_currentNode->ub = ub;
+		//>>//>> Update the status of _currentNode
+		this->_currentNode->status = NS_SOLVED;
+		/*
+		//>> Check if it's the new incumbent and replace it if necessary
+		if (this->_currentNode->lb == this->_currentNode->ub) {
+			if (   (this->_incumbent   == nullptr         )
+			    or (this->_currentNode <= this->_incumbent) ) {
+				this->_incumbent = this->_currentNode;
+			}
+		}*/
+	} catch (IloCplex::Exception e) {
+		cout << e << endl;
 	}
-
-	//>> Retrieve solution values
-	//>>//>> lb
-	this->_currentNode->lb = this->_masterSolver.getObjValue();
-	//>>//>> ub, columns, weights
-	float ub(0);
-	for (IloInt j=0 ; j<this->_masterLVector.getSize() ; j++) {
-		if (this->_masterSolver.getValue(this->_masterLVector[j]) != 0) {
-			ub += 1;
-			this->_currentNode->columns.push_back(j);
-			this->_currentNode->weights.push_back(this->_masterSolver.getValue(this->_masterLVector[j]));
-		}
-	}
-	this->_currentNode->ub = ub;
-	//>>//>> Update the status of _currentNode
-	this->_currentNode->status = NS_SOLVED;
-	/*
-	//>> Check if it's the new incumbent and replace it if necessary
-	if (this->_currentNode->lb == this->_currentNode->ub) {
-		if (   (this->_incumbent   == nullptr         )
-		    or (this->_currentNode <= this->_incumbent) ) {
-			this->_incumbent = this->_currentNode;
-		}
-	}*/
 }
 
 void BnP::forward(int u , int v) { // //////////////////////////////////////// //
@@ -388,7 +392,9 @@ void BnP::run(int timelimit, bool log) { /// /////////////////////////////// ///
 	while (LB < UB) {
 
 		//>> Solve current node
-		this->_masterSolver.setParam(IloCplex::TiLim, timelimit);	
+		if (timelimit > 0) {
+			this->_masterSolver.setParam(IloCplex::TiLim, timelimit);
+		}	
 		this->solve();
 
 	
@@ -410,7 +416,7 @@ void BnP::run(int timelimit, bool log) { /// /////////////////////////////// ///
 		}
 
 		//>> Print
-		/*cout << "\33[H\33[2J";
+		cout << "\33[H\33[2J";
 		cout << uU  "Loaded graph:"  Uu << endl << this->_name << endl << endl;
 		cout << uU "Global:" Uu << endl;
 		cout << "UB = " << UB << endl;
@@ -423,7 +429,7 @@ void BnP::run(int timelimit, bool log) { /// /////////////////////////////// ///
 		cout << "Explored nodes: " << i << endl;
 		cout << "CPU time: " << (clock()-c0)/(CLOCKS_PER_SEC) << endl;
 		cout << endl;	
-		this->_printSTD(false);*/
+		this->_printSTD(true);
 			
 
 		//>> Find next edge
