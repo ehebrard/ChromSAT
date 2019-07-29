@@ -200,6 +200,7 @@ class BnP {
 	public:
 	void setGenerator(Generator gen);
 	void setChoice(Choice choice);
+	void setGraphNodeSorter(gc::NodeSorter ns);
 	void setDiscreetMode();
 	void setNoisyMode();
 

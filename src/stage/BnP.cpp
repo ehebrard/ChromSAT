@@ -187,9 +187,7 @@ void BnP::solve() { // ////////////////////////////////////////////////////// //
 		//>> Solve to optimality
 		for(;;) {
 			//>> Solve master problem with current patterns
-			cout << "bip" << endl;
 			success = this->_masterSolver.solve();
-			cout << "boup" << endl;
 			if (!success) {
 				cout << eE "Solve() failed" Ee << endl;			
 				for(IloInt l=0 ; l<this->_masterLVector.getSize() ; l++) {
@@ -219,7 +217,7 @@ void BnP::solve() { // ////////////////////////////////////////////////////// //
 			}
 			//>> Test the value if the new pattern may improve the master
 			//>> pattern.
-			if (result+1 > -RC_EPS) {
+			if (result+1 >= 0) {
 				break; // The best pattern is not usefull => break
 			}
 
@@ -480,6 +478,10 @@ void BnP::setGenerator(Generator gen) { /// //////////////////////////////// ///
 
 void BnP::setChoice(Choice choice) { /// /////////////////////////////////// ///
 	this->_choice = choice;
+}
+
+void BnP::setGraphNodeSorter(gc::NodeSorter ns) { /// ////////////////////////// ///
+	this->_graph.ms_set_node_sorter(ns);
 }
 
 void BnP::setDiscreetMode() { /// ////////////////////////////////////////// ///

@@ -24,6 +24,11 @@ using namespace bnp;
 #define Gg <<"\033[0m"
 
 //============================================================================//
+//====// Global //============================================================//
+
+gc::SN_MODE snmode = gc::SN_MODE_MIN_SWAP;
+
+//============================================================================//
 //====// Generator //=========================================================//
 
 vector<int> othergen(IloNumArray price, gc::ms_graph graph) {
@@ -32,17 +37,15 @@ vector<int> othergen(IloNumArray price, gc::ms_graph graph) {
 	for (IloInt i=0 ; i<price.getSize() ; i++) {
 		input_price.push_back(price[i]);
 	}
-	vector<int> out = graph.ms_find_set(input_price, -1, gc::SN_MODE_MIN_SWAP);
+	vector<int> out = graph.ms_find_set(input_price, -1, snmode);
 	return out;
 }
 
 vector<int> gensolve(IloNumArray price, gc::ms_graph graph) {
 	//>> Declarations
-	IloInt i, j;
+	IloInt i;
 	vector<vector<int>> mat = graph.matrix;
 	IloInt nbVertices(mat.size());
-	
-
 	
 	try {	
 		//>> Create an environment
@@ -116,15 +119,6 @@ vector<int> gensolve(IloNumArray price, gc::ms_graph graph) {
 		//>> Retrieve pattern
 		generatorSolver.getValues(col, generatorVector);
 
-		
-
-		cout << "New column! :\n[" ;
-		for(IloInt i=0 ; i<col.getSize() ; i++) {
-			if(col[i] !=0) {
-				cout << "(" << i << ":" << col[i] << ") ";
-			}
-		}
-		cout << "]" << endl;
 		for(int w=0 ; w<nbVertices ; w++) {
 			int p = graph.parent[w];
 			while ( p != graph.parent[p] ) {
@@ -207,6 +201,17 @@ pair<int, int> otherchoice(gc::ms_graph g, vector<set<int>> c, Node n) {
 }
 
 //============================================================================//
+//====// Sort //==============================================================//
+
+bool defaultsort (gc::ms_Node n1, gc::ms_Node n2) {
+	if (n1.weight == n2.weight) {
+		return n1.degree < n2.degree;
+	} else {
+		return n1.weight < n2.weight;
+	}
+} 
+
+//============================================================================//
 //====// Print //=============================================================//
 
 void printNode(pNode n) {
@@ -224,14 +229,19 @@ void printNode(pNode n) {
 
 void exitWithUsage() {
 	cout << wW uU "USAGE:" Uu Ww;
-	cout <<          wW " bnp <filename> [-i <input format>  ||" << endl;
-	cout <<       "                       -o <output format> ||" << endl;
-	cout <<       "                       -d ]" Ww               << endl;
+	cout <<          wW " bnp <filename> [-i  <input format>   ||" << endl;
+	cout <<       "                       -o  <output format>  ||" << endl;
+	cout <<       "                       -sm <selector mode>  ||" << endl;
+	cout <<       "                       -gm <generator mode> ||" << endl;
+	cout <<       "                       -d ]" Ww                << endl;
 	cout << wW uU "with :" Uu Ww                                  << endl;
 	cout <<    wW "<input format> among tgf, dot, clq and dimacs" << endl;
 	cout <<       "<output format> among dot, sol and std"        << endl;
+	cout <<       "<selector mode> among swap, sort and near"     << endl;
+	cout <<       "<generator mode> among cplex and greedy"       << endl;
 	cout <<       "-d limits the output printed on the shell"     << endl;
 	cout Ww;
+	exit(EXIT_FAILURE);
 }
 
 //============================================================================//
@@ -244,6 +254,7 @@ int main(int argc, char * argv[]) {
 	InFormat in = I_TGF;
 	OutFormat out = O_STD;
 	bool noise = true;
+	Generator gen = gensolve;
 
 	//>> Sort argv
 	//>>//>> filename
@@ -287,6 +298,36 @@ int main(int argc, char * argv[]) {
 				exitWithUsage();
 			}
 
+		} else if (string(argv[i]) == "-gm") {
+			if (i+1 < argc) {
+				i++;
+				if (string(argv[i]) == "cplex") {
+					gen = gensolve;
+				} else if (string(argv[i]) == "greedy"){
+					gen = othergen;
+				} else {
+					exitWithUsage();
+				}
+			} else {
+				exitWithUsage();
+			}
+
+		} else if (string(argv[i]) == "-sm") {
+			if (i+1 < argc) {
+				i++;
+				if (string(argv[i]) == "swap") {
+					snmode = gc::SN_MODE_MIN_SWAP;
+				} else if (string(argv[i]) == "sort"){
+					snmode = gc::SN_MODE_SORT;
+				} else if (string(argv[i]) == "near"){
+					snmode = gc::SN_MODE_NEAR;
+				} else {
+					exitWithUsage();
+				}
+			} else {
+				exitWithUsage();
+			}
+
 		} else if (string(argv[i]) == "-d") {
 			noise = false;
 		} else {
@@ -294,7 +335,7 @@ int main(int argc, char * argv[]) {
 		}
 	}
 	//>> COUT
-	cout << gG "Loading data, please wait." Gg << endl;
+	cout << gG "Loading data, please wait..." Gg << endl;
 
 	//>> Create the BnP solver
 	BnP bnp;
@@ -307,9 +348,11 @@ int main(int argc, char * argv[]) {
 
 	//>> Set the modular functions
 	bnp.setChoice(otherchoice);
-	bnp.setGenerator(othergen);
+	bnp.setGenerator(gen);
+	bnp.setGraphNodeSorter(defaultsort);
 
 	//>> Run the solver
+	cout << gG "Graph loaded. Searching for starting point..." Gg << endl;
 	bnp.run(-1, true);
 
 	//>> Print the result

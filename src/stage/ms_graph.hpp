@@ -18,7 +18,9 @@ namespace gc
 //====// Enumerations //======================================================//
 
 enum SN_MODE {
-    SN_MODE_MIN_SWAP = 0
+    SN_MODE_MIN_SWAP = 0,
+    SN_MODE_SORT = 1,
+    SN_MODE_NEAR = 2
 };
 
 //============================================================================//
@@ -30,10 +32,18 @@ struct ms_StateSaver {
     size_t   previous_size; //>> The size of .nodes before the transformation was applied.
 };
 
+struct ms_Node {
+	int   id;
+	float weight;
+	int   degree;
+};
+
 //============================================================================//
 //====// Typedef //===========================================================//
 
 typedef std::shared_ptr<ms_StateSaver> ms_pStateSaver;
+
+typedef bool (* NodeSorter)(ms_Node, ms_Node);
 
 //============================================================================//
 //====// Class //=============================================================//
@@ -45,6 +55,7 @@ class ms_graph : public ca_graph {
     private:
     std::vector<ms_pStateSaver> _ms_states;
 	ms_pStateSaver              _ms_root;
+	NodeSorter                  _ms_ns;
     
 ///////-/// CONSTRUCTORS ///-///////////////////////////////////////////////////
 
@@ -55,7 +66,7 @@ class ms_graph : public ca_graph {
 ///////-/// METHODS ///-////////////////////////////////////////////////////////
 
     public:
-    int ms_select_node(const SN_MODE sn_mode) const; /*
+    int ms_select_node(const SN_MODE sn_mode, std::vector<float> w) const; /*
     * >> Wrapper method <<
     * Call the appropriate methods to select a vertex according to the
     * choosen SN_MODE.
@@ -76,7 +87,7 @@ class ms_graph : public ca_graph {
     * Call .ms_remove_node(u, save) for every u in su.
     */
     
-    int ms_forward(const SN_MODE sn_mode); /*
+    int ms_forward(const SN_MODE sn_mode, std::vector<float> w); /*
     * Branch on the current point. Use the choosen SN_MODE for the node
     * selection.
     * Return the choosen vertex.
@@ -91,7 +102,7 @@ class ms_graph : public ca_graph {
     * Branch until a max set is found.
     */
     
-    int ms_backtrack(const SN_MODE sn_mode); /*
+    int ms_backtrack(const SN_MODE sn_mode, std::vector<float> w); /*
     * Call .ms_backtrack() until it is possible to call .ms_forward(sn_mode).
     * Return the choosen vertex.
     */  
@@ -115,9 +126,11 @@ class ms_graph : public ca_graph {
     * if mode<=0 : the set has a score lower than obj
     */
 
-    float ms_lb(const std::vector<float> price); /*
-    * Search a lb.
-    */    
+    float ms_cplt(const std::vector<float> price); /*
+    * Search a lb for the remaining node.
+    */
+    
+    void ms_set_node_sorter(NodeSorter ns);   
 
     private:
     int _ms_select_min_swap() const; /*
@@ -125,6 +138,10 @@ class ms_graph : public ca_graph {
     */    
     
     void _ms_print_current_set();
+
+    int _ms_select_by_sorting(std::vector<float> w) const;
+    int _ms_select_nearest_improvement(std::vector<float> w) const;
+       
 };
 //============================================================================//
 //====// Namespace : end //===================================================//
