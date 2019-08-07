@@ -584,11 +584,11 @@ void BnP::setNoisyMode() { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 }
 
 void BnP::setMonoMode() { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
-	//this->_masterSolver.setParam(CPX_PARAM_THREADS,1);
+	this->_masterSolver.setParam(IloCplex::Param::Threads,1);
 }
 
 void BnP::setPolyMode() { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
-	//this->_masterSolver.setParam(CPX_PARAM_THREADS,0);
+	this->_masterSolver.setParam(IloCplex::Param::Threads,0);
 }
 
 NodeStatus BnP::getCurrentStatus() const { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//

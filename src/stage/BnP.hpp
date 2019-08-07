@@ -210,8 +210,8 @@ class BnP {
 	void setGraphObjective(const int obj);
 	void setDiscreetMode();
 	void setNoisyMode();
-	void setMonoMode(); // /!\ Not working /!\ //
-	void setPolyMode(); // /!\ Not working /!\ //
+	void setMonoMode(); 
+	void setPolyMode(); 
 
 	//>> Getters
 	NodeStatus    getCurrentStatus() const;

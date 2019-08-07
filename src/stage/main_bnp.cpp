@@ -231,13 +231,16 @@ void exitWithUsage() { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	cout <<       "                       -o  <output format>  ||" << endl;
 	cout <<       "                       -sm <selector mode>  ||" << endl;
 	cout <<       "                       -gm <generator mode> ||" << endl;
-	cout <<       "                       -d ]" Ww                << endl;
+	cout <<       "                       -d                   ||" << endl;
+	cout <<       "                       -mono                ]" << endl;
 	cout << wW uU "with :" Uu Ww                                  << endl;
 	cout <<    wW "<input format> among tgf, dot, clq and dimacs" << endl;
 	cout <<       "<output format> among dot, sol and std"        << endl;
 	cout <<       "<selector mode> among swap, sort and near"     << endl;
 	cout <<       "<generator mode> among cplex and greedy"       << endl;
 	cout <<       "-d limits the output printed on the shell"     << endl;
+	cout <<       "-mono force cplex to use only 1 thread"        << endl;
+	
 	cout Ww;
 	exit(EXIT_FAILURE);
 }
@@ -251,6 +254,7 @@ int main(int argc, char * argv[]) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	InFormat in = I_TGF;
 	OutFormat out = O_STD;
 	bool noise = true;
+	bool multithread = true;
 	Generator gen = gensolve;
 	gc::SN_MODE snmode = gc::SN_MODE_MIN_SWAP;
 
@@ -329,6 +333,8 @@ int main(int argc, char * argv[]) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 
 		} else if (string(argv[i]) == "-d") {
 			noise = false;
+		} else if (string(argv[i]) == "-mono") {
+			multithread = false;
 		} else {
 			exitWithUsage();
 		}
@@ -344,6 +350,11 @@ int main(int argc, char * argv[]) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 		bnp.setNoisyMode();
 	} else {
 		bnp.setDiscreetMode();
+	}
+	if (multithread) {
+		bnp.setMonoMode();
+	} else {
+		bnp.setPolyMode();
 	}
 
 	//>> Set the modular functions
