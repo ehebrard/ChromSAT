@@ -489,16 +489,16 @@ void BnP::run(int timelimit, bool log) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 		cout << "Generated         columns: " << int(this->_columns.size()) << endl;
 		cout << "Currently useable columns: " << int(this->_columns.size()) - int(this->_currentNode->nullified.size()) << endl;
 		cout << "Explored nodes: " << i << endl;
-		cout << "Global   CPU time: " << (clock()-c0)/*/(CLOCKS_PER_SEC)*/ << endl;
-		cout << "Master   CPU time: " << MASTER_TIME/*/(CLOCKS_PER_SEC)*/ << endl;
-		cout << "Slave    CPU time: " << SLAVE_TIME/*/(CLOCKS_PER_SEC)*/ << endl;
-		cout << "Branch   CPU time: " << BRANCH_TIME/*/(CLOCKS_PER_SEC)*/ << endl;
-		cout << "Eval     CPU time: " << EVAL_TIME/*/(CLOCKS_PER_SEC)*/ << endl;
-		cout << "Col Load CPU time: " << COL_LOAD_TIME/*/(CLOCKS_PER_SEC)*/ << endl;
-		cout << "Col Null CPU time: " << COL_NUL_TIME/*/(CLOCKS_PER_SEC)*/ << endl;
-		cout << "Print    CPU time: " << PRINT_TIME/*/(CLOCKS_PER_SEC)*/ << endl;		
+		cout << "Global   CPU time: " << (clock()-c0)  << endl;
+		cout << "Master   CPU time: " << MASTER_TIME   << endl;
+		cout << "Slave    CPU time: " << SLAVE_TIME    << endl;
+		cout << "Branch   CPU time: " << BRANCH_TIME   << endl;
+		cout << "Eval     CPU time: " << EVAL_TIME     << endl;
+		cout << "Col Load CPU time: " << COL_LOAD_TIME << endl;
+		cout << "Col Null CPU time: " << COL_NUL_TIME  << endl;
+		cout << "Print    CPU time: " << PRINT_TIME    << endl;
 		cout << endl;	
-		this->_printSTD(false);
+		//this->_printSTD(false);
 
 		//%% END : Print segment %%%%%%%%%%%%%%%%%%%%%%%%%%%%%//
 		//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%//
@@ -550,6 +550,7 @@ void BnP::run(int timelimit, bool log) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 		time = (clock()-c0)/(CLOCKS_PER_SEC);
 		this->_printLOG(UB, LB, i, dec, time, timeout);
 	}
+	this->_printSTD(false);
 }
 
 //============================================================================//
@@ -741,8 +742,8 @@ void BnP::_printSTD(bool full) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	int           limit = 0;
 
 	//>> Full or part ?
-	if ((!full)and(int(colI.size()) > 5)) {
-		limit = 5;
+	if ((!full)and(int(colI.size()) > 10)) {
+		limit = 10;
 		cplt  = true;
 	} else {
 		limit = colI.size();

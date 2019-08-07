@@ -209,7 +209,6 @@ std::vector<int> ms_graph::ms_find_set(const std::vector<float> price) { //<<<//
 		if (node HAS_BEEN_FOUND) {
 			//>> Go to the leaf
 			this->ms_deep_forward();
-			_ms_print_current_set();
 			//>> Retrieve score
 			ub = this->ms_score();
 			UB = std::max(ub, UB);
