@@ -28,10 +28,20 @@
 //============================================================================//
 //====// Global //============================================================//
 
+//>> Dot output colors
 string color[] = {"blue","red","yellow","green","purple","chocolate",
                   "lightblue2","magenta3","navy","yellow4","lightsteelblue",
                   "antiquewhite4","cyan","deeppink"};
 int colorcount = 14;
+
+//>> Timers
+clock_t MASTER_TIME   = 0;
+clock_t SLAVE_TIME    = 0;
+clock_t BRANCH_TIME   = 0;
+clock_t EVAL_TIME     = 0;
+clock_t PRINT_TIME    = 0;
+clock_t COL_LOAD_TIME = 0;
+clock_t COL_NUL_TIME  = 0;
 
 //============================================================================//
 //====// Namespace //=========================================================//
@@ -47,7 +57,7 @@ BnP::BnP() {}
 //============================================================================//
 //====// Public Methods //====================================================//
 
-void BnP::load(string filename, InFormat in) { // /////////////////////////// //
+void BnP::load(string filename, InFormat in) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	//>> Declarations
 	IloInt i;
 	IloInt nbVertices;
@@ -130,21 +140,12 @@ void BnP::load(string filename, InFormat in) { // /////////////////////////// //
 
 	//>>//>> Create solver
 	this->_masterSolver = IloCplex(this->_masterModel);
-
-	//>> Print the graph
-	/*int w = 0;
-	for (auto i : this->_graph.matrix) {
-		cout << w << ": [ ";
-		for(int j : i) {
-			cout << j << " ";
-		}
-		cout << "]" << endl;
-		w++;
-	}*/
 	
 }
 
-void BnP::print(OutFormat out) { // ///////////////////////////////////////// //
+/// //////////////////////////////////////////////////////////////////////// ///
+
+void BnP::print(OutFormat out) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	//>> Check if there's something to print:
 	if (this->_currentNode == nullptr) {
 		cout << wW"WARNING: There's nothing to print!"Ww << endl;
@@ -165,27 +166,49 @@ void BnP::print(OutFormat out) { // ///////////////////////////////////////// //
 	}
 }
 
-void BnP::solve() { // ////////////////////////////////////////////////////// //
+/// //////////////////////////////////////////////////////////////////////// ///
+
+void BnP::solve() { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	try {
 		//>> Declaration
+		clock_t     tik;
 		bool        success;
 		int         i;
 		float       result = 0;
 		IloInt      nbVertices(this->_graph.matrix.size());
+
+		tik = clock();
+		//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%//
+		//%% BEGIN : Col segment %%%%%%%%%%%%%%%%%%%%%%%%%%%%%//
 		
-		//>> Update the range thanks to the nullified list
+		//>> Create the IloNumArray for the new bounds
+		IloNumArray LBs(this->_env, this->_masterLRange.getSize());
+		IloNumArray UBs(this->_env, this->_masterLRange.getSize());
+
 		//>>//>> Clear nullifying constraints
 		for( i=0 ; i < this->_masterLRange.getSize() ; i++ ) {
-			this->_masterLVector[i].setUB(1);
+			UBs[i] = 1;
 		}
 
 		//>>//>> Add the constraint
 		for(int j : this->_currentNode->nullified) {
-			this->_masterLVector[j].setUB(0);
+			UBs[j] = 0;
 		}
+	
+		//>> Apply
+		this->_masterLVector.setBounds(LBs, UBs);
+
+		//%% END : Col segment %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%//
+		//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%//
+		COL_LOAD_TIME += clock()-tik;		
 
 		//>> Solve to optimality
 		for(;;) {
+			tik = clock();
+			//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%//
+			//%% BEGIN : Master segment 1 %%%%%%%%%%%%%%%%%%%%%%%%//
+	
+			
 			//>> Solve master problem with current patterns
 			success = this->_masterSolver.solve();
 			if (!success) {
@@ -203,7 +226,15 @@ void BnP::solve() { // ////////////////////////////////////////////////////// //
 			for (i=0 ; i<nbVertices ; i++) {
 				price[i] = -this->_masterSolver.getDual(this->_masterXRange[i]);
 			}
-			
+
+			//%% END : Master segment 1 %%%%%%%%%%%%%%%%%%%%%%%%%%//
+			//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%//
+			MASTER_TIME += clock()-tik;
+
+			tik = clock();
+			//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%//
+			//%% BEGIN : Slave segment %%%%%%%%%%%%%%%%%%%%%%%%%%%//
+
 			//>> Call the generator method/function
 			vector<int> storage = this->_gen(price, this->_graph);
 			for(int k=0 ; k<int(storage.size()) ; k++) {
@@ -217,9 +248,17 @@ void BnP::solve() { // ////////////////////////////////////////////////////// //
 			}
 			//>> Test the value if the new pattern may improve the master
 			//>> pattern.
-			if (result+1 >= 0) {
+			if (result+1 > -RC_EPS) {
 				break; // The best pattern is not usefull => break
 			}
+
+			//%% END : Slave segment %%%%%%%%%%%%%%%%%%%%%%%%%%%%%//
+			//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%//
+			SLAVE_TIME += clock()-tik;
+
+			tik = clock();
+			//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%//
+			//%% BEGIN : Master segment 2 %%%%%%%%%%%%%%%%%%%%%%%%//
 
 			//>> Add the new pattern to the master problem
 			this->addCol(column);
@@ -228,6 +267,10 @@ void BnP::solve() { // ////////////////////////////////////////////////////// //
 			this->_masterLVector.add(IloNumVar(   this->_masterObj(1)         
 				                            + this->_masterXRange(column)
 				                            + this->_masterLRange[i](1)   ));
+
+			//%% END : Master segment 2 %%%%%%%%%%%%%%%%%%%%%%%%%%//
+			//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%//
+			MASTER_TIME += clock()-tik;
 
 		}
 
@@ -246,23 +289,21 @@ void BnP::solve() { // ////////////////////////////////////////////////////// //
 		this->_currentNode->ub = ub;
 		//>>//>> Update the status of _currentNode
 		this->_currentNode->status = NS_SOLVED;
-		/*
-		//>> Check if it's the new incumbent and replace it if necessary
-		if (this->_currentNode->lb == this->_currentNode->ub) {
-			if (   (this->_incumbent   == nullptr         )
-			    or (this->_currentNode <= this->_incumbent) ) {
-				this->_incumbent = this->_currentNode;
-			}
-		}*/
-	} catch (IloCplex::Exception e) {
-		cout << e << endl;
+	   
+	} catch (IloException& ex) {
+		cerr << "Error: " << ex << endl;
+	} catch (...) {
+		cerr << "Error" << endl;
 	}
 }
 
-void BnP::forward(int u , int v) { // //////////////////////////////////////// //
+/// //////////////////////////////////////////////////////////////////////// ///
+
+void BnP::forward(int u , int v) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 
 	//>> Declaration
 	Transform t;
+	clock_t tik;
 
 	//>> Check if a child cannot be generated (<=> exit here)
 	if (this->_currentNode->status == NS_2C) {
@@ -323,6 +364,10 @@ void BnP::forward(int u , int v) { // //////////////////////////////////////// /
 		this->_currentNode->depth++;
 	}
 
+	tik = clock();
+	//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%//
+	//%% BEGIN : Col null segment %%%%%%%%%%%%%%%%%%%%%%%%//
+
 	//>> Update the nullified list
 	if (t == T_LINK) {
 		for (int i=this->_nbVertices ; i < int(this->_columns.size()) ; i++) {
@@ -342,9 +387,14 @@ void BnP::forward(int u , int v) { // //////////////////////////////////////// /
 			}
 		}
 	}
+	//%% END : Col null segment %%%%%%%%%%%%%%%%%%%%%%%%%%//
+	//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%//
+	COL_NUL_TIME += clock()-tik;
 }
 
-void BnP::backward() { /// ///////////////////////////////////////////////// ///
+/// //////////////////////////////////////////////////////////////////////// ///
+
+void BnP::backward() { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	//>> Stop if this node is root	
 	if (this->_currentNode->t == T_NONE) {
 		return;
@@ -360,14 +410,17 @@ void BnP::backward() { /// ///////////////////////////////////////////////// ///
 	this->_graph.undo();	
 }
 
+/// //////////////////////////////////////////////////////////////////////// ///
 
-void BnP::selectIncumbent() { /// ////////////////////////////////////////// ///
+void BnP::selectIncumbent() { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	if (this->_incumbent != nullptr) {
 		this->_currentNode = this->_incumbent;
 	}
 }
 
-void BnP::run(int timelimit, bool log) { /// /////////////////////////////// ///
+/// //////////////////////////////////////////////////////////////////////// ///
+
+void BnP::run(int timelimit, bool log) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	//>> Declaration
  	float UB    = float(this->_graph.size());
 	float LB    = 0;
@@ -380,22 +433,25 @@ void BnP::run(int timelimit, bool log) { /// /////////////////////////////// ///
 	bool  timeout = false;
 	if (timelimit == -1) {
 		timer = false;
+	} else {
+		this->_masterSolver.setParam(IloCplex::TiLim, timelimit);
 	}
-
 	cout << uU  "Loaded graph:"  Uu << endl << this->_name << endl << endl;
 
 	clock_t c0 = clock();
+	clock_t tik;
 
 	//>> Branch & Price
 	while (LB < UB) {
 
 		//>> Solve current node
-		if (timelimit > 0) {
-			this->_masterSolver.setParam(IloCplex::TiLim, timelimit);
-		}	
+			
 		this->solve();
 
-	
+		tik = clock();
+		//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%//
+		//%% BEGIN : Eval segment %%%%%%%%%%%%%%%%%%%%%%%%%%%%//	
+
 		//>> Retrieve values
 		lb = this->getCurrentLB();
 		ub = this->getCurrentUB();
@@ -413,6 +469,14 @@ void BnP::run(int timelimit, bool log) { /// /////////////////////////////// ///
 			this->_incumbent = this->_currentNode;
 		}
 
+		//%% END : Eval segment %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%//
+		//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%//
+		EVAL_TIME += clock()-tik;
+		
+		tik = clock();
+		//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%//
+		//%% BEGIN : Print segment %%%%%%%%%%%%%%%%%%%%%%%%%%%//
+
 		//>> Print
 		cout << "\33[H\33[2J";
 		cout << uU  "Loaded graph:"  Uu << endl << this->_name << endl << endl;
@@ -422,13 +486,27 @@ void BnP::run(int timelimit, bool log) { /// /////////////////////////////// ///
 		this->_printCurrent();
 		cout << endl;
 		cout << uU "Data:" Uu << endl;
-		cout << "Generated columns: " << int(this->_columns.size()) << endl;
+		cout << "Generated         columns: " << int(this->_columns.size()) << endl;
 		cout << "Currently useable columns: " << int(this->_columns.size()) - int(this->_currentNode->nullified.size()) << endl;
 		cout << "Explored nodes: " << i << endl;
-		cout << "CPU time: " << (clock()-c0)/(CLOCKS_PER_SEC) << endl;
+		cout << "Global   CPU time: " << (clock()-c0)/*/(CLOCKS_PER_SEC)*/ << endl;
+		cout << "Master   CPU time: " << MASTER_TIME/*/(CLOCKS_PER_SEC)*/ << endl;
+		cout << "Slave    CPU time: " << SLAVE_TIME/*/(CLOCKS_PER_SEC)*/ << endl;
+		cout << "Branch   CPU time: " << BRANCH_TIME/*/(CLOCKS_PER_SEC)*/ << endl;
+		cout << "Eval     CPU time: " << EVAL_TIME/*/(CLOCKS_PER_SEC)*/ << endl;
+		cout << "Col Load CPU time: " << COL_LOAD_TIME/*/(CLOCKS_PER_SEC)*/ << endl;
+		cout << "Col Null CPU time: " << COL_NUL_TIME/*/(CLOCKS_PER_SEC)*/ << endl;
+		cout << "Print    CPU time: " << PRINT_TIME/*/(CLOCKS_PER_SEC)*/ << endl;		
 		cout << endl;	
-		this->_printSTD(true);
-			
+		this->_printSTD(false);
+
+		//%% END : Print segment %%%%%%%%%%%%%%%%%%%%%%%%%%%%%//
+		//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%//
+		PRINT_TIME += clock()-tik;
+
+		tik = clock();
+		//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%//
+		//%% BEGIN : Branch segment %%%%%%%%%%%%%%%%%%%%%%%%%%//
 
 		//>> Find next edge
 		pair<int,int> c = this->_choice(this->_graph, this->_columns, *(this->_currentNode));
@@ -462,6 +540,11 @@ void BnP::run(int timelimit, bool log) { /// /////////////////////////////// ///
 			break;
 		}
 		i++;
+
+		//%% END : Branch segment %%%%%%%%%%%%%%%%%%%%%%%%%%%%//
+		//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%//
+		BRANCH_TIME += clock()-tik;
+
 	}
 	if (log) {
 		time = (clock()-c0)/(CLOCKS_PER_SEC);
@@ -472,53 +555,69 @@ void BnP::run(int timelimit, bool log) { /// /////////////////////////////// ///
 //============================================================================//
 //====// Getters, Setter, etc //==============================================//
 
-void BnP::setGenerator(Generator gen) { /// //////////////////////////////// ///
+void BnP::setGenerator(const Generator gen) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	this->_gen = gen;
 }
 
-void BnP::setChoice(Choice choice) { /// /////////////////////////////////// ///
+void BnP::setChoice(const Choice choice) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	this->_choice = choice;
 }
 
-void BnP::setGraphNodeSorter(gc::NodeSorter ns) { /// ////////////////////////// ///
+void BnP::setGraphNodeSorter(const gc::NodeSorter ns) { //<<<<<<<<<<<<<<<<<<<<//
 	this->_graph.ms_set_node_sorter(ns);
 }
 
-void BnP::setDiscreetMode() { /// ////////////////////////////////////////// ///
+void BnP::setGraphSelectMode(const gc::SN_MODE sn_mode) { //<<<<<<<<<<<<<<<<<<//
+	this->_graph.ms_set_sn_mode(sn_mode);
+}
+
+void BnP::setGraphObjective(const int obj) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
+	this->_graph.ms_set_obj(obj);
+}
+
+void BnP::setDiscreetMode() { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	this->_masterSolver.setOut(this->_env.getNullStream());
 }
 
-void BnP::setNoisyMode() { /// ///////////////////////////////////////////// ///
+void BnP::setNoisyMode() { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	this->_masterSolver.setOut(cout);
 }
 
-NodeStatus BnP::getCurrentStatus() const { /// ///////////////////////////// ///
+void BnP::setMonoMode() { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
+	//this->_masterSolver.setParam(CPX_PARAM_THREADS,1);
+}
+
+void BnP::setPolyMode() { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
+	//this->_masterSolver.setParam(CPX_PARAM_THREADS,0);
+}
+
+NodeStatus BnP::getCurrentStatus() const { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	return this->_currentNode->status;
 }
 
-gc::ms_graph& BnP::getRefGraph() { /// ///////////////////////////////////// ///
+gc::ms_graph& BnP::getRefGraph() { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	return this->_graph;
 }
 
-float BnP::getCurrentLB() const { /// ////////////////////////////////////// ///
+float BnP::getCurrentLB() const { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	return this->_currentNode->lb;
 }
 
-float BnP::getCurrentUB() const { /// ////////////////////////////////////// ///
+float BnP::getCurrentUB() const { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	return this->_currentNode->ub;
 }
 
-int BnP::getCurrentDepth() const { /// ///////////////////////////////////// ///
+int BnP::getCurrentDepth() const { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	return this->_currentNode->depth;
 }
 
-void BnP::addCol(IloInt i) { /// /////////////////////////////////////////// ///
+void BnP::addCol(IloInt i) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	set<int> trivcol;
 	trivcol.insert(i);
 	this->_columns.push_back(trivcol);
 }
 
-void BnP::addCol(IloNumArray ilocol) { /// ///////////////////////////////// ///
+void BnP::addCol(IloNumArray ilocol) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	set<int> col;
 	for (int i=0 ; i<ilocol.getSize() ; i++) {
 		if (ilocol[i] == 1) {
@@ -533,7 +632,7 @@ void BnP::addCol(IloNumArray ilocol) { /// ///////////////////////////////// ///
 //============================================================================//
 //====// Private Methods //===================================================//
 
-void BnP::_loadTGF(string filename) { /// //////////////////////////////// ///
+void BnP::_loadTGF(string filename) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	//>> Declaration 
 	int            V(0);     // Vertices
 	string         line;     // Buffer de lecture
@@ -587,13 +686,17 @@ void BnP::_loadTGF(string filename) { /// //////////////////////////////// ///
 	}
 }
 
-void BnP::_loadDOT(string filename) { /// ////////////////////////////////// ///
-}
+/// //////////////////////////////////////////////////////////////////////// ///
 
-void BnP::_loadCLQ(string filename) { /// ////////////////////////////////// ///
-}
+void BnP::_loadDOT(string filename) {}
 
-void BnP::_loadDIMACS(string filename) { /// //////////////////////////////// ///
+/// //////////////////////////////////////////////////////////////////////// ///
+
+void BnP::_loadCLQ(string filename) {}
+
+/// //////////////////////////////////////////////////////////////////////// ///
+
+void BnP::_loadDIMACS(string filename) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	//>> Declaration
 	string         line;
 	vector<string> tks;
@@ -626,7 +729,9 @@ void BnP::_loadDIMACS(string filename) { /// //////////////////////////////// //
 
 }
 
-void BnP::_printSTD(bool full) { /// //////////////////////////////// ///
+/// //////////////////////////////////////////////////////////////////////// ///
+
+void BnP::_printSTD(bool full) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	//>> Shortening names
 	float         lb    = this->_incumbent->lb;
 	float         ub    = this->_incumbent->ub;
@@ -662,7 +767,9 @@ void BnP::_printSTD(bool full) { /// //////////////////////////////// ///
 	}
 }
 
-void BnP::_printDOT() { /// //////////////////////////////////////////////// ///
+/// //////////////////////////////////////////////////////////////////////// ///
+
+void BnP::_printDOT() { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	//>> Check if printable
 	if ( int(this->_incumbent->columns.size()) > colorcount) {
 		cout << wW "Warning: unable to print more than " << colorcount << " colors." Ww << endl;	
@@ -707,10 +814,13 @@ void BnP::_printDOT() { /// //////////////////////////////////////////////// ///
 
 }
 
-void BnP::_printSOL() { /// //////////////////////////////////////////////// ///
-}
+/// //////////////////////////////////////////////////////////////////////// ///
 
-void BnP::_printCurrent() { /// ///////////////////////////////////////////// ///
+void BnP::_printSOL() {}
+
+/// //////////////////////////////////////////////////////////////////////// ///
+
+void BnP::_printCurrent() { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	//>> Shortening names
 	float lb           = this->_currentNode->lb;
 	float ub           = this->_currentNode->ub;
@@ -724,7 +834,9 @@ void BnP::_printCurrent() { /// ///////////////////////////////////////////// //
 	cout << "Lower Bound = " << lb << endl;
 }
 
-void BnP::_printLOG(float UB, float LB, int nc, int dec, int time, bool timeout) { ///
+/// //////////////////////////////////////////////////////////////////////// ///
+
+void BnP::_printLOG(float UB, float LB, int nc, int dec, int time, bool timeout) { //<<//
 	//>> Open as append
 	ofstream log;
 	log.open("log.csv", ios_base::app);
@@ -768,23 +880,23 @@ void BnP::_printLOG(float UB, float LB, int nc, int dec, int time, bool timeout)
 //============================================================================//
 //====// Operators //=========================================================//
 
-bool operator<(Node const& a, Node const& b) { /// ///////////////////////// ///
+bool operator<(Node const& a, Node const& b) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	return a.ub < b.lb;
 }
 
-bool operator<=(Node const& a, Node const& b) { /// //////////////////////// ///
+bool operator<=(Node const& a, Node const& b) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	return a.ub <= b.lb;
 }
 
-bool operator==(Node const& a, Node const& b) { /// //////////////////////// ///
+bool operator==(Node const& a, Node const& b) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	return (a.ub==b.ub)and(a.lb==b.lb); 
 }
 
-bool operator>=(Node const& a, Node const& b) { /// //////////////////////// ///
+bool operator>=(Node const& a, Node const& b) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	return a.lb >= b.ub;
 }
 
-bool operator>(Node const& a, Node const& b) { /// ///////////////////////// ///
+bool operator>(Node const& a, Node const& b) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	return a.lb > b.ub;
 }
 

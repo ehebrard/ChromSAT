@@ -26,23 +26,27 @@ enum SN_MODE {
 //============================================================================//
 //====// Structures //========================================================//
 
-struct ms_StateSaver {
-    int      u;             //>> Selected node.
-    std::set<int> ps;       //>> The set of Previous Siblings.
-    size_t   previous_size; //>> The size of .nodes before the transformation was applied.
-};
-
 struct ms_Node {
 	int   id;
-	float weight;
+	float weight; //>> This value is positive. The higher, the better for our solution
 	int   degree;
+};
+
+struct ms_Choice {
+    int    id;
+    bool   is_selected;
+    size_t node_restore_point;      //>> Size of ms_graph::nodes before removing .id 
+    size_t neighbors_restore_point; //>> Size of ms_graph::nodes before removing
+                                    //>> the neighbors of .id
 };
 
 //============================================================================//
 //====// Typedef //===========================================================//
 
-typedef std::shared_ptr<ms_StateSaver> ms_pStateSaver;
+//>> A simple shared pointer to make the memory-management easier.
+typedef std::shared_ptr<ms_Choice> ms_pChoice;
 
+//>> Function pointer towards the ordering relation.
 typedef bool (* NodeSorter)(ms_Node, ms_Node);
 
 //============================================================================//
@@ -53,96 +57,114 @@ class ms_graph : public ca_graph {
 ///////-/// ATTRIBUTES ///-/////////////////////////////////////////////////////
 
     private:
-    std::vector<ms_pStateSaver> _ms_states;
-	ms_pStateSaver              _ms_root;
-	NodeSorter                  _ms_ns;
+    std::vector<ms_pChoice> _ms_choices;
+    std::vector<int>        _ms_current_set;
+    NodeSorter              _ms_ns;
+    std::vector<float>      _ms_prices;
+    SN_MODE                 _ms_sn_mode;
+    int                     _ms_obj;
     
 ///////-/// CONSTRUCTORS ///-///////////////////////////////////////////////////
 
     public:
-    ms_graph(): ca_graph() {_ms_root = std::make_shared<ms_StateSaver>();}
-    ms_graph(int nv): ca_graph(nv) {_ms_root = std::make_shared<ms_StateSaver>();}
+    ms_graph(): ca_graph() {}
+    ms_graph(int nv): ca_graph(nv) {}
 
 ///////-/// METHODS ///-////////////////////////////////////////////////////////
 
     public:
-    int ms_select_node(const SN_MODE sn_mode, std::vector<float> w) const; /*
+    int ms_select_node() const; /*
     * >> Wrapper method <<
     * Call the appropriate methods to select a vertex according to the
-    * choosen SN_MODE.
+    * attributes _ms_sn_mode.
     */
     
     std::vector<int> ms_find_neighbors(const int u) const; /*
-    * Find all the current neighbors of u and return them as a set.
+    * Find all the current neighbors of u and return them as a vector.
     */
     
-    bool ms_remove_node(const int u, const bool save = false); /*
-    * Remove the vertex u from the .nodes intstack. If save is true then it saves
-    * this modification to be able to undo it later.
-    * Return true if the node was effectively removed.
-    * Return false if there was no node to remove.
+    void ms_remove_node(const int u); /*
+    * Remove the vertex u from the .nodes intstack.
     */
     
-    bool ms_remove_nodes(const std::vector<int> su, const bool save = false); /*
-    * Call .ms_remove_node(u, save) for every u in su.
+    void ms_remove_nodes(const std::vector<int> su); /*
+    * Call .ms_remove_node(u) for every u in su.
     */
     
-    int ms_forward(const SN_MODE sn_mode, std::vector<float> w); /*
-    * Branch on the current point. Use the choosen SN_MODE for the node
-    * selection.
+    int ms_forward(); /*
+    * Branch on the current point.
     * Return the choosen vertex.
     */
     
     int ms_backward(); /*
     * Restore the search to the previous point.
+    * And
     * Return the current vertex.
     */
     
-    int ms_deep_forward(const SN_MODE sn_mode, std::vector<float> price); /*
+    void ms_deep_forward(); /*
     * Branch until a max set is found.
     */
     
-    int ms_backtrack(const SN_MODE sn_mode, std::vector<float> w); /*
-    * Call .ms_backtrack() until it is possible to call .ms_forward(sn_mode).
-    * Return the choosen vertex.
+    int ms_backtrack(); /*
+    * Call .ms_backtrack() until it is possible to call ->ms_forward(sn_mode).
+    * On finding the node where we can call ->ms_forward(), it switch the
+    * selection-value (ms_Choice.is_selected) to false. It means the choosen vertex
+    * will not be part of any set created in this branch of the tree.
+    * Return the choosen vertex or NOTHING_FOUND.
     */  
     
-    void ms_restore(); /*
+    void ms_restore_to_zero(); /*
     * Restore .nodes to its states before the maxSet search i.e. before the first
     * .ms_forward().
     */
     
-    float ms_score(std::vector<float> price); /*
-    * Give the score of the current set
+    float ms_score(); /*
+    * Give the score of the current set.
+    * True score if it is a max set.
+    * Estimated score in any other case.
     */
-    
-    std::vector<int> ms_retrieve_set(); /*
-    * Retrieve the current set
-    */
-    
-    std::vector<int> ms_find_set(const std::vector<float> price, const float obj, const SN_MODE ns_mode); /*
-    * Find a set that with the given prices beats the obj.
-    * if mode>0  : the set has a score higher than obj.
-    * if mode<=0 : the set has a score lower than obj
+        
+    std::vector<int> ms_find_set(const std::vector<float> price); /*
+    * Find a set that with the given prices beats the obj,
+    * i.e. its global price is under obj.    
     */
 
-    float ms_cplt(const std::vector<float> price); /*
-    * Search a lb for the remaining node.
+    float ms_cplt(); /*
+    * Search a lb for the remaining node (price-wise).
     */
     
-    void ms_set_node_sorter(NodeSorter ns);   
+    void ms_set_node_sorter(const NodeSorter ns);   
+    void ms_set_sn_mode(const SN_MODE sn_mode);
+    void ms_set_obj(const int obj);
 
-    private:
-    int _ms_select_min_swap() const; /*
-    * Try to find the vertex which is the closest to the limit of the intstack.
-    */    
-    
+    private:    
     void _ms_print_current_set();
 
-    int _ms_select_by_sorting(std::vector<float> w) const;
-    int _ms_select_nearest_improvement(std::vector<float> w) const;
+    int _ms_select_min_swap() const; /*
+    * Find the node which make the work of our intstack
+    * easier.
+    */   
+    
+    int _ms_select_by_sorting() const; /*
+    * Find the maximum node by the ordering relation
+    * ->_ms_node_sorter.
+    */
+    
+    int _ms_select_nearest_improvement() const; /*
+    * Find the first node with a negative price
+    */
+    
        
 };
+//============================================================================//
+//====// Operator //==========================================================//
+
+std::vector<int> inter(const std::vector<int> &a, const std::vector<int> &b) ;
+/* Intersection "operator" 
+ */
+
+
 //============================================================================//
 //====// Namespace : end //===================================================//
 }

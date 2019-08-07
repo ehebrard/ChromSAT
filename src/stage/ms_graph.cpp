@@ -18,384 +18,438 @@ using namespace gc;
 //>> (ie: [-RC_EPS < lambda < RC_EPS] <=> [lambda = 0])
 #define RC_EPS 1e-6
 
+//>> DEFINE
+#define NOTHING_FOUND -1
+#define HAS_BEEN_FOUND >=0
+
 //============================================================================//
 //====// Public Methods //====================================================//
 
-int ms_graph::ms_select_node(const SN_MODE sn_mode, std::vector<float> w) const { ///
-    if (sn_mode == SN_MODE_MIN_SWAP) {
-        return this->_ms_select_min_swap();   
-    } else if (sn_mode == SN_MODE_SORT) {
-        return this->_ms_select_by_sorting(w);
-    } else if (sn_mode == SN_MODE_NEAR) {
-        return this->_ms_select_nearest_improvement(w);
-    } else {
-        return -1;
-    }
+int ms_graph::ms_select_node() const { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
+	if (this->_ms_sn_mode == SN_MODE_MIN_SWAP) {
+		return this->_ms_select_min_swap();
+	} else if (this->_ms_sn_mode == SN_MODE_SORT) {
+		return this->_ms_select_by_sorting();
+	} else if (this->_ms_sn_mode == SN_MODE_NEAR) {
+		return this->_ms_select_nearest_improvement();
+	} else {
+		return this->_ms_select_min_swap();
+	}
 }
 
-std::vector<int> ms_graph::ms_find_neighbors(const int u) const { /// ////// ///
+/// //////////////////////////////////////////////////////////////////////// ///
+
+std::vector<int> ms_graph::ms_find_neighbors(const int u) const { //<<<<<<<<<<// 
     return this->matrix[u];
 }
 
-bool ms_graph::ms_remove_node(const int u, const bool save) { /// ////////// ///    
-    //>> Save
-    if (save) {
-        ms_pStateSaver ms_ss = std::make_shared<ms_StateSaver>();
-        ms_ss->u = u;
-        ms_ss->previous_size = this->nodes.size();    
-        this->_ms_states.push_back(ms_ss);    
-    }
-    
-    //>> Remove
-    this->nodes.remove(u);       
-   
-   
-    return false;
+/// //////////////////////////////////////////////////////////////////////// ///
+
+void ms_graph::ms_remove_node(const int u) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//    
+	this->nodes.remove(u);
 }
 
-bool ms_graph::ms_remove_nodes(const std::vector<int> su, const bool save) { ///
-    //>> Init
-    bool out = false;
-    
-    //>> Remove
-    for(int u : su) {
-        out = out or this->ms_remove_node(u, save);    
-    }
-    
-    //>> Return
-    return out;
+/// //////////////////////////////////////////////////////////////////////// ///
+
+void ms_graph::ms_remove_nodes(const std::vector<int> su) { //<<<<<<<<<<<<<<<<//
+	for (int u : su) {
+		this->ms_remove_node(u);
+	}
 }
 
-int ms_graph::ms_forward(const SN_MODE sn_mode, std::vector<float> w) { /// ////////////////////// ///
-    //>> Select the node
-    int u = this->ms_select_node(sn_mode, w);
-    
-    if (u != -1) {
-        //>> Add to previous siblings
-        if (not(this->_ms_states.empty())) {
-            this->_ms_states.back()->ps.insert(u);
-        } else {
-            this->_ms_root->ps.insert(u);
-        }
-        //>> Find its neighborhood
-        std::vector<int> su = this->ms_find_neighbors(u);    
-        
-        //>> Remove the node
-        this->ms_remove_node(u, true);
-        
-        //>> Remove its neighborhood
-        this->ms_remove_nodes(su, false);
-    }
-    
-    //>> Return
-    return u;    
-}
+/// //////////////////////////////////////////////////////////////////////// ///
 
-int ms_graph::ms_deep_forward(const SN_MODE sn_mode, std::vector<float> price) {
-
-    std::vector<float> w;
-    for (auto a : price) {
-        w.push_back(-a);
-    }
-
-    int i = this->ms_forward(sn_mode,w);
-    
-    while (i != -1) {
-        i = this->ms_forward(sn_mode, w);
-        //this->_ms_print_current_set();
-        if (this->ms_score(price)  > -1-RC_EPS) {
-        	i = -1;
-        }
-    }
-    return i;
-}
-
-int ms_graph::ms_backward() { /// ////////////////////////////////////////// ///
-    //>> Restore to previous point
-    this->ms_restore();
-               
-    //>> Return the current node or -1 if root
-    if (0 == int(this->_ms_states.size())) {
-        return -1;
-    } else {
-        return this->_ms_states.back()->u;
-    }
-}
-
-int ms_graph::ms_backtrack(const SN_MODE sn_mode, std::vector<float> w) { /// //////////////////// ///
-    int  buffer=1;
-    int  select=-1;
-    while ((select==-1)and(buffer!=-1)) {
-        buffer = this->ms_backward();
-        select = this->ms_forward(sn_mode, w);
-    }
-    return select;    
-}
-
-
-void ms_graph::ms_restore() { /// ////////////////////////////////////////// ///
-    if (int(this->_ms_states.size()) != 0) {
-        //>> Call restore
-        this->nodes.restore(this->_ms_states.back()->previous_size);
-                
-        //>> Delete saved state
-        this->_ms_states.pop_back();
-    }
-}
-
-std::vector<int> ms_graph::ms_find_set(const std::vector<float> price, const float obj, const SN_MODE sn_mode) {
-    //>> Init
-    float UB;
-    float ub;
-    std::vector<int> out;
-    int revert = 0;    
-
-    std::vector<float> w;
-    for (auto a : price) {
-        w.push_back(-a);
-    }
-
-    //>> First set
-    this->ms_deep_forward(sn_mode, price);
-    UB = this->ms_score(price);
-    ub = UB;
-    //>> Searching for the right set
-    while (UB >= -1) {
-            //std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-            revert = this->ms_backtrack(sn_mode, w);
-        if (revert != -1) {
-            this->ms_deep_forward(sn_mode, price);
-            ub = this->ms_score(price);
-            UB = std::min(ub,UB);
-        } else {
-            break;
-        }          
-    }
-
-    //>> Return the constructed set
-    out = this->ms_retrieve_set();
-    while (!this->_ms_states.empty()) {
-        this->ms_restore();
-    }
-    return out;
-}
-
-float ms_graph::ms_score(std::vector<float> price) { /// /////////////////// ///
-    float out = 0;
-    for (auto s : this->_ms_states) {
-        out += price[s->u];
-    }
-    out -= this->ms_cplt(price);
-    return out;
-}
-
-std::vector<int> ms_graph::ms_retrieve_set() { /// ///////////////////////// ///
-    std::vector<int> out(int(this->matrix.size()), 0);
-    for (auto s : this->_ms_states) {
-        out[s->u] = 1;
-    }
-    return out;
-}
-
-float ms_graph::ms_cplt(const std::vector<float> price) {
-    
-    //>> Init
-    std::vector<float> w;
-    for (auto a : price) {
-        w.push_back(-a);
-    }
-    float            nbreCol   = 0;
-    size_t           restorePt = this->nodes.size();
-    std::vector<int> C, K;
-    std::vector<int> N ;
-    int              u         = -1;
-    int              v         = -1;
-    int              mu        = -1;
-    int              mv        = -1;
+int ms_graph::ms_forward() { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
+	//>> Init
+	int u = NOTHING_FOUND;
 	
-    //>> Do the thing
-    while (int(this->nodes.size())>0) {
-        //>> Empty some vectors
-        K.clear();
-        C.clear();
+	//>> Select a node
+	u = this->ms_select_node();
+	
+	//>> Update the graph if a node is found
+	if (u HAS_BEEN_FOUND) {
+		//>> Create a node
+		ms_pChoice choice = std::make_shared<ms_Choice>();
+		choice->id            = u;
+		choice->is_selected   = true;
+		choice->node_restore_point = this->nodes.size();
+		
+		//>> Find its neighbors
+		std::vector<int> neighbors = this->ms_find_neighbors(u);
+		
+		//>> Remove u from nodes
+		this->ms_remove_node(u);		
+		
+		//>> Update the neighbors restore point
+		choice->neighbors_restore_point = this->nodes.size();
+		
+		//>> Remove u's neighbors from nodes
+		this->ms_remove_nodes(neighbors);		
+		
+		//>> Add it to the current set
+		this->_ms_current_set.push_back(u);
 
-        //>> Select a starting node
-        v = this->nodes[0];
-        K.push_back(v);        
-        
-        //>> Restrain its neighborhood to valid nodes
-        C = this->ms_find_neighbors(v);
-        for (int i=0 ; i<int(C.size()) ; i++) {
-            if (not(this->nodes.contain(C[i]))) {
-                C.erase(std::remove(C.begin(), C.end(), C[i]), C.end());
-                i--;
-            }
-        }
-        
-        //>> Initialize the max indices.
-        mv = v;
-        mu = mv;
-
-        //>> Complete the set
-        
-        while (not(C.empty())) {
-            //>> Select 
-            u = C[0];
-            K.push_back(u);
-            C.erase(std::remove(C.begin(), C.end(), u), C.end());
-
-            //>> Intersection          
-            N = this->ms_find_neighbors(u);   
-            for (int i=0 ; i<int(C.size()) ; i++) {
-                if (std::find(N.begin(), N.end(), C[i]) == N.end()) {
-                    C.erase(std::remove(C.begin(), C.end(), C[i]), C.end());
-                    i--;
-                }
-            }
-            
-            //>> Update max
-            if (w[u] >= w[v]) {
-                mu = mv;
-                mv = u;
-            } else if (int(K.size()) == 2) {
-                mu = u;
-            }
-        }
-        
-        //>> Update
-        nbreCol += w[mu];
-        w[mv]   -= w[mu];
-        for (int k : K) {
-            if (k != mv) {
-                this->nodes.remove(k);
-            }
-        }
-        if (int(K.size())==1) {
-            this->nodes.remove(K[0]);
-        }
-    }
-
-    //>> Restore & Return
-    this->nodes.restore(restorePt);
-    return nbreCol;
+		//>> Add it to the current branch
+		this->_ms_choices.push_back(choice);
+	}
+	
+	//>> Return the node or NOTHING_FOUND
+	return u;	  
 }
 
-void ms_graph::_ms_print_current_set() { /// /////////////////////////////// ///
-    std::cout << "[ ";
-    for (auto s : this->_ms_states) {
-        std::cout << s->u << " ";
-    }
-    std::cout << "]" << std::endl;
+/// //////////////////////////////////////////////////////////////////////// ///
+
+void ms_graph::ms_deep_forward() { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
+	int node = this->ms_forward();
+	while (node HAS_BEEN_FOUND) {
+		//if ( this->ms_score()-this->_ms_obj >= -RC_EPS ) break;
+		/* /!\ |^|-------------------------------------------|^| /!\ */
+		/* /!\ |^| It looks like it slows the process a lot, |^| /!\ */
+		/* /!\ |^| I don't know why.                         |^| /!\ */
+		/* /!\ |^| I have not investigated it because search |^| /!\ */
+		/* /!\ |^| is quite fast compared to the rest of the |^| /!\ */
+		/* /!\ |^| column generation methods, so far         |^| /!\ */
+		/* /!\ |^|-------------------------------------------|^| /!\ */
+
+		node = this->ms_forward();
+	}
 }
 
+/// //////////////////////////////////////////////////////////////////////// ///
 
-void ms_graph::ms_set_node_sorter(NodeSorter ns) {
-    this->_ms_ns = ns;
+int ms_graph::ms_backward() { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
+	//>> Init
+	int u = NOTHING_FOUND;
+	
+	//>> Restore if not empty
+	if (not(this->_ms_choices.empty())) {
+		//>> Restore to the previous node restore point
+		this->nodes.restore(this->_ms_choices.back()->node_restore_point);
+		
+		//>> Remove the node of the set
+		this->_ms_current_set.pop_back();
+		
+		//>> Remove the choice from the tree
+		this->_ms_choices.pop_back();
+	}
+	
+	//>> Return the node removed from the branch or NOTHING_FOUND
+	return u;	
+}
+
+/// //////////////////////////////////////////////////////////////////////// ///
+
+int ms_graph::ms_backtrack() { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
+	//>> Init
+	int u = NOTHING_FOUND;
+	bool success = false;
+	
+	//>> Nothing to do if empty
+	if (this->_ms_choices.empty()) {
+		return NOTHING_FOUND;
+	}
+	
+	//>> Backtrack untill successful or the tree is empty
+	while (not(success)) {
+		//>> Try to switch off the current choice
+		if (this->_ms_choices.back()->is_selected) {
+			this->_ms_choices.back()->is_selected = false; // switch off!
+			u = this->_ms_choices.back()->id;
+			success = true;
+		} else {
+			u = this->ms_backward();
+			if (not(u HAS_BEEN_FOUND)) { // tree is empty
+				success = true;
+			}
+		}
+	}
+	
+	//>> Return the switched node or NOTHING_FOUND
+	return u;
+}
+
+/// //////////////////////////////////////////////////////////////////////// ///
+
+void ms_graph::ms_restore_to_zero() {  //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
+	//>> Nothing to do if already empty
+	if (this->_ms_choices.empty()) {
+		return;
+	}
+	
+	//>> Restore nodes to its origin point
+	this->nodes.restore(this->_ms_choices.front()->node_restore_point);
+	
+	//>> Empty the set and the tree
+	this->_ms_current_set.clear();
+	this->_ms_choices.clear();
+}
+
+/// //////////////////////////////////////////////////////////////////////// ///
+
+std::vector<int> ms_graph::ms_find_set(const std::vector<float> price) { //<<<//
+	//>> Init
+	int UB;
+	int ub;
+	int node;
+	std::vector<int> out, fout;
+
+	//>> Set prices
+	this->_ms_prices = price;
+
+	//>> First forward
+	this->ms_deep_forward();
+
+	//>> Retrieve score
+	ub = this->ms_score();
+	UB = ub;
+
+	while(UB > this->_ms_obj+RC_EPS) {
+		//>> Switch to the nearest branch
+		node = this->ms_backtrack();
+		if (node HAS_BEEN_FOUND) {
+			//>> Go to the leaf
+			this->ms_deep_forward();
+			_ms_print_current_set();
+			//>> Retrieve score
+			ub = this->ms_score();
+			UB = std::max(ub, UB);
+
+		} else {
+			break;
+		}
+	}
+
+	
+	//>> Save result 
+	out = this->_ms_current_set;
+	
+	//>> Transform the current "out" to fit the appropriate format
+	for (int n=0 ; n<int(this->matrix.size()) ; n++) {
+		//>> Find the representative node
+		int p = this->parent[n];
+		while ( p != this->parent[p] ) {
+			p = this->parent[p];
+		}
+		//>> In or out ?
+		if (std::find(out.begin(), out.end(), p) != out.end()) {
+			fout.push_back(1);
+		} else {
+			fout.push_back(0); 
+		}
+	}
+
+	//>> Restore the ->nodes
+	this->ms_restore_to_zero();
+
+	//>> Output
+	return fout;
+	
+} 
+
+/// //////////////////////////////////////////////////////////////////////// ///
+
+float ms_graph::ms_score() { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<// 
+	//>> Init
+	float score = 0;
+
+	//>> Known score for the selected nodes
+	for (int i : this->_ms_current_set) {
+		score+=this->_ms_prices[i];
+	}
+
+	//>> Supposed score for the rest of the nodes
+	score+=this->ms_cplt();
+
+	//>> Output
+	return score;
+
+}
+
+/// //////////////////////////////////////////////////////////////////////// ///
+
+float ms_graph::ms_cplt() { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
+	//>> Init
+	float cplt=0;
+	std::vector<int> buffer;
+	std::vector<int> C, K; //>> "Candidat, 'K'lique"
+	std::vector<float> current_price = this->_ms_prices;	
+	int u  = NOTHING_FOUND;
+	int v  = NOTHING_FOUND;
+	int mu = NOTHING_FOUND;
+	int mv = NOTHING_FOUND;
+
+	//>> Save this->nodes state
+	size_t restore_point = this->nodes.size();
+
+	//>> Do the thing
+	while (not(this->nodes.empty())) {
+		//>> Cleaning
+		K.clear();
+		C.clear();
+
+		//>> Select a node		
+		v = this->nodes[0];
+		K.push_back(v);
+
+		//>> Select neighbors
+		buffer = this->ms_find_neighbors(v);
+
+		//>> Reduce to valid candidates
+		for (int b : buffer) {
+			if (this->nodes.contain(b)) {
+				C.push_back(b);
+			}
+		}
+	
+		//>> Create a 'K'lique until there's no more Candidat
+		while (not(C.empty())) {
+			//>> Select a node			
+			u = C[0];
+
+			//>> Find its neighbors in C
+			C = inter(C, this->ms_find_neighbors(u));
+
+			//>> Add u to K
+			K.push_back(u);
+
+			//>> Update mv and mu
+			if (int(K.size()) == 2) {
+				//>> Init mu and mv
+				if (-current_price[u] < -current_price[v]) {
+					mu = u;
+					mv = v;
+				} else {
+					mu = v;
+					mv = u;
+				}	
+			} else if (-current_price[u] > -current_price[mv]) {
+				mu = mv;
+				mv = u;
+			} else if (-current_price[u] > -current_price[mu]) {
+				mu = u;
+			}		
+		}
+
+		//>> Use K to update the cplt and current_price
+		if (int(K.size()) == 1) {
+			//>> Increase cplt
+			cplt += current_price[K[0]];
+		
+			//>> Remove K[0]
+			this->ms_remove_node(K[0]);
+
+		} else {
+			//>> Increase cplt
+			cplt += current_price[mu];
+
+			//>> Remove all element of K but v from this->nodes
+			for (int k : K) {
+				if (k != mv) {
+					this->ms_remove_node(k);
+				}
+			}
+			
+			//>> Update prices of mv
+			current_price[mv] -= current_price[mu];
+		}		
+		
+	}
+
+	//>> Restore nodes
+	this->nodes.restore(restore_point);
+	
+	//>> Output
+	return cplt;
+}
+
+/// //////////////////////////////////////////////////////////////////////// ///
+
+void ms_graph::_ms_print_current_set() { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
+	std::cout << "[ ";
+	for (int a : this->_ms_current_set) {
+		std::cout << a << " ";
+	}
+	std::cout << "]" << std::endl;
+}
+
+/// //////////////////////////////////////////////////////////////////////// ///
+
+void ms_graph::ms_set_node_sorter(const NodeSorter ns) { //<<<<<<<<<<<<<<<<<<<// 
+	this->_ms_ns = ns;
 }  
 
+/// //////////////////////////////////////////////////////////////////////// ///
+
+void ms_graph::ms_set_sn_mode(const SN_MODE sn_mode) { //<<<<<<<<<<<<<<<<<<<<<//
+	this->_ms_sn_mode = sn_mode;
+}
+
+/// //////////////////////////////////////////////////////////////////////// ///
+
+void ms_graph::ms_set_obj(const int obj) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
+	this->_ms_obj = obj;
+}
 
 //============================================================================//
 //====// Private Methods //===================================================//
 
 int ms_graph::_ms_select_min_swap() const {
-    int out = -1;
-    for (int i=int(this->nodes.size())-1 ; i>=0 ; i--) {
-        int elmnt = this->nodes[i];
-        if (not(this->_ms_states.empty())) {
-            if (this->_ms_states.back()->ps.find(elmnt) == this->_ms_states.back()->ps.end()) {
-                out = elmnt;
-                break;  
-            }  
-        } else {
-            if (this->_ms_root->ps.find(elmnt) == this->_ms_root->ps.end()) {
-                out = elmnt;
-                break;  
-            } 
-        }  
-    }
-    return out;
+	if (this->nodes.empty()) {
+		return NOTHING_FOUND;
+	} else {
+		return this->nodes[int(this->nodes.size())-1];
+	}
 }
 
+/// //////////////////////////////////////////////////////////////////////// ///
 
-int ms_graph::_ms_select_by_sorting(std::vector<float> w) const { /// ///////////// ///
-    //>> Init
-    int out = -1;
-  
-    //>> Make the vector that will be sort
-    std::vector<ms_Node> vec;
-    for (int i=0 ; i<int(this->nodes.size()) ; i++) {
-        int              id     = this->nodes[i];
-        float            weight = w[id];
-        int              deg    = 0;
-        std::vector<int> N      = this->ms_find_neighbors(id);
-        for (auto n : N) {
-            if (this->nodes.contain(n)) {
-                deg++;
-            }
-        }    
-        ms_Node add = {id, weight, deg};
-        vec.push_back(add);
-    }
-    
-    //>> Sort it
-    std::sort(vec.begin(), vec.end(),  this->_ms_ns);
-    
-    //>> Take the maximum
-    if (not(vec.empty())) {
-        for (int i=int(vec.size())-1 ; i>=0 ; i--) {
-            if (not(this->_ms_states.empty())) {
-                if (this->_ms_states.back()->ps.find(vec[i].id) == this->_ms_states.back()->ps.end()) {
-                    out = vec[i].id;
-                    break;  
-                }  
-            } else {
-                if (this->_ms_root->ps.find(vec[i].id) == this->_ms_root->ps.end()) {
-                    out = vec[i].id;
-                    break;  
-                } 
-            }
-        }
-        
-        //>> If it can't do the thing call someone else
-        if (out == -1) {
-            out = this->_ms_select_min_swap();
-        }
-    } 
-    
-    return out;
+int ms_graph::_ms_select_by_sorting() const { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
+	//>> Construct the nodes
+	std::vector<ms_Node> vec;
+	for (int i=0 ; i<int(this->nodes.size()) ; i++) {
+		ms_Node n;
+		n.id = this->nodes[i];
+		n.weight = -this->_ms_prices[n.id];
+		n.degree = int(this->ms_find_neighbors(n.id).size());
+		vec.push_back(n);		
+	}
 
+	//>> Call the sorter
+	std::sort(vec.begin(), vec.end(), this->_ms_ns);
+
+	//>> Return the max
+	if (vec.empty()) {
+		return NOTHING_FOUND;
+	} else { 
+		return vec.back().id;
+	}
 }
 
+/// //////////////////////////////////////////////////////////////////////// ///
 
-int ms_graph::_ms_select_nearest_improvement(std::vector<float> w) const {
-    //>> Init
-    int out = -1;
-    
-    //>> Do the thing
-    for (int i=0 ; i<int(this->nodes.size()) ; i++) {
-        if (w[this->nodes[i]] > 0) {
-            if (not(this->_ms_states.empty())) {
-                if (this->_ms_states.back()->ps.find(this->nodes[i]) == this->_ms_states.back()->ps.end()) {
-                    out = this->nodes[i];
-                    break;  
-                }  
-            } else {
-                if (this->_ms_root->ps.find(this->nodes[i]) == this->_ms_root->ps.end()) {
-                    out = this->nodes[i];
-                    break;  
-                } 
-            }
-        }
-    } 
-    
-    //>> If it can't do the thing call someone else
-    if (out == -1) {
-        out = this->_ms_select_min_swap();
-    }
-    return out;
+int ms_graph::_ms_select_nearest_improvement() const { //<<<<<<<<<<<<<<<<<<<<<//
+	//>> pick the first node with a negative price.	
+	for (int i=0 ; i<int(this->nodes.size()) ; i++) {
+		if (this->_ms_prices[this->nodes[i]] < 0) {
+			return this->nodes[i]; 
+		}
+	}
+	//>> If no node seems to be good, let's something else pick a node.
+	return this->_ms_select_min_swap();
 }
 
+//============================================================================//
+//====// Operators //=========================================================//
 
+std::vector<int> gc::inter(const std::vector<int> &a, const std::vector<int> &b) { //<<//
+	std::vector<int> out;
+	for (int alpha : a) {
+		if (std::find(b.begin(), b.end(), alpha) != b.end()) {
+			out.push_back(alpha);
+		}
+	}
+	return out;
+} 
 
 
 

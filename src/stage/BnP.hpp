@@ -49,8 +49,8 @@ enum OutFormat {
 enum NodeStatus {
 	NS_CREATED   = 0,
 	NS_SOLVED    = 1,
-	NS_1C        = 2,
-	NS_2C        = 3
+	NS_1C        = 2, //>> Has already 1 child
+	NS_2C        = 3  //>> Has already 2 child
 };
 
 //>> Possible tranformation of a node
@@ -175,12 +175,17 @@ class BnP {
 	*/
 
 	void run(int timelimit = -1, bool log = false); /*
-	* Run? Run!
 	* timelimit is in second
 	* log refers to the save made in a .csv file
+	* /!\ the log mechanic has not being updated for a long time now /!\
 	*/
 
 	private:
+	/* /!\ ||---------------------------------------------------|| /!\ */
+	/* /!\ || Some loading and printing functions have not been || /!\ */
+	/* /!\ || implemented yet                                   || /!\ */
+	/* /!\ ||---------------------------------------------------|| /!\ */
+
 	void _loadTGF(string filename);    // Called by load() to perform
 	void _loadDOT(string filename);    // the part of file reading 
 	void _loadCLQ(string filename);    // given the right format.
@@ -198,11 +203,15 @@ class BnP {
 
 	//>> Setters
 	public:
-	void setGenerator(Generator gen);
-	void setChoice(Choice choice);
-	void setGraphNodeSorter(gc::NodeSorter ns);
+	void setGenerator(const Generator gen);
+	void setChoice(const Choice choice);
+	void setGraphNodeSorter(const gc::NodeSorter ns);
+	void setGraphSelectMode(const gc::SN_MODE sn_mode);
+	void setGraphObjective(const int obj);
 	void setDiscreetMode();
 	void setNoisyMode();
+	void setMonoMode(); // /!\ Not working /!\ //
+	void setPolyMode(); // /!\ Not working /!\ //
 
 	//>> Getters
 	NodeStatus    getCurrentStatus() const;

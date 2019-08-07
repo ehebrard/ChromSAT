@@ -24,24 +24,21 @@ using namespace bnp;
 #define Gg <<"\033[0m"
 
 //============================================================================//
-//====// Global //============================================================//
-
-gc::SN_MODE snmode = gc::SN_MODE_MIN_SWAP;
-
-//============================================================================//
 //====// Generator //=========================================================//
 
-vector<int> othergen(IloNumArray price, gc::ms_graph graph) {
+vector<int> othergen(IloNumArray price, gc::ms_graph graph) { //<<<<<<<<<<<<<<//
 	
 	vector<float> input_price;
 	for (IloInt i=0 ; i<price.getSize() ; i++) {
 		input_price.push_back(price[i]);
 	}
-	vector<int> out = graph.ms_find_set(input_price, -1, snmode);
+	vector<int> out = graph.ms_find_set(input_price);
 	return out;
 }
 
-vector<int> gensolve(IloNumArray price, gc::ms_graph graph) {
+/// //////////////////////////////////////////////////////////////////////// ///
+
+vector<int> gensolve(IloNumArray price, gc::ms_graph graph) { //<<<<<<<<<<<<<<//
 	//>> Declarations
 	IloInt i;
 	vector<vector<int>> mat = graph.matrix;
@@ -142,12 +139,14 @@ vector<int> gensolve(IloNumArray price, gc::ms_graph graph) {
 //============================================================================//
 //====// Choice //============================================================//
 
-pair<int, int> makechoice(gc::ms_graph g, vector<set<int>> c, Node n) {
+pair<int, int> makechoice(gc::ms_graph g, vector<set<int>> c, Node n) { //<<<<//
 	gc::arc a = g.any_non_edge();
 	return make_pair(a[0],a[1]);
 }
 
-pair<int, int> otherchoice(gc::ms_graph g, vector<set<int>> c, Node n) {
+/// //////////////////////////////////////////////////////////////////////// ///
+
+pair<int, int> otherchoice(gc::ms_graph g, vector<set<int>> c, Node n) { //<<<//
 
 	//>> Alias
 	vector<int>   valid   = n.columns;
@@ -203,9 +202,9 @@ pair<int, int> otherchoice(gc::ms_graph g, vector<set<int>> c, Node n) {
 //============================================================================//
 //====// Sort //==============================================================//
 
-bool defaultsort (gc::ms_Node n1, gc::ms_Node n2) {
+bool defaultsort (gc::ms_Node n1, gc::ms_Node n2) { //<<<<<<<<<<<<<<<<<<<<<<<<//
 	if (n1.weight == n2.weight) {
-		return n1.degree < n2.degree;
+		return n1.degree > n2.degree;
 	} else {
 		return n1.weight < n2.weight;
 	}
@@ -214,7 +213,7 @@ bool defaultsort (gc::ms_Node n1, gc::ms_Node n2) {
 //============================================================================//
 //====// Print //=============================================================//
 
-void printNode(pNode n) {
+void printNode(pNode n) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	cout << gG endl;
 	cout << "Size of .nullified: " << int(n->nullified.size()) << endl;
 	cout << "Size of .weights  : " << int(n->weights.size())   << endl;
@@ -223,11 +222,10 @@ void printNode(pNode n) {
 
 }
 
-
 //============================================================================//
 //====// Usage //=============================================================//
 
-void exitWithUsage() {
+void exitWithUsage() { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	cout << wW uU "USAGE:" Uu Ww;
 	cout <<          wW " bnp <filename> [-i  <input format>   ||" << endl;
 	cout <<       "                       -o  <output format>  ||" << endl;
@@ -247,14 +245,14 @@ void exitWithUsage() {
 //============================================================================//
 //====// Main //==============================================================//
 
-
-int main(int argc, char * argv[]) {
+int main(int argc, char * argv[]) { //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<//
 	//>> Declaration
 	string filename;
 	InFormat in = I_TGF;
 	OutFormat out = O_STD;
 	bool noise = true;
 	Generator gen = gensolve;
+	gc::SN_MODE snmode = gc::SN_MODE_MIN_SWAP;
 
 	//>> Sort argv
 	//>>//>> filename
@@ -263,6 +261,7 @@ int main(int argc, char * argv[]) {
 	} else {
 		filename = string(argv[1]);	
 	}
+
 	//>>//>> other parameters
 	for(int i=2 ; i<argc ; i++) {
 		if (string(argv[i]) == "-i") {
@@ -334,6 +333,7 @@ int main(int argc, char * argv[]) {
 			exitWithUsage();
 		}
 	}
+
 	//>> COUT
 	cout << gG "Loading data, please wait..." Gg << endl;
 
@@ -350,6 +350,9 @@ int main(int argc, char * argv[]) {
 	bnp.setChoice(otherchoice);
 	bnp.setGenerator(gen);
 	bnp.setGraphNodeSorter(defaultsort);
+	bnp.setGraphSelectMode(snmode);
+	bnp.setGraphObjective(-1);
+	
 
 	//>> Run the solver
 	cout << gG "Graph loaded. Searching for starting point..." Gg << endl;
