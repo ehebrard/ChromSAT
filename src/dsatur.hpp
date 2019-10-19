@@ -12,8 +12,6 @@
 
 // #define _DEBUG_DSATUR
 
-// #define GAHHH
-
 // #define _DEBUG_TABU
 
 namespace gc
@@ -726,6 +724,22 @@ struct dsatur {
 
         return brelaz_greedy(g, ub, begin(order), limit);
     }
+		
+		
+		
+    template <class graph_struct>
+    int degeneracy(graph_struct& g)
+    {
+			for(auto v : order)
+			{
+				std::cout << std::setw(3) << v << " "
+					<< std::setw(3) << neighbor_colors[v].size() << std::endl;
+				
+			}
+
+			return 0;
+    }
+		
 
     template <class graph_struct>
     void get_core(graph_struct& g, const gc::options::core_type t, const int lb,

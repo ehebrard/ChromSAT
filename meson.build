@@ -51,6 +51,10 @@ executable('gc', ['src/gc.cpp'],
 	   dependencies: [minicsp_dep, basic_dep, prop_dep,
 			  segundo_dep, domega_dep, thread_dep])
 
+executable('cd', ['src/cd.cpp'],
+	   dependencies: [minicsp_dep, basic_dep, prop_dep,
+			  segundo_dep, domega_dep, thread_dep])
+
 executable('segundo', ['sota/Segundo/DSATUR/main.cpp'],
 	   dependencies: [segundo_dep, basic_dep])
 
