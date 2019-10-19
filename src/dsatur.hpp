@@ -722,25 +722,10 @@ struct dsatur {
                     or !recolor(g, *candidate, c)) {
                     ++numcolors;
                     frontier = candidate;
-
-                    // if (first_clq)
-                    //     std::cout << " "
-                    //               << *candidate; //<< " (" << numcolors <<
-                    //               ")";
-
                 } else {
                     --d;
                 }
             }
-
-            // else {
-            //     // if(first_clq)
-            //     // 	std::cout << " (" << numcolors << ")" ;
-            //
-            //     first_clq = false;
-            // }
-
-            // std::cout << " " << c;
 
             ncolor.push_back(numcolors);
 
@@ -784,11 +769,19 @@ struct dsatur {
         if (g.nodes.empty())
             return 0;
 
+				std::cout << "init" << std::endl;
+
         brelaz_init(g, ub, limit, seed);
+				
+				
+				std::cout << "sort" << std::endl;
 
         std::sort(begin(order), end(order), [&](const int x_, const int y_) {
             return (degree[x_] > degree[y_]);
         });
+				
+				
+				std::cout << "dsatur" << std::endl;
 
         return brelaz_greedy(g, ub, begin(order), limit,
             [&](int x, int y) { return degree[x] > degree[y]; });
