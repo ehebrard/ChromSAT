@@ -21,15 +21,15 @@ namespace gc
 struct coldomain {
 
     std::vector<int> b;
-    size_t size_;
+    size_t count_;
 
-    inline size_t size() { return size_; }
+    inline size_t count() { return count_; }
 
     coldomain() {}
     coldomain(const int ub)
         : b(ub, 0)
     {
-        size_ = 0;
+        count_ = 0;
     }
 
     void resize(const size_t s) { b.resize(s, 0); }
@@ -38,7 +38,7 @@ struct coldomain {
     {
         ++b[x];
         if (b[x] == 1) {
-            ++size_;
+            ++count_;
             return true;
         }
         return false;
@@ -47,7 +47,7 @@ struct coldomain {
     {
         --b[x];
         if (b[x] == 0) {
-            --size_;
+            --count_;
             return true;
         }
         return false;
@@ -66,13 +66,13 @@ struct coldomain {
     {
         for (auto i{begin(b)}; i != end(b); ++i)
             *i = 0;
-        size_ = 0;
+        count_ = 0;
     }
 
     void initialise(const int ub)
     {
         b.clear();
-        size_ = 0;
+        count_ = 0;
         b.resize(ub, 0);
     }
 
@@ -89,14 +89,14 @@ struct coldomain {
 
 std::ostream& operator<<(std::ostream& os, const coldomain& x)
 {
-	x.display(os);
-	return os;
+    x.display(os);
+    return os;
 }
 
 std::ostream& operator<<(std::ostream& os, const coldomain* x)
 {
-	x->display(os);
-	return os;
+    x->display(os);
+    return os;
 }
 
 
@@ -106,48 +106,47 @@ std::ostream& operator<<(std::ostream& os, const coldomain* x)
 
 struct coloring_heuristic {
 
-		// store the best full coloring
+    // store the best full coloring
     std::vector<int> best;
-		// number of distinct colors in 'best_coloring'
-		size_t best_numcolors;
+    // number of distinct colors in 'best_coloring'
+    size_t best_numcolors;
 
-		// current (partial)  coloring
+    // current (partial)  coloring
     std::vector<int> color;
-		// number of distinct colors in 'color'
-		size_t numcolors;
-		
-		// degree of the vertices in the graph
+    // number of distinct colors in 'color'
+    size_t numcolors;
+
+    // degree of the vertices in the graph
     std::vector<int> degree;
 
-		// store info about the colors of the niehgbors in 'color'
+    // store info about the colors of the niehgbors in 'color'
     std::vector<coldomain> neighbor_colors;
 
-		// ordered list of the vertices of the graph 
+    // ordered list of the vertices of the graph
     std::vector<int> order;
-		
-		// rank of every vertex in 'order'
+
+    // rank of every vertex in 'order'
     std::vector<std::vector<int>::iterator> rank;
-		
-		// 'last_vertex[d]' points just after the last unassigned vertex of saturation degree d
+
+    // 'last_vertex[d]' points just after the last unassigned vertex of
+    // saturation degree d
     std::vector<std::vector<int>::iterator> last_vertex;
 
-		// 1 assigning, -1 unassigning
-		// int status;
+    // 1 assigning, -1 unassigning
+    // int status;
 
-
-		std::vector<int>::iterator beg_update;
-		std::vector<int>::iterator end_update;
-
+    std::vector<int>::iterator beg_update;
+    std::vector<int>::iterator end_update;
 
     std::mt19937 random_generator;
 
-
     // initialise the structures w. r. t. graph g and upper bound ub
     template <class graph_struct, class compare>
-    void initialise(graph_struct& g, const int ub, compare comp) //=[&](const int, const int) { return 1; }
+    void initialise(graph_struct& g, const int ub,
+        compare comp) //=[&](const int, const int) { return 1; }
     {
         numcolors = 0;
-				best_numcolors = 0;
+        best_numcolors = 0;
         rank.resize(g.capacity());
         color.resize(g.capacity(), -1);
         degree.resize(g.capacity());
@@ -156,83 +155,101 @@ struct coloring_heuristic {
             order.push_back(v);
             degree[v] = g.matrix[v].size();
         }
-				std::shuffle(begin(order), end(order), random_generator);
+        std::shuffle(begin(order), end(order), random_generator);
         std::sort(begin(order), end(order), comp);
         for (auto vptr{begin(order)}; vptr != end(order); ++vptr) {
             rank[*vptr] = vptr;
-        }			
+        }
 
-				// reuse the available memory
+        // reuse the available memory
         for (auto it{begin(neighbor_colors)}; it != end(neighbor_colors);
              ++it) {
             it->initialise(ub);
         }
-				// allocate as much as needed
+        // allocate as much as needed
         neighbor_colors.resize(g.capacity(), coldomain(ub));
 
-				// the saturation degree is null for every vertex
+        // the saturation degree is null for every vertex
         last_vertex.resize(ub + 2, begin(order));
-				// hence last_vertex[0] oints at the end of order
+        // hence last_vertex[0] oints at the end of order
         *begin(last_vertex) = end(order);
 
-				// status = 1;
+        // status = 1;
     }
-		
-		
-		
+
     template <class graph_struct>
     void assign_color(graph_struct& g, const int x, const int c)
-    {			
+    {
         color[x] = c;
+				
+				// std::cout << "assign " << x << " to " << c << std::endl;
 
         // update the saturation degree of x's neighbors
         for (auto y : g.matrix[x])
             // if (rank[y] > rank[x])
-					// if(color[y] < 0)
-					if(rank[y] >= beg_update and rank[y] < end_update)
-                if (neighbor_colors[y].add(c)) 
-										move_up(y, neighbor_colors[y].size());
+            // if(color[y] < 0)
+            if (rank[y] >= beg_update and rank[y] < end_update) {
+                
+								// std::cout << " update " << y << ": " << neighbor_colors[y].count() ;
+								
+								if (neighbor_colors[y].add(c))
+                    move_up(y, neighbor_colors[y].count());
+								
+								// std::cout << " -> " << neighbor_colors[y].count() << std::endl;
+								
+							} 
+							// else {
+							//
+							// 	std::cout << " do not update " << y << std::endl;
+							// }
     }
 
     template <class graph_struct>
     void unassign_color(graph_struct& g, const int x)
     {
-			
-			// std::cout << "unassign " << x << std::endl;
-			
-			auto c{color[x]};
+
+		// std::cout << "unassign " << x << " (was " << color[x] << ")" << std::endl;
+
+        auto c{color[x]};
         color[x] = -1;
-				
+
         // update the saturation degree of x's neighbors
         for (auto y : g.matrix[x])
             // if (rank[y] > rank[x])
-					// if(color[y] >= 0)
-					if(rank[y] >= beg_update and rank[y] < end_update)
-                if (neighbor_colors[y].remove(c)) 
-                        move_down(y, neighbor_colors[y].size() + 1);
-    }
-		
-		
-		
-    template <class graph_struct>
-    void reassign_color(graph_struct& g, const int x, const int c)
-    {
-			
-			std::cout << "reassign " << x << std::endl;
-			
-			auto oc{color[x]};
-        color[x] = c;
-				
-        // update the saturation degree of x's neighbors
-        for (auto y : g.matrix[x])
-            if (color[y] >= 0) {
-                if (neighbor_colors[y].remove(oc)) 
-                        move_down(y, neighbor_colors[y].size() + 1);
-                if (neighbor_colors[y].add(c)) 
-                        move_up(y, neighbor_colors[y].size() + 1);
+            // if(color[y] >= 0)
+            if (rank[y] >= beg_update and rank[y] < end_update) {
+							// std::cout << " update " << y << ": " << neighbor_colors[y].count() ;
+                if (neighbor_colors[y].remove(c))
+                    move_down(y, neighbor_colors[y].count() + 1);
 								
-							}
+							// std::cout << " -> " << neighbor_colors[y].count() << std::endl;
+							} 
+							// else {
+							//
+							// 	std::cout << " do not update " << y << std::endl;
+							//
+							// }
+				
     }
+
+    //     template <class graph_struct>
+    //     void reassign_color(graph_struct& g, const int x, const int c)
+    //     {
+    //
+    // std::cout << "reassign " << x << std::endl;
+    //
+    // auto oc{color[x]};
+    //         color[x] = c;
+    //
+    //         // update the saturation degree of x's neighbors
+    //         for (auto y : g.matrix[x])
+    //             if (color[y] >= 0) {
+    //                 if (neighbor_colors[y].remove(oc))
+    //                     move_down(y, neighbor_colors[y].count() + 1);
+    //                 if (neighbor_colors[y].add(c))
+    //                     move_up(y, neighbor_colors[y].count() + 1);
+    //             }
+    //     }
 
     // template <class graph_struct>
     // void re_assign(graph_struct& g, const int x, const int c)
@@ -250,7 +267,6 @@ struct coloring_heuristic {
     {
         // swap y with *last_vertex[d]
         auto l{*last_vertex[d]};
-				
 
         rank[l] = rank[y];
         rank[y] = last_vertex[d];
@@ -266,8 +282,8 @@ struct coloring_heuristic {
     {
         // swap y with *last_vertex[d]-1
         auto l{*(--last_vertex[d])};
-				
-				std::cout << "swap " << l << " and " << y << std::endl;
+
+       // std::cout << "swap " << l << " and " << y << std::endl;
 
         rank[l] = rank[y];
         rank[y] = last_vertex[d];
@@ -275,39 +291,32 @@ struct coloring_heuristic {
         *rank[y] = y;
         *rank[l] = l;
     }
-		
 
-
-		
     template <class graph_struct, typename tiebreaker>
     int brelaz_greedy(graph_struct& g, const int ub,
-        std::vector<int>::iterator start, const int limit, tiebreaker criterion
-        )
+        std::vector<int>::iterator start, const int limit, tiebreaker criterion)
     {
-			beg_update = start;
-			end_update = end(order);
-			
+        beg_update = start;
+        end_update = end(order);
+
         int potential_colors = begin(neighbor_colors)->b.size();
 
         int c, d;
 
         std::vector<int>::iterator candidate{start};
-				
-				
 
         while (candidate != end(order)) {
 
 #ifdef _DEBUG_DSATUR
             check_consistency(g);
 #endif
-						
+
             // get the highest saturation degree
-            d = neighbor_colors[*candidate].size();
-						
+            d = neighbor_colors[*candidate].count();
+
             if (limit > 1) {
                 auto best{std::min_element(candidate,
-                    std::min(last_vertex[d], candidate + limit), criterion
-                    )};
+                    std::min(last_vertex[d], candidate + limit), criterion)};
 
                 std::swap(
                     rank[*best], rank[*candidate]); // not sure this is useful
@@ -317,12 +326,10 @@ struct coloring_heuristic {
             // use the first possible color for x
             c = neighbor_colors[*candidate].get_first_allowed();
 
-
             if (c == numcolors) {
-								assert(potential_colors > c);
+                assert(potential_colors > c);
                 ++numcolors;
-            } 
-            
+            }
 
             if (numcolors > ub) {
                 color[*candidate] = c;
@@ -332,8 +339,8 @@ struct coloring_heuristic {
             // move all the pointers >= d
             while (++d < last_vertex.size())
                 ++last_vertex[d];
-						
-						++beg_update;
+
+            ++beg_update;
             assign_color(g, *candidate, c);
 
             // update degrees
@@ -347,107 +354,152 @@ struct coloring_heuristic {
         return numcolors;
     }
 
-
     template <class graph_struct>
     int dsatur(
         graph_struct& g, const int ub, const int limit = 1, const int seed = 1)
     {
         if (g.nodes.empty())
             return 0;
-				
-				random_generator.seed(seed);
+
+        random_generator.seed(seed);
 
         initialise(g, ub, [&](const int x_, const int y_) {
             return (degree[x_] > degree[y_]);
-        });	
+        });
 
         return brelaz_greedy(g, ub, begin(order), limit,
             [&](int x, int y) { return degree[x] > degree[y]; });
     }
-		
-		// update the saturation degrees; reorder by increasing SD; fix the last_vertex pointers
-    template <class graph_struct>
-    void close(graph_struct& g)
+
+    // update the saturation degrees; reorder by increasing SD; fix the
+    // last_vertex pointers
+    template <class graph_struct> void close(graph_struct& g)
     {
-			
+
         // update the color neighborhood ()
         for (auto v : order) {
-            for (auto u : g.matrix[v]) 
-                if (rank[u] < rank[v]) 
+            for (auto u : g.matrix[v])
+                if (rank[u] < rank[v])
                     neighbor_colors[u].add(color[v]);
             degree[v] = g.matrix[v].size();
         }
 
         std::sort(begin(order), end(order), [&](const int x_, const int y_) {
-            return (neighbor_colors[x_].size() > neighbor_colors[y_].size()
-                or (neighbor_colors[x_].size() == neighbor_colors[y_].size()
-                       and degree[x_] < degree[y_]));
+            return (neighbor_colors[x_].count() > neighbor_colors[y_].count()
+                or (neighbor_colors[x_].count() == neighbor_colors[y_].count()
+                       and degree[x_] > degree[y_]));
         });
 
         for (auto vptr{begin(order)}; vptr != end(order); ++vptr) {
             rank[*vptr] = vptr;
         }
 
-
-        last_vertex.resize(numcolors+1);
-				auto d{0};
+        last_vertex.resize(numcolors + 1);
+        auto d{0};
         for (auto it{end(order)}; it != begin(order); --it) {
-            auto v{*(it-1)};
-            while (d < numcolors and neighbor_colors[v].size() >= d) {
+            auto v{*(it - 1)};
+            while (d < numcolors and neighbor_colors[v].count() >= d) {
                 last_vertex[d++] = it;
             }
         }
-				last_vertex.back() = begin(order);
-				
-				
-				// status = -1;
-	}
-	
-			
-  template <class graph_struct>
-  int degeneracy(graph_struct& g)
-  {		
-		beg_update = begin(order);
-		end_update = end(order);
-		
-		int dgn{0};
-		for(auto vptr{rbegin(order)}; vptr!=rend(order); ++vptr)
-		{
+        last_vertex.back() = begin(order);
 
-			print(g);
-			std::cout << std::endl;
-				
-				int d = neighbor_colors[*vptr].size();
-				
-				dgn = std::max(dgn, d);
-				
-        // move all the pointers >= d
-        while (d >= 0)
-            --last_vertex[d--];
-				
-				--end_update;
-				unassign_color(g, *vptr);
-			}
-
-			print(g);
-			std::cout << std::endl;
-				
-			return dgn;
+        // status = -1;
     }
-		
-		
-		// try to find a color for x within y's neighborhood
-    template <class graph_struct>
-    bool recolor(graph_struct& g, const int x, const int y)
+
+    template <class graph_struct> int degeneracy(graph_struct& g)
     {
-			for(auto c{0}; c<numcolors; ++c)
-			if(!neighbor_colors[y].contain(c) and neighbor_colors[x].contain(c)) {
-					reassign_color(g, x, c);
-				break;	
-				}
-		}
-		
-		
+        beg_update = begin(order);
+        end_update = end(order);
+
+        int dgn{0};
+        for (auto vptr{rbegin(order)}; vptr != rend(order); ++vptr) {
+
+            print(g);
+            std::cout << std::endl;
+
+            int d = neighbor_colors[*vptr].count();
+
+						// auto it{rank[*vptr]};
+						// while(it>=last_vertex[d+1])
+						// 	for(it=last_vertex[d]-1; it>=last_vertex[d+1]; --it)
+						//      if(reduce(g, *it)) break;
+						
+							for(auto it{rank[*vptr]}; it>=last_vertex[d+1]; --it)
+						     if(reduce(g, *it)) break;
+						
+
+            // print(g);
+            // std::cout << std::endl;
+            //
+				
+						// exit(1);
+						
+
+            dgn = std::max(dgn, d);
+
+            // move all the pointers >= d
+            while (d >= 0)
+                --last_vertex[d--];
+
+            --end_update;
+            unassign_color(g, *vptr);
+        }
+
+        print(g);
+        std::cout << std::endl;
+
+        return dgn;
+    }
+
+    // try to find a color for y within x's neighborhood
+    template <class graph_struct>
+    bool recolor(graph_struct& g, const int y, const int x)
+    {
+			
+			std::cout << " - recolor " << y << " with colors in N(" << x << ") = " << neighbor_colors[x] << ":\n";
+			
+        for (auto c{0}; c < numcolors; ++c)
+				{
+					
+					// std::cout << c << ": ";
+            if (color[y] != c and !neighbor_colors[y].contain(c)
+                and neighbor_colors[x].contain(c)) {
+									
+									std::cout << " YES!\n";
+									
+									// assert(color[y] != c);
+									
+                unassign_color(g, y);
+                assign_color(g, y, c);
+								
+                return true;
+            }
+						// else std::cout << " no\n";
+					}
+					
+					std::cout << " no\n";
+					
+					return false;
+    }
+
+    // try to find a color for x within y's neighborhood
+    template <class graph_struct> bool reduce(graph_struct& g, const int x)
+    {
+			
+			std::cout << "try to reduce " << x << ":\n";
+			
+			int reduction{0};
+			
+        for (auto y : g.matrix[x]) {
+					
+            if (color[y] >= 0 and neighbor_colors[x].b[color[y]] == 1)
+                reduction += recolor(g, y, x);
+        }
+				
+				return reduction > 0;
+    }
+
     void clear()
     {
         last_vertex.clear();
@@ -458,15 +510,12 @@ struct coloring_heuristic {
         order.clear();
     }
 
-
     template <class graph_struct> void print(graph_struct& g)
     {
 
         std::cout << std::endl;
-				
-				
-				
-        // dd = neighbor_colors[*begin(order)].size()+1;
+
+        // dd = neighbor_colors[*begin(order)].count()+1;
         //
         //  for (auto v{begin(order)}; v != end(order); ++v) {
         //
@@ -475,11 +524,10 @@ struct coloring_heuristic {
         //  								--dd;
         //      }
         //      std::cout << std::setw(3) << *v << " " << std::setw(3)
-        //                << neighbor_colors[*v].size() << " " << std::setw(3)
+        //                << neighbor_colors[*v].count() << " " << std::setw(3)
         //                << degree[*v] << std::endl;
         //  }
-				
-				
+
         int d = last_vertex.size() - 1;
         for (auto r{begin(order)}; r != end(order); ++r) {
 
@@ -496,9 +544,9 @@ struct coloring_heuristic {
 
             std::cout << std::setw(3) << v << ": ";
 
-            std::cout << "(" << neighbor_colors[v].size();
+            std::cout << "(" << neighbor_colors[v].count();
 
-            std::cout << "|" << degree[v] << ") " ; //<< neighbor_colors[v];
+            std::cout << "|" << degree[v] << ") " << neighbor_colors[v];
 
             if (color[v] >= 0) {
                 std::cout << " ** " << color[v] << " **";
@@ -517,21 +565,22 @@ struct coloring_heuristic {
             assert(last_vertex[d] <= last_vertex[d - 1]);
             for (auto r{last_vertex[d]}; r != last_vertex[d - 1]; ++r) {
 
-                if (color[*r] < 0 and neighbor_colors[*r].size() != (d - 1)) {
+                if (color[*r] < 0 and neighbor_colors[*r].count() != (d - 1)) {
 
                     std::cout << *r << " has satur degree "
-                              << neighbor_colors[*r].size()
+                              << neighbor_colors[*r].count()
                               << " but is in bucket " << (d - 1) << std::endl;
                 }
 
-                assert(color[*r] >= 0 or neighbor_colors[*r].size() == (d - 1));
+                assert(
+                    color[*r] >= 0 or neighbor_colors[*r].count() == (d - 1));
             }
         }
 
         std::vector<int> colv(numcolors);
         for (auto r{begin(order)}; r != end(order); ++r) {
             auto v{*r};
-            auto d{neighbor_colors[v].size()};
+            auto d{neighbor_colors[v].count()};
 
             if (color[v] < -1) {
                 for (auto c{0}; c < numcolors; ++c) {
@@ -541,7 +590,6 @@ struct coloring_heuristic {
                     if (color[u] >= 0 and rank[u] < rank[v])
                         --colv[color[u]];
                 }
-
 
                 for (auto c{0}; c < numcolors; ++c) {
 
@@ -602,8 +650,6 @@ struct coloring_heuristic {
             }
         }
     }
-
-
 };
 
 } // namespace gc

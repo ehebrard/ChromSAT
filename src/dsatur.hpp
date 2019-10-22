@@ -805,6 +805,8 @@ struct dsatur {
 
         reverse = true;
 
+        std::cout << std::endl;
+
         auto toremove{*rbegin(order)};
 
         unassign_color(g, toremove, color[toremove]);
@@ -1344,6 +1346,78 @@ struct dsatur {
                 // std::cout << "d = " << d << std::endl;
 
                 last_vertex[d--] = it;
+            }
+        }
+        for (auto i{0}; i <= d; ++i) {
+            last_vertex[i] = end(order);
+        }
+
+        return ub;
+    }
+
+    template <class graph_struct>
+    int closeb(graph_struct& g, std::vector<int>& isol)
+    {
+        auto colored{true};
+        for (auto it{rbegin(order)}; colored and it != rend(order); ++it)
+            colored = (color[*it] >= 0);
+
+        int ub{0};
+        for (auto v : order) {
+
+            assert(isol[v] >= 0);
+
+            color[v] = isol[v];
+            ub = std::max(ub, color[v]);
+        }
+        ++ub;
+        if (use_recolor or !colored)
+            for (auto v : order) {
+                neighbor_colors[v].resize(ub);
+                neighbor_colors[v].clear();
+            }
+
+        // update the color neighborhood ()
+        for (auto it{rbegin(order)}; it != rend(order); ++it) {
+            auto v{*it};
+            for (auto u : g.matrix[v]) {
+                if (rank[u] < rank[v] or use_recolor or !colored) {
+                    neighbor_colors[u].add(color[v]);
+                }
+            }
+            degree[v] = g.matrix[v].size();
+        }
+
+        std::sort(begin(order), end(order), [&](const int x_, const int y_) {
+            return (neighbor_colors[x_].size() < neighbor_colors[y_].size()
+                or (neighbor_colors[x_].size() == neighbor_colors[y_].size()
+                       and degree[x_] > degree[y_]));
+        });
+
+        // for (auto v : order)
+        // std::cout << v << " " << color[v] << " " << degree[v] <<
+        // neighbor_colors[v] << std::endl;
+
+        // last_update.resize(g.capacity(), 0);
+        // avg_dsatur.resize(g.capacity());
+        for (auto vptr{begin(order)}; vptr != end(order); ++vptr) {
+            rank[*vptr] = vptr;
+            // avg_dsatur[*vptr]
+            //     = static_cast<double>(neighbor_colors[*vptr].size());
+        }
+
+        // std::cout << "size = " << last_vertex.size() << std::endl;
+
+        last_vertex.resize(ub + 1);
+        auto d{last_vertex.size() - 1};
+        for (auto it{begin(order)}; it != end(order); ++it) {
+            auto v{*it};
+            // std::cout << "v = " << v << std::endl;
+            while (d < last_vertex.size() and neighbor_colors[v].size() > d) {
+
+                // std::cout << "d = " << d << std::endl;
+
+                last_vertex[d++] = it;
             }
         }
         for (auto i{0}; i <= d; ++i) {
