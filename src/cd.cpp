@@ -2127,7 +2127,7 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
 
     g.canonize();
 
-    std::cout << g << std::endl;
+    // std::cout << g << std::endl;
 		
 		gc::degeneracy_finder df(g);
 		
@@ -2145,9 +2145,9 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
 
 		std::cout << "#colors: " << ncolor << std::endl;
 		
-		for(auto v : g.nodes)
-			std::cout << " " << coloring[v] ;
-		std::cout << std::endl;
+		// for(auto v : g.nodes)
+		// 	std::cout << " " << coloring[v] ;
+		// std::cout << std::endl;
 		
 
 		ds.close(g);

@@ -420,8 +420,8 @@ struct coloring_heuristic {
         int dgn{0};
         for (auto vptr{rbegin(order)}; vptr != rend(order); ++vptr) {
 
-            print(g);
-            std::cout << std::endl;
+            // print(g);
+            // std::cout << std::endl;
 
             int d = neighbor_colors[*vptr].count();
 
@@ -454,8 +454,8 @@ struct coloring_heuristic {
             unassign_color(g, *vptr);
         }
 
-        print(g);
-        std::cout << std::endl;
+        // print(g);
+        // std::cout << std::endl;
 
         return dgn;
     }
@@ -465,7 +465,7 @@ struct coloring_heuristic {
     bool recolor(graph_struct& g, const int y, const int x)
     {
 			
-			std::cout << " - recolor " << y << " with colors in N(" << x << ") = " << neighbor_colors[x] << ":\n";
+			// std::cout << " - recolor " << y << " with colors in N(" << x << ") = " << neighbor_colors[x] << ":\n";
 			
         for (auto c{0}; c < numcolors; ++c)
 				{
@@ -474,7 +474,7 @@ struct coloring_heuristic {
             if (color[y] != c and !neighbor_colors[y].contain(c)
                 and neighbor_colors[x].contain(c)) {
 									
-									std::cout << " YES!\n";
+									// std::cout << " YES!\n";
 									
 									// assert(color[y] != c);
 									
@@ -486,7 +486,7 @@ struct coloring_heuristic {
 						// else std::cout << " no\n";
 					}
 					
-					std::cout << " no\n";
+					// std::cout << " no\n";
 					
 					return false;
     }
@@ -495,7 +495,7 @@ struct coloring_heuristic {
     template <class graph_struct> bool reduce(graph_struct& g, const int x)
     {
 			
-			std::cout << "try to reduce " << x << ":\n";
+			// std::cout << "try to reduce " << x << ":\n";
 			
 			int reduction{0};
 			
