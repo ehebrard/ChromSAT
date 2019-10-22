@@ -412,7 +412,7 @@ struct coloring_heuristic {
         // status = -1;
     }
 
-    template <class graph_struct> int degeneracy(graph_struct& g)
+    template <class graph_struct> int degeneracy(graph_struct& g, const bool use_recolor=false)
     {
         beg_update = begin(order);
         end_update = end(order);
@@ -429,13 +429,13 @@ struct coloring_heuristic {
 						// while(it>=last_vertex[d+1])
 						// 	for(it=last_vertex[d]-1; it>=last_vertex[d+1]; --it)
 						//      if(reduce(g, *it)) break;
-						
-						for(auto it{rank[*vptr]}; it>=last_vertex[d+1]; --it)
-						  	if(reduce(g, *it)) break;
-						
 
-						d = neighbor_colors[*vptr].count();
-
+            if (use_recolor) {
+                for (auto it{rank[*vptr]}; it >= last_vertex[d + 1]; --it)
+                    if (reduce(g, *it))
+                        break;
+                d = neighbor_colors[*vptr].count();
+            }
 
             // print(g);
             // std::cout << std::endl;

@@ -2128,38 +2128,58 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
     g.canonize();
 
     // std::cout << g << std::endl;
-		
-		gc::degeneracy_finder df(g);
-		
-		df.degeneracy_ordering();
-		
-		auto degeneracy{df.degeneracy};
-		
-		std::cout << "degeneracy: " << degeneracy << std::endl;
-		
-		gc::coloring_heuristic ds;
-		
-		auto ncolor{ds.dsatur(g, degeneracy+1)};
-		
-		auto coloring = ds.color;
 
-		std::cout << "#colors: " << ncolor << std::endl;
-		
-		// for(auto v : g.nodes)
-		// 	std::cout << " " << coloring[v] ;
-		// std::cout << std::endl;
-		
+    double tbefore{minicsp::cpuTime()};
 
-		ds.close(g);
+    gc::degeneracy_finder df(g);
 
-		// auto chrom_deg{ds.color_degeneracy(g)};
-		auto chrom_deg{ds.degeneracy(g)};
+    df.degeneracy_ordering();
 
-		std::cout << "chromatic degeneracy: " << chrom_deg << std::endl;
-	
-		
-    // gc::statistics statistics(g.capacity());
-    // g.search(statistics, options);
+    auto degeneracy{df.degeneracy};
+
+    std::cout << "\n"
+              << std::setw(30) << std::left << "degeneracy: " << std::setw(10)
+              << std::right << degeneracy << " " << std::setw(20) << std::right
+              << (minicsp::cpuTime() - tbefore) << std::endl;
+
+    gc::coloring_heuristic ds;
+
+    auto ncolor{ds.dsatur(g, degeneracy + 1)};
+
+    auto coloring = ds.color;
+
+    std::cout << "\n"
+              << std::setw(30) << std::left
+              << "number of colors: " << std::setw(10) << std::right << ncolor
+              << " " << std::setw(20) << std::right
+              << (minicsp::cpuTime() - tbefore) << std::endl;
+
+    // for(auto v : g.nodes)
+    // 	std::cout << " " << coloring[v] ;
+    // std::cout << std::endl;
+
+    ds.close(g);
+
+    // auto chrom_deg{ds.color_degeneracy(g)};
+    auto chrom_deg{ds.degeneracy(g, false)};
+
+    std::cout << "\n"
+              << std::setw(30) << std::left
+              << "chromatic degeneracy (1): " << std::setw(10) << std::right
+              << chrom_deg << " " << std::setw(20) << std::right
+              << (minicsp::cpuTime() - tbefore) << std::endl;
+
+    // // auto chrom_deg{ds.color_degeneracy(g)};
+    // chrom_deg = ds.degeneracy(g, true);
+    //
+    // std::cout << "\n"
+    //           << std::setw(30) << std::left
+    //           << "chromatic degeneracy (2): " << std::setw(10) << std::right
+    //           << chrom_deg << " " << std::setw(20) << std::right
+    //           << (minicsp::cpuTime() - tbefore) << std::endl;
+    //
+    // // gc::statistics statistics(g.capacity());
+    // // g.search(statistics, options);
 
     return 1;
 }
