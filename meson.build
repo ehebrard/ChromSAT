@@ -1,5 +1,5 @@
 project('gc', ['c', 'cpp'],
-	default_options : ['c_std=c11', 'cpp_std=c++1z'])
+	default_options : ['c_std=c11', 'cpp_std=c++17'])
 compiler = meson.get_compiler('cpp')
 
 basic_lib = static_library('basic', ['src/intstack.cpp',
@@ -51,9 +51,12 @@ executable('gc', ['src/gc.cpp'],
 	   dependencies: [minicsp_dep, basic_dep, prop_dep,
 			  segundo_dep, domega_dep, thread_dep])
 
+executable('cd', ['src/cd.cpp'],
+	   dependencies: [minicsp_dep, basic_dep, prop_dep,
+			  segundo_dep, domega_dep, thread_dep])
+
 executable('segundo', ['sota/Segundo/DSATUR/main.cpp'],
 	   dependencies: [segundo_dep, basic_dep])
-
 
 use_gecode = get_option('use_gecode')
 if use_gecode
@@ -120,10 +123,6 @@ if use_cplex
 	     ['sota/cplex.cpp'],
 	     dependencies: [cplex_dep, basic_dep],
 	     cpp_args: ['-DIL_STD'])
-
-  executable('bnp', ['src/stage/main_bnp.cpp','src/stage/BnP.cpp', 'src/stage/ms_graph.cpp'],
-	           dependencies: [basic_dep, prop_dep, minicsp_dep, cplex_dep],
-           cpp_args: ['-DIL_STD', '-g'])
 endif
 
 
