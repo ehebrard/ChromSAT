@@ -790,14 +790,36 @@ struct dsatur {
     template <class graph_struct>
     int degeneracy(graph_struct& g)
     {
-			for(auto v : order)
-			{
-				std::cout << std::setw(3) << v << " "
-					<< std::setw(3) << neighbor_colors[v].size() << std::endl;
-				
-			}
 
-			return 0;
+        auto d{neighbor_colors[*begin(order)].size()};
+
+        for (auto v{begin(order)}; v != end(order); ++v) {
+
+            if (v == last_vertex[d]) {
+                --d;
+                std::cout << "-------(" << d << ")" << std::endl;
+            }
+            std::cout << std::setw(3) << *v << " " << std::setw(3)
+                      << neighbor_colors[*v].size() << std::endl;
+        }
+
+        reverse = true;
+
+        auto toremove{*rbegin(order)};
+
+        unassign_color(g, toremove, color[toremove]);
+
+        for (auto v{begin(order)}; v != end(order); ++v) {
+
+            if (v == last_vertex[d]) {
+                --d;
+                std::cout << "-------(" << d << ")" << std::endl;
+            }
+            std::cout << std::setw(3) << *v << " " << std::setw(3)
+                      << neighbor_colors[*v].size() << std::endl;
+        }
+
+        return 0;
     }
 		
 
@@ -1163,17 +1185,13 @@ struct dsatur {
 
         // update the saturation degree of x's neighbors
         for (auto y : g.matrix[x])
-            if (full or (!reverse and color[y] < 0) or (reverse and color[y] >= 0)) {
+            if (full or (!reverse and color[y] < 0)
+                or (reverse and color[y] >= 0)) {
                 // if(full or color[y] < 0) {
                 if (neighbor_colors[y].remove(c)) {
-										// move y one partition down in the saturation degree
-                    // list
-                                                                                if (move)
-                                                                                    move_down(
-                                                                                        y,
-                                                                                        neighbor_colors
-                                                                                                [y].size()
-                                                                                            + 1);
+                    // move y one partition down in the saturation degree list
+                    if (move)
+                        move_down(y, neighbor_colors[y].size() + 1);
                 }
             }
     }
@@ -1263,30 +1281,27 @@ struct dsatur {
         full = false;
     }
 
-    template <class graph_struct, class RandomIt>
-    void init_local_search(graph_struct& g, std::vector<int>& isol,
-        RandomIt begin_search, RandomIt end_search)
+    template <class graph_struct>
+    int close(graph_struct& g, std::vector<int>& isol)
     {
-        // full = true;
-
         auto colored{true};
         for (auto it{rbegin(order)}; colored and it != rend(order); ++it)
             colored = (color[*it] >= 0);
 
-				int ub{0};
+        int ub{0};
         for (auto v : order) {
 
             assert(isol[v] >= 0);
 
             color[v] = isol[v];
-						ub = std::max(ub, color[v]);
+            ub = std::max(ub, color[v]);
         }
-				++ub;
+        ++ub;
         if (use_recolor or !colored)
             for (auto v : order) {
-								neighbor_colors[v].resize(ub);
+                neighbor_colors[v].resize(ub);
                 neighbor_colors[v].clear();
-						}
+            }
 
         // update the color neighborhood ()
         for (auto it{rbegin(order)}; it != rend(order); ++it) {
@@ -1319,7 +1334,7 @@ struct dsatur {
 
         // std::cout << "size = " << last_vertex.size() << std::endl;
 
-				last_vertex.resize(ub + 1);
+        last_vertex.resize(ub + 1);
         auto d{last_vertex.size() - 1};
         for (auto it{begin(order)}; it != end(order); ++it) {
             auto v{*it};
@@ -1334,6 +1349,17 @@ struct dsatur {
         for (auto i{0}; i <= d; ++i) {
             last_vertex[i] = end(order);
         }
+
+        return ub;
+    }
+
+    template <class graph_struct, class RandomIt>
+    void init_local_search(graph_struct& g, std::vector<int>& isol,
+        RandomIt begin_search, RandomIt end_search)
+    {
+        // full = true;
+
+        int ub{close(g, isol)};
 
         visited.reinitialise(0, g.capacity() - 1, gc::bitset::empt);
         prev.resize(g.capacity(), -1);
