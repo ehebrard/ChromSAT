@@ -280,6 +280,11 @@ struct coloring_heuristic {
     // satur[y] was d+1, and is now d
     void move_down(const int y, const int d)
     {
+			
+			assert(d >= 0);
+			assert(d < last_vertex.size());
+			assert(last_vertex[d] != begin(order));
+			
         // swap y with *last_vertex[d]-1
         auto l{*(--last_vertex[d])};
 
@@ -425,9 +430,12 @@ struct coloring_heuristic {
 						// 	for(it=last_vertex[d]-1; it>=last_vertex[d+1]; --it)
 						//      if(reduce(g, *it)) break;
 						
-							for(auto it{rank[*vptr]}; it>=last_vertex[d+1]; --it)
-						     if(reduce(g, *it)) break;
+						for(auto it{rank[*vptr]}; it>=last_vertex[d+1]; --it)
+						  	if(reduce(g, *it)) break;
 						
+
+						d = neighbor_colors[*vptr].count();
+
 
             // print(g);
             // std::cout << std::endl;
@@ -532,7 +540,7 @@ struct coloring_heuristic {
         for (auto r{begin(order)}; r != end(order); ++r) {
 
             bool lim{false};
-            while (last_vertex[d] == r) {
+            while (d and last_vertex[d] == r) {
                 lim = true;
                 std::cout << "start[" << d - 1 << "] ";
                 --d;
