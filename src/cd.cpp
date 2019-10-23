@@ -2142,6 +2142,8 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
               << std::right << degeneracy << " " << std::setw(20) << std::right
               << (minicsp::cpuTime() - tbefore) << std::endl;
 
+    tbefore = minicsp::cpuTime();
+
     gc::coloring_heuristic ds;
 
     auto ncolor{ds.dsatur(g, degeneracy + 1)};
@@ -2158,6 +2160,8 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
     // 	std::cout << " " << coloring[v] ;
     // std::cout << std::endl;
 
+    tbefore = minicsp::cpuTime();
+
     ds.close(g);
 
     // auto chrom_deg{ds.color_degeneracy(g)};
@@ -2165,9 +2169,53 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
 
     std::cout << "\n"
               << std::setw(30) << std::left
-              << "chromatic degeneracy (1): " << std::setw(10) << std::right
-              << chrom_deg << " " << std::setw(20) << std::right
+              << "chromatic degeneracy ub: " << std::setw(10) << std::right
+              << (chrom_deg + 1) << " " << std::setw(20) << std::right
               << (minicsp::cpuTime() - tbefore) << std::endl;
+
+    tbefore = minicsp::cpuTime();
+
+    gc::clique_sampler cs;
+
+    cs.set_domain(begin(df.order), end(df.order), g.capacity(), true);
+
+    auto lb{2};
+    size_t width{1};
+    while (width <= 32) {
+
+        auto nlb{
+            cs.find_clique(g, lb, end(df.order), end(df.order), 128, width)};
+
+        if (nlb > lb) {
+            lb = nlb;
+        } else {
+            width *= 2;
+        }
+    }
+
+    std::cout << "\n"
+              << std::setw(30) << std::left
+              << "sampled clique: " << std::setw(10) << std::right << lb << " "
+              << std::setw(20) << std::right << (minicsp::cpuTime() - tbefore)
+              << std::endl << std::endl;
+
+    tbefore = minicsp::cpuTime();
+
+    dOmega::Graph graph;
+    convert(g, graph);
+
+    dOmega::Clique clique(graph, 1);
+
+    clique.findMaxClique(0, degeneracy, -1.0);
+    // clique.findMaxClique(0, chrom_deg, -1.0);
+
+    lb = static_cast<int>(clique.cliqueLB);
+
+    std::cout << "\n"
+              << std::setw(30) << std::left
+              << "dOmega clique: " << std::setw(10) << std::right << lb << " "
+              << std::setw(20) << std::right << (minicsp::cpuTime() - tbefore)
+              << std::endl;
 
     // // auto chrom_deg{ds.color_degeneracy(g)};
     // chrom_deg = ds.degeneracy(g, true);

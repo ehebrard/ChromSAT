@@ -125,6 +125,33 @@ struct clique_sampler {
 						probed = cand_set;
 
             auto p{probe(g)};
+						
+						
+#ifdef _CHECK_CLIQUES
+						assert(p == clique.size());
+            std::vector<int> Nv;
+						std::sort(clique.begin(), clique.end());
+            for (auto v : clique) {
+                std::set_intersection(g.matrix[v].begin(), g.matrix[v].end(),
+                    clique.begin(), clique.end(), std::back_inserter(Nv));
+                if (Nv.size() != clique.size() - 1) {
+                    std::cout << "N(" << v << ") = ";
+                    for (auto u : g.matrix[v])
+                        std::cout << " " << u;
+                    std::cout << "\nclique = ";
+                    for (auto u : clique)
+                        std::cout << " " << u;
+                    std::cout << "\n";
+                    std::cout << "intersection = ";
+                    for (auto u : Nv)
+                        std::cout << " " << u;
+                    std::cout << "\n";
+                    exit(1);
+                }
+                Nv.clear();
+            }
+#endif
+
             // std::cout << " " << p ;
             // std::cout.flush();
             lb = std::max(lb, p);
