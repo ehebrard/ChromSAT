@@ -2085,6 +2085,8 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
 {
     options.describe(std::cout);
 
+		double tbefore{minicsp::cpuTime()}, tnow;
+
     if (options.verbosity >= gc::options::NORMAL)
         std::cout << "[reading] ";
 
@@ -2126,10 +2128,14 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
             [&](int, gc::weight) {});
 
     g.canonize();
+		
+		tnow = minicsp::cpuTime();
+    std::cout << std::setw(20) << std::right
+              << (tnow - tbefore) << std::endl;
 
     // std::cout << g << std::endl;
 
-    double tbefore{minicsp::cpuTime()};
+    tbefore = tnow;
 
     gc::degeneracy_finder df(g);
 
@@ -2137,13 +2143,14 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
 
     auto degeneracy{df.degeneracy};
 
+		tnow = minicsp::cpuTime();
     std::cout << "\n"
               << std::setw(40) << std::left
               << "[data] degeneracy: " << std::setw(10) << std::right
               << degeneracy << " " << std::setw(20) << std::right
-              << (minicsp::cpuTime() - tbefore) << std::endl;
+              << (tnow - tbefore) << std::endl;
 
-    tbefore = minicsp::cpuTime();
+    tbefore = tnow;
 
     gc::coloring_heuristic ds;
 
@@ -2151,30 +2158,32 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
 
     auto coloring = ds.get_coloring();
 
+		tnow = minicsp::cpuTime();
     std::cout << "\n\n"
               << std::setw(40) << std::left
               << "[data] coloring ub: " << std::setw(10) << std::right << ncolor
               << " " << std::setw(20) << std::right
-              << (minicsp::cpuTime() - tbefore) << std::endl;
+              << (tnow - tbefore) << std::endl;
 
     // for(auto v : g.nodes)
     // 	std::cout << " " << coloring[v] ;
     // std::cout << std::endl;
 
-    tbefore = minicsp::cpuTime();
+    tbefore = tnow;
 
     ds.close(g);
 
     // auto chrom_deg{ds.color_degeneracy(g)};
     auto chrom_deg{ds.degeneracy(g, false)};
 
+		tnow = minicsp::cpuTime();
     std::cout << "\n"
               << std::setw(40) << std::left
               << "[data] chromatic degeneracy ub: " << std::setw(10)
               << std::right << (chrom_deg + 1) << " " << std::setw(20)
-              << std::right << (minicsp::cpuTime() - tbefore) << std::endl;
+              << std::right << (tnow - tbefore) << std::endl;
 
-    tbefore = minicsp::cpuTime();
+    tbefore = tnow;
 
     gc::clique_sampler<int> cs;
     cs.set_seed(options.seed);
@@ -2202,11 +2211,12 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
         }
     }
 
+		tnow = minicsp::cpuTime();
     std::cout << "\n"
               << std::setw(40) << std::left
               << "[data] sampled clique: " << std::setw(10) << std::right << lb
               << " " << std::setw(20) << std::right
-              << (minicsp::cpuTime() - tbefore) << std::endl
+              << (tnow - tbefore) << std::endl
               << std::endl;
 
     // for (auto x : cs.best)
@@ -2219,7 +2229,7 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
 
     // exit(1);
 
-    tbefore = minicsp::cpuTime();
+    tbefore = tnow;
 
     // dOmega::Graph graph;
     // convert(g, graph);
@@ -2258,24 +2268,27 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
     mc.greedy_color(g, weight);
 
     auto ncol{mc.numcolors};
+		tnow = minicsp::cpuTime();
     std::cout << "\n"
               << std::setw(40) << std::left
               << "[data] weighted coloring bound: " << std::setw(10)
               << std::right << ncol << " " << std::setw(20) << std::right
-              << (minicsp::cpuTime() - tbefore) << std::endl;
+              << (tnow - tbefore) << std::endl;
 
-    tbefore = minicsp::cpuTime();
+    tbefore = tnow;
 
     mc.greedy_uncolor(g, weight);
 
     auto wchrom_deg{mc.degeneracy};
+		
+		tnow = minicsp::cpuTime();
     std::cout << "\n"
               << std::setw(40) << std::left
               << "[data] weighted chromatic degeneracy: " << std::setw(10)
               << std::right << wchrom_deg << " " << std::setw(20) << std::right
-              << (minicsp::cpuTime() - tbefore) << std::endl;
+              << (tnow - tbefore) << std::endl;
 
-    tbefore = minicsp::cpuTime();
+    tbefore = tnow;
 
     // gc::clique_sampler<int> cs;
     // cs.set_seed(options.seed);
@@ -2303,11 +2316,12 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
         }
     }
 
+		tnow = minicsp::cpuTime();
     std::cout << "\n"
               << std::setw(40) << std::left
               << "[data] weighted sampled clique: " << std::setw(10)
               << std::right << lb << " " << std::setw(20) << std::right
-              << (minicsp::cpuTime() - tbefore) << std::endl
+              << (tnow - tbefore) << std::endl
               << std::endl;
 
     // std::cout << g << std::endl;

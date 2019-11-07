@@ -262,7 +262,7 @@ void multi_coloring_heuristic<T>::greedy_uncolor(graph_struct& g, map_struct& w)
     neighbor_colors.resize(g.size());
     for (auto& n : neighbor_colors) {
         n.clear();
-        n.initialise(colors.size());
+        n.initialise(independent_set.size()+1);
     }
 
     std::vector<int> order;
