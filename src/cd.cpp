@@ -2141,7 +2141,7 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
 
     df.degeneracy_ordering();
 
-    auto degeneracy{df.degeneracy};
+    auto degeneracy{df.degeneracy + 1};
 
 		tnow = minicsp::cpuTime();
     std::cout << "\n"
