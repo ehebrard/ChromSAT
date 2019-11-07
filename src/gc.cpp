@@ -157,7 +157,7 @@ struct gc_model {
 
     gc::graph<adjacency_struct>& original;
     gc::degeneracy_finder<gc::graph<adjacency_struct>> df;
-    gc::clique_sampler cs;
+    gc::clique_sampler<int> cs;
     gc::dsatur col;
     adjacency_struct toremove;
     gc::graph_reduction<adjacency_struct> reduction;

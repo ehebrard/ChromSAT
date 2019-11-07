@@ -158,7 +158,7 @@ struct gc_model {
 
     gc::graph<adjacency_struct>& original;
     gc::degeneracy_finder<gc::graph<adjacency_struct>> df;
-    gc::clique_sampler cs;
+    gc::clique_sampler<int> cs;
     gc::dsatur col;
     adjacency_struct toremove;
     gc::graph_reduction<adjacency_struct> reduction;
@@ -2138,8 +2138,9 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
     auto degeneracy{df.degeneracy};
 
     std::cout << "\n"
-              << std::setw(30) << std::left << "degeneracy: " << std::setw(10)
-              << std::right << degeneracy << " " << std::setw(20) << std::right
+              << std::setw(40) << std::left
+              << "[data] degeneracy: " << std::setw(10) << std::right
+              << degeneracy << " " << std::setw(20) << std::right
               << (minicsp::cpuTime() - tbefore) << std::endl;
 
     tbefore = minicsp::cpuTime();
@@ -2148,11 +2149,11 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
 
     auto ncolor{ds.dsatur(g, degeneracy + 1)};
 
-    auto coloring = ds.color;
+    auto coloring = ds.get_coloring();
 
-    std::cout << "\n"
-              << std::setw(30) << std::left
-              << "number of colors: " << std::setw(10) << std::right << ncolor
+    std::cout << "\n\n"
+              << std::setw(40) << std::left
+              << "[data] coloring ub: " << std::setw(10) << std::right << ncolor
               << " " << std::setw(20) << std::right
               << (minicsp::cpuTime() - tbefore) << std::endl;
 
@@ -2168,23 +2169,31 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
     auto chrom_deg{ds.degeneracy(g, false)};
 
     std::cout << "\n"
-              << std::setw(30) << std::left
-              << "chromatic degeneracy ub: " << std::setw(10) << std::right
-              << (chrom_deg + 1) << " " << std::setw(20) << std::right
-              << (minicsp::cpuTime() - tbefore) << std::endl;
+              << std::setw(40) << std::left
+              << "[data] chromatic degeneracy ub: " << std::setw(10)
+              << std::right << (chrom_deg + 1) << " " << std::setw(20)
+              << std::right << (minicsp::cpuTime() - tbefore) << std::endl;
 
     tbefore = minicsp::cpuTime();
 
-    gc::clique_sampler cs;
+    gc::clique_sampler<int> cs;
+    cs.set_seed(options.seed);
 
     cs.set_domain(begin(df.order), end(df.order), g.capacity(), true);
 
     auto lb{2};
     size_t width{1};
+
+    gc::no_weight<int> no_weights{1};
+
+    // std::vector<int> some_weights(g.size());
+    // for (auto i{0}; i < g.size(); ++i)
+    //     some_weights[i] = (i + 1) % 200;
+
     while (width <= 32) {
 
-        auto nlb{
-            cs.find_clique(g, lb, end(df.order), end(df.order), 128, width)};
+        auto nlb{cs.find_clique(
+            g, lb, end(df.order), end(df.order), 128, width, no_weights)};
 
         if (nlb > lb) {
             lb = nlb;
@@ -2194,34 +2203,124 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
     }
 
     std::cout << "\n"
-              << std::setw(30) << std::left
-              << "sampled clique: " << std::setw(10) << std::right << lb << " "
-              << std::setw(20) << std::right << (minicsp::cpuTime() - tbefore)
-              << std::endl << std::endl;
+              << std::setw(40) << std::left
+              << "[data] sampled clique: " << std::setw(10) << std::right << lb
+              << " " << std::setw(20) << std::right
+              << (minicsp::cpuTime() - tbefore) << std::endl
+              << std::endl;
+
+    // for (auto x : cs.best)
+    //     std::cout << " " << x;
+    // std::cout << std::endl;
+    //
+    // for (auto x : cs.best)
+    //     std::cout << " " << some_weights[x];
+    // std::cout << std::endl;
+
+    // exit(1);
 
     tbefore = minicsp::cpuTime();
 
-    dOmega::Graph graph;
-    convert(g, graph);
+    // dOmega::Graph graph;
+    // convert(g, graph);
+    //
+    // dOmega::Clique clique(graph, 1);
+    //
+    // clique.findMaxClique(0, degeneracy, -1.0);
+    // // clique.findMaxClique(0, chrom_deg, -1.0);
+    //
+    // lb = static_cast<int>(clique.cliqueLB);
+    //
+    // std::cout << "\n"
+    //           << std::setw(40) << std::left
+    //           << "dOmega clique: " << std::setw(10) << std::right << lb << "
+    //           "
+    //           << std::setw(20) << std::right << (minicsp::cpuTime() -
+    //           tbefore)
+    //           << std::endl;
 
-    dOmega::Clique clique(graph, 1);
+    // vector<int> is;
+    // gc::independent_set_heuristic ish;
+    // ish.find_is(g, g.nodes.begin(), g.nodes.end(), std::back_inserter(is));
+    //
+    // for(auto v : is)
+    // 	std::cout << " " << v ;
+    // std::cout << std::endl;
+    // // std::cout << std::endl;
 
-    clique.findMaxClique(0, degeneracy, -1.0);
-    // clique.findMaxClique(0, chrom_deg, -1.0);
+    vector<int> weight(g.size());
+    for (int i = 0; i < g.size(); ++i) {
+        weight[i] = (i + 1) % 200;
+    }
 
-    lb = static_cast<int>(clique.cliqueLB);
+    gc::multi_coloring_heuristic<int> mc;
+    mc.seed(options.seed);
+    mc.greedy_color(g, weight);
+
+    auto ncol{mc.numcolors};
+    std::cout << "\n"
+              << std::setw(40) << std::left
+              << "[data] weighted coloring bound: " << std::setw(10)
+              << std::right << ncol << " " << std::setw(20) << std::right
+              << (minicsp::cpuTime() - tbefore) << std::endl;
+
+    tbefore = minicsp::cpuTime();
+
+    mc.greedy_uncolor(g, weight);
+
+    auto wchrom_deg{mc.degeneracy};
+    std::cout << "\n"
+              << std::setw(40) << std::left
+              << "[data] weighted chromatic degeneracy: " << std::setw(10)
+              << std::right << wchrom_deg << " " << std::setw(20) << std::right
+              << (minicsp::cpuTime() - tbefore) << std::endl;
+
+    tbefore = minicsp::cpuTime();
+
+    // gc::clique_sampler<int> cs;
+    // cs.set_seed(options.seed);
+
+    cs.set_domain(begin(df.order), end(df.order), g.capacity(), true);
+
+    lb = 2;
+    width = 1;
+
+    // gc::no_weight<int> no_weights{1};
+
+    std::vector<int> some_weights(g.size());
+    for (auto i{0}; i < g.size(); ++i)
+        some_weights[i] = (i + 1) % 200;
+
+    while (width <= 32) {
+
+        auto nlb{cs.find_clique(
+            g, lb, end(df.order), end(df.order), 128, width, some_weights)};
+
+        if (nlb > lb) {
+            lb = nlb;
+        } else {
+            width *= 2;
+        }
+    }
 
     std::cout << "\n"
-              << std::setw(30) << std::left
-              << "dOmega clique: " << std::setw(10) << std::right << lb << " "
-              << std::setw(20) << std::right << (minicsp::cpuTime() - tbefore)
+              << std::setw(40) << std::left
+              << "[data] weighted sampled clique: " << std::setw(10)
+              << std::right << lb << " " << std::setw(20) << std::right
+              << (minicsp::cpuTime() - tbefore) << std::endl
               << std::endl;
+
+    // std::cout << g << std::endl;
+
+    // for(auto v : g.matrix[0])
+    // 	std::cout << " " << v ;
+    // std::cout << std::endl;
 
     // // auto chrom_deg{ds.color_degeneracy(g)};
     // chrom_deg = ds.degeneracy(g, true);
     //
     // std::cout << "\n"
-    //           << std::setw(30) << std::left
+    //           << std::setw(40) << std::left
     //           << "chromatic degeneracy (2): " << std::setw(10) << std::right
     //           << chrom_deg << " " << std::setw(20) << std::right
     //           << (minicsp::cpuTime() - tbefore) << std::endl;
@@ -2234,14 +2333,10 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
 
 int main(int argc, char* argv[])
 {
-
-
     auto options = gc::parse(argc, argv);
 
     gc::graph<gc::vertices_vec> g;
     auto result = chromatic_degeneracy(options, g);
 		
-		std::cout << result << std::endl;
-
     return result;
 }

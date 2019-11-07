@@ -7,6 +7,8 @@
 #ifndef __CLIQUESAMPLER_HPP
 #define __CLIQUESAMPLER_HPP
 
+// #define _DEBUG_SAMPLE
+
 namespace gc
 {
 
@@ -27,19 +29,42 @@ unsigned long xorshf96(void)
     return z;
 }
 
-struct clique_sampler {
+template <typename T> class no_weight
+{
+
+private:
+    T val;
+
+public:
+    no_weight(const T v)
+        : val(v)
+    {
+    }
+
+    inline T operator[](const int x) const { return val; }
+};
+
+template <typename T> struct clique_sampler {
+
+    // static const no_weight<T> default_w{1};
 
     std::vector<int> start_set;
     std::vector<int> cand_set;
     std::vector<int> probed;
     std::vector<std::vector<int>> domain;
+    std::vector<T> maxes;
     std::vector<int> buffer;
 
     gc::bitset nodeset;
 
     std::vector<int> clique;
-    int lb;
+    std::vector<int> best;
+    T clique_weight;
+    T max_weight;
+    T lb;
     size_t probewidth;
+
+    void set_seed(unsigned long s) { x = s; }
 
     clique_sampler() {}
 
@@ -53,6 +78,11 @@ struct clique_sampler {
     void set_domain(
         viterator first, viterator last, const int n, const bool full)
     {
+
+#ifdef _DEBUG_SAMPLE
+        std::cout << " sample domain:";
+#endif
+
         nodeset.reinitialise(0, n - 1, 0);
         start_set.clear();
 
@@ -73,26 +103,25 @@ struct clique_sampler {
 #endif
     }
 
-    template <class graph_struct, class viterator>
-    int find_clique(graph_struct& g, const int l, viterator first,
-        viterator last, const size_t basewidth, const size_t pw = 1)
+    template <class graph_struct, class viterator, class map_struct>
+    T find_clique(graph_struct& g, const T l, viterator first, viterator last,
+        const size_t basewidth, const size_t pw, const map_struct& weight)
     {
+
+#ifdef _DEBUG_SAMPLE
+        if (first != last)
+            std::cout << " start set (" << start_set.size() << "):";
+#endif
+
         lb = l;
         probewidth = pw;
 
         domain.resize(probewidth);
+        maxes.resize(probewidth);
 
-				// int count{0};
+        // collect possible starting points
         for (auto vp{first}; vp != last; ++vp) {
             start_set.push_back(*vp);
-
-						// if(count >= g.size()) {
-						// 	if(g.nodes.contain(*vp)) {
-						// 		std::cout << "GRR\n";
-						// 		exit(1);
-						// 	}
-						// }
-						// ++count;
 
 #ifdef _DEBUG_SAMPLE
             std::cout << " " << (*vp);
@@ -106,6 +135,7 @@ struct clique_sampler {
 
         auto limit{std::min(basewidth, start_set.size())};
 
+        // shuffle
         for (auto i{0}; i < limit; ++i) {
             std::swap(start_set[i],
                 start_set[i + (xorshf96() % (start_set.size() - i))]);
@@ -117,20 +147,32 @@ struct clique_sampler {
             
 						clique.clear();
             clique.push_back(v);
-						
+            clique_weight = weight[v];
+
             cand_set.clear();
             for (auto u : g.matrix[v])
-                if (nodeset.fast_contain(u))
+                if (nodeset.fast_contain(u)) {
                     cand_set.push_back(u);
-						probed = cand_set;
+                    max_weight += weight[u];
+                }
+            probed = cand_set;
 
-            auto p{probe(g)};
-						
-						
-#ifdef _CHECK_CLIQUES
-						assert(p == clique.size());
+            probe(g, weight);
+
+#ifdef _DEBUG_SAMPLE
+            std::cout << " find clique: "
+                      << print_container<std::vector<int>>(clique) << " ("
+                      << clique_weight << ")\n";
+#endif
+
+#ifdef _DEBUG_SAMPLE
+            T total{0};
+            for (auto x : clique)
+                total += weight[x];
+
+            assert(clique_weight == total);
             std::vector<int> Nv;
-						std::sort(clique.begin(), clique.end());
+            std::sort(clique.begin(), clique.end());
             for (auto v : clique) {
                 std::set_intersection(g.matrix[v].begin(), g.matrix[v].end(),
                     clique.begin(), clique.end(), std::back_inserter(Nv));
@@ -154,24 +196,34 @@ struct clique_sampler {
 
             // std::cout << " " << p ;
             // std::cout.flush();
-            lb = std::max(lb, p);
+            // lb = std::max(lb, clique_weight);
+            if (clique_weight > lb) {
+                lb = clique_weight;
+                best = clique;
+            }
         }
 				// std::cout << std::endl;
 
         return lb;
     }
 
-    template <class graph_struct> int probe(graph_struct& g)
+    template <class graph_struct, class map_struct>
+    T probe(graph_struct& g, const map_struct& weight)
     {
 
 #ifdef _DEBUG_SAMPLE
         std::cout << "probe (" << lb
-                  << "): " << print_container<std::vector<int>>(clique) << " + "
-                  << print_container<std::vector<int>>(cand_set) << std::endl;
+                  << "): " << print_container<std::vector<int>>(clique) << " ("
+                  << clique_weight << ") + "
+                  << print_container<std::vector<int>>(cand_set) << " ("
+                  << max_weight << ")" << std::endl;
 #endif
 
-        if (clique.size() + cand_set.size() <= lb or cand_set.size() == 0)
-            return clique.size();
+        // if (clique.size() + cand_set.size() <= lb or cand_set.size() == 0)
+        //     return clique.size();
+
+        if (clique_weight + max_weight <= lb or cand_set.size() == 0)
+            return clique_weight;
 
         auto w{std::min(probewidth, cand_set.size())};
 
@@ -181,7 +233,7 @@ struct clique_sampler {
             std::swap(
                 probed[i], probed[i + (xorshf96() % (probed.size() - i))]);
 
-            auto v{cand_set[i]};
+            auto v{probed[i]};
             domain[i].clear();
             for (auto u : g.matrix[v])
                 if (nodeset.fast_contain(u))
@@ -195,20 +247,28 @@ struct clique_sampler {
             // Copy the buffer in domain[i]
             std::swap(buffer, domain[i]);
 
+            maxes[i] = 0;
+            for (auto u : domain[i])
+                maxes[i] += weight[u];
+
 #ifdef _DEBUG_SAMPLE
-            std::cout << v << " -> " << domain[i].size() << std::endl;
+            std::cout << v << " -> " << maxes[i] << std::endl;
 #endif
 
-            if (domain[largest].size() < domain[i].size())
+            if (maxes[largest] < maxes[i])
                 largest = i;
+            // if (domain[largest].size() < domain[i].size())
+            //     largest = i;
         }
 
-        clique.push_back(cand_set[largest]);
+        clique.push_back(probed[largest]);
+        clique_weight += weight[probed[largest]];
+        max_weight = maxes[largest];
 
         std::swap(cand_set, domain[largest]);
         probed = cand_set;
 
-        return probe(g);
+        return probe(g, weight);
     }
 };
 
