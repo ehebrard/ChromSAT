@@ -2187,14 +2187,14 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
     ds.close(g);
 
     // auto chrom_deg{ds.color_degeneracy(g)};
-    auto chrom_deg{ds.degeneracy(g, false)};
+    auto chrom_deg{ds.degeneracy(g, false) + 1};
 
-		tnow = minicsp::cpuTime();
+    tnow = minicsp::cpuTime();
     std::cout << "\n"
               << std::setw(40) << std::left
-              << "[data] chromatic degeneracy: " << std::setw(10)
-              << std::right << (chrom_deg + 1) << " " << std::setw(20)
-              << std::right << (tnow - tbefore) << std::endl;
+              << "[data] chromatic degeneracy: " << std::setw(10) << std::right
+              << chrom_deg << " " << std::setw(20) << std::right
+              << (tnow - tbefore) << std::endl;
 
     tbefore = tnow;
 
@@ -2225,55 +2225,66 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
     }
 
 		tnow = minicsp::cpuTime();
-    std::cout << "\n"
-              << std::setw(40) << std::left
-              << "[data] sampled clique: " << std::setw(10) << std::right << lb
-              << " " << std::setw(20) << std::right
-              << (tnow - tbefore) << std::endl
-              << std::endl;
+                std::cout << "\n"
+                          << std::setw(40) << std::left
+                          << "[data] sampled clique: " << std::setw(10)
+                          << std::right << lb << " " << std::setw(20)
+                          << std::right << (tnow - tbefore) << std::endl
+                          << std::endl
+                          << std::setw(40) << std::left
+                          << "[data] cd delta: " << std::setw(10) << std::right
+                          << (ncolor == lb
+                                     ? 0
+                                     : static_cast<double>(ncolor - chrom_deg)
+                                         / static_cast<double>(ncolor - lb))
+                          << " " << std::setw(20) << std::right
+                          << (tnow - tbefore) << std::endl;
 
-    // for (auto x : cs.best)
-    //     std::cout << " " << x;
-    // std::cout << std::endl;
-    //
-    // for (auto x : cs.best)
-    //     std::cout << " " << some_weights[x];
-    // std::cout << std::endl;
+                // for (auto x : cs.best)
+                //     std::cout << " " << x;
+                // std::cout << std::endl;
+                //
+                // for (auto x : cs.best)
+                //     std::cout << " " << some_weights[x];
+                // std::cout << std::endl;
 
-    // exit(1);
+                // exit(1);
 
-    tbefore = tnow;
+                tbefore = tnow;
 
-    // dOmega::Graph graph;
-    // convert(g, graph);
-    //
-    // dOmega::Clique clique(graph, 1);
-    //
-    // clique.findMaxClique(0, degeneracy, -1.0);
-    // // clique.findMaxClique(0, chrom_deg, -1.0);
-    //
-    // lb = static_cast<int>(clique.cliqueLB);
-    //
-    // std::cout << "\n"
-    //           << std::setw(40) << std::left
-    //           << "dOmega clique: " << std::setw(10) << std::right << lb << "
-    //           "
-    //           << std::setw(20) << std::right << (minicsp::cpuTime() -
-    //           tbefore)
-    //           << std::endl;
+                // dOmega::Graph graph;
+                // convert(g, graph);
+                //
+                // dOmega::Clique clique(graph, 1);
+                //
+                // clique.findMaxClique(0, degeneracy, -1.0);
+                // // clique.findMaxClique(0, chrom_deg, -1.0);
+                //
+                // lb = static_cast<int>(clique.cliqueLB);
+                //
+                // std::cout << "\n"
+                //           << std::setw(40) << std::left
+                //           << "dOmega clique: " << std::setw(10) << std::right
+                //           << lb << "
+                //           "
+                //           << std::setw(20) << std::right <<
+                //           (minicsp::cpuTime() -
+                //           tbefore)
+                //           << std::endl;
 
-    // vector<int> is;
-    // gc::independent_set_heuristic ish;
-    // ish.find_is(g, g.nodes.begin(), g.nodes.end(), std::back_inserter(is));
-    //
-    // for(auto v : is)
-    // 	std::cout << " " << v ;
-    // std::cout << std::endl;
-    // // std::cout << std::endl;
+                // vector<int> is;
+                // gc::independent_set_heuristic ish;
+                // ish.find_is(g, g.nodes.begin(), g.nodes.end(),
+                // std::back_inserter(is));
+                //
+                // for(auto v : is)
+                // 	std::cout << " " << v ;
+                // std::cout << std::endl;
+                // // std::cout << std::endl;
 
-    vector<int> weight(g.size());
-    for (int i = 0; i < g.size(); ++i) {
-        weight[i] = (i + 1) % 200;
+                vector<int> weight(g.size());
+                for (int i = 0; i < g.size(); ++i) {
+                    weight[i] = (i + 1) % 200;
     }
 
     gc::multi_coloring_heuristic<int> mc;
@@ -2330,16 +2341,22 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
     }
 
 		tnow = minicsp::cpuTime();
-    std::cout << "\n"
-              << std::setw(40) << std::left
-              << "[data] weighted sampled clique: " << std::setw(10)
-              << std::right << wlb << " " << std::setw(20) << std::right
-              << (tnow - tbefore) << std::endl
-              << std::endl;
-		
-		
-		
-		if(wlb > wchrom_deg or lb > chrom_deg)
+                std::cout << "\n"
+                          << std::setw(40) << std::left
+                          << "[data] weighted sampled clique: " << std::setw(10)
+                          << std::right << wlb << " " << std::setw(20)
+                          << std::right << (tnow - tbefore) << std::endl
+                          << std::endl
+                          << std::setw(40) << std::left
+                          << "[data] cd delta: " << std::setw(10) << std::right
+                          << (wncolor == wlb
+                                     ? 0
+                                     : static_cast<double>(wncolor - wchrom_deg)
+                                         / static_cast<double>(wncolor - wlb))
+                          << " " << std::setw(20) << std::right
+                          << (tnow - tbefore) << std::endl;
+
+                if(wlb > wchrom_deg or lb > chrom_deg)
 		{
 			std::cout << "\n[error] wrong bound\n";
 		} else if (wchrom_deg > wncolor) {
