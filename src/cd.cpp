@@ -2130,8 +2130,21 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
     g.canonize();
 		
 		tnow = minicsp::cpuTime();
-    std::cout << std::setw(20) << std::right
+		
+    std::cout << "\n\n"
+              << std::setw(40) << std::left
+              << "[data] vertices: " << std::setw(10) << std::right
+              << g.size() << " " << std::setw(20) << std::right
               << (tnow - tbefore) << std::endl;
+		
+    std::cout << "\n"
+              << std::setw(40) << std::left
+              << "[data] edges: " << std::setw(10) << std::right
+              << g.count_edges() << " " << std::setw(20) << std::right
+              << (tnow - tbefore) << std::endl;
+    //
+    // std::cout << std::setw(20) << std::right
+    //           << (tnow - tbefore) << std::endl;
 
     // std::cout << g << std::endl;
 
@@ -2179,7 +2192,7 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
 		tnow = minicsp::cpuTime();
     std::cout << "\n"
               << std::setw(40) << std::left
-              << "[data] chromatic degeneracy ub: " << std::setw(10)
+              << "[data] chromatic degeneracy: " << std::setw(10)
               << std::right << (chrom_deg + 1) << " " << std::setw(20)
               << std::right << (tnow - tbefore) << std::endl;
 
@@ -2267,12 +2280,12 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
     mc.seed(options.seed);
     mc.greedy_color(g, weight);
 
-    auto ncol{mc.numcolors};
+    auto wncolor{mc.numcolors};
 		tnow = minicsp::cpuTime();
     std::cout << "\n"
               << std::setw(40) << std::left
-              << "[data] weighted coloring bound: " << std::setw(10)
-              << std::right << ncol << " " << std::setw(20) << std::right
+              << "[data] weighted coloring ub: " << std::setw(10)
+              << std::right << wncolor << " " << std::setw(20) << std::right
               << (tnow - tbefore) << std::endl;
 
     tbefore = tnow;
@@ -2295,7 +2308,7 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
 
     cs.set_domain(begin(df.order), end(df.order), g.capacity(), true);
 
-    lb = 2;
+    int wlb{2};
     width = 1;
 
     // gc::no_weight<int> no_weights{1};
@@ -2307,10 +2320,10 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
     while (width <= 32) {
 
         auto nlb{cs.find_clique(
-            g, lb, end(df.order), end(df.order), 128, width, some_weights)};
+            g, wlb, end(df.order), end(df.order), 128, width, some_weights)};
 
-        if (nlb > lb) {
-            lb = nlb;
+        if (nlb > wlb) {
+            wlb = nlb;
         } else {
             width *= 2;
         }
@@ -2320,10 +2333,20 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
     std::cout << "\n"
               << std::setw(40) << std::left
               << "[data] weighted sampled clique: " << std::setw(10)
-              << std::right << lb << " " << std::setw(20) << std::right
+              << std::right << wlb << " " << std::setw(20) << std::right
               << (tnow - tbefore) << std::endl
               << std::endl;
-
+		
+		
+		
+		if(wlb > wchrom_deg or lb > chrom_deg)
+		{
+			std::cout << "\n[error] wrong bound\n";
+		} else if (wchrom_deg > wncolor) {
+			std::cout << "\n[error] wrong wcd\n";
+		} else if (chrom_deg > ncolor) {
+			std::cout << "\n[error] wrong cd\n";
+		}
     // std::cout << g << std::endl;
 
     // for(auto v : g.matrix[0])
