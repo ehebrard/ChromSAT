@@ -1240,7 +1240,8 @@ void degeneracy_finder<graph_struct>::degeneracy_ordering()
         ordered[v] = true;
 
         for (auto u : g.matrix[v]) {
-            if (!g.nodes.contain(u) or ordered[u])
+            // if (!g.nodes.contain(u) or ordered[u])
+					if (not g.contain(u) or ordered[u])
                 continue;
             auto& ud = degrees[u];
             buckets[ud].erase(iterators[u]);

@@ -228,6 +228,8 @@ public:
 
     size_t size() const { return nodes.size(); }
     size_t capacity() const { return nodes.capacity(); }
+		
+		bool contain(const int v) const {return nodeset[v];}
 
     void add_neighbor(const int u, const int v);
 

@@ -3,10 +3,10 @@
 #include "brancher.hpp"
 #include "ca_graph.hpp"
 #include "cliquesampler.hpp"
+#include "coloring_heuristic.hpp"
 #include "csv.hpp"
 #include "dimacs.hpp"
 #include "dsatur.hpp"
-#include "coloring_heuristic.hpp"
 #include "edgeformat.hpp"
 #include "fillin.hpp"
 #include "graph.hpp"
@@ -17,6 +17,8 @@
 #include "reduction.hpp"
 #include "rewriter.hpp"
 #include "snap.hpp"
+#include "sorted_graph.hpp"
+#include "clique_algo.hpp"
 #include "sparse_dynamic_graph.hpp"
 #include "statistics.hpp"
 #include "utils.hpp"
@@ -2081,6 +2083,126 @@ int color(gc::options& options, gc::graph<input_format>& g)
     return 0;
 }
 
+template <class graph_struct> int testgr(gc::options& options, graph_struct& g)
+{
+
+    options.describe(std::cout);
+
+    double tbefore{minicsp::cpuTime()}, tnow;
+
+    if (options.verbosity >= gc::options::NORMAL)
+        std::cout << "[reading] ";
+
+    std::vector<std::pair<int, int>> edges;
+    if (options.format == "snap")
+        snap::read_graph(options.instance_file.c_str(),
+            [&](int nv, int) { g = graph_struct{nv}; },
+            [&](int u, int v) {
+                if (u != v) {
+                    g.add_edge(u, v);
+                }
+            },
+            [&](int, gc::weight) {});
+    else if (options.format == "csv")
+        csv::read_graph(options.instance_file.c_str(),
+            [&](int nv, int) { g = graph_struct{nv}; },
+            [&](int u, int v) {
+                if (u != v) {
+                    g.add_edge(u, v);
+                }
+            },
+            [&](int, gc::weight) {});
+    else if (options.format == "edg")
+        edgeformat::read_graph(options.instance_file.c_str(),
+            [&](int nv, int ne) { g = graph_struct{nv}; },
+            [&](int u, int v) { g.add_edge(u, v); }, [&](int, gc::weight) {});
+    else
+        dimacs::read_graph(options.instance_file.c_str(),
+            [&](int nv, int) {
+                g = graph_struct{nv};
+            },
+            [&](int u, int v) {
+                if (u != v) {
+                    g.add_edge(u - 1, v - 1);
+                    if (options.checksolution)
+                        edges.push_back(std::pair<int, int>{u - 1, v - 1});
+                }
+            },
+            [&](int, gc::weight) {});
+
+    g.canonize();
+
+    tnow = minicsp::cpuTime();
+
+    std::cout << "\n\n"
+              << std::setw(40) << std::left
+              << "[data] vertices: " << std::setw(10) << std::right << g.size()
+              << " " << std::setw(20) << std::right << (tnow - tbefore)
+              << std::endl;
+
+    std::cout << "\n"
+              << std::setw(40) << std::left << "[data] edges: " << std::setw(10)
+              << std::right << g.num_edge() << " " << std::setw(20)
+              << std::right << (tnow - tbefore) << std::endl;
+		
+		
+		std::cout << g << std::endl;
+		
+		gc::clique_algo A(g);
+		
+		A.initialise_lower_bound();
+		
+		A.search();
+		
+		
+		// A.add_to_clique(13);
+		//
+		// g.describe(std::cout, 3);
+		// std::cout << std::endl;
+		// // std::cout << g << std::endl;
+		//
+		// // g.undo();
+		// A.undo();
+		//
+		// A.add_to_clique(27);
+		//
+		// g.describe(std::cout, 3);
+		// std::cout << std::endl;
+		// // std::cout << g << std::endl;
+		//
+		// // g.undo();
+		// A.undo();
+		//
+		// g.describe(std::cout, 3);
+		//
+		// A.add_to_clique(8);
+		//
+		// g.describe(std::cout, 3);
+		// std::cout << std::endl;
+		//
+		//
+		// A.commit();
+		//
+		// A.add_to_clique(65);
+		//
+		// g.describe(std::cout, 3);
+		// std::cout << std::endl;
+		//
+		// // std::cout << g << std::endl;
+		//
+		// A.undo();
+		// A.backtrack();
+		//
+		// g.describe(std::cout, 3);
+		//
+		// A.undo();
+		// A.backtrack();
+		//
+		// g.describe(std::cout, 3);
+
+    return 1;
+}
+
 template <class graph_struct> int chromatic_degeneracy(gc::options& options, graph_struct& g)
 {
     options.describe(std::cout);
@@ -2348,7 +2470,7 @@ template <class graph_struct> int chromatic_degeneracy(gc::options& options, gra
                           << std::right << (tnow - tbefore) << std::endl
                           << std::endl
                           << std::setw(40) << std::left
-                          << "[data] cd delta: " << std::setw(10) << std::right
+                          << "[data] wcd delta: " << std::setw(10) << std::right
                           << (wncolor == wlb
                                      ? 0
                                      : static_cast<double>(wncolor - wchrom_deg)
@@ -2389,8 +2511,16 @@ int main(int argc, char* argv[])
 {
     auto options = gc::parse(argc, argv);
 
-    gc::graph<gc::vertices_vec> g;
-    auto result = chromatic_degeneracy(options, g);
-		
+    // gc::graph<gc::vertices_vec> g;
+    // auto result = chromatic_degeneracy(options, g);
+
+    std::cout << 11 << std::endl;
+
+    gc::sorted_graph g;
+
+    std::cout << 22 << std::endl;
+
+    auto result = testgr(options, g);
+
     return result;
 }

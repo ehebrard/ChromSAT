@@ -1,5 +1,4 @@
 #include <iomanip>
-#include <iomanip>
 #include <iostream>
 
 #include "graph.hpp"
@@ -10,8 +9,6 @@
 #include "statistics.hpp"
 
 #include <boost/dynamic_bitset.hpp>
-
-#include <minicsp/core/utils.hpp>
 
 #ifndef __COLORING_HEURISTIC_HPP
 #define __COLORING_HEURISTIC_HPP
@@ -94,7 +91,7 @@ public:
     template <class graph_struct> void close(graph_struct& g);
 
     template <class graph_struct>
-    int degeneracy(graph_struct& g, const bool use_recolor = false);
+    int degeneracy(graph_struct& g, const bool use_recolor = false, const int k=0);
 
     // try to find a color for y within x's neighborhood
     template <class graph_struct>
@@ -106,6 +103,14 @@ public:
     void clear();
 
     template <class graph_struct> void print(graph_struct& g);
+		
+    // store info about the colors of the niehgbors in 'color'
+    std::vector<coldomain<int>> neighbor_colors;
+
+    // ordered list of the vertices of the graph
+    std::vector<int> order;
+		
+		std::vector<int>::reverse_iterator core;
 
 private:
     // // store the best full coloring
@@ -119,14 +124,14 @@ private:
     // number of distinct colors in 'color'
     size_t numcolors;
 
-    // store info about the colors of the niehgbors in 'color'
-    std::vector<coldomain<int>> neighbor_colors;
+    // // store info about the colors of the niehgbors in 'color'
+    // std::vector<coldomain<int>> neighbor_colors;
 
     // degree of the vertices in the graph
     std::vector<int> degree;
 
-    // ordered list of the vertices of the graph
-    std::vector<int> order;
+    // // ordered list of the vertices of the graph
+    // std::vector<int> order;
 
     // rank of every vertex in 'order'
     std::vector<std::vector<int>::iterator> rank;
@@ -204,14 +209,14 @@ template <class graph_struct, class map_struct>
 void multi_coloring_heuristic<T>::greedy_color(graph_struct& g, map_struct& w)
 {
 
-    nodes.reserve(g.size());
-    nodes.fill();
+    nodes.reserve(g.capacity());
+    // nodes.fill();
 
     residual_weight.resize(g.size());
     for (auto v : g.nodes) {
         residual_weight[v] = w[v];
-        if (residual_weight[v] == 0)
-            nodes.remove(v);
+        if (residual_weight[v] != 0)
+            nodes.add(v);
     }
 
     while (!nodes.empty()) {
@@ -249,27 +254,22 @@ template <class graph_struct, class map_struct>
 void multi_coloring_heuristic<T>::greedy_uncolor(graph_struct& g, map_struct& w)
 {
     colors.clear();
-    colors.resize(g.size());
+    colors.resize(g.capacity());
     for (auto i{0}; i < independent_set.size(); ++i) {
-        // std::cout << i << " (" << ncolors[i] << "):";
         for (auto v : independent_set[i]) {
             colors[v].push_back(i);
-            // std::cout << " " << v;
         }
-        // std::cout << std::endl;
     }
 
-    neighbor_colors.resize(g.size());
+    neighbor_colors.resize(g.capacity());
     for (auto& n : neighbor_colors) {
         n.clear();
         n.initialise(independent_set.size()+1);
     }
 
     std::vector<int> order;
-    // std::vector<int> reverse;
     for (auto v : g.nodes) {
         order.push_back(v);
-        // reverse.push_back(v);
         for (auto u : g.matrix[v])
             for (auto c : colors[v])
                 neighbor_colors[u].add(c, ncolors[c]);
@@ -307,29 +307,19 @@ void multi_coloring_heuristic<T>::greedy_uncolor(graph_struct& g, map_struct& w)
     }};
     heap::heapify(order.begin(), order.end(), comp);
 
-    std::vector<int> rank(g.size());
+    std::vector<int> rank(g.capacity());
     auto r{0};
     for (auto v : order) {
-        // std::cout << neighbor_colors[v] << std::endl;
         rank[v] = r++;
     }
 
-    // std::cout << g << std::endl;
-
-    // T cdegeneracy{0};
     while (not order.empty()) {
 
         order.pop_back();
         std::swap(*begin(order), *end(order));
         auto i{heap::percolate_down(begin(order), end(order), 0, comp)};
 
-        // std::cout << *end(order) << ": 0 -> " << i << std::endl;
-
-        // for()
         while (true) {
-
-            // std::cout << "rank[" << order[i] << "] = " << i << std::endl;
-
             rank[order[i]] = i;
             if (i == 0)
                 break;
@@ -337,40 +327,21 @@ void multi_coloring_heuristic<T>::greedy_uncolor(graph_struct& g, map_struct& w)
         }
 
         auto v{*end(order)};
-
         auto d{w[v] + neighbor_colors[v].count()};
 
         degeneracy = std::max(degeneracy, d);
-
-        // std::cout << "uncolor " << v << ": (" << (w[v] +
-        // neighbor_colors[v].count()) << ")\n " ;//<< neighbor_colors[v] <<
-        // std::endl;
 
         for (auto u : g.matrix[v]) {
             if (rank[u] < order.size()) {
                 auto update{false};
 
-                // auto old{neighbor_colors[u].count()};
-
                 for (auto c : colors[v])
                     update |= neighbor_colors[u].remove(c, ncolors[c]);
 
                 if (update) {
-
-                    // std::cout << "update " << u << " was " << old << " now "
-                    //           << neighbor_colors[u].count() << " (+" << w[u]
-                    //           << ")" << std::endl;
-
                     auto j{heap::percolate_up(
                         begin(order), end(order), rank[u], comp)};
                     for (auto k{rank[u]};; k = --k / 2) {
-
-                        // std::cout << "rank[" << order[k] << "] = " << k <<
-                        // "("
-                        //           << neighbor_colors[order[k]].count() << " +
-                        //           "
-                        //           << w[order[k]] << ")" << std::endl;
-
                         rank[order[k]] = k;
                         if (k == j)
                             break;
@@ -378,8 +349,6 @@ void multi_coloring_heuristic<T>::greedy_uncolor(graph_struct& g, map_struct& w)
                 }
             }
         }
-
-// heap::rank(begin(order), 0, i, rank);
 
 #ifdef CHECK
         auto r{0};
@@ -410,13 +379,6 @@ void multi_coloring_heuristic<T>::greedy_uncolor(graph_struct& g, map_struct& w)
 
         // exit(1);
     }
-
-    // order.resize(g.size());
-
-    // for(auto v : reverse)
-    // 	std::cout << neighbor_colors[v] << std::endl;
-
-    // return cdegeneracy;
 }
 
 /************* IMPlEMENTATION **************/
@@ -516,10 +478,10 @@ std::ostream& operator<<(std::ostream& os, const coldomain<T>* x)
     return os;
 }
 
-const std::vector<int>& coloring_heuristic::get_coloring() const
-{
-    return color;
-}
+// const std::vector<int>& coloring_heuristic::get_coloring() const
+// {
+//     return color;
+// }
 
 // initialise the structures w. r. t. graph g and upper bound ub
 template <class graph_struct, class compare>
@@ -528,13 +490,17 @@ void coloring_heuristic::initialise(graph_struct& g, const int ub,
 {
     numcolors = 0;
     best_numcolors = 0;
+		
+		color.clear();
+		color.resize(g.capacity(), -1);
+		
     rank.resize(g.capacity());
-    color.resize(g.capacity(), -1);
     degree.resize(g.capacity());
 
+		order.clear();
     for (auto v : g.nodes) {
         order.push_back(v);
-        degree[v] = g.matrix[v].size();
+        degree[v] = g.degree(v);
     }
     std::shuffle(begin(order), end(order), random_generator);
     std::sort(begin(order), end(order), comp);
@@ -582,38 +548,38 @@ void coloring_heuristic::unassign_color(graph_struct& g, const int x)
                 move_down(y, neighbor_colors[y].count() + 1);
 }
 
-// satur[y] was d, and is now d+1
-void coloring_heuristic::move_up(const int y, const int d)
-{
-    // swap y with *last_vertex[d]
-    auto l{*last_vertex[d]};
-
-    rank[l] = rank[y];
-    rank[y] = last_vertex[d];
-
-    *rank[y] = y;
-    *rank[l] = l;
-
-    ++last_vertex[d];
-}
-
-// satur[y] was d+1, and is now d
-void coloring_heuristic::move_down(const int y, const int d)
-{
-
-    assert(d >= 0);
-    assert(d < last_vertex.size());
-    assert(last_vertex[d] != begin(order));
-
-    // swap y with *last_vertex[d]-1
-    auto l{*(--last_vertex[d])};
-
-    rank[l] = rank[y];
-    rank[y] = last_vertex[d];
-
-    *rank[y] = y;
-    *rank[l] = l;
-}
+// // satur[y] was d, and is now d+1
+// void coloring_heuristic::move_up(const int y, const int d)
+// {
+//     // swap y with *last_vertex[d]
+//     auto l{*last_vertex[d]};
+//
+//     rank[l] = rank[y];
+//     rank[y] = last_vertex[d];
+//
+//     *rank[y] = y;
+//     *rank[l] = l;
+//
+//     ++last_vertex[d];
+// }
+//
+// // satur[y] was d+1, and is now d
+// void coloring_heuristic::move_down(const int y, const int d)
+// {
+//
+//     assert(d >= 0);
+//     assert(d < last_vertex.size());
+//     assert(last_vertex[d] != begin(order));
+//
+//     // swap y with *last_vertex[d]-1
+//     auto l{*(--last_vertex[d])};
+//
+//     rank[l] = rank[y];
+//     rank[y] = last_vertex[d];
+//
+//     *rank[y] = y;
+//     *rank[l] = l;
+// }
 
 template <class graph_struct, typename tiebreaker>
 int coloring_heuristic::brelaz_greedy(graph_struct& g, const int ub,
@@ -680,7 +646,7 @@ template <class graph_struct>
 int coloring_heuristic::dsatur(
     graph_struct& g, const int ub, const int limit, const int seed)
 {
-    if (g.nodes.empty())
+    if (g.empty())
         return 0;
 
     random_generator.seed(seed);
@@ -743,11 +709,14 @@ template <class graph_struct> void coloring_heuristic::close(graph_struct& g)
 }
 
 template <class graph_struct>
-int coloring_heuristic::degeneracy(graph_struct& g, const bool use_recolor)
+int coloring_heuristic::degeneracy(graph_struct& g, const bool use_recolor, const int k)
 {
     beg_update = begin(order);
     end_update = end(order);
+		
+		core = rend(order);
 
+		bool not_found{true};
     int dgn{0};
     for (auto vptr{rbegin(order)}; vptr != rend(order); ++vptr) {
         int d = neighbor_colors[*vptr].count();
@@ -760,6 +729,13 @@ int coloring_heuristic::degeneracy(graph_struct& g, const bool use_recolor)
         }
 
         dgn = std::max(dgn, d);
+				
+				// std::cout << dgn << " / " << k << std::endl;
+				
+				if(not_found and dgn >= k) {
+					core = vptr;
+					not_found = false;
+				}
 
         // move all the pointers >= d
         while (d >= 0)
@@ -768,6 +744,8 @@ int coloring_heuristic::degeneracy(graph_struct& g, const bool use_recolor)
         --end_update;
         unassign_color(g, *vptr);
     }
+		
+		// assert(not not_found);
 
     return dgn;
 }
@@ -799,15 +777,15 @@ bool coloring_heuristic::reduce(graph_struct& g, const int x)
     return reduction > 0;
 }
 
-void coloring_heuristic::clear()
-{
-    last_vertex.clear();
-    color.clear();
-    if (neighbor_colors.size() > 0)
-        for (auto v : order)
-            neighbor_colors[v].clear();
-    order.clear();
-}
+// void coloring_heuristic::clear()
+// {
+//     last_vertex.clear();
+//     color.clear();
+//     if (neighbor_colors.size() > 0)
+//         for (auto v : order)
+//             neighbor_colors[v].clear();
+//     order.clear();
+// }
 
 template <class graph_struct> void coloring_heuristic::print(graph_struct& g)
 {
