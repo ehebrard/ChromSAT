@@ -153,30 +153,6 @@ bool clique_algo::root_node() {
 
 void clique_algo::search() {
 	
-	// ok
-	// c
-	// b 1,2,3
-	// 	a +3
-	// 	ok
-	// 	c
-	// 	b 4,5
-	// 		a +5
-	// 		f
-	// 	u -5
-	// 		a +4
-	// 		f
-	// 	u -4
-	// 	z
-	// u -3
-	
-	/*
-	
-	
-	*/
-	
-	
-	
-	
 	
 	try {
 	while(true) {

@@ -1,5 +1,4 @@
 #include <iomanip>
-#include <iomanip>
 #include <iostream>
 
 #include "graph.hpp"

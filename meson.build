@@ -2,6 +2,10 @@ project('gc', ['c', 'cpp'],
 	default_options : ['c_std=c11', 'cpp_std=c++17'])
 compiler = meson.get_compiler('cpp')
 
+
+boost_inc = include_directories('/Users/Shared/boost_1_78_0')
+boost_dep = declare_dependency(include_directories: boost_inc)
+
 basic_lib = static_library('basic', ['src/intstack.cpp',
              'src/ca_graph.cpp',
 						 'src/sorted_graph.cpp',
@@ -54,7 +58,7 @@ thread_dep = dependency('threads')
 
 executable('gc', ['src/gc.cpp'],
 	   dependencies: [minicsp_dep, basic_dep, prop_dep,
-			  segundo_dep, domega_dep, thread_dep])
+			  segundo_dep, domega_dep, thread_dep, boost_dep])
 
 executable('cd', ['src/cd.cpp'],
 	   dependencies: [minicsp_dep, basic_dep, prop_dep,
@@ -90,6 +94,8 @@ if use_gecode
   executable('gecode-gc', ['sota/graph-color.cpp'],
 	     dependencies: [gecode_dep, basic_dep])
 endif
+
+
 
 executable('minicolor-converter',
 	   ['sota/converter/main.c',
