@@ -3,7 +3,7 @@ project('gc', ['c', 'cpp'],
 compiler = meson.get_compiler('cpp')
 
 
-boost_inc = include_directories('/Users/Shared/boost_1_78_0')
+boost_inc = include_directories('/Users/Shared/boost_1_80_0')
 boost_dep = declare_dependency(include_directories: boost_inc)
 
 basic_lib = static_library('basic', ['src/intstack.cpp',

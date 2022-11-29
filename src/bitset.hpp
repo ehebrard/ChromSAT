@@ -1839,7 +1839,7 @@ template <class WORD_TYPE, class FLOAT_TYPE> struct bitset_iterator {
     using value_type = int;
     using pointer = const int*;
     using reference = const int&;
-    using iterator_category = std::input_iterator_tag;
+    using iterator_category = std::forward_iterator_tag;
 
     Bitset<WORD_TYPE, FLOAT_TYPE> const* bs;
     int cur, next;
