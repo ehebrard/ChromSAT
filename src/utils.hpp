@@ -55,28 +55,28 @@ std::ostream& operator<<(std::ostream& os, print_container<Cont> p)
     return os;
 }
 
-//--------------------------------------------------
-// erase elements from a vector/vec, subject to a Pred. Returns true
-// if it removed any elements
-template <typename T, typename A, typename Pred>
-bool erase_if(std::vector<T, A>& v, Pred p)
-{
-    auto newend = remove_if(begin(v), end(v), p);
-    if (newend == end(v))
-        return false;
-    v.erase(newend, end(v));
-    return true;
-}
+// //--------------------------------------------------
+// // erase elements from a vector/vec, subject to a Pred. Returns true
+// // if it removed any elements
+// template <typename T, typename A, typename Pred>
+// bool erase_if(std::vector<T, A>& v, Pred p)
+// {
+//     auto newend = remove_if(begin(v), end(v), p);
+//     if (newend == end(v))
+//         return false;
+//     v.erase(newend, end(v));
+//     return true;
+// }
 
-template <typename T, typename Pred> bool erase_if(vec<T>& v, Pred p)
-{
-    int i{0}, j{0};
-    for (; i != v.size(); ++i)
-        if (p(v[i]))
-            v[j++] = v[i];
-    v.shrink(i - j);
-    return i != j;
-}
+// template <typename T, typename Pred> bool erase_if(vec<T>& v, Pred p)
+// {
+//     int i{0}, j{0};
+//     for (; i != v.size(); ++i)
+//         if (p(v[i]))
+//             v[j++] = v[i];
+//     v.shrink(i - j);
+//     return i != j;
+// }
 
 } // namespace gc
 
