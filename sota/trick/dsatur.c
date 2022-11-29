@@ -378,6 +378,27 @@ int current_color;
 }
 */
 
+void print_colors() 
+{
+  int i,j;
+
+  times(&buffer);
+  current_time = buffer.tms_utime;
+  
+  printf(">>data: lb = %5d | ub = %5d | conflicts = %10d | time = %10d\n",lb, BestColoring, prob_count, (int)(1000.0*(current_time-start_time)/60.0));
+  // printf("Best coloring is %d at time %7.1f\n",BestColoring,(current_time-start_time)/60.0);
+  
+/*  for (i=0;i<num_node;i++)
+    printf("Color[%3d] = %d\n",i,ColorClass[i]);*/
+  for (i=0;i<num_node;i++)
+    for (j=0;j<num_node;j++) 
+      {
+  if (i==j) continue;
+  if (adj[i][j] && (ColorClass[i]==ColorClass[j]))
+    printf("Error with nodes %d and %d and color %d\n",i,j,ColorClass[i]);
+      }
+}
+
 int color(i,current_color)
      int i;
 {
@@ -455,26 +476,6 @@ int color(i,current_color)
   return(BestColoring);
 }
 
-print_colors() 
-{
-  int i,j;
-
-  times(&buffer);
-  current_time = buffer.tms_utime;
-  
-	printf(">>data: lb = %5d | ub = %5d | conflicts = %10d | time = %10d\n",lb, BestColoring, prob_count, (int)(1000.0*(current_time-start_time)/60.0));
-  // printf("Best coloring is %d at time %7.1f\n",BestColoring,(current_time-start_time)/60.0);
-  
-/*  for (i=0;i<num_node;i++)
-    printf("Color[%3d] = %d\n",i,ColorClass[i]);*/
-  for (i=0;i<num_node;i++)
-    for (j=0;j<num_node;j++) 
-      {
-	if (i==j) continue;
-	if (adj[i][j] && (ColorClass[i]==ColorClass[j]))
-	  printf("Error with nodes %d and %d and color %d\n",i,j,ColorClass[i]);
-      }
-}
 
 main(argc,argv)
   int argc; 
