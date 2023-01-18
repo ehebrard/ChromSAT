@@ -4,7 +4,7 @@
 
 ## First go to branch "cpaior2019"
 
-git branch cpaior2019
+git checkout cpaior2019
 
 ## Installation
 
